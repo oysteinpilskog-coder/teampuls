@@ -1,14 +1,13 @@
 import { redirect } from 'next/navigation'
-import { TeamGrid } from '@/components/team-grid'
 import { AIInput } from '@/components/ai-input'
+import { MyPlan } from '@/components/my-plan'
 import { getSessionMember } from '@/lib/supabase/session'
 
-export default async function HomePage() {
+export default async function MinPlanPage() {
   const { user, member } = await getSessionMember()
 
   if (!user) redirect('/login')
 
-  // Authenticated but not yet linked to a member record
   if (!member) {
     return (
       <div className="mx-auto max-w-7xl px-6 py-16">
@@ -22,15 +21,8 @@ export default async function HomePage() {
           >
             Konto ikke koblet
           </h1>
-          <p className="text-[15px] text-[var(--text-secondary)] mb-4">
+          <p className="text-[15px] text-[var(--text-secondary)]">
             E-posten <strong>{user.email}</strong> er ikke lagt til som teammedlem ennå.
-          </p>
-          <p className="text-[13px] text-[var(--text-tertiary)]">
-            Be en admin om å kjøre seed-SQL-en for å opprette din brukerprofil, eller kjør{' '}
-            <code className="px-1.5 py-0.5 rounded bg-[var(--bg-subtle)] text-[var(--text-secondary)] text-[12px]">
-              002_seed_demo.sql
-            </code>{' '}
-            i Supabase SQL Editor.
           </p>
         </div>
       </div>
@@ -40,7 +32,12 @@ export default async function HomePage() {
   return (
     <div className="mx-auto max-w-7xl px-6 py-8 space-y-8">
       <AIInput orgId={member.org_id} />
-      <TeamGrid orgId={member.org_id} />
+      <MyPlan
+        orgId={member.org_id}
+        memberId={member.id}
+        memberName={member.display_name}
+        avatarUrl={member.avatar_url}
+      />
     </div>
   )
 }

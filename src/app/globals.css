@@ -1,26 +1,537 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   TEAMSPULSE DESIGN TOKENS
+   ============================================================ */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Fonts */
+  --font-display: var(--font-sora);
+  --font-body:    var(--font-inter-tight);
+  --font-sans:    var(--font-inter-tight);
+
+  /* Brand colors (shadcn semantic mapping) */
+  --color-background:         var(--background);
+  --color-foreground:         var(--foreground);
+  --color-card:               var(--card);
+  --color-card-foreground:    var(--card-foreground);
+  --color-popover:            var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary:            var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary:          var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:              var(--muted);
+  --color-muted-foreground:   var(--muted-foreground);
+  --color-accent:             var(--accent-color);
+  --color-accent-foreground:  var(--accent-foreground);
+  --color-destructive:        var(--destructive);
+  --color-border:             var(--border);
+  --color-input:              var(--input);
+  --color-ring:               var(--ring);
+
+  /* Radius — absolute values matching design system */
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   24px;
+  --radius-2xl:  32px;
+  --radius-full: 9999px;
+
+  /* Sidebar (shadcn compat) */
+  --color-sidebar-ring:               var(--sidebar-ring);
+  --color-sidebar-border:             var(--sidebar-border);
+  --color-sidebar-accent-foreground:  var(--sidebar-accent-foreground);
+  --color-sidebar-accent:             var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary:            var(--sidebar-primary);
+  --color-sidebar-foreground:         var(--sidebar-foreground);
+  --color-sidebar:                    var(--sidebar);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ============================================================
+   LIGHT MODE
+   ============================================================ */
+
+:root {
+  /* Backgrounds */
+  --bg-primary:    #FAFAF9;
+  --bg-elevated:   #FFFFFF;
+  --bg-subtle:     #F5F5F4;
+
+  /* Text */
+  --text-primary:   #1C1917;
+  --text-secondary: #57534E;
+  --text-tertiary:  #A8A29E;
+
+  /* Borders */
+  --border-subtle: #E7E5E4;
+  --border-strong: #D6D3D1;
+
+  /* Accent */
+  --accent-color: #0066FF;
+  --accent-glow:  rgba(0, 102, 255, 0.2);
+
+  /* Ambient aurora — per-theme tunable */
+  --aurora-a: hsla(220, 95%, 68%, 0.32);
+  --aurora-b: hsla(28, 95%, 62%, 0.24);
+  --aurora-opacity: 0.85;
+  --aurora-blur: 90px;
+
+  /* Glass / gloss layering */
+  --glass-tint: var(--bg-elevated);
+  --glass-tint-strength: 72%;
+  --glass-blur: 22px;
+  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 42%);
+  --glass-sheen-opacity: 0;
+  --surface-sheen: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0) 45%);
+  --surface-sheen-opacity: 0;
+
+  /* Shadows (used via inline styles or custom classes) */
+  --shadow-sm:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+  --shadow-md:
+    0 4px 8px rgba(0, 0, 0, 0.04),
+    0 2px 4px rgba(0, 0, 0, 0.02),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  --shadow-lg:
+    0 12px 24px rgba(0, 0, 0, 0.06),
+    0 4px 8px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+  --shadow-xl:
+    0 24px 48px rgba(0, 0, 0, 0.08),
+    0 8px 16px rgba(0, 0, 0, 0.04),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
+  --shadow-accent:
+    0 8px 24px rgba(0, 102, 255, 0.15),
+    0 2px 4px rgba(0, 102, 255, 0.08);
+
+  /* shadcn semantic tokens (stone-based) */
+  --background:           oklch(0.985 0.001 80);
+  --foreground:           oklch(0.148 0.006 64);
+  --card:                 oklch(1 0 0);
+  --card-foreground:      oklch(0.148 0.006 64);
+  --popover:              oklch(1 0 0);
+  --popover-foreground:   oklch(0.148 0.006 64);
+  --primary:              oklch(0.545 0.24 264);
+  --primary-foreground:   oklch(1 0 0);
+  --secondary:            oklch(0.965 0.001 80);
+  --secondary-foreground: oklch(0.148 0.006 64);
+  --muted:                oklch(0.965 0.001 80);
+  --muted-foreground:     oklch(0.68 0.008 64);
+  --accent-foreground:    oklch(1 0 0);
+  --destructive:          oklch(0.577 0.245 27.325);
+  --border:               oklch(0.906 0.003 80);
+  --input:                oklch(0.906 0.003 80);
+  --ring:                 oklch(0.545 0.24 264);
+  --radius:               1rem;
+
+  /* Sidebar */
+  --sidebar:                    oklch(0.985 0.001 80);
+  --sidebar-foreground:         oklch(0.148 0.006 64);
+  --sidebar-primary:            oklch(0.545 0.24 264);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent:             oklch(0.965 0.001 80);
+  --sidebar-accent-foreground:  oklch(0.148 0.006 64);
+  --sidebar-border:             oklch(0.906 0.003 80);
+  --sidebar-ring:               oklch(0.545 0.24 264);
+}
+
+/* ============================================================
+   DARK MODE
+   ============================================================ */
+
+.dark {
+  /* Backgrounds */
+  --bg-primary:    #0A0A0A;
+  --bg-elevated:   #151513;
+  --bg-subtle:     #1C1917;
+
+  /* Text */
+  --text-primary:   #FAFAF9;
+  --text-secondary: #A8A29E;
+  --text-tertiary:  #57534E;
+
+  /* Borders */
+  --border-subtle: #262626;
+  --border-strong: #404040;
+
+  /* Aurora (dark) */
+  --aurora-a: hsla(220, 90%, 55%, 0.3);
+  --aurora-b: hsla(280, 80%, 55%, 0.24);
+  --aurora-opacity: 0.7;
+
+  /* Glass (dark) */
+  --glass-tint-strength: 62%;
+  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 38%);
+
+  /* Shadows (deeper in dark mode) */
+  --shadow-sm:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-md:
+    0 4px 8px rgba(0, 0, 0, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-lg:
+    0 12px 24px rgba(0, 0, 0, 0.5),
+    0 4px 8px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-xl:
+    0 24px 48px rgba(0, 0, 0, 0.6),
+    0 8px 16px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+
+  /* shadcn semantic tokens (dark stone-based) */
+  --background:           oklch(0.07 0 0);
+  --foreground:           oklch(0.985 0.001 80);
+  --card:                 oklch(0.105 0.002 80);
+  --card-foreground:      oklch(0.985 0.001 80);
+  --popover:              oklch(0.105 0.002 80);
+  --popover-foreground:   oklch(0.985 0.001 80);
+  --primary:              oklch(0.65 0.22 264);
+  --primary-foreground:   oklch(0.07 0 0);
+  --secondary:            oklch(0.148 0.006 64);
+  --secondary-foreground: oklch(0.985 0.001 80);
+  --muted:                oklch(0.148 0.006 64);
+  --muted-foreground:     oklch(0.68 0.008 64);
+  --accent-foreground:    oklch(0.07 0 0);
+  --destructive:          oklch(0.704 0.191 22.216);
+  --border:               oklch(0.18 0 0);
+  --input:                oklch(0.2 0.002 80);
+  --ring:                 oklch(0.65 0.22 264);
+
+  --sidebar:                    oklch(0.105 0.002 80);
+  --sidebar-foreground:         oklch(0.985 0.001 80);
+  --sidebar-primary:            oklch(0.65 0.22 264);
+  --sidebar-primary-foreground: oklch(0.07 0 0);
+  --sidebar-accent:             oklch(0.148 0.006 64);
+  --sidebar-accent-foreground:  oklch(0.985 0.001 80);
+  --sidebar-border:             oklch(0.18 0 0);
+  --sidebar-ring:               oklch(0.65 0.22 264);
+}
+
+/* ============================================================
+   BASE LAYER
+   ============================================================ */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    font-family: var(--font-inter-tight), system-ui, -apple-system, sans-serif;
+    @apply antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    @apply min-h-screen;
+  }
+
+  /* Tabular numbers everywhere for clocks, dates, counts */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Display font utility */
+  .font-display {
+    font-family: var(--font-sora), system-ui, sans-serif;
+  }
+
+  /* Focus ring */
+  :focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ============================================================
+   AMBIENT AURORA — global atmospheric backdrop
+   ============================================================ */
+
+.ambient-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ambient-aurora::before,
+.ambient-aurora::after {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(var(--aurora-blur));
+  opacity: var(--aurora-opacity);
+  will-change: transform;
+  transition: background 600ms ease, opacity 600ms ease;
+}
+
+.ambient-aurora::before {
+  top: -15%;
+  left: -10%;
+  width: 55vw;
+  height: 55vw;
+  background: radial-gradient(circle, var(--aurora-a), transparent 60%);
+  animation: aurora-drift-1 28s ease-in-out infinite alternate;
+}
+
+.ambient-aurora::after {
+  bottom: -20%;
+  right: -10%;
+  width: 60vw;
+  height: 60vw;
+  background: radial-gradient(circle, var(--aurora-b), transparent 60%);
+  animation: aurora-drift-2 34s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-drift-1 {
+  0%   { transform: translate3d(0, 0, 0)     scale(1); }
+  50%  { transform: translate3d(4vw, 3vw, 0) scale(1.08); }
+  100% { transform: translate3d(-2vw, 5vw, 0) scale(0.98); }
+}
+
+@keyframes aurora-drift-2 {
+  0%   { transform: translate3d(0, 0, 0)       scale(1); }
+  50%  { transform: translate3d(-5vw, -3vw, 0) scale(1.05); }
+  100% { transform: translate3d(3vw, -6vw, 0)  scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-aurora::before,
+  .ambient-aurora::after {
+    animation: none;
+  }
+}
+
+/* Utility: glass panel */
+.glass {
+  position: relative;
+  background: color-mix(in oklab, var(--glass-tint) var(--glass-tint-strength), transparent);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid color-mix(in oklab, var(--border-subtle) 70%, transparent);
+}
+
+.dark .glass {
+  border: 1px solid color-mix(in oklab, white 8%, transparent);
+}
+
+/* Optional gloss sheen overlay — activated per theme via --glass-sheen-opacity */
+.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--glass-sheen);
+  opacity: var(--glass-sheen-opacity);
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+/* Utility: premium film grain — put on a parent; ::after overlays the surface.
+   Use inside elements that are position:relative and overflow:hidden. */
+.grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.65;
+  mix-blend-mode: overlay;
+  z-index: 1;
+}
+
+/* ============================================================
+   PREMIUM THEME VARIANTS
+   Each theme layers on top of light/dark by overriding tokens.
+   Applied via [data-theme="<id>"] on <html>.
+   ============================================================ */
+
+/* --- Obsidian: polished carbon with a gilded aurora --- */
+:root[data-theme="obsidian"] {
+  --accent-color: #D4AF37;
+  --accent-glow: rgba(212,175,55,0.32);
+  --aurora-a: hsla(42, 85%, 58%, 0.28);
+  --aurora-b: hsla(30, 60%, 32%, 0.22);
+  --aurora-blur: 110px;
+  --glass-sheen-opacity: 0.35;
+  --surface-sheen-opacity: 0.5;
+}
+:root[data-theme="obsidian"].dark {
+  --bg-primary: #060606;
+  --bg-elevated: #0F0E0C;
+  --bg-subtle:  #16140F;
+  --border-subtle: #2A2520;
+  --aurora-a: hsla(42, 90%, 55%, 0.26);
+  --aurora-b: hsla(28, 70%, 32%, 0.2);
+  --glass-sheen-opacity: 0.22;
+}
+
+/* --- Aurora: vivid dancing nordlys --- */
+:root[data-theme="aurora"] {
+  --accent-color: #8B5CF6;
+  --accent-glow: rgba(139,92,246,0.35);
+  --aurora-a: hsla(278, 90%, 65%, 0.34);
+  --aurora-b: hsla(186, 90%, 58%, 0.32);
+  --aurora-blur: 100px;
+  --glass-sheen-opacity: 0.28;
+  --surface-sheen-opacity: 0.35;
+}
+:root[data-theme="aurora"].dark {
+  --bg-primary: #07070E;
+  --bg-elevated: #10101C;
+  --bg-subtle:  #161628;
+  --aurora-a: hsla(278, 90%, 60%, 0.38);
+  --aurora-b: hsla(186, 90%, 52%, 0.32);
+  --glass-sheen-opacity: 0.18;
+}
+
+/* --- Crystal: frosted ice, more blur, extra glass --- */
+:root[data-theme="crystal"] {
+  --accent-color: #0891B2;
+  --accent-glow: rgba(8,145,178,0.28);
+  --aurora-a: hsla(190, 90%, 72%, 0.36);
+  --aurora-b: hsla(210, 85%, 82%, 0.28);
+  --aurora-blur: 130px;
+  --glass-blur: 36px;
+  --glass-tint-strength: 58%;
+  --glass-sheen-opacity: 0.5;
+  --surface-sheen-opacity: 0.6;
+}
+:root[data-theme="crystal"].dark {
+  --bg-primary: #060C11;
+  --bg-elevated: #0E1720;
+  --bg-subtle:  #122029;
+  --aurora-a: hsla(190, 90%, 55%, 0.3);
+  --aurora-b: hsla(210, 85%, 60%, 0.22);
+  --glass-sheen-opacity: 0.28;
+}
+
+/* --- Ember: warm amber copper glow --- */
+:root[data-theme="ember"] {
+  --accent-color: #EA580C;
+  --accent-glow: rgba(234,88,12,0.32);
+  --aurora-a: hsla(18, 95%, 58%, 0.3);
+  --aurora-b: hsla(358, 80%, 58%, 0.26);
+  --glass-sheen-opacity: 0.22;
+  --surface-sheen-opacity: 0.28;
+}
+:root[data-theme="ember"].dark {
+  --bg-primary: #0C0604;
+  --bg-elevated: #180D08;
+  --bg-subtle:  #21120C;
+  --aurora-a: hsla(18, 95%, 52%, 0.32);
+  --aurora-b: hsla(358, 80%, 52%, 0.26);
+  --glass-sheen-opacity: 0.14;
+}
+
+/* --- Sakura: cherry blossom --- */
+:root[data-theme="sakura"] {
+  --accent-color: #DB2777;
+  --accent-glow: rgba(219,39,119,0.28);
+  --aurora-a: hsla(340, 90%, 78%, 0.34);
+  --aurora-b: hsla(280, 70%, 72%, 0.24);
+  --glass-sheen-opacity: 0.28;
+  --surface-sheen-opacity: 0.32;
+}
+:root[data-theme="sakura"].dark {
+  --bg-primary: #0D0710;
+  --bg-elevated: #17101A;
+  --bg-subtle:  #1F1625;
+  --aurora-a: hsla(340, 85%, 60%, 0.32);
+  --aurora-b: hsla(280, 70%, 50%, 0.24);
+  --glass-sheen-opacity: 0.18;
+}
+
+/* --- Forest: deep green, matte --- */
+:root[data-theme="forest"] {
+  --accent-color: #047857;
+  --accent-glow: rgba(4,120,87,0.28);
+  --aurora-a: hsla(160, 70%, 45%, 0.26);
+  --aurora-b: hsla(90, 55%, 60%, 0.22);
+  --aurora-blur: 120px;
+  --glass-sheen-opacity: 0.1;
+  --surface-sheen-opacity: 0;
+}
+:root[data-theme="forest"].dark {
+  --bg-primary: #040A08;
+  --bg-elevated: #0B1510;
+  --bg-subtle:  #101D16;
+  --aurora-a: hsla(160, 70%, 38%, 0.3);
+  --aurora-b: hsla(90, 55%, 45%, 0.22);
+  --glass-sheen-opacity: 0.08;
+}
+
+/* --- Monaco: monochrome with electric blue --- */
+:root[data-theme="monaco"] {
+  --accent-color: #1D4ED8;
+  --accent-glow: rgba(29,78,216,0.3);
+  --aurora-a: hsla(220, 100%, 60%, 0.22);
+  --aurora-b: hsla(220, 15%, 70%, 0.2);
+  --aurora-blur: 100px;
+  --glass-sheen-opacity: 0.08;
+  --surface-sheen-opacity: 0;
+}
+:root[data-theme="monaco"].dark {
+  --bg-primary: #000000;
+  --bg-elevated: #0B0B0C;
+  --bg-subtle:  #131316;
+  --border-subtle: #1F1F23;
+  --aurora-a: hsla(220, 100%, 55%, 0.3);
+  --aurora-b: hsla(220, 10%, 35%, 0.22);
+  --glass-sheen-opacity: 0.08;
+}
+
+/* --- Champagne: liquid gold --- */
+:root[data-theme="champagne"] {
+  --accent-color: #B8860B;
+  --accent-glow: rgba(184,134,11,0.3);
+  --aurora-a: hsla(44, 80%, 78%, 0.36);
+  --aurora-b: hsla(28, 65%, 60%, 0.28);
+  --glass-sheen-opacity: 0.42;
+  --surface-sheen-opacity: 0.45;
+}
+:root[data-theme="champagne"].dark {
+  --bg-primary: #0B0905;
+  --bg-elevated: #17130B;
+  --bg-subtle:  #1F1A10;
+  --aurora-a: hsla(44, 80%, 55%, 0.3);
+  --aurora-b: hsla(28, 65%, 42%, 0.26);
+  --glass-sheen-opacity: 0.22;
+}
+
+/* Glossy surface utility — adds soft top highlight on cards */
+.glossy-surface {
+  position: relative;
+}
+.glossy-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--surface-sheen);
+  opacity: var(--surface-sheen-opacity);
+  pointer-events: none;
+  mix-blend-mode: screen;
 }

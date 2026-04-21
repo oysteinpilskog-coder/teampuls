@@ -1,0 +1,101 @@
+import type { EventCategory } from '@/lib/supabase/types'
+
+export type ViewMode = 'disk' | 'list' | 'calendar'
+
+export const MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des',
+] as const
+
+export const MONTH_FULL = [
+  'Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Desember',
+] as const
+
+export const MONTH_DAYS_COMMON: readonly number[] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+// Norwegian convention: Monday is first weekday.
+// Three separate forms for three different UI needs.
+export const WEEKDAY_INITIALS = ['M', 'T', 'O', 'T', 'F', 'L', 'S'] as const
+export const WEEKDAY_ABBR = ['man', 'tir', 'ons', 'tor', 'fre', 'lør', 'søn'] as const
+export const WEEKDAY_FULL = ['mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag', 'søndag'] as const
+
+export const CATEGORY_LABELS: Record<EventCategory, string> = {
+  company: 'Firma',
+  trade_show: 'Messe',
+  training: 'Kurs',
+  milestone: 'Milepæl',
+  holiday: 'Fri',
+  deadline: 'Frist',
+  other: 'Annet',
+}
+
+export type RingDef = {
+  key: string
+  name: string
+  hue: number
+  categories: EventCategory[]
+}
+
+// The three "Plandisc-style" named rings — each groups related categories.
+export const RINGS: RingDef[] = [
+  { key: 'important',  name: 'Viktige datoer', hue: 220, categories: ['company', 'milestone', 'other'] },
+  { key: 'activities', name: 'Aktiviteter',    hue: 160, categories: ['trade_show', 'training'] },
+  { key: 'markers',    name: 'Merkedager',     hue: 40,  categories: ['holiday', 'deadline'] },
+]
+
+export function ringIdxForCategory(cat: EventCategory): 0 | 1 | 2 {
+  switch (cat) {
+    case 'company':
+    case 'milestone':
+    case 'other':
+      return 0
+    case 'trade_show':
+    case 'training':
+      return 1
+    case 'holiday':
+    case 'deadline':
+      return 2
+  }
+}
+
+export function isLeapYear(y: number): boolean {
+  return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0
+}
+
+export function daysInYear(y: number): number {
+  return isLeapYear(y) ? 366 : 365
+}
+
+// Monday = 0 … Sunday = 6 (Norwegian convention)
+export function getWeekdayIdx(date: Date): number {
+  const d = date.getDay() // Sunday = 0 in JS
+  return (d + 6) % 7
+}
+
+export function weekdayAbbr(date: Date): string {
+  return WEEKDAY_ABBR[getWeekdayIdx(date)]
+}
+
+export function weekdayFull(date: Date): string {
+  return WEEKDAY_FULL[getWeekdayIdx(date)]
+}
+
+export function formatDateNO(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date + 'T12:00:00') : date
+  return `${d.getDate()}. ${MONTH_FULL[d.getMonth()].toLowerCase()}`
+}
+
+export function formatDateRangeNO(start: string, end: string): string {
+  if (start === end) return formatDateNO(start)
+  const s = new Date(start + 'T12:00:00')
+  const e = new Date(end + 'T12:00:00')
+  if (s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth()) {
+    return `${s.getDate()}.–${e.getDate()}. ${MONTH_FULL[s.getMonth()].toLowerCase()}`
+  }
+  return `${formatDateNO(start)} – ${formatDateNO(end)}`
+}
+
+export function isSameYmd(a: string, b: string): boolean {
+  return a.slice(0, 10) === b.slice(0, 10)
+}
