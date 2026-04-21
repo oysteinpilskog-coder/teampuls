@@ -8,6 +8,8 @@ import { STATUS_COLORS } from '@/components/icons/status-icons'
 import { spring } from '@/lib/motion'
 import type { Member, Entry } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
+import { useResolvedLocations } from '@/hooks/use-resolved-locations'
+import { useMemo } from 'react'
 
 interface CustomerMapViewProps {
   members: Member[]
@@ -44,6 +46,20 @@ export function CustomerMapView({
   const memberById = new Map(members.map(m => [m.id, m]))
   const customerColor = STATUS_COLORS.customer.icon  // #FF7A1A
 
+  // Collect free-text labels that the static dictionary can't resolve.
+  // These get sent to Nominatim (cached in localStorage) and placed live.
+  const unknownLabels = useMemo(() => {
+    const set = new Set<string>()
+    for (const e of entries) {
+      if (e.status !== 'customer' && e.status !== 'travel') continue
+      const label = (e.location_label ?? '').trim()
+      if (!label || resolveLocation(label)) continue
+      set.add(label)
+    }
+    return Array.from(set)
+  }, [entries])
+  const dynamicResolved = useResolvedLocations(unknownLabels)
+
   // Cluster by resolved lat/lng. Unresolved labels are collected for a sidebar.
   const byKey = new Map<string, CustomerCluster & { lat: number; lng: number }>()
   const unresolved = new Map<string, Set<string>>()  // label → member ids
@@ -52,9 +68,13 @@ export function CustomerMapView({
     if (e.status !== 'customer' && e.status !== 'travel') continue
     if (!memberById.has(e.member_id)) continue
 
-    const resolved = resolveLocation(e.location_label)
+    const label = (e.location_label ?? '').trim()
+    let resolved = resolveLocation(label)
+    if (!resolved && label) {
+      const dyn = dynamicResolved.get(label)
+      if (dyn) resolved = { lat: dyn.lat, lng: dyn.lng, display: dyn.display }
+    }
     if (!resolved) {
-      const label = (e.location_label ?? '').trim()
       if (!label) continue
       const set = unresolved.get(label) ?? new Set<string>()
       set.add(e.member_id)
