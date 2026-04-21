@@ -82,14 +82,20 @@
   --aurora-opacity: 0.85;
   --aurora-blur: 90px;
 
-  /* Glass / gloss layering */
+  /* Glass / gloss layering — liquid-glass material */
   --glass-tint: var(--bg-elevated);
-  --glass-tint-strength: 72%;
-  --glass-blur: 22px;
-  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 42%);
-  --glass-sheen-opacity: 0;
+  --glass-tint-strength: 68%;
+  --glass-blur: 28px;
+  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.1) 38%, rgba(255,255,255,0) 70%);
+  --glass-sheen-opacity: 0.55;
   --surface-sheen: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0) 45%);
-  --surface-sheen-opacity: 0;
+  --surface-sheen-opacity: 0.35;
+  --glass-edge-top:    rgba(255,255,255,0.55);
+  --glass-edge-ring:   rgba(255,255,255,0.18);
+  --glass-shadow:
+    0 30px 60px -18px rgba(10, 20, 40, 0.22),
+    0 14px 30px -14px rgba(10, 20, 40, 0.16),
+    0 1px 2px rgba(10, 20, 40, 0.06);
 
   /* Shadows (used via inline styles or custom classes) */
   --shadow-sm:
@@ -167,8 +173,16 @@
   --aurora-opacity: 0.7;
 
   /* Glass (dark) */
-  --glass-tint-strength: 62%;
-  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 38%);
+  --glass-tint-strength: 58%;
+  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 38%, rgba(255,255,255,0) 70%);
+  --glass-sheen-opacity: 0.6;
+  --surface-sheen-opacity: 0.2;
+  --glass-edge-top:    rgba(255,255,255,0.12);
+  --glass-edge-ring:   rgba(255,255,255,0.08);
+  --glass-shadow:
+    0 30px 60px -18px rgba(0, 0, 0, 0.7),
+    0 14px 30px -14px rgba(0, 0, 0, 0.55),
+    0 1px 2px rgba(0, 0, 0, 0.4);
 
   /* Shadows (deeper in dark mode) */
   --shadow-sm:
@@ -262,6 +276,38 @@
       transition-duration: 0.01ms !important;
     }
   }
+}
+
+/* ============================================================
+   LIQUID GLASS — translucent panel material
+   ============================================================ */
+
+.glass-panel {
+  position: relative;
+  isolation: isolate;
+  background-color: color-mix(in oklab, var(--glass-tint) var(--glass-tint-strength), transparent);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 1px 0 var(--glass-edge-top),
+    inset 0 0 0 1px var(--glass-edge-ring);
+}
+
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--glass-sheen);
+  opacity: var(--glass-sheen-opacity);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glass-panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* ============================================================

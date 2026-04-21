@@ -109,22 +109,18 @@ export function EventEditor({ open, onClose, orgId, event }: EventEditorProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: 0.18 }}
             className="fixed inset-0 z-40"
-            style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)' }}
+            style={{ backgroundColor: 'rgba(10,15,30,0.32)', backdropFilter: 'blur(8px) saturate(140%)', WebkitBackdropFilter: 'blur(8px) saturate(140%)' }}
             onClick={onClose}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh] pointer-events-none">
             <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              initial={{ opacity: 0, scale: 0.96, y: 14 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: 16 }}
+              exit={{ opacity: 0, scale: 0.96, y: 14 }}
               transition={spring.bouncy}
-              className="w-[560px] max-w-full max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl p-6 flex flex-col gap-5 pointer-events-auto"
-              style={{
-                backgroundColor: 'var(--bg-elevated)',
-                boxShadow: 'var(--shadow-xl)',
-              }}
+              className="glass-panel pointer-events-auto w-[560px] max-w-full max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-3xl p-6 flex flex-col gap-5"
             >
             <h2
               className="text-[20px] font-semibold"
