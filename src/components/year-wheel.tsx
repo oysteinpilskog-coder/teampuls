@@ -11,7 +11,7 @@ import type { OrgEvent } from '@/lib/supabase/types'
 import {
   MONTH_NAMES, MONTH_FULL, MONTH_DAYS_COMMON,
   CATEGORY_LABELS, RINGS, ringIdxForCategory,
-  isLeapYear, daysInYear, weekdayAbbr, weekdayFull,
+  isLeapYear, daysInYear, weekdayAbbr, weekdayFull, getWeekdayIdx,
   type ViewMode,
 } from './year-wheel-shared'
 import { ListView } from './year-wheel-list'
@@ -236,7 +236,13 @@ interface YearWheelProps {
 
 export function YearWheel({ orgId }: YearWheelProps) {
   const year = new Date().getFullYear()
-  const today = useMemo(() => new Date(), [])
+  // Live clock: tick every 20 s so the minute display is always fresh
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 20_000)
+    return () => clearInterval(id)
+  }, [])
+  const today = now
 
   const [view, setView] = useState<ViewMode>('disk')
   const { events } = useEvents(orgId, year)
@@ -440,18 +446,34 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
   const currentWeek = getISOWeek(today)
   const currentMonth = today.getMonth()
 
+  // Seasonal tint: derive hue from the current month's outer-palette colour
+  const seasonHue = useMemo(() => {
+    const match = MONTH_HSL[currentMonth][0].match(/hsl\((\s*-?\d+(?:\.\d+)?)/)
+    return match ? Number(match[1].trim()) : 220
+  }, [currentMonth])
+
   const monthSegs = getMonthSegments(year)
   const weekSegs  = getWeekSegments(year)
 
   const [hover, setHover] = useState<HoverInfo | null>(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [focusedMonth, setFocusedMonth] = useState<number | null>(null)
+  // Normalised pointer offset for aurora parallax: [-1..1] in both axes, 0 = no hover
+  const [parallax, setParallax] = useState({ x: 0, y: 0 })
   const svgRef = useRef<SVGSVGElement>(null)
 
   function onMouseMove(e: React.MouseEvent<SVGSVGElement>) {
     const rect = svgRef.current?.getBoundingClientRect()
     if (!rect) return
     setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+    // Normalise to [-1, 1]
+    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1
+    const ny = ((e.clientY - rect.top) / rect.height) * 2 - 1
+    setParallax({ x: nx, y: ny })
+  }
+  function onMouseLeaveWheel() {
+    setHover(null)
+    setParallax({ x: 0, y: 0 })
   }
 
   const enterFocus = useCallback((idx: number) => {
@@ -559,33 +581,42 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
           )}
         </AnimatePresence>
 
-        {/* Aurora backdrop + grain */}
+        {/* Aurora backdrop + grain. Seasonal hue comes from current month; blobs drift + parallax on hover. */}
         <div className="absolute inset-0 overflow-hidden rounded-full pointer-events-none" aria-hidden>
           <motion.div
             className="absolute inset-[-18%] rounded-full"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, hsla(220, 88%, 66%, 0.28), transparent 58%)',
+              background: `radial-gradient(circle at 30% 30%, hsla(${seasonHue}, 88%, 66%, 0.30), transparent 58%)`,
               filter: 'blur(44px)',
             }}
-            animate={{ x: [0, 20, -10, 0], y: [0, -15, 10, 0] }}
+            animate={{
+              x: [0, 20, -10, 0].map(v => v + parallax.x * 18),
+              y: [0, -15, 10, 0].map(v => v + parallax.y * 18),
+            }}
             transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
           />
           <motion.div
             className="absolute inset-[-18%] rounded-full"
             style={{
-              background: 'radial-gradient(circle at 75% 40%, hsla(35, 95%, 62%, 0.22), transparent 58%)',
+              background: `radial-gradient(circle at 75% 40%, hsla(${(seasonHue + 60) % 360}, 92%, 62%, 0.22), transparent 58%)`,
               filter: 'blur(44px)',
             }}
-            animate={{ x: [0, -18, 12, 0], y: [0, 14, -8, 0] }}
+            animate={{
+              x: [0, -18, 12, 0].map(v => v - parallax.x * 22),
+              y: [0, 14, -8, 0].map(v => v - parallax.y * 22),
+            }}
             transition={{ duration: 26, repeat: Infinity, ease: 'easeInOut' }}
           />
           <motion.div
             className="absolute inset-[-18%] rounded-full"
             style={{
-              background: 'radial-gradient(circle at 50% 80%, hsla(285, 65%, 62%, 0.24), transparent 58%)',
+              background: `radial-gradient(circle at 50% 80%, hsla(${(seasonHue + 300) % 360}, 65%, 62%, 0.24), transparent 58%)`,
               filter: 'blur(46px)',
             }}
-            animate={{ x: [0, 14, -16, 0], y: [0, -10, 12, 0] }}
+            animate={{
+              x: [0, 14, -16, 0].map(v => v + parallax.x * 14),
+              y: [0, -10, 12, 0].map(v => v + parallax.y * 14),
+            }}
             transition={{ duration: 30, repeat: Infinity, ease: 'easeInOut' }}
           />
           <div
@@ -604,7 +635,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
           viewBox="0 0 800 800"
           className="relative w-full h-full"
           onMouseMove={onMouseMove}
-          onMouseLeave={() => setHover(null)}
+          onMouseLeave={onMouseLeaveWheel}
           initial={{ opacity: 0, rotate: -6, scale: 0.96 }}
           animate={{ opacity: 1, rotate: 0, scale: 1 }}
           transition={{ ...spring.smooth, delay: 0.05 }}
@@ -680,6 +711,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
 
             <radialGradient id={ID.centerBg} cx="50%" cy="35%" r="80%">
               <stop offset="0%" stopColor="var(--bg-elevated)" stopOpacity="0.98" />
+              <stop offset="65%" stopColor={`hsla(${seasonHue}, 70%, 88%, 0.38)`} stopOpacity="0.95" />
               <stop offset="100%" stopColor="var(--bg-elevated)" stopOpacity="0.82" />
             </radialGradient>
 
@@ -870,6 +902,38 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
                         stroke="var(--bg-primary)"
                         strokeWidth={0.8}
                       />
+                      {/* Current week: show 7 weekday subdivisions with today highlighted */}
+                      {isCurrent && (() => {
+                        const dayWidth = (w.end - w.start) / 7
+                        const todayIdx = getWeekdayIdx(today)
+                        const todayStart = w.start + dayWidth * todayIdx
+                        const todayEnd = todayStart + dayWidth
+                        return (
+                          <>
+                            {/* 6 hairline dividers between days */}
+                            {Array.from({ length: 6 }, (_, i) => {
+                              const deg = w.start + dayWidth * (i + 1)
+                              const o = polarPoint(R.weekOuter - 0.5, deg)
+                              const n = polarPoint(R.weekInner + 0.5, deg)
+                              return (
+                                <line key={`wd-div-${i}`}
+                                  x1={f(o.x)} y1={f(o.y)}
+                                  x2={f(n.x)} y2={f(n.y)}
+                                  stroke="white" strokeOpacity={0.28} strokeWidth={0.5}
+                                  style={{ pointerEvents: 'none' }}
+                                />
+                              )
+                            })}
+                            {/* Today's weekday: brightened wedge inside the week ring */}
+                            <path
+                              d={annularArc(R.weekOuter - 1, R.weekInner + 1, todayStart, todayEnd, 0.05)}
+                              fill="white"
+                              fillOpacity={0.38}
+                              style={{ pointerEvents: 'none' }}
+                            />
+                          </>
+                        )
+                      })()}
                       {lblPoint && (
                         <text
                           x={lblPoint.x} y={lblPoint.y}
@@ -1261,15 +1325,15 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
                   fill="var(--accent-color)"
                   style={{ fontFamily: 'var(--font-body)', letterSpacing: '0.22em' }}
                 >
-                  UKE {currentWeek}
+                  UKE {currentWeek} · {String(today.getHours()).padStart(2, '0')}:{String(today.getMinutes()).padStart(2, '0')}
                 </text>
                 {orgLogo && (
                   <image
                     href={orgLogo}
-                    x={CX - 30} y={CY + 92}
-                    width={60} height={24}
+                    x={CX - 54} y={CY + 82}
+                    width={108} height={40}
                     preserveAspectRatio="xMidYMid meet"
-                    opacity={0.5}
+                    opacity={0.9}
                   />
                 )}
               </motion.g>
@@ -1369,36 +1433,112 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
             )}
           </AnimatePresence>
 
-          {/* Today spotlight beam + dot — only when today is in the visible timeframe */}
-          {activeTodayDeg !== null && activeTodayTip && (
-            <g key={`today-${focus ? `month-${focus.month}` : 'year'}`}>
-              <motion.path
-                d={pieSlice(R.monthOuter + 10, activeTodayDeg - (focus ? 2.4 : 1.8), activeTodayDeg + (focus ? 2.4 : 1.8))}
-                fill={`url(#${ID.todayBeam})`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0.85, 1, 0.85] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              />
-              <motion.circle
-                cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
-                fill="var(--accent-color)"
-                initial={{ r: 6, opacity: 0.5 }}
-                animate={{ r: [6, 16, 6], opacity: [0.5, 0, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
-              />
-              <circle
-                cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
-                r={5}
-                fill="var(--accent-color)"
-                style={{ filter: `url(#${ID.bloom})` }}
-              />
-              <circle
-                cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
-                r={3}
-                fill="white"
-              />
-            </g>
-          )}
+          {/* Today: spotlight beam + hairline ray + labeled Dynamic-Island pill */}
+          {activeTodayDeg !== null && activeTodayTip && (() => {
+            // Pill anchor sits outside the outer ring, along today's angle.
+            // Label text stays horizontal (not rotated), so it reads correctly from any angle.
+            const anchor = polarPoint(R.monthOuter + 44, activeTodayDeg)
+            const pillW = 86
+            const pillH = 26
+            const pillX = anchor.x - pillW / 2
+            const pillY = anchor.y - pillH / 2
+            const todayLabel = `${weekdayAbbr(today).toUpperCase()} ${today.getDate()}`
+            return (
+              <g key={`today-${focus ? `month-${focus.month}` : 'year'}`}>
+                {/* Soft wedge beam behind today */}
+                <motion.path
+                  d={pieSlice(R.monthOuter + 10, activeTodayDeg - (focus ? 2.4 : 1.8), activeTodayDeg + (focus ? 2.4 : 1.8))}
+                  fill={`url(#${ID.todayBeam})`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: [0.85, 1, 0.85] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                {/* Hairline ray from center out through today — iOS-clean clarity line */}
+                <line
+                  x1={f(polarPoint(R.centerRing + 2, activeTodayDeg).x)}
+                  y1={f(polarPoint(R.centerRing + 2, activeTodayDeg).y)}
+                  x2={f(polarPoint(R.monthOuter + 2, activeTodayDeg).x)}
+                  y2={f(polarPoint(R.monthOuter + 2, activeTodayDeg).y)}
+                  stroke="var(--accent-color)"
+                  strokeOpacity={0.38}
+                  strokeWidth={1}
+                  strokeLinecap="round"
+                  style={{ pointerEvents: 'none' }}
+                />
+                {/* Connector: today-tip → pill */}
+                <line
+                  x1={f(activeTodayTip.x)} y1={f(activeTodayTip.y)}
+                  x2={f(anchor.x)} y2={f(anchor.y)}
+                  stroke="var(--accent-color)"
+                  strokeOpacity={0.75}
+                  strokeWidth={1.25}
+                  strokeLinecap="round"
+                  style={{ pointerEvents: 'none' }}
+                />
+                {/* Halo pulse at today-tip */}
+                <motion.circle
+                  cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
+                  fill="var(--accent-color)"
+                  initial={{ r: 6, opacity: 0.5 }}
+                  animate={{ r: [6, 16, 6], opacity: [0.5, 0, 0.5] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+                />
+                <circle
+                  cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
+                  r={5}
+                  fill="var(--accent-color)"
+                  style={{ filter: `url(#${ID.bloom})` }}
+                />
+                <circle
+                  cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
+                  r={3}
+                  fill="white"
+                />
+                {/* Floating "I DAG · TIR 21" pill */}
+                <motion.g
+                  initial={{ opacity: 0, scale: 0.92 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ ...spring.gentle, delay: 0.4 }}
+                  style={{ transformOrigin: `${f(anchor.x)}px ${f(anchor.y)}px` }}
+                >
+                  <rect
+                    x={f(pillX)} y={f(pillY)}
+                    width={pillW} height={pillH}
+                    rx={pillH / 2} ry={pillH / 2}
+                    fill="var(--accent-color)"
+                    style={{ filter: `url(#${ID.softShadow})` }}
+                  />
+                  <rect
+                    x={f(pillX + 0.5)} y={f(pillY + 0.5)}
+                    width={pillW - 1} height={pillH - 1}
+                    rx={(pillH - 1) / 2} ry={(pillH - 1) / 2}
+                    fill="none"
+                    stroke="white"
+                    strokeOpacity={0.3}
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={f(anchor.x)} y={f(anchor.y)}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={11}
+                    fontWeight={700}
+                    fill="white"
+                    style={{
+                      fontFamily: 'var(--font-body)',
+                      letterSpacing: '0.12em',
+                      fontVariantNumeric: 'tabular-nums',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.18)',
+                    }}
+                  >
+                    I DAG · {todayLabel}
+                  </text>
+                </motion.g>
+              </g>
+            )
+          })()}
         </motion.svg>
 
         {/* Hover tooltip */}

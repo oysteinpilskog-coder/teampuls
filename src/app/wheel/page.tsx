@@ -8,7 +8,7 @@ export default async function WheelPage() {
   if (!member) redirect('/')
 
   return (
-    <div className="mx-auto max-w-[1220px] px-4 sm:px-6 py-8">
+    <div className="mx-auto max-w-[1220px] px-4 sm:px-6 pt-10 md:pt-14 pb-10 md:pb-12">
       <YearWheel orgId={member.org_id} />
     </div>
   )
