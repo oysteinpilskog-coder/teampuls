@@ -83,10 +83,16 @@ interface SelectedCell {
   memberId: string
   memberName: string
   date: string
+  endDate: string
   dateLabel: string
   status: EntryStatus | null
   location: string | null
   note: string | null
+}
+
+interface DragPoint {
+  memberId: string
+  dayIdx: number
 }
 
 interface TeamGridProps {
@@ -96,13 +102,13 @@ interface TeamGridProps {
 // Skeleton row for loading state
 function SkeletonRow() {
   return (
-    <div className="grid gap-2" style={{ gridTemplateColumns: '88px repeat(5, 1fr)' }}>
-      <div className="flex flex-col items-center gap-1.5 py-1">
-        <div className="w-9 h-9 rounded-full bg-[var(--bg-subtle)] animate-pulse" />
-        <div className="h-2.5 w-12 rounded bg-[var(--bg-subtle)] animate-pulse" />
+    <div className="grid gap-2 items-center" style={{ gridTemplateColumns: '136px repeat(5, 1fr)' }}>
+      <div className="flex items-center gap-2 px-1">
+        <div className="w-7 h-7 rounded-full bg-[var(--bg-subtle)] animate-pulse" />
+        <div className="h-2.5 flex-1 rounded bg-[var(--bg-subtle)] animate-pulse" />
       </div>
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="h-[84px] rounded-2xl bg-[var(--bg-subtle)] animate-pulse" />
+        <div key={i} className="h-[52px] rounded-xl bg-[var(--bg-subtle)] animate-pulse" />
       ))}
     </div>
   )
@@ -117,6 +123,10 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   const [members, setMembers] = useState<Member[]>([])
   const [membersLoading, setMembersLoading] = useState(true)
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null)
+
+  const [dragStart, setDragStart] = useState<DragPoint | null>(null)
+  const [dragCurrent, setDragCurrent] = useState<DragPoint | null>(null)
+  const isDragging = dragStart !== null
 
   const weekDays = useMemo(() => getWeekDays(week, year), [week, year])
   const dateStrings = useMemo(() => weekDays.map(toDateString), [weekDays])
@@ -156,6 +166,59 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   useEffect(() => {
     fetchMembers()
   }, [fetchMembers])
+
+  // Commit drag on global mouseup. Single click (no drag) opens single-day editor;
+  // drag across days opens the editor with a pre-selected range.
+  useEffect(() => {
+    if (!isDragging) return
+    function onUp() {
+      if (dragStart && dragCurrent && dragStart.memberId === dragCurrent.memberId) {
+        const member = members.find((m) => m.id === dragStart.memberId)
+        if (member) {
+          const lo = Math.min(dragStart.dayIdx, dragCurrent.dayIdx)
+          const hi = Math.max(dragStart.dayIdx, dragCurrent.dayIdx)
+          const startDate = weekDays[lo]
+          const endDate = weekDays[hi]
+          const startStr = toDateString(startDate)
+          const endStr = toDateString(endDate)
+          const entry = entryMap.get(`${member.id}_${startStr}`)
+          setSelectedCell({
+            memberId: member.id,
+            memberName: member.display_name,
+            date: startStr,
+            endDate: endStr,
+            dateLabel: formatDateLabel(startDate),
+            status: entry?.status ?? null,
+            location: entry?.location_label ?? null,
+            note: entry?.note ?? null,
+          })
+        }
+      }
+      setDragStart(null)
+      setDragCurrent(null)
+    }
+    window.addEventListener('mouseup', onUp)
+    return () => window.removeEventListener('mouseup', onUp)
+  }, [isDragging, dragStart, dragCurrent, members, weekDays, entryMap])
+
+  function handleDayMouseDown(memberId: string, dayIdx: number) {
+    setDragStart({ memberId, dayIdx })
+    setDragCurrent({ memberId, dayIdx })
+  }
+
+  function handleDayMouseEnter(memberId: string, dayIdx: number) {
+    if (!isDragging || !dragStart) return
+    if (dragStart.memberId !== memberId) return
+    setDragCurrent({ memberId, dayIdx })
+  }
+
+  function dayHighlightsForMember(memberId: string): boolean[] {
+    if (!isDragging || !dragStart || !dragCurrent) return new Array(weekDays.length).fill(false)
+    if (dragStart.memberId !== memberId) return new Array(weekDays.length).fill(false)
+    const lo = Math.min(dragStart.dayIdx, dragCurrent.dayIdx)
+    const hi = Math.max(dragStart.dayIdx, dragCurrent.dayIdx)
+    return Array.from({ length: weekDays.length }, (_, i) => i >= lo && i <= hi)
+  }
 
   // Keyboard navigation
   useEffect(() => {
@@ -258,11 +321,11 @@ export function TeamGrid({ orgId }: TeamGridProps) {
         {(() => {
           const todayIdx = weekDays.findIndex(isToday)
           if (todayIdx === -1) return null
-          // Grid: px-4 padding (16) + 88px name col + 8px gap + 5 * 1fr with 8px gaps + px-4 padding.
-          // Available per day: (100% - 16*2 - 88 - 8*5) / 5 = (100% - 160px) / 5
-          // Left offset to col i: 16 + 88 + 8 + i * ((100% - 160px)/5 + 8px)
-          const left = `calc(112px + ${todayIdx} * ((100% - 160px) / 5 + 8px))`
-          const width = `calc((100% - 160px) / 5)`
+          // Grid: px-4 padding (16) + 136px name col + 8px gap + 5 * 1fr with 8px gaps + px-4 padding.
+          // Available per day: (100% - 16*2 - 136 - 8*5) / 5 = (100% - 208px) / 5
+          // Left offset to col i: 16 + 136 + 8 + i * ((100% - 208px)/5 + 8px)
+          const left = `calc(160px + ${todayIdx} * ((100% - 208px) / 5 + 8px))`
+          const width = `calc((100% - 208px) / 5)`
           return (
             <>
               {/* Soft vertical gradient band */}
@@ -301,7 +364,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
         <div
           className="relative grid gap-2 px-4 py-4 z-10"
           style={{
-            gridTemplateColumns: '88px repeat(5, 1fr)',
+            gridTemplateColumns: '136px repeat(5, 1fr)',
             borderBottom: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
           }}
         >
@@ -365,6 +428,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
             exit={{ x: slideDir === 'next' ? -32 : 32, opacity: 0 }}
             transition={spring.snappy}
             className="relative p-4 space-y-2 z-10"
+            style={{ userSelect: 'none' }}
           >
             {loading
               ? Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
@@ -372,50 +436,63 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                   <motion.div
                     key={member.id}
                     className="grid gap-2 items-center"
-                    style={{ gridTemplateColumns: '88px repeat(5, 1fr)' }}
+                    style={{ gridTemplateColumns: '136px repeat(5, 1fr)' }}
                     initial={{ y: 16, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ ...spring.gentle, delay: rowIdx * 0.04 }}
                   >
-                    {/* Avatar + name */}
-                    <div className="flex flex-col items-center gap-1.5 py-1 px-1">
+                    {/* Avatar + name — horizontal, matches bar height */}
+                    <div className="flex items-center gap-2 px-1 h-[52px]">
                       <MemberAvatar
                         name={member.display_name}
                         avatarUrl={member.avatar_url}
-                        size="md"
+                        size="sm"
                       />
                       <span
-                        className="text-[11px] font-semibold truncate w-full text-center leading-tight"
-                        style={{ color: 'var(--text-secondary)', letterSpacing: '-0.005em' }}
+                        className="text-[13px] font-semibold truncate leading-tight"
+                        style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}
+                        title={member.display_name}
                       >
                         {member.display_name.split(' ')[0]}
                       </span>
                     </div>
 
                     {/* Day cells — merged into segments when consecutive days share status + location + note */}
-                    {buildRowSegments(weekDays, member.id, entryMap).map((seg, segIdx) => (
-                      <StatusSegment
-                        key={`${member.id}-${segIdx}-${seg.days[0].date}`}
-                        status={seg.entry?.status ?? null}
-                        location={seg.entry?.location_label ?? null}
-                        note={seg.entry?.note ?? null}
-                        days={seg.days}
-                        onSelectDay={(dayIdx) => {
-                          const date = seg.dates[dayIdx]
-                          const dateStr = seg.days[dayIdx].date
-                          const dayEntry = entryMap.get(`${member.id}_${dateStr}`)
-                          setSelectedCell({
-                            memberId: member.id,
-                            memberName: member.display_name,
-                            date: dateStr,
-                            dateLabel: formatDateLabel(date),
-                            status: dayEntry?.status ?? null,
-                            location: dayEntry?.location_label ?? null,
-                            note: dayEntry?.note ?? null,
-                          })
-                        }}
-                      />
-                    ))}
+                    {(() => {
+                      const segments = buildRowSegments(weekDays, member.id, entryMap)
+                      const highlights = dayHighlightsForMember(member.id)
+                      let cursor = 0
+                      const segmentHighlights: boolean[][] = segments.map((seg) => {
+                        const slice = highlights.slice(cursor, cursor + seg.days.length)
+                        cursor += seg.days.length
+                        return slice
+                      })
+                      return segments.map((seg, segIdx) => (
+                        <StatusSegment
+                          key={`${member.id}-${segIdx}-${seg.days[0].date}`}
+                          status={seg.entry?.status ?? null}
+                          location={seg.entry?.location_label ?? null}
+                          note={seg.entry?.note ?? null}
+                          days={seg.days}
+                          onSelectDay={() => {
+                            /* replaced by drag mousedown/mouseup flow */
+                          }}
+                          onDayMouseDown={(dayIdx) => {
+                            const absoluteIdx = weekDays.findIndex(
+                              (d) => toDateString(d) === seg.days[dayIdx].date
+                            )
+                            if (absoluteIdx >= 0) handleDayMouseDown(member.id, absoluteIdx)
+                          }}
+                          onDayMouseEnter={(dayIdx) => {
+                            const absoluteIdx = weekDays.findIndex(
+                              (d) => toDateString(d) === seg.days[dayIdx].date
+                            )
+                            if (absoluteIdx >= 0) handleDayMouseEnter(member.id, absoluteIdx)
+                          }}
+                          dayHighlight={segmentHighlights[segIdx]}
+                        />
+                      ))
+                    })()}
                   </motion.div>
                 ))}
 
@@ -452,6 +529,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
         initialStatus={selectedCell?.status ?? null}
         initialLocation={selectedCell?.location ?? null}
         initialNote={selectedCell?.note ?? null}
+        initialRangeEnd={selectedCell?.endDate ?? null}
       />
     </div>
   )

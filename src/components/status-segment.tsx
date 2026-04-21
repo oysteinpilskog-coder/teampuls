@@ -94,7 +94,7 @@ export function StatusSegment({
 
   return (
     <motion.div
-      className="relative h-[84px] rounded-2xl overflow-hidden"
+      className="relative h-[52px] rounded-xl overflow-hidden"
       style={{
         gridColumn: `span ${span}`,
         // Separate backgroundColor (solid fallback) + backgroundImage (gradient overlay)
@@ -111,10 +111,10 @@ export function StatusSegment({
           ? coloredShadow
           : 'inset 0 0 0 1px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.4)',
         border: singleDayIsToday
-          ? '2px solid var(--accent-color)'
+          ? '1.5px solid var(--accent-color)'
           : undefined,
       }}
-      whileHover={{ y: -3, scale: 1.015 }}
+      whileHover={{ y: -1, scale: 1.01 }}
       transition={spring.snappy}
     >
       {/* Glossy top reflection — simulates glass surface catching light */}
@@ -145,25 +145,25 @@ export function StatusSegment({
 
       {/* Content — icon + label */}
       {status && (
-        <div className="absolute inset-0 flex items-center gap-3 px-4 pointer-events-none z-10">
+        <div className="absolute inset-0 flex items-center gap-2 px-2.5 pointer-events-none z-10">
           <div
-            className="flex items-center justify-center rounded-xl shrink-0"
+            className="flex items-center justify-center rounded-lg shrink-0"
             style={{
-              width: 36,
-              height: 36,
-              background: 'rgba(255,255,255,0.25)',
-              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.4), 0 2px 6px rgba(0,0,0,0.14)',
+              width: 28,
+              height: 28,
+              background: 'rgba(255,255,255,0.22)',
+              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.35), 0 1px 3px rgba(0,0,0,0.12)',
             }}
           >
-            <StatusIcon status={status} size={18} color="#ffffff" />
+            <StatusIcon status={status} size={14} color="#ffffff" />
           </div>
           {label && (
             <span
-              className="text-[14px] font-semibold leading-tight truncate"
+              className="text-[12.5px] font-semibold leading-tight truncate"
               style={{
                 color: '#ffffff',
                 letterSpacing: '-0.01em',
-                textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                textShadow: '0 1px 2px rgba(0,0,0,0.25)',
               }}
             >
               {label}
@@ -206,15 +206,15 @@ export function StatusSegment({
         <motion.div
           className="absolute pointer-events-none rounded-full z-30"
           style={{
-            top: '9px',
+            top: '6px',
             left: `${((todayIdx + 0.5) / span) * 100}%`,
             transform: 'translateX(-50%)',
-            width: 8,
-            height: 8,
+            width: 6,
+            height: 6,
             backgroundColor: status ? '#ffffff' : 'var(--accent-color)',
             boxShadow: status
-              ? '0 0 0 3px rgba(255,255,255,0.3), 0 0 12px rgba(255,255,255,0.55)'
-              : '0 0 0 4px rgba(0,102,255,0.2), 0 0 10px rgba(0,102,255,0.55)',
+              ? '0 0 0 2px rgba(255,255,255,0.3), 0 0 8px rgba(255,255,255,0.55)'
+              : '0 0 0 3px rgba(0,102,255,0.2), 0 0 8px rgba(0,102,255,0.55)',
           }}
           animate={{ scale: [1, 1.22, 1] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
@@ -225,8 +225,8 @@ export function StatusSegment({
       {singleDayIsToday && (
         <motion.div
           aria-hidden
-          className="absolute inset-0 rounded-2xl pointer-events-none z-30"
-          style={{ boxShadow: '0 0 0 1.5px var(--accent-color), 0 0 24px -4px rgba(0,102,255,0.35)' }}
+          className="absolute inset-0 rounded-xl pointer-events-none z-30"
+          style={{ boxShadow: '0 0 0 1.5px var(--accent-color), 0 0 20px -4px rgba(0,102,255,0.35)' }}
           animate={{ opacity: [0.55, 1, 0.55] }}
           transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
         />
