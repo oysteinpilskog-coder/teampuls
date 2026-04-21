@@ -27,6 +27,8 @@ interface CellEditorProps {
   initialStatus: EntryStatus | null
   initialLocation: string | null
   initialNote: string | null
+  /** Optional — when set, opens with a pre-selected multi-day range [date … initialRangeEnd]. */
+  initialRangeEnd?: string | null
 }
 
 export function CellEditor({
@@ -40,6 +42,7 @@ export function CellEditor({
   initialStatus,
   initialLocation,
   initialNote,
+  initialRangeEnd,
 }: CellEditorProps) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -54,7 +57,7 @@ export function CellEditor({
   const locationInputRef = useRef<HTMLInputElement>(null)
 
   const [rangeStart, setRangeStart] = useState(date)
-  const [rangeEnd, setRangeEnd]     = useState(date)
+  const [rangeEnd, setRangeEnd]     = useState(initialRangeEnd ?? date)
 
   // Reset form when the editor opens for a new cell
   useEffect(() => {
@@ -63,9 +66,9 @@ export function CellEditor({
       setLocation(initialLocation ?? '')
       setNote(initialNote ?? '')
       setRangeStart(date)
-      setRangeEnd(date)
+      setRangeEnd(initialRangeEnd ?? date)
     }
-  }, [open, initialStatus, initialLocation, initialNote, date])
+  }, [open, initialStatus, initialLocation, initialNote, date, initialRangeEnd])
 
   // Fetch distinct location suggestions for this org
   useEffect(() => {

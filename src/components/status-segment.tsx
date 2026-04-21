@@ -20,6 +20,11 @@ interface StatusSegmentProps {
   note: string | null
   days: SegmentDay[]
   onSelectDay: (dayIndex: number) => void
+  /** Optional — when provided, per-day buttons use mousedown-driven drag instead of click. */
+  onDayMouseDown?: (dayIndex: number) => void
+  onDayMouseEnter?: (dayIndex: number) => void
+  /** Optional — length === days.length; true for days currently inside a drag selection. */
+  dayHighlight?: boolean[]
 }
 
 // Apple iOS system colors — cohesive, premium, purpose-designed for status surfaces.
@@ -41,7 +46,16 @@ const STATUS_GRADIENT: Record<EntryStatus, { light: [string, string]; dark: [str
   off:      { light: ['#8E8E93', '#4A4A4E'], dark: ['#4F4F53', '#2D2D30'], shadow: '142, 142, 147' },
 }
 
-export function StatusSegment({ status, location, note, days, onSelectDay }: StatusSegmentProps) {
+export function StatusSegment({
+  status,
+  location,
+  note,
+  days,
+  onSelectDay,
+  onDayMouseDown,
+  onDayMouseEnter,
+  dayHighlight,
+}: StatusSegmentProps) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
@@ -160,18 +174,31 @@ export function StatusSegment({ status, location, note, days, onSelectDay }: Sta
 
       {/* Per-day click targets */}
       <div className="absolute inset-0 flex z-20">
-        {days.map((d, i) => (
-          <button
-            key={d.date}
-            onClick={() => onSelectDay(i)}
-            aria-label={
-              status
-                ? `${no.status[status]}${label ? `, ${label}` : ''} — ${d.dateLabel}`
-                : `${no.matrix.noStatus} — ${d.dateLabel}`
-            }
-            className="segment-day flex-1 relative focus:outline-none focus-visible:z-10"
-          />
-        ))}
+        {days.map((d, i) => {
+          const isHi = dayHighlight?.[i] ?? false
+          const dragMode = !!onDayMouseDown
+          return (
+            <button
+              key={d.date}
+              onClick={dragMode ? undefined : () => onSelectDay(i)}
+              onMouseDown={
+                dragMode
+                  ? (e) => {
+                      e.preventDefault()
+                      onDayMouseDown!(i)
+                    }
+                  : undefined
+              }
+              onMouseEnter={onDayMouseEnter ? () => onDayMouseEnter(i) : undefined}
+              aria-label={
+                status
+                  ? `${no.status[status]}${label ? `, ${label}` : ''} — ${d.dateLabel}`
+                  : `${no.matrix.noStatus} — ${d.dateLabel}`
+              }
+              className={`segment-day flex-1 relative focus:outline-none focus-visible:z-10 ${isHi ? 'is-highlighted' : ''}`}
+            />
+          )
+        })}
       </div>
 
       {/* Today dot for multi-day segment */}
@@ -215,6 +242,14 @@ export function StatusSegment({ status, location, note, days, onSelectDay }: Sta
         .segment-day:focus-visible {
           box-shadow: inset 0 0 0 2px var(--accent-color);
           border-radius: 10px;
+        }
+        .segment-day.is-highlighted {
+          background-color: color-mix(in oklab, var(--accent-color) 32%, transparent);
+          box-shadow: inset 0 0 0 2px var(--accent-color);
+          border-radius: 10px;
+        }
+        .segment-day.is-highlighted:hover {
+          background-color: color-mix(in oklab, var(--accent-color) 40%, transparent);
         }
       `}</style>
     </motion.div>

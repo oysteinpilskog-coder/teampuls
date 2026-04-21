@@ -1,34 +1,24 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
-import { addDays, addWeeks, startOfISOWeek, getISOWeek, getISOWeekYear } from 'date-fns'
-import { useTheme } from 'next-themes'
+import { motion, AnimatePresence } from 'framer-motion'
+import { addDays, getISOWeek, getISOWeekYear } from 'date-fns'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { StatusIcon } from '@/components/icons/status-icons'
 import { MemberAvatar } from '@/components/member-avatar'
 import { CellEditor } from '@/components/cell-editor'
+import { StatusSegment, type SegmentDay } from '@/components/status-segment'
 import {
   toDateString,
   isToday,
   MONTH_LONG_NB,
   formatDateLabelLong,
+  getWeekStart,
+  getLastISOWeek,
 } from '@/lib/dates'
 import type { Entry, EntryStatus } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { no } from '@/lib/i18n/no'
-
-const STATUS_GRADIENT: Record<EntryStatus, { light: [string, string]; dark: [string, string]; shadow: string }> = {
-  office:   { light: ['#2682FF', '#0047C2'], dark: ['#0A3C8C', '#072C69'], shadow: '0, 102, 255' },
-  remote:   { light: ['#1EBE75', '#0E7A41'], dark: ['#0E6E3C', '#08522B'], shadow: '22, 163, 98' },
-  customer: { light: ['#FF8A35', '#C45200'], dark: ['#A04000', '#6F2C00'], shadow: '255, 122, 26' },
-  travel:   { light: ['#9E55F0', '#5A21B0'], dark: ['#4C1C98', '#341266'], shadow: '139, 63, 230' },
-  vacation: { light: ['#E8A600', '#8F5C00'], dark: ['#8A5E00', '#5F4100'], shadow: '212, 144, 0' },
-  sick:     { light: ['#ED5561', '#B4182B'], dark: ['#8C1120', '#5F0A15'], shadow: '230, 57, 70' },
-  off:      { light: ['#8C867F', '#5B5450'], dark: ['#3E3A37', '#282522'], shadow: '120, 113, 108' },
-}
-
-const HORIZON_WEEKS = 12
 
 interface MyPlanProps {
   orgId: string
@@ -46,20 +36,18 @@ interface WeekBlock {
   isCurrentWeek: boolean
 }
 
-function buildHorizon(): WeekBlock[] {
+function buildYearWeeks(year: number): WeekBlock[] {
   const today = new Date()
-  const currentMonday = startOfISOWeek(today)
   const todayWeek = getISOWeek(today)
   const todayYear = getISOWeekYear(today)
+  const lastWeek = getLastISOWeek(year)
 
-  return Array.from({ length: HORIZON_WEEKS }, (_, i) => {
-    const start = addWeeks(currentMonday, i)
+  return Array.from({ length: lastWeek }, (_, i) => {
+    const weekNumber = i + 1
+    const start = getWeekStart(weekNumber, year)
     const days = Array.from({ length: 5 }, (_, d) => addDays(start, d))
-    const weekNumber = getISOWeek(start)
-    const year = getISOWeekYear(start)
-    // Pick the month of the middle of the week for the label
     const midWeek = days[2]
-    const monthLabel = `${MONTH_LONG_NB[midWeek.getMonth()]} ${midWeek.getFullYear()}`
+    const monthLabel = MONTH_LONG_NB[midWeek.getMonth()]
     return {
       weekNumber,
       year,
@@ -71,21 +59,67 @@ function buildHorizon(): WeekBlock[] {
   })
 }
 
+interface RowSegment {
+  days: SegmentDay[]
+  dates: Date[]
+  entry: Entry | null
+}
+
+function entriesMergeable(a: Entry | null, b: Entry | null): boolean {
+  if (a === null || b === null) return false
+  return (
+    a.status === b.status &&
+    (a.location_label ?? null) === (b.location_label ?? null) &&
+    (a.note ?? null) === (b.note ?? null)
+  )
+}
+
+function buildWeekSegments(weekDays: Date[], entryByDate: Map<string, Entry>): RowSegment[] {
+  const segments: RowSegment[] = []
+  let i = 0
+  while (i < weekDays.length) {
+    const startEntry = entryByDate.get(toDateString(weekDays[i])) ?? null
+    let j = i + 1
+    while (j < weekDays.length) {
+      const nextEntry = entryByDate.get(toDateString(weekDays[j])) ?? null
+      if (!entriesMergeable(startEntry, nextEntry)) break
+      j++
+    }
+    const dates = weekDays.slice(i, j)
+    segments.push({
+      dates,
+      entry: startEntry,
+      days: dates.map((date) => ({
+        date: toDateString(date),
+        dateLabel: formatDateLabelLong(date),
+        isToday: isToday(date),
+      })),
+    })
+    i = j
+  }
+  return segments
+}
+
 interface SelectedCell {
   date: string
   dateLabel: string
+  endDate: string
   status: EntryStatus | null
   location: string | null
   note: string | null
 }
 
-export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) {
-  const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
-  const isDark = mounted && resolvedTheme === 'dark'
+interface DragPoint {
+  wk: number
+  d: number
+}
 
-  const weeks = useMemo(buildHorizon, [])
+export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) {
+  const currentYear = useMemo(() => getISOWeekYear(new Date()), [])
+  const [year, setYear] = useState(currentYear)
+  const [dirY, setDirY] = useState<'next' | 'prev'>('next')
+
+  const weeks = useMemo(() => buildYearWeeks(year), [year])
   const rangeStart = toDateString(weeks[0].start)
   const rangeEnd = toDateString(addDays(weeks[weeks.length - 1].start, 4))
 
@@ -93,8 +127,13 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
   const [loading, setLoading] = useState(true)
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null)
 
+  const [dragStart, setDragStart] = useState<DragPoint | null>(null)
+  const [dragCurrent, setDragCurrent] = useState<DragPoint | null>(null)
+  const isDragging = dragStart !== null
+
   useEffect(() => {
     const supabase = createClient()
+    let active = true
     async function load() {
       setLoading(true)
       const { data } = await supabase
@@ -105,13 +144,14 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
         .gte('date', rangeStart)
         .lte('date', rangeEnd)
         .order('date')
+      if (!active) return
       setEntries(data ?? [])
       setLoading(false)
     }
     load()
 
     const channel = supabase
-      .channel(`my-plan:${memberId}`)
+      .channel(`my-plan:${memberId}:${year}`)
       .on(
         'postgres_changes',
         {
@@ -125,9 +165,10 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
       .subscribe()
 
     return () => {
+      active = false
       supabase.removeChannel(channel)
     }
-  }, [orgId, memberId, rangeStart, rangeEnd])
+  }, [orgId, memberId, rangeStart, rangeEnd, year])
 
   const entryByDate = useMemo(() => {
     const map = new Map<string, Entry>()
@@ -135,200 +176,302 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
     return map
   }, [entries])
 
+  // Commit drag on global mouseup. Single-day drag (no movement) opens single-day editor;
+  // multi-day drag opens with a pre-selected range.
+  useEffect(() => {
+    if (!isDragging) return
+    function onUp() {
+      if (dragStart && dragCurrent && dragStart.wk === dragCurrent.wk) {
+        const wk = weeks[dragStart.wk]
+        const lo = Math.min(dragStart.d, dragCurrent.d)
+        const hi = Math.max(dragStart.d, dragCurrent.d)
+        const startDate = wk.days[lo]
+        const endDate = wk.days[hi]
+        const startStr = toDateString(startDate)
+        const endStr = toDateString(endDate)
+        const entry = entryByDate.get(startStr) ?? null
+        setSelectedCell({
+          date: startStr,
+          endDate: endStr,
+          dateLabel: formatDateLabelLong(startDate),
+          status: entry?.status ?? null,
+          location: entry?.location_label ?? null,
+          note: entry?.note ?? null,
+        })
+      }
+      setDragStart(null)
+      setDragCurrent(null)
+    }
+    window.addEventListener('mouseup', onUp)
+    return () => window.removeEventListener('mouseup', onUp)
+  }, [isDragging, dragStart, dragCurrent, weeks, entryByDate])
+
+  function handleDayMouseDown(wk: number, d: number) {
+    setDragStart({ wk, d })
+    setDragCurrent({ wk, d })
+  }
+
+  function handleDayMouseEnter(wk: number, d: number) {
+    if (!isDragging || !dragStart) return
+    if (dragStart.wk !== wk) return
+    setDragCurrent({ wk, d })
+  }
+
+  function dayHighlightsForWeek(wkIdx: number, daysInWeek: number): boolean[] {
+    if (!isDragging || !dragStart || !dragCurrent) return new Array(daysInWeek).fill(false)
+    if (dragStart.wk !== wkIdx) return new Array(daysInWeek).fill(false)
+    const lo = Math.min(dragStart.d, dragCurrent.d)
+    const hi = Math.max(dragStart.d, dragCurrent.d)
+    return Array.from({ length: daysInWeek }, (_, i) => i >= lo && i <= hi)
+  }
+
+  function goPrevYear() {
+    setDirY('prev')
+    setYear((y) => y - 1)
+  }
+  function goNextYear() {
+    setDirY('next')
+    setYear((y) => y + 1)
+  }
+  function goCurrentYear() {
+    setDirY(year < currentYear ? 'next' : 'prev')
+    setYear(currentYear)
+  }
+
   const totalEntries = entries.length
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <MemberAvatar name={memberName} avatarUrl={avatarUrl} size="md" />
-        <div>
-          <h1
-            className="text-[32px] font-bold leading-none"
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4">
+          <MemberAvatar name={memberName} avatarUrl={avatarUrl} size="md" />
+          <div>
+            <h1
+              className="text-[32px] font-bold leading-none"
+              style={{
+                fontFamily: 'var(--font-sora)',
+                letterSpacing: '-0.03em',
+                color: 'var(--text-primary)',
+              }}
+            >
+              Min plan
+            </h1>
+            <p
+              className="text-[13px] mt-1.5"
+              style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+            >
+              {loading
+                ? 'Laster…'
+                : totalEntries === 0
+                  ? `Ingen oppføringer i ${year}`
+                  : `${totalEntries} ${totalEntries === 1 ? 'oppføring' : 'oppføringer'} i ${year}`}
+            </p>
+          </div>
+        </div>
+
+        {/* Year picker */}
+        <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-1 rounded-xl p-1"
+            style={{
+              background: 'color-mix(in oklab, var(--bg-elevated) 60%, transparent)',
+              backdropFilter: 'blur(14px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(14px) saturate(180%)',
+              border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+            }}
+          >
+            <motion.button
+              onClick={goPrevYear}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.94 }}
+              transition={spring.snappy}
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+              aria-label="Forrige år"
+            >
+              <ChevronLeft className="w-4 h-4" strokeWidth={1.75} />
+            </motion.button>
+            <motion.button
+              onClick={goNextYear}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.94 }}
+              transition={spring.snappy}
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+              aria-label="Neste år"
+            >
+              <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
+            </motion.button>
+          </div>
+
+          <motion.span
+            key={year}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={spring.gentle}
+            className="text-[28px] font-bold tabular-nums leading-none"
             style={{
               fontFamily: 'var(--font-sora)',
               letterSpacing: '-0.03em',
               color: 'var(--text-primary)',
+              background:
+                year === currentYear
+                  ? 'linear-gradient(135deg, var(--accent-color), hsl(260, 80%, 60%))'
+                  : undefined,
+              WebkitBackgroundClip: year === currentYear ? 'text' : undefined,
+              WebkitTextFillColor: year === currentYear ? 'transparent' : undefined,
+              backgroundClip: year === currentYear ? 'text' : undefined,
             }}
           >
-            Min plan
-          </h1>
-          <p
-            className="text-[13px] mt-1.5"
-            style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-          >
-            {loading
-              ? 'Laster…'
-              : totalEntries === 0
-                ? `Ingen oppføringer de neste ${HORIZON_WEEKS} ukene`
-                : `${totalEntries} ${totalEntries === 1 ? 'oppføring' : 'oppføringer'} de neste ${HORIZON_WEEKS} ukene`}
-          </p>
+            {year}
+          </motion.span>
+
+          {year !== currentYear && (
+            <motion.button
+              onClick={goCurrentYear}
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              transition={spring.snappy}
+              className="ml-1 px-3.5 h-8 rounded-xl text-[12px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+              style={{
+                color: '#fff',
+                background: 'linear-gradient(135deg, var(--accent-color), hsl(235, 85%, 55%))',
+                boxShadow: '0 4px 12px rgba(0, 102, 255, 0.28)',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              {currentYear}
+            </motion.button>
+          )}
         </div>
       </div>
 
       {/* Weeks */}
-      <div className="space-y-3">
-        {weeks.map((wk, wkIdx) => {
-          const weekEntries = wk.days
-            .map((d) => entryByDate.get(toDateString(d)))
-            .filter(Boolean) as Entry[]
-          const hasEntries = weekEntries.length > 0
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={year}
+          initial={{ x: dirY === 'next' ? 32 : -32, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: dirY === 'next' ? -32 : 32, opacity: 0 }}
+          transition={spring.snappy}
+          className="space-y-3"
+        >
+          {weeks.map((wk, wkIdx) => {
+            const segments = buildWeekSegments(wk.days, entryByDate)
+            const hasEntries = segments.some((s) => s.entry !== null)
+            const highlights = dayHighlightsForWeek(wkIdx, wk.days.length)
 
-          return (
-            <motion.div
-              key={`${wk.year}-${wk.weekNumber}`}
-              initial={{ y: 12, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ ...spring.gentle, delay: wkIdx * 0.025 }}
-              className="relative rounded-3xl overflow-hidden"
-              style={{
-                background: 'color-mix(in oklab, var(--bg-elevated) 78%, transparent)',
-                backdropFilter: 'blur(22px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(22px) saturate(180%)',
-                border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
-                boxShadow: '0 12px 32px -16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.03)',
-                opacity: !hasEntries && !wk.isCurrentWeek ? 0.58 : 1,
-              }}
-            >
-              <div
-                className="grid items-stretch gap-2 px-4 py-3"
-                style={{ gridTemplateColumns: '128px repeat(5, 1fr)' }}
+            // Map segment index → array of highlight flags for that segment's days.
+            let cursor = 0
+            const segmentHighlights: boolean[][] = segments.map((seg) => {
+              const slice = highlights.slice(cursor, cursor + seg.days.length)
+              cursor += seg.days.length
+              return slice
+            })
+
+            return (
+              <motion.div
+                key={`${wk.year}-${wk.weekNumber}`}
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ ...spring.gentle, delay: Math.min(wkIdx, 18) * 0.015 }}
+                className="relative rounded-3xl overflow-hidden"
+                style={{
+                  background: 'color-mix(in oklab, var(--bg-elevated) 78%, transparent)',
+                  backdropFilter: 'blur(22px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(22px) saturate(180%)',
+                  border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+                  boxShadow:
+                    '0 12px 32px -16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.03)',
+                  opacity: !hasEntries && !wk.isCurrentWeek ? 0.62 : 1,
+                }}
               >
-                {/* Week label column */}
-                <div className="flex flex-col justify-center pr-2">
-                  <div className="flex items-baseline gap-1.5">
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-[0.18em]"
+                <div
+                  className="grid items-stretch gap-2 px-4 py-3"
+                  style={{
+                    gridTemplateColumns: '128px repeat(5, 1fr)',
+                    userSelect: 'none',
+                  }}
+                >
+                  {/* Week label column */}
+                  <div className="flex flex-col justify-center pr-2">
+                    <div className="flex items-baseline gap-1.5">
+                      <span
+                        className="text-[10px] font-bold uppercase tracking-[0.18em]"
+                        style={{
+                          color: wk.isCurrentWeek
+                            ? 'var(--accent-color)'
+                            : 'var(--text-tertiary)',
+                          fontFamily: 'var(--font-body)',
+                        }}
+                      >
+                        {no.matrix.weekLabel}
+                      </span>
+                      <span
+                        className="text-[22px] font-bold tabular-nums leading-none"
+                        style={{
+                          fontFamily: 'var(--font-sora)',
+                          letterSpacing: '-0.03em',
+                          color: 'var(--text-primary)',
+                          background: wk.isCurrentWeek
+                            ? 'linear-gradient(135deg, var(--accent-color), hsl(260, 80%, 60%))'
+                            : undefined,
+                          WebkitBackgroundClip: wk.isCurrentWeek ? 'text' : undefined,
+                          WebkitTextFillColor: wk.isCurrentWeek ? 'transparent' : undefined,
+                          backgroundClip: wk.isCurrentWeek ? 'text' : undefined,
+                        }}
+                      >
+                        {wk.weekNumber}
+                      </span>
+                    </div>
+                    <div
+                      className="text-[11px] font-medium mt-0.5 capitalize"
                       style={{
-                        color: wk.isCurrentWeek ? 'var(--accent-color)' : 'var(--text-tertiary)',
+                        color: 'var(--text-tertiary)',
                         fontFamily: 'var(--font-body)',
                       }}
                     >
-                      {no.matrix.weekLabel}
-                    </span>
-                    <span
-                      className="text-[22px] font-bold tabular-nums leading-none"
-                      style={{
-                        fontFamily: 'var(--font-sora)',
-                        letterSpacing: '-0.03em',
-                        color: 'var(--text-primary)',
-                        background: wk.isCurrentWeek
-                          ? 'linear-gradient(135deg, var(--accent-color), hsl(260, 80%, 60%))'
-                          : undefined,
-                        WebkitBackgroundClip: wk.isCurrentWeek ? 'text' : undefined,
-                        WebkitTextFillColor: wk.isCurrentWeek ? 'transparent' : undefined,
-                        backgroundClip: wk.isCurrentWeek ? 'text' : undefined,
+                      {wk.monthLabel}
+                    </div>
+                  </div>
+
+                  {/* Segments — multi-day blocks like oversikt/Outlook */}
+                  {segments.map((seg, segIdx) => (
+                    <StatusSegment
+                      key={`${wkIdx}-${segIdx}-${seg.days[0].date}`}
+                      status={seg.entry?.status ?? null}
+                      location={seg.entry?.location_label ?? null}
+                      note={seg.entry?.note ?? null}
+                      days={seg.days}
+                      onSelectDay={() => {
+                        /* replaced by drag mousedown/mouseup flow */
                       }}
-                    >
-                      {wk.weekNumber}
-                    </span>
-                  </div>
-                  <div
-                    className="text-[11px] font-medium mt-0.5 capitalize"
-                    style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-                  >
-                    {wk.monthLabel}
-                  </div>
+                      onDayMouseDown={(dayIdx) => {
+                        // `dayIdx` is within the segment; translate to week-day index.
+                        const absoluteIdx =
+                          wk.days.findIndex(
+                            (d) => toDateString(d) === seg.days[dayIdx].date
+                          )
+                        if (absoluteIdx >= 0) handleDayMouseDown(wkIdx, absoluteIdx)
+                      }}
+                      onDayMouseEnter={(dayIdx) => {
+                        const absoluteIdx =
+                          wk.days.findIndex(
+                            (d) => toDateString(d) === seg.days[dayIdx].date
+                          )
+                        if (absoluteIdx >= 0) handleDayMouseEnter(wkIdx, absoluteIdx)
+                      }}
+                      dayHighlight={segmentHighlights[segIdx]}
+                    />
+                  ))}
                 </div>
-
-                {/* Day cells */}
-                {wk.days.map((day) => {
-                  const dateStr = toDateString(day)
-                  const entry = entryByDate.get(dateStr) ?? null
-                  const status = entry?.status ?? null
-                  const today = isToday(day)
-                  const palette = status ? STATUS_GRADIENT[status] : null
-                  const [g0, g1] = palette ? (isDark ? palette.dark : palette.light) : ['', '']
-                  const shadowRgb = palette?.shadow
-                  const gradient = palette ? `linear-gradient(135deg, ${g0} 0%, ${g1} 100%)` : undefined
-                  const coloredShadow = shadowRgb
-                    ? isDark
-                      ? `0 8px 20px -8px rgba(${shadowRgb},0.5), 0 0 0 1px rgba(${shadowRgb},0.3) inset, 0 1px 0 rgba(255,255,255,0.08) inset`
-                      : `0 8px 20px -6px rgba(${shadowRgb},0.5), 0 2px 4px -1px rgba(${shadowRgb},0.22), 0 1px 0 rgba(255,255,255,0.3) inset`
-                    : undefined
-                  const label = entry?.location_label || entry?.note || null
-
-                  return (
-                    <motion.button
-                      key={dateStr}
-                      onClick={() =>
-                        setSelectedCell({
-                          date: dateStr,
-                          dateLabel: formatDateLabelLong(day),
-                          status,
-                          location: entry?.location_label ?? null,
-                          note: entry?.note ?? null,
-                        })
-                      }
-                      whileHover={{ y: -2, scale: 1.015 }}
-                      transition={spring.snappy}
-                      className="relative rounded-2xl h-[68px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] overflow-hidden text-left"
-                      style={{
-                        background: status
-                          ? gradient
-                          : isDark
-                            ? 'rgba(255,255,255,0.025)'
-                            : 'rgba(255,255,255,0.4)',
-                        backgroundImage: status === null
-                          ? `repeating-linear-gradient(135deg, transparent, transparent 8px, ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.035)'} 8px, ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.035)'} 9px)`
-                          : undefined,
-                        boxShadow: status
-                          ? coloredShadow
-                          : 'inset 0 0 0 1px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.4)',
-                        border: today
-                          ? '2px solid var(--accent-color)'
-                          : undefined,
-                      }}
-                    >
-                      {/* Day label */}
-                      <div
-                        className="absolute top-2 left-3 text-[10px] font-bold uppercase tracking-[0.14em]"
-                        style={{
-                          color: status ? 'rgba(255,255,255,0.85)' : today ? 'var(--accent-color)' : 'var(--text-tertiary)',
-                          fontFamily: 'var(--font-body)',
-                          textShadow: status ? '0 1px 2px rgba(0,0,0,0.25)' : undefined,
-                        }}
-                      >
-                        {['Man', 'Tir', 'Ons', 'Tor', 'Fre'][day.getDay() === 0 ? 6 : day.getDay() - 1]}{' '}
-                        {day.getDate()}.
-                      </div>
-
-                      {/* Content: icon + label */}
-                      {status ? (
-                        <div className="absolute inset-0 flex items-center gap-2.5 px-3 pt-4">
-                          <div
-                            className="flex items-center justify-center rounded-lg shrink-0"
-                            style={{
-                              width: 30,
-                              height: 30,
-                              background: 'rgba(255,255,255,0.25)',
-                              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.4), 0 2px 6px rgba(0,0,0,0.12)',
-                            }}
-                          >
-                            <StatusIcon status={status} size={16} color="#ffffff" />
-                          </div>
-                          {label && (
-                            <span
-                              className="text-[12px] font-semibold leading-tight truncate"
-                              style={{
-                                color: '#ffffff',
-                                letterSpacing: '-0.01em',
-                                textShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                              }}
-                            >
-                              {label}
-                            </span>
-                          )}
-                        </div>
-                      ) : null}
-                    </motion.button>
-                  )
-                })}
-              </div>
-            </motion.div>
-          )
-        })}
-      </div>
+              </motion.div>
+            )
+          })}
+        </motion.div>
+      </AnimatePresence>
 
       {/* Cell editor */}
       <CellEditor
@@ -342,6 +485,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
         initialStatus={selectedCell?.status ?? null}
         initialLocation={selectedCell?.location ?? null}
         initialNote={selectedCell?.note ?? null}
+        initialRangeEnd={selectedCell?.endDate ?? null}
       />
     </div>
   )
