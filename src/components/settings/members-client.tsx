@@ -81,10 +81,18 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
     if (modalMode === 'edit' && editTarget) {
       const { error } = await supabase
         .from('members')
-        .update({ display_name: row.display_name, role: row.role, nicknames: row.nicknames })
+        .update({
+          display_name: row.display_name,
+          email: row.email,
+          role: row.role,
+          nicknames: row.nicknames,
+        })
         .eq('id', editTarget.id)
       setSaving(false)
-      if (error) { toast.error('Noe gikk galt.'); return }
+      if (error) {
+        toast.error(error.code === '23505' ? 'E-posten er allerede i bruk.' : 'Noe gikk galt.')
+        return
+      }
       setMembers(prev => prev.map(m => m.id === editTarget.id ? { ...m, ...row } : m))
       toast.success('Endringer lagret')
     } else {
@@ -224,14 +232,14 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
               style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)' }}
               onClick={closeModal}
             />
+            <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh] pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.94, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={spring.bouncy}
-              className="fixed z-50 w-[440px] rounded-2xl p-6 flex flex-col gap-4"
+              className="pointer-events-auto w-[440px] max-w-full max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl p-6 flex flex-col gap-4"
               style={{
-                top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
                 backgroundColor: 'var(--bg-elevated)',
                 boxShadow: 'var(--shadow-xl)',
               }}
@@ -269,14 +277,9 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   placeholder="navn@firma.no"
-                  readOnly={modalMode === 'edit'}
                   className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
-                  style={{
-                    ...inputStyle,
-                    opacity: modalMode === 'edit' ? 0.5 : 1,
-                    cursor: modalMode === 'edit' ? 'not-allowed' : 'text',
-                  }}
-                  onFocus={e => modalMode !== 'edit' && (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                  style={inputStyle}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
                 />
               </Field>
@@ -336,6 +339,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                 </motion.button>
               </div>
             </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
@@ -351,14 +355,14 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
               style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)' }}
               onClick={() => !deleting && setDeleteTarget(null)}
             />
+            <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[12vh] pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.94, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={spring.bouncy}
-              className="fixed z-50 w-[420px] rounded-2xl p-6 flex flex-col gap-4"
+              className="pointer-events-auto w-[420px] max-w-full rounded-2xl p-6 flex flex-col gap-4"
               style={{
-                top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
                 backgroundColor: 'var(--bg-elevated)',
                 boxShadow: 'var(--shadow-xl)',
               }}
@@ -406,6 +410,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                 </motion.button>
               </div>
             </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
