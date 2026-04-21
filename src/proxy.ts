@@ -1,11 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// NOTE: In Next.js 16, this file should be renamed to proxy.ts and
-// the export renamed from `middleware` to `proxy`.
-// Once the old middleware.ts can be deleted, move to proxy.ts.
-
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -27,7 +23,6 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session — required to keep auth alive across navigations
   const {
     data: { user },
   } = await supabase.auth.getUser()
