@@ -26,6 +26,7 @@ export interface Office {
   name: string
   address: string | null
   city: string | null
+  postal_code: string | null
   country_code: string | null
   timezone: string | null
   latitude: number | null

@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, X, MapPin } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, MapPin, Sparkles, Check, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { geocode } from '@/lib/geocode-client'
 import type { Office } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 
@@ -16,6 +17,7 @@ interface OfficesClientProps {
 interface OfficeFormState {
   name: string
   city: string
+  postal_code: string
   country_code: string
   address: string
   timezone: string
@@ -26,6 +28,7 @@ interface OfficeFormState {
 const EMPTY_FORM: OfficeFormState = {
   name: '',
   city: '',
+  postal_code: '',
   country_code: '',
   address: '',
   timezone: '',
@@ -47,6 +50,12 @@ const COUNTRY_OPTIONS = [
   { code: 'US', label: 'USA' },
 ]
 
+type GeocodeStatus =
+  | { state: 'idle' }
+  | { state: 'working' }
+  | { state: 'done'; display: string }
+  | { state: 'error'; message: string }
+
 export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
   const [offices, setOffices] = useState<Office[]>(initialOffices)
   const [modalMode, setModalMode] = useState<'closed' | 'add' | 'edit'>('closed')
@@ -54,10 +63,12 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
   const [form, setForm] = useState<OfficeFormState>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [geo, setGeo] = useState<GeocodeStatus>({ state: 'idle' })
 
   function openAdd() {
     setForm(EMPTY_FORM)
     setEditTarget(null)
+    setGeo({ state: 'idle' })
     setModalMode('add')
   }
 
@@ -65,6 +76,7 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
     setForm({
       name: o.name,
       city: o.city ?? '',
+      postal_code: o.postal_code ?? '',
       country_code: o.country_code ?? '',
       address: o.address ?? '',
       timezone: o.timezone ?? '',
@@ -72,25 +84,90 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
       longitude: o.longitude?.toString() ?? '',
     })
     setEditTarget(o)
+    setGeo(o.latitude != null && o.longitude != null
+      ? { state: 'done', display: [o.address, o.postal_code, o.city].filter(Boolean).join(', ') }
+      : { state: 'idle' })
     setModalMode('edit')
   }
 
   function closeModal() { setModalMode('closed') }
+
+  // Track which fields have changed so we know whether to re-geocode on save.
+  function updateForm<K extends keyof OfficeFormState>(key: K, value: string) {
+    setForm(f => ({ ...f, [key]: value }))
+    // If the user changed an address component, invalidate the geocode status.
+    if (['address', 'postal_code', 'city', 'country_code'].includes(key)) {
+      setGeo(s => s.state === 'done' ? { state: 'idle' } : s)
+    }
+    // If user types coords manually, clear idle/done state.
+    if ((key === 'latitude' || key === 'longitude') && value.trim()) {
+      setGeo({ state: 'idle' })
+    }
+  }
+
+  async function runGeocode(): Promise<{ lat: number; lng: number } | null> {
+    const hasInput = [form.address, form.postal_code, form.city].some(v => v.trim())
+    if (!hasInput) {
+      setGeo({ state: 'error', message: 'Fyll inn by, postnummer eller adresse først' })
+      toast.error('Fyll inn by, postnummer eller adresse')
+      return null
+    }
+
+    setGeo({ state: 'working' })
+    try {
+      const hit = await geocode({
+        address: form.address || null,
+        postalCode: form.postal_code || null,
+        city: form.city || null,
+        countryCode: form.country_code || null,
+      })
+      if (!hit) {
+        setGeo({ state: 'error', message: 'Fant ikke denne adressen' })
+        toast.error('Fant ikke adressen på kartet')
+        return null
+      }
+      setForm(f => ({
+        ...f,
+        latitude: hit.lat.toFixed(6),
+        longitude: hit.lng.toFixed(6),
+        // Fill in blanks that the user didn't provide but the geocoder confirmed.
+        city: f.city || hit.city || f.city,
+        postal_code: f.postal_code || hit.postalCode || f.postal_code,
+        country_code: f.country_code || hit.countryCode || f.country_code,
+      }))
+      setGeo({ state: 'done', display: hit.displayName })
+      return { lat: hit.lat, lng: hit.lng }
+    } catch {
+      setGeo({ state: 'error', message: 'Noe gikk galt' })
+      toast.error('Geokoding feilet')
+      return null
+    }
+  }
 
   async function handleSave() {
     if (!form.name.trim() || saving) return
     setSaving(true)
     const supabase = createClient()
 
+    // Auto-geocode if the user provided an address/city but no coords.
+    let lat = form.latitude ? parseFloat(form.latitude) : null
+    let lng = form.longitude ? parseFloat(form.longitude) : null
+    const hasAddressInput = [form.address, form.postal_code, form.city].some(v => v.trim())
+    if ((lat == null || lng == null) && hasAddressInput) {
+      const hit = await runGeocode()
+      if (hit) { lat = hit.lat; lng = hit.lng }
+    }
+
     const row = {
       org_id: orgId,
       name: form.name.trim(),
       city: form.city.trim() || null,
+      postal_code: form.postal_code.trim() || null,
       country_code: form.country_code || null,
       address: form.address.trim() || null,
       timezone: form.timezone || null,
-      latitude: form.latitude ? parseFloat(form.latitude) : null,
-      longitude: form.longitude ? parseFloat(form.longitude) : null,
+      latitude: lat,
+      longitude: lng,
     }
 
     if (modalMode === 'edit' && editTarget) {
@@ -169,51 +246,71 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
           className="rounded-2xl overflow-hidden"
           style={{ border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-elevated)' }}
         >
-          {offices.map((office, i) => (
-            <div
-              key={office.id}
-              className="flex items-center gap-4 px-5 py-4"
-              style={{ borderBottom: i < offices.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}
-            >
+          {offices.map((office, i) => {
+            const hasCoords = office.latitude != null && office.longitude != null
+            return (
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ backgroundColor: 'rgba(0,102,255,0.08)' }}
+                key={office.id}
+                className="flex items-center gap-4 px-5 py-4"
+                style={{ borderBottom: i < offices.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}
               >
-                <MapPin className="w-5 h-5" strokeWidth={1.5} style={{ color: 'var(--accent-color)' }} />
-              </div>
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ backgroundColor: 'rgba(0,102,255,0.08)' }}
+                >
+                  <MapPin className="w-5 h-5" strokeWidth={1.5} style={{ color: 'var(--accent-color)' }} />
+                </div>
 
-              <div className="flex-1 min-w-0">
-                <p
-                  className="text-[14px] font-medium truncate"
-                  style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
-                >
-                  {office.name}
-                </p>
-                <p className="text-[12px] truncate" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
-                  {[office.city, office.country_code].filter(Boolean).join(', ')}
-                  {office.timezone && ` · ${office.timezone}`}
-                </p>
-              </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-[14px] font-medium truncate"
+                    style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+                  >
+                    {office.name}
+                  </p>
+                  <p className="text-[12px] truncate" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
+                    {[office.address, office.postal_code, office.city].filter(Boolean).join(', ')}
+                    {office.country_code ? ` · ${office.country_code}` : ''}
+                    {office.timezone ? ` · ${office.timezone}` : ''}
+                  </p>
+                </div>
 
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => openEdit(office)}
-                  className="p-2 rounded-lg transition-colors hover:bg-[var(--bg-subtle)]"
-                  style={{ color: 'var(--text-tertiary)' }}
+                {/* Coord status badge */}
+                <span
+                  className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider shrink-0"
+                  style={{
+                    backgroundColor: hasCoords ? 'rgba(0,170,100,0.1)' : 'rgba(255,180,0,0.1)',
+                    color: hasCoords ? '#0aa068' : '#c99700',
+                    fontFamily: 'var(--font-body)',
+                  }}
                 >
-                  <Pencil className="w-4 h-4" strokeWidth={1.5} />
-                </button>
-                <button
-                  onClick={() => handleDelete(office.id)}
-                  disabled={deleting === office.id}
-                  className="p-2 rounded-lg transition-colors hover:bg-red-50 disabled:opacity-40"
-                  style={{ color: deleting === office.id ? '#E63946' : 'var(--text-tertiary)' }}
-                >
-                  <Trash2 className="w-4 h-4" strokeWidth={1.5} />
-                </button>
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: hasCoords ? '#0aa068' : '#c99700' }}
+                  />
+                  {hasCoords ? 'På kartet' : 'Uten koord.'}
+                </span>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => openEdit(office)}
+                    className="p-2 rounded-lg transition-colors hover:bg-[var(--bg-subtle)]"
+                    style={{ color: 'var(--text-tertiary)' }}
+                  >
+                    <Pencil className="w-4 h-4" strokeWidth={1.5} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(office.id)}
+                    disabled={deleting === office.id}
+                    className="p-2 rounded-lg transition-colors hover:bg-red-50 disabled:opacity-40"
+                    style={{ color: deleting === office.id ? '#E63946' : 'var(--text-tertiary)' }}
+                  >
+                    <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -233,7 +330,7 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={spring.bouncy}
-              className="fixed z-50 w-[480px] rounded-2xl p-6 flex flex-col gap-4"
+              className="fixed z-50 w-[520px] rounded-2xl p-6 flex flex-col gap-4"
               style={{
                 top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
                 backgroundColor: 'var(--bg-elevated)',
@@ -252,13 +349,13 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
+              <div className="grid grid-cols-6 gap-3">
+                <div className="col-span-6">
                   <OfficeField label="Navn">
                     <input
                       type="text"
                       value={form.name}
-                      onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                      onChange={e => updateForm('name', e.target.value)}
                       placeholder="f.eks. Oslo kontor"
                       className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
                       style={inputStyle}
@@ -268,46 +365,16 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
                   </OfficeField>
                 </div>
 
-                <OfficeField label="By">
-                  <input
-                    type="text"
-                    value={form.city}
-                    onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
-                    placeholder="Oslo"
-                    className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
-                    style={inputStyle}
-                    onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
-                    onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
-                  />
-                </OfficeField>
-
-                <OfficeField label="Land">
-                  <select
-                    value={form.country_code}
-                    onChange={e => setForm(f => ({ ...f, country_code: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none appearance-none cursor-pointer"
-                    style={{
-                      ...inputStyle,
-                      backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23A8A29E\' stroke-width=\'1.5\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E")',
-                      backgroundRepeat: 'no-repeat',
-                      backgroundPosition: 'right 12px center',
-                      paddingRight: '36px',
-                    }}
+                <div className="col-span-6">
+                  <OfficeField
+                    label="Adresse"
+                    hint="Gate + nummer gir mest presis plassering"
                   >
-                    <option value="">Velg land</option>
-                    {COUNTRY_OPTIONS.map(c => (
-                      <option key={c.code} value={c.code}>{c.label}</option>
-                    ))}
-                  </select>
-                </OfficeField>
-
-                <div className="col-span-2">
-                  <OfficeField label="Adresse">
                     <input
                       type="text"
                       value={form.address}
-                      onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                      placeholder="Gateveien 1, 0150 Oslo"
+                      onChange={e => updateForm('address', e.target.value)}
+                      placeholder="Storgata 1"
                       className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
                       style={inputStyle}
                       onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
@@ -316,38 +383,29 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
                   </OfficeField>
                 </div>
 
-                <OfficeField label="Tidssone">
-                  <input
-                    type="text"
-                    value={form.timezone}
-                    onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))}
-                    placeholder="Europe/Oslo"
-                    className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
-                    style={inputStyle}
-                    onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
-                    onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
-                  />
-                </OfficeField>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <OfficeField label="Breddegrad">
+                <div className="col-span-2">
+                  <OfficeField label="Postnummer">
                     <input
                       type="text"
-                      value={form.latitude}
-                      onChange={e => setForm(f => ({ ...f, latitude: e.target.value }))}
-                      placeholder="59.913"
-                      className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
+                      inputMode="numeric"
+                      value={form.postal_code}
+                      onChange={e => updateForm('postal_code', e.target.value)}
+                      placeholder="2817"
+                      className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none tabular-nums"
                       style={inputStyle}
                       onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
                       onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
                     />
                   </OfficeField>
-                  <OfficeField label="Lengdegrad">
+                </div>
+
+                <div className="col-span-4">
+                  <OfficeField label="By">
                     <input
                       type="text"
-                      value={form.longitude}
-                      onChange={e => setForm(f => ({ ...f, longitude: e.target.value }))}
-                      placeholder="10.752"
+                      value={form.city}
+                      onChange={e => updateForm('city', e.target.value)}
+                      placeholder="Gjøvik"
                       className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
                       style={inputStyle}
                       onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
@@ -355,6 +413,179 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
                     />
                   </OfficeField>
                 </div>
+
+                <div className="col-span-3">
+                  <OfficeField label="Land">
+                    <select
+                      value={form.country_code}
+                      onChange={e => updateForm('country_code', e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none appearance-none cursor-pointer"
+                      style={{
+                        ...inputStyle,
+                        backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23A8A29E' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")",
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 12px center',
+                        paddingRight: '36px',
+                      }}
+                    >
+                      <option value="">Velg land</option>
+                      {COUNTRY_OPTIONS.map(c => (
+                        <option key={c.code} value={c.code}>{c.label}</option>
+                      ))}
+                    </select>
+                  </OfficeField>
+                </div>
+
+                <div className="col-span-3">
+                  <OfficeField label="Tidssone">
+                    <input
+                      type="text"
+                      value={form.timezone}
+                      onChange={e => updateForm('timezone', e.target.value)}
+                      placeholder="Europe/Oslo"
+                      className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
+                      style={inputStyle}
+                      onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                      onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                    />
+                  </OfficeField>
+                </div>
+
+                {/* Geocode panel — the star of the upgrade */}
+                <div className="col-span-6">
+                  <div
+                    className="rounded-xl p-4 flex items-start gap-3"
+                    style={{
+                      background:
+                        geo.state === 'done'
+                          ? 'linear-gradient(135deg, rgba(10,160,104,0.08), rgba(10,160,104,0.02))'
+                          : geo.state === 'error'
+                            ? 'linear-gradient(135deg, rgba(230,57,70,0.08), rgba(230,57,70,0.02))'
+                            : 'linear-gradient(135deg, rgba(0,102,255,0.08), rgba(0,102,255,0.02))',
+                      border:
+                        geo.state === 'done'
+                          ? '1px solid rgba(10,160,104,0.25)'
+                          : geo.state === 'error'
+                            ? '1px solid rgba(230,57,70,0.25)'
+                            : '1px solid rgba(0,102,255,0.2)',
+                    }}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                      style={{
+                        backgroundColor:
+                          geo.state === 'done'
+                            ? 'rgba(10,160,104,0.14)'
+                            : geo.state === 'error'
+                              ? 'rgba(230,57,70,0.14)'
+                              : 'rgba(0,102,255,0.14)',
+                        color:
+                          geo.state === 'done'
+                            ? '#0aa068'
+                            : geo.state === 'error'
+                              ? '#E63946'
+                              : 'var(--accent-color)',
+                      }}
+                    >
+                      {geo.state === 'working' ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : geo.state === 'done' ? (
+                        <Check className="w-4 h-4" strokeWidth={2.5} />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="text-[13px] font-semibold"
+                        style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+                      >
+                        {geo.state === 'done'
+                          ? 'Plassert på kartet'
+                          : geo.state === 'error'
+                            ? 'Fant ikke adressen'
+                            : 'Automatisk plassering'}
+                      </p>
+                      <p
+                        className="text-[12px] mt-0.5 truncate"
+                        style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+                      >
+                        {geo.state === 'done'
+                          ? geo.display
+                          : geo.state === 'error'
+                            ? geo.message
+                            : geo.state === 'working'
+                              ? 'Slår opp koordinater …'
+                              : 'Fyll inn adresse/postnummer og la TeamPulse finne stedet.'}
+                      </p>
+                      {form.latitude && form.longitude && (
+                        <p
+                          className="text-[11px] mt-1 tabular-nums"
+                          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-sora)' }}
+                        >
+                          {parseFloat(form.latitude).toFixed(4)}°N, {parseFloat(form.longitude).toFixed(4)}°E
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={runGeocode}
+                      disabled={geo.state === 'working'}
+                      className="shrink-0 self-center inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-60"
+                      style={{
+                        backgroundColor: 'var(--accent-color)',
+                        color: 'white',
+                        fontFamily: 'var(--font-body)',
+                      }}
+                    >
+                      {geo.state === 'working' ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3.5 h-3.5" />
+                      )}
+                      Finn på kart
+                    </button>
+                  </div>
+                </div>
+
+                {/* Advanced: manual coord override */}
+                <details className="col-span-6 group">
+                  <summary
+                    className="cursor-pointer text-[11px] font-semibold uppercase tracking-widest list-none flex items-center gap-1.5 select-none"
+                    style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+                  >
+                    <span className="transition-transform group-open:rotate-90">▸</span>
+                    Juster koordinater manuelt
+                  </summary>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <OfficeField label="Breddegrad">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={form.latitude}
+                        onChange={e => updateForm('latitude', e.target.value)}
+                        placeholder="59.913"
+                        className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none tabular-nums"
+                        style={inputStyle}
+                        onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                        onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                      />
+                    </OfficeField>
+                    <OfficeField label="Lengdegrad">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={form.longitude}
+                        onChange={e => updateForm('longitude', e.target.value)}
+                        placeholder="10.752"
+                        className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none tabular-nums"
+                        style={inputStyle}
+                        onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                        onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                      />
+                    </OfficeField>
+                  </div>
+                </details>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-1">
@@ -390,7 +621,15 @@ const inputStyle: React.CSSProperties = {
   border: '1.5px solid transparent',
 }
 
-function OfficeField({ label, children }: { label: string; children: React.ReactNode }) {
+function OfficeField({
+  label,
+  hint,
+  children,
+}: {
+  label: string
+  hint?: string
+  children: React.ReactNode
+}) {
   return (
     <div className="flex flex-col gap-1.5">
       <label
@@ -398,6 +637,14 @@ function OfficeField({ label, children }: { label: string; children: React.React
         style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
       >
         {label}
+        {hint && (
+          <span
+            className="ml-1.5 font-normal normal-case tracking-normal"
+            style={{ color: 'var(--text-tertiary)', opacity: 0.7 }}
+          >
+            · {hint}
+          </span>
+        )}
       </label>
       {children}
     </div>
