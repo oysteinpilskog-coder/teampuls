@@ -61,7 +61,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
   let runningPct = 0
 
   return (
-    <div className="relative h-full flex flex-col px-10 py-8 gap-6">
+    <div className="relative h-full flex flex-col px-10 pt-6 pb-4 gap-6">
       {/* ── Header ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <motion.div

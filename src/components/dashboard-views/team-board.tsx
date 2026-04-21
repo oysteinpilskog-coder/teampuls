@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react'
 import { MemberAvatar } from '@/components/member-avatar'
 import { StatusIcon, STATUS_COLORS } from '@/components/icons/status-icons'
 import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
@@ -63,7 +64,6 @@ function MemberCard({ member, entry, accent, textTint, bg, delay }: MemberCardPr
         maxWidth: 220,
       }}
     >
-      {/* Avatar with status ring */}
       <div
         className="rounded-full p-[2px] flex-shrink-0"
         style={{
@@ -76,7 +76,6 @@ function MemberCard({ member, entry, accent, textTint, bg, delay }: MemberCardPr
         </div>
       </div>
 
-      {/* Info */}
       <div className="flex flex-col gap-0.5 min-w-0 flex-1">
         <span
           className="text-[15px] font-semibold leading-tight truncate"
@@ -140,7 +139,6 @@ function Strip({
   const count = members.length
   const hasPeople = count > 0
 
-  // Customize empty state copy by strip
   const emptyCopy =
     stripKey === 'away'       ? 'Ingen er borte 🎉' :
     stripKey === 'office'     ? 'Ingen på kontoret' :
@@ -172,7 +170,6 @@ function Strip({
         minHeight: 84,
       }}
     >
-      {/* Outer breathing glow (only when populated) */}
       {hasPeople && (
         <motion.div
           aria-hidden
@@ -186,7 +183,6 @@ function Strip({
         />
       )}
 
-      {/* Left: status label + count */}
       <div
         className="relative flex items-center gap-3 flex-shrink-0"
         style={{ minWidth: 200 }}
@@ -237,13 +233,11 @@ function Strip({
         />
       </div>
 
-      {/* Divider */}
       <div
         className="relative w-px self-stretch my-1 flex-shrink-0"
         style={{ background: `${textTint}1c` }}
       />
 
-      {/* Right: member cards or empty state */}
       <div className="relative flex-1 min-w-0">
         {!hasPeople ? (
           <p
@@ -273,7 +267,37 @@ function Strip({
 }
 
 export function TeamBoard({ members, todayMap }: TeamBoardProps) {
-  // Bucket members into strips by today's status
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [canScroll, setCanScroll] = useState({ top: false, bottom: false })
+
+  const updateScrollHints = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const atTop = el.scrollTop <= 2
+    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 2
+    setCanScroll({
+      top: !atTop,
+      bottom: !atBottom && el.scrollHeight > el.clientHeight,
+    })
+  }, [])
+
+  useLayoutEffect(() => {
+    updateScrollHints()
+  })
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onScroll = () => updateScrollHints()
+    el.addEventListener('scroll', onScroll, { passive: true })
+    const ro = new ResizeObserver(updateScrollHints)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      ro.disconnect()
+    }
+  }, [updateScrollHints])
+
   const buckets = STRIPS.map(strip => ({
     ...strip,
     members: members
@@ -288,107 +312,154 @@ export function TeamBoard({ members, todayMap }: TeamBoardProps) {
     .filter(m => !todayMap.has(m.id))
     .map(m => ({ member: m, entry: undefined }))
 
-  // Hide empty positive strips if space is tight and many are empty.
-  // For now we always show the four so the structure stays predictable,
-  // but empty strips collapse to a slimmer visual via opacity + minHeight.
   return (
-    <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-y-auto pr-1">
-      {buckets.map((bucket, i) => (
-        <Strip
-          key={bucket.key}
-          stripKey={bucket.key}
-          label={bucket.label}
-          representative={bucket.representative}
-          members={bucket.members}
-          delay={0.3 + i * 0.06}
-        />
-      ))}
+    <div className="relative flex-1 min-h-0">
+      {/* Top fade overlay when scrolled down */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-10 z-10 rounded-t-xl"
+        animate={{ opacity: canScroll.top ? 1 : 0 }}
+        transition={{ duration: 0.25 }}
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(5,5,7,0.92) 0%, rgba(5,5,7,0.5) 50%, rgba(5,5,7,0) 100%)',
+        }}
+      />
+      {/* Bottom fade overlay when more content below */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-10 z-10 rounded-b-xl"
+        animate={{ opacity: canScroll.bottom ? 1 : 0 }}
+        transition={{ duration: 0.25 }}
+        style={{
+          background:
+            'linear-gradient(0deg, rgba(5,5,7,0.92) 0%, rgba(5,5,7,0.5) 50%, rgba(5,5,7,0) 100%)',
+        }}
+      />
 
-      {unregistered.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, x: -8 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ ...spring.gentle, delay: 0.3 + buckets.length * 0.06 }}
-          className="relative rounded-3xl p-4 flex items-center gap-5 overflow-hidden"
-          style={{
-            background:
-              'repeating-linear-gradient(45deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 4px, rgba(255,255,255,0.01) 4px, rgba(255,255,255,0.01) 8px)',
-            border: '1px dashed rgba(255,255,255,0.12)',
-            minHeight: 72,
-          }}
-        >
-          <div className="flex items-center gap-3 flex-shrink-0" style={{ minWidth: 200 }}>
-            <div
-              className="flex items-center justify-center rounded-2xl flex-shrink-0"
-              style={{
-                width: 44,
-                height: 44,
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.1)',
-              }}
-            >
-              <svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-                <circle cx={12} cy={12} r={9} stroke="rgba(255,255,255,0.45)" strokeWidth={2} strokeDasharray="3 3" />
-                <path d="M12 8v4M12 16h0" stroke="rgba(255,255,255,0.6)" strokeWidth={2} strokeLinecap="round" />
-              </svg>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span
-                className="text-[10px] font-semibold tracking-[0.22em] uppercase"
-                style={{ color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-body)' }}
+      <div
+        ref={scrollRef}
+        className="team-scroll absolute inset-0 flex flex-col gap-3 overflow-y-auto overscroll-contain pr-2"
+        style={{ scrollBehavior: 'smooth' }}
+      >
+        {buckets.map((bucket, i) => (
+          <Strip
+            key={bucket.key}
+            stripKey={bucket.key}
+            label={bucket.label}
+            representative={bucket.representative}
+            members={bucket.members}
+            delay={0.3 + i * 0.06}
+          />
+        ))}
+
+        {unregistered.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ ...spring.gentle, delay: 0.3 + buckets.length * 0.06 }}
+            className="relative rounded-3xl p-4 flex items-center gap-5 overflow-hidden"
+            style={{
+              background:
+                'repeating-linear-gradient(45deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 4px, rgba(255,255,255,0.01) 4px, rgba(255,255,255,0.01) 8px)',
+              border: '1px dashed rgba(255,255,255,0.12)',
+              minHeight: 72,
+            }}
+          >
+            <div className="flex items-center gap-3 flex-shrink-0" style={{ minWidth: 200 }}>
+              <div
+                className="flex items-center justify-center rounded-2xl flex-shrink-0"
+                style={{
+                  width: 44,
+                  height: 44,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                }}
               >
-                Mangler
-              </span>
-              <span
-                className="text-[17px] font-semibold leading-tight"
-                style={{ color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-body)' }}
-              >
-                Ikke registrert
-              </span>
-            </div>
-            <AnimatedCount
-              value={unregistered.length}
-              delay={0.4}
-              duration={0.9}
-              className="tabular-nums ml-auto"
-              style={{
-                fontSize: '44px',
-                fontWeight: 700,
-                lineHeight: 0.9,
-                fontFamily: 'var(--font-sora)',
-                letterSpacing: '-0.04em',
-                color: 'rgba(255,255,255,0.65)',
-              }}
-            />
-          </div>
-          <div className="w-px self-stretch my-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap gap-2.5">
-              {unregistered.map(({ member }, i) => (
-                <motion.div
-                  key={member.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...spring.gentle, delay: 0.45 + i * 0.03 }}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-full"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                  }}
+                <svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+                  <circle cx={12} cy={12} r={9} stroke="rgba(255,255,255,0.45)" strokeWidth={2} strokeDasharray="3 3" />
+                  <path d="M12 8v4M12 16h0" stroke="rgba(255,255,255,0.6)" strokeWidth={2} strokeLinecap="round" />
+                </svg>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span
+                  className="text-[10px] font-semibold tracking-[0.22em] uppercase"
+                  style={{ color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-body)' }}
                 >
-                  <MemberAvatar name={member.display_name} avatarUrl={member.avatar_url} size="sm" />
-                  <span
-                    className="text-[13px] font-medium"
-                    style={{ color: 'rgba(255,255,255,0.65)', fontFamily: 'var(--font-body)' }}
-                  >
-                    {member.display_name.split(' ')[0]}
-                  </span>
-                </motion.div>
-              ))}
+                  Mangler
+                </span>
+                <span
+                  className="text-[17px] font-semibold leading-tight"
+                  style={{ color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-body)' }}
+                >
+                  Ikke registrert
+                </span>
+              </div>
+              <AnimatedCount
+                value={unregistered.length}
+                delay={0.4}
+                duration={0.9}
+                className="tabular-nums ml-auto"
+                style={{
+                  fontSize: '44px',
+                  fontWeight: 700,
+                  lineHeight: 0.9,
+                  fontFamily: 'var(--font-sora)',
+                  letterSpacing: '-0.04em',
+                  color: 'rgba(255,255,255,0.65)',
+                }}
+              />
             </div>
-          </div>
-        </motion.div>
-      )}
+            <div className="w-px self-stretch my-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap gap-2.5">
+                {unregistered.map(({ member }, i) => (
+                  <motion.div
+                    key={member.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ ...spring.gentle, delay: 0.45 + i * 0.03 }}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-full"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    <MemberAvatar name={member.display_name} avatarUrl={member.avatar_url} size="sm" />
+                    <span
+                      className="text-[13px] font-medium"
+                      style={{ color: 'rgba(255,255,255,0.65)', fontFamily: 'var(--font-body)' }}
+                    >
+                      {member.display_name.split(' ')[0]}
+                    </span>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Custom thin scrollbar (WebKit + Firefox) */}
+      <style>{`
+        .team-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255,255,255,0.14) transparent;
+        }
+        .team-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+        .team-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .team-scroll::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.14);
+          border-radius: 999px;
+        }
+        .team-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(255,255,255,0.28);
+        }
+      `}</style>
     </div>
   )
 }

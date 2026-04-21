@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { project, resolveLocation } from '@/lib/geo'
+import { placeLabels, textAnchorFor } from '@/lib/map-labels'
 import { STATUS_COLORS } from '@/components/icons/status-icons'
 import { spring } from '@/lib/motion'
 import type { Member, Entry, Office } from '@/lib/supabase/types'
@@ -19,9 +20,11 @@ interface OfficeMapViewProps {
 function pad(n: number) { return String(n).padStart(2, '0') }
 
 interface PlacedOffice {
+  id: string
   office: Office
   x: number
   y: number
+  radius: number
   peopleToday: number
   peopleHome: number
 }
@@ -54,11 +57,14 @@ export function OfficeMapView({
       const peopleToday = todayEntries.filter(e =>
         e.status === 'office' && homeMembers.some(m => m.id === e.member_id),
       ).length
+      const active = peopleToday > 0
+      const base = 16
+      const radius = active ? base + Math.sqrt(peopleToday) * 9 : 10
 
       return {
+        id: office.id,
         office,
-        x,
-        y,
+        x, y, radius,
         peopleToday,
         peopleHome: homeMembers.length,
       }
@@ -68,10 +74,12 @@ export function OfficeMapView({
   const totalAtOffice = placed.reduce((s, p) => s + p.peopleToday, 0)
   const officeColor = STATUS_COLORS.office.icon   // #0066FF
 
+  const placedLabels = placeLabels(placed, { gap: 16, collisionRadius: 110 })
+
   return (
-    <div className="relative h-full flex flex-col px-10 py-6 gap-4">
+    <div className="relative h-full flex flex-col px-10 pt-6 pb-4 gap-4">
       {/* ── Header ────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-shrink-0">
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -144,7 +152,7 @@ export function OfficeMapView({
         </motion.div>
       </div>
 
-      {/* ── Map ───────────────────────────────────────────────────── */}
+      {/* ── Map (fills all remaining height) ──────────────────────── */}
       <motion.div
         className="flex-1 relative rounded-3xl overflow-hidden min-h-0"
         initial={{ opacity: 0, scale: 0.98 }}
@@ -152,21 +160,19 @@ export function OfficeMapView({
         transition={{ ...spring.gentle, delay: 0.18 }}
         style={{
           background:
-            'radial-gradient(ellipse at 50% 45%, rgba(0,60,180,0.08) 0%, rgba(5,5,7,0) 70%)',
-          border: '1px solid rgba(255,255,255,0.06)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+            'radial-gradient(ellipse at 50% 45%, rgba(0,60,180,0.10) 0%, rgba(5,5,7,0) 70%)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          boxShadow:
+            'inset 0 1px 0 rgba(255,255,255,0.06), 0 40px 80px -40px rgba(0,0,0,0.5)',
         }}
       >
-        <EuropeMapCanvas>
+        <EuropeMapCanvas accent="#5E8CFF">
           {placed.map((p, i) => {
             const active = p.peopleToday > 0
-            // Size scales with headcount but stays visible even with 0
-            const base = 14
-            const radius = active ? base + Math.sqrt(p.peopleToday) * 9 : 8
-            const glow = active ? 0.9 : 0.25
+            const radius = p.radius
 
             return (
-              <g key={p.office.id} transform={`translate(${p.x} ${p.y})`}>
+              <g key={p.id} transform={`translate(${p.x} ${p.y})`}>
                 {/* Pulsing halo for active offices */}
                 {active && (
                   <>
@@ -193,7 +199,7 @@ export function OfficeMapView({
                 <circle
                   r={radius + 4}
                   fill={officeColor}
-                  opacity={glow * 0.18}
+                  opacity={active ? 0.22 : 0.1}
                   style={{ filter: `blur(8px)` }}
                 />
 
@@ -201,18 +207,24 @@ export function OfficeMapView({
                 <motion.circle
                   r={radius}
                   fill={officeColor}
+                  opacity={active ? 1 : 0.55}
                   initial={{ r: 0, opacity: 0 }}
-                  animate={{ r: radius, opacity: 1 }}
+                  animate={{ r: radius, opacity: active ? 1 : 0.55 }}
                   transition={{ ...spring.gentle, delay: 0.35 + i * 0.08 }}
-                  style={{ filter: `drop-shadow(0 0 18px ${officeColor})` }}
+                  style={{
+                    filter: active
+                      ? `drop-shadow(0 0 18px ${officeColor})`
+                      : `drop-shadow(0 0 6px ${officeColor}66)`,
+                  }}
                 />
 
-                {/* Inner highlight */}
+                {/* Inner highlight — gives the dot a glass-bead feel */}
                 <circle
-                  r={radius * 0.4}
-                  cx={-radius * 0.15}
-                  cy={-radius * 0.18}
+                  r={radius * 0.42}
+                  cx={-radius * 0.18}
+                  cy={-radius * 0.22}
                   fill="rgba(255,255,255,0.55)"
+                  opacity={active ? 1 : 0.6}
                 />
 
                 {/* Count label inside the dot */}
@@ -230,39 +242,58 @@ export function OfficeMapView({
                     {p.peopleToday}
                   </text>
                 )}
-
-                {/* City / office label */}
-                <motion.g
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...spring.gentle, delay: 0.55 + i * 0.08 }}
-                >
-                  <text
-                    x={0}
-                    y={radius + 28}
-                    textAnchor="middle"
-                    fontSize={18}
-                    fontWeight={600}
-                    fontFamily="var(--font-sora)"
-                    fill="white"
-                    letterSpacing={0.5}
-                  >
-                    {p.office.city ?? p.office.name}
-                  </text>
-                  <text
-                    x={0}
-                    y={radius + 50}
-                    textAnchor="middle"
-                    fontSize={12}
-                    fontFamily="var(--font-body)"
-                    fill="rgba(255,255,255,0.45)"
-                    letterSpacing={1.2}
-                    style={{ textTransform: 'uppercase' }}
-                  >
-                    {p.peopleToday} av {p.peopleHome} inne
-                  </text>
-                </motion.g>
               </g>
+            )
+          })}
+
+          {/* Labels drawn AFTER pins so they sit on top — with collision-aware placement */}
+          {placedLabels.map((pl, i) => {
+            const anchor = textAnchorFor(pl.side)
+            return (
+              <motion.g
+                key={`label-${pl.point.id}`}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...spring.gentle, delay: 0.55 + i * 0.08 }}
+              >
+                {/* Subtle dark pill behind the text for readability */}
+                <text
+                  x={pl.labelX}
+                  y={pl.labelY}
+                  textAnchor={anchor}
+                  fontSize={18}
+                  fontWeight={700}
+                  fontFamily="var(--font-sora)"
+                  fill="white"
+                  letterSpacing={0.5}
+                  style={{
+                    paintOrder: 'stroke',
+                    stroke: 'rgba(2,4,10,0.75)',
+                    strokeWidth: 5,
+                    strokeLinejoin: 'round',
+                  }}
+                >
+                  {pl.point.office.city ?? pl.point.office.name}
+                </text>
+                <text
+                  x={pl.labelX}
+                  y={pl.labelY + 20}
+                  textAnchor={anchor}
+                  fontSize={11}
+                  fontFamily="var(--font-body)"
+                  fill="rgba(255,255,255,0.55)"
+                  letterSpacing={1.4}
+                  style={{
+                    textTransform: 'uppercase',
+                    paintOrder: 'stroke',
+                    stroke: 'rgba(2,4,10,0.7)',
+                    strokeWidth: 4,
+                    strokeLinejoin: 'round',
+                  }}
+                >
+                  {pl.point.peopleToday} av {pl.point.peopleHome} inne
+                </text>
+              </motion.g>
             )
           })}
 
@@ -279,6 +310,13 @@ export function OfficeMapView({
             </text>
           )}
         </EuropeMapCanvas>
+
+        {/* Glass top-edge highlight */}
+        <div
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-[1px]"
+          style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0) 100%)' }}
+        />
       </motion.div>
 
       {/* ── Footer summary ────────────────────────────────────────── */}
@@ -293,9 +331,9 @@ export function OfficeMapView({
           border: '1px solid rgba(255,255,255,0.06)',
         }}
       >
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-6 flex-wrap">
           {placed.map(p => (
-            <div key={p.office.id} className="flex items-center gap-2">
+            <div key={p.id} className="flex items-center gap-2">
               <span
                 className="w-2 h-2 rounded-full"
                 style={{

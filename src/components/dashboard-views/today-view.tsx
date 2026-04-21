@@ -81,7 +81,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
   }
 
   return (
-    <div className="relative h-full flex flex-col px-10 py-6 gap-4">
+    <div className="relative h-full flex flex-col px-10 pt-6 pb-4 gap-4">
       {/* ── Header band ──────────────────────────────────────────── */}
       <div className="flex items-start justify-between">
         <motion.div

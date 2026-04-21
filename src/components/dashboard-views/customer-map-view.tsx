@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { project, resolveLocation } from '@/lib/geo'
+import { placeLabels, textAnchorFor } from '@/lib/map-labels'
 import { STATUS_COLORS } from '@/components/icons/status-icons'
 import { spring } from '@/lib/motion'
 import type { Member, Entry } from '@/lib/supabase/types'
@@ -19,11 +20,10 @@ interface CustomerMapViewProps {
 function pad(n: number) { return String(n).padStart(2, '0') }
 
 interface CustomerCluster {
-  key: string
-  lat: number
-  lng: number
+  id: string
   x: number
   y: number
+  radius: number
   display: string
   memberIdsToday: Set<string>
   memberIdsWeek: Set<string>
@@ -45,7 +45,7 @@ export function CustomerMapView({
   const customerColor = STATUS_COLORS.customer.icon  // #FF7A1A
 
   // Cluster by resolved lat/lng. Unresolved labels are collected for a sidebar.
-  const byKey = new Map<string, CustomerCluster>()
+  const byKey = new Map<string, CustomerCluster & { lat: number; lng: number }>()
   const unresolved = new Map<string, Set<string>>()  // label → member ids
 
   for (const e of entries) {
@@ -67,10 +67,11 @@ export function CustomerMapView({
     if (!cluster) {
       const { x, y } = project(resolved.lat, resolved.lng, MAP_WIDTH, MAP_HEIGHT)
       cluster = {
-        key,
+        id: key,
+        x, y,
+        radius: 10,
         lat: resolved.lat,
         lng: resolved.lng,
-        x, y,
         display: resolved.display,
         memberIdsToday: new Set(),
         memberIdsWeek: new Set(),
@@ -85,18 +86,29 @@ export function CustomerMapView({
     }
   }
 
-  const clusters = Array.from(byKey.values()).sort(
-    (a, b) => b.memberIdsWeek.size - a.memberIdsWeek.size,
-  )
+  const clusters = Array.from(byKey.values())
+    .map<CustomerCluster>(c => ({
+      id: c.id,
+      x: c.x,
+      y: c.y,
+      radius: 12 + Math.sqrt(c.memberIdsWeek.size) * 7,
+      display: c.display,
+      memberIdsToday: c.memberIdsToday,
+      memberIdsWeek: c.memberIdsWeek,
+      daysThisWeek: c.daysThisWeek,
+    }))
+    .sort((a, b) => b.memberIdsWeek.size - a.memberIdsWeek.size)
 
   const visitorsToday = clusters.reduce((s, c) => s + c.memberIdsToday.size, 0)
   const visitorsWeek = new Set<string>()
   clusters.forEach(c => c.memberIdsWeek.forEach(id => visitorsWeek.add(id)))
 
+  const placedLabels = placeLabels(clusters, { gap: 14, collisionRadius: 90 })
+
   return (
-    <div className="relative h-full flex flex-col px-10 py-6 gap-4">
+    <div className="relative h-full flex flex-col px-10 pt-6 pb-4 gap-4">
       {/* ── Header ────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-shrink-0">
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -170,7 +182,7 @@ export function CustomerMapView({
       </div>
 
       {/* ── Main area: map + side list ────────────────────────────── */}
-      <div className="flex-1 grid grid-cols-[1fr_320px] gap-5 min-h-0">
+      <div className="flex-1 grid grid-cols-[1fr_340px] gap-5 min-h-0">
         <motion.div
           className="relative rounded-3xl overflow-hidden min-h-0"
           initial={{ opacity: 0, scale: 0.98 }}
@@ -178,20 +190,20 @@ export function CustomerMapView({
           transition={{ ...spring.gentle, delay: 0.18 }}
           style={{
             background:
-              'radial-gradient(ellipse at 50% 45%, rgba(255,100,0,0.06) 0%, rgba(5,5,7,0) 70%)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+              'radial-gradient(ellipse at 50% 45%, rgba(255,120,40,0.08) 0%, rgba(5,5,7,0) 70%)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            boxShadow:
+              'inset 0 1px 0 rgba(255,255,255,0.06), 0 40px 80px -40px rgba(0,0,0,0.5)',
           }}
         >
-          <EuropeMapCanvas>
+          <EuropeMapCanvas accent="#FF8A3D">
             {clusters.map((c, i) => {
               const countWeek = c.memberIdsWeek.size
               const activeToday = c.memberIdsToday.size > 0
-              const radius = 10 + Math.sqrt(countWeek) * 7
+              const radius = c.radius
 
               return (
-                <g key={c.key} transform={`translate(${c.x} ${c.y})`}>
-                  {/* Pulsing halo if someone is there today */}
+                <g key={c.id} transform={`translate(${c.x} ${c.y})`}>
                   {activeToday && (
                     <>
                       <motion.circle
@@ -213,7 +225,6 @@ export function CustomerMapView({
                     </>
                   )}
 
-                  {/* Soft outer glow */}
                   <circle
                     r={radius + 4}
                     fill={customerColor}
@@ -221,7 +232,6 @@ export function CustomerMapView({
                     style={{ filter: `blur(8px)` }}
                   />
 
-                  {/* Main dot */}
                   <motion.circle
                     r={radius}
                     fill={customerColor}
@@ -236,15 +246,14 @@ export function CustomerMapView({
                     }}
                   />
 
-                  {/* Inner highlight */}
                   <circle
-                    r={radius * 0.4}
-                    cx={-radius * 0.15}
-                    cy={-radius * 0.18}
+                    r={radius * 0.42}
+                    cx={-radius * 0.18}
+                    cy={-radius * 0.22}
                     fill="rgba(255,255,255,0.5)"
+                    opacity={activeToday ? 1 : 0.6}
                   />
 
-                  {/* Count inside */}
                   <text
                     x={0}
                     y={radius > 20 ? 6 : 4}
@@ -257,40 +266,61 @@ export function CustomerMapView({
                   >
                     {countWeek}
                   </text>
-
-                  <motion.g
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ ...spring.gentle, delay: 0.5 + i * 0.07 }}
-                  >
-                    <text
-                      x={0}
-                      y={radius + 26}
-                      textAnchor="middle"
-                      fontSize={17}
-                      fontWeight={600}
-                      fontFamily="var(--font-sora)"
-                      fill="white"
-                      letterSpacing={0.4}
-                    >
-                      {c.display}
-                    </text>
-                    <text
-                      x={0}
-                      y={radius + 46}
-                      textAnchor="middle"
-                      fontSize={11}
-                      fontFamily="var(--font-body)"
-                      fill="rgba(255,255,255,0.45)"
-                      letterSpacing={1.2}
-                      style={{ textTransform: 'uppercase' }}
-                    >
-                      {activeToday
-                        ? `${c.memberIdsToday.size} her i dag`
-                        : `${c.daysThisWeek} dag${c.daysThisWeek === 1 ? '' : 'er'} i uken`}
-                    </text>
-                  </motion.g>
                 </g>
+              )
+            })}
+
+            {/* Labels with collision-aware placement */}
+            {placedLabels.map((pl, i) => {
+              const anchor = textAnchorFor(pl.side)
+              const c = pl.point
+              const activeToday = c.memberIdsToday.size > 0
+              return (
+                <motion.g
+                  key={`label-${c.id}`}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...spring.gentle, delay: 0.5 + i * 0.07 }}
+                >
+                  <text
+                    x={pl.labelX}
+                    y={pl.labelY}
+                    textAnchor={anchor}
+                    fontSize={17}
+                    fontWeight={700}
+                    fontFamily="var(--font-sora)"
+                    fill="white"
+                    letterSpacing={0.4}
+                    style={{
+                      paintOrder: 'stroke',
+                      stroke: 'rgba(2,4,10,0.75)',
+                      strokeWidth: 5,
+                      strokeLinejoin: 'round',
+                    }}
+                  >
+                    {c.display}
+                  </text>
+                  <text
+                    x={pl.labelX}
+                    y={pl.labelY + 18}
+                    textAnchor={anchor}
+                    fontSize={11}
+                    fontFamily="var(--font-body)"
+                    fill="rgba(255,255,255,0.55)"
+                    letterSpacing={1.2}
+                    style={{
+                      textTransform: 'uppercase',
+                      paintOrder: 'stroke',
+                      stroke: 'rgba(2,4,10,0.7)',
+                      strokeWidth: 4,
+                      strokeLinejoin: 'round',
+                    }}
+                  >
+                    {activeToday
+                      ? `${c.memberIdsToday.size} her i dag`
+                      : `${c.daysThisWeek} dag${c.daysThisWeek === 1 ? '' : 'er'} i uken`}
+                  </text>
+                </motion.g>
               )
             })}
 
@@ -307,6 +337,12 @@ export function CustomerMapView({
               </text>
             )}
           </EuropeMapCanvas>
+
+          <div
+            aria-hidden
+            className="absolute inset-x-0 top-0 h-[1px]"
+            style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0) 100%)' }}
+          />
         </motion.div>
 
         {/* ── Side list: top customer cities + unresolved ─────────── */}
@@ -314,14 +350,15 @@ export function CustomerMapView({
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ ...spring.gentle, delay: 0.28 }}
-          className="flex flex-col gap-5 min-h-0"
+          className="flex flex-col gap-5 min-h-0 overflow-y-auto"
         >
           <div
-            className="rounded-2xl p-5 flex flex-col gap-3"
+            className="rounded-2xl p-5 flex flex-col gap-3 flex-shrink-0"
             style={{
               background:
                 'linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
               border: '1px solid rgba(255,255,255,0.08)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
             }}
           >
             <h3
@@ -346,7 +383,7 @@ export function CustomerMapView({
                     .filter(Boolean)
                   return (
                     <motion.div
-                      key={c.key}
+                      key={c.id}
                       initial={{ opacity: 0, x: 10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ ...spring.gentle, delay: 0.4 + i * 0.05 }}
@@ -391,7 +428,7 @@ export function CustomerMapView({
 
           {unresolved.size > 0 && (
             <div
-              className="rounded-2xl p-5 flex flex-col gap-2.5"
+              className="rounded-2xl p-5 flex flex-col gap-2.5 flex-shrink-0"
               style={{
                 background:
                   'linear-gradient(155deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.01) 100%)',
