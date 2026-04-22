@@ -209,15 +209,15 @@ export function StatusSegment({
         />
       )}
 
-      {/* Single-day today accent — luminous ring */}
-      {singleDayIsToday && (
+      {/* Single-day today accent — luminous ring only on filled bars.
+          Empty today cells stay flat-white like every other empty cell. */}
+      {singleDayIsToday && status && (
         <motion.div
           aria-hidden
           className="absolute inset-0 rounded-[9px] pointer-events-none z-30"
           style={{
-            boxShadow: status
-              ? 'inset 0 0 0 1.5px rgba(255,255,255,0.75), inset 0 0 12px rgba(255,255,255,0.25)'
-              : 'inset 0 0 0 1.5px var(--accent-color), inset 0 0 14px color-mix(in oklab, var(--accent-color) 30%, transparent)',
+            boxShadow:
+              'inset 0 0 0 1.5px rgba(255,255,255,0.75), inset 0 0 12px rgba(255,255,255,0.25)',
           }}
           animate={{ opacity: [0.6, 1, 0.6] }}
           transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
