@@ -1,24 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { parseTeamUpdate } from '@/lib/ai/parse-update'
 import { applyUpdates } from '@/lib/ai/apply-updates'
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient()
-
-    // Auth check
-    const { data: { user } } = await supabase.auth.getUser()
+    // Auth-bound client: used ONLY to verify the caller's identity.
+    // All subsequent org-scoped reads/writes use the admin client so RLS
+    // can't hide other members of the caller's org from the AI context.
+    const userClient = await createClient()
+    const { data: { user } } = await userClient.auth.getUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get sender's member record.
+    const admin = createAdminClient()
+
+    // Resolve sender's member row.
     // Primary: by user_id (set once auth/callback links it).
     // Fallback: by email — handles users whose member row was created
     // after their last login, or whose link never fired. We backfill
     // user_id so the next request takes the fast path.
-    let { data: member, error: memberError } = await supabase
+    let { data: member } = await admin
       .from('members')
       .select('id, org_id, email, display_name')
       .eq('user_id', user.id)
@@ -26,7 +30,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     if (!member && user.email) {
-      const { data: byEmail } = await supabase
+      const { data: byEmail } = await admin
         .from('members')
         .select('id, org_id, email, display_name')
         .ilike('email', user.email)
@@ -34,17 +38,16 @@ export async function POST(req: NextRequest) {
         .maybeSingle()
 
       if (byEmail) {
-        await supabase
+        await admin
           .from('members')
           .update({ user_id: user.id })
           .eq('id', byEmail.id)
           .is('user_id', null)
         member = byEmail
-        memberError = null
       }
     }
 
-    if (memberError || !member) {
+    if (!member) {
       return NextResponse.json(
         { error: 'Din bruker er ikke koblet til et medlem. Kontakt en admin.' },
         { status: 403 }
@@ -56,19 +59,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing text' }, { status: 400 })
     }
 
-    // Get all active members for this org (needed for name resolution)
-    const { data: allMembers } = await supabase
+    // Get all active members for this org (needed for name resolution).
+    // Scoped strictly to the authenticated user's org.
+    const { data: allMembers } = await admin
       .from('members')
       .select('id, org_id, user_id, display_name, full_name, initials, email, avatar_url, nicknames, home_office_id, role, is_active, created_at, updated_at')
       .eq('org_id', member.org_id)
       .eq('is_active', true)
 
     if (!allMembers?.length) {
-      return NextResponse.json({ error: 'No members found' }, { status: 500 })
+      return NextResponse.json(
+        { error: 'Fant ingen aktive medlemmer i organisasjonen din.' },
+        { status: 500 }
+      )
     }
 
     // Get org timezone
-    const { data: org } = await supabase
+    const { data: org } = await admin
       .from('organizations')
       .select('timezone')
       .eq('id', member.org_id)
@@ -86,7 +93,7 @@ export async function POST(req: NextRequest) {
     })
 
     // Log the request (best-effort, non-blocking)
-    supabase
+    admin
       .from('ai_messages')
       .insert({
         org_id: member.org_id,
@@ -107,8 +114,9 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Apply updates to the database
-    await applyUpdates(supabase, member.org_id, result)
+    // Apply updates to the database (admin bypasses RLS so the user
+    // can edit teammates' plans via the AI prompt).
+    await applyUpdates(admin, member.org_id, result)
 
     return NextResponse.json({
       success: true,
