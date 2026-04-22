@@ -90,7 +90,15 @@ export function MemberAvatar({
 
 /** Horizontal stack of avatars with +N overflow chip */
 interface AvatarStackProps {
-  members: Array<{ id: string; display_name: string; avatar_url: string | null; initials?: string | null }>
+  members: Array<{
+    id: string
+    display_name: string
+    avatar_url: string | null
+    initials?: string | null
+    /** When true, the avatar renders dimmed with a dashed ring — signals that
+     *  this presence is inferred from a default rather than registered. */
+    assumed?: boolean
+  }>
   max?: number
   size?: AvatarSize
 }
@@ -109,9 +117,14 @@ export function AvatarStack({ members, max = 6, size = 'sm', ringColor }: Avatar
           className="rounded-full"
           style={{
             marginLeft: i === 0 ? 0 : -(px * 0.35),
-            boxShadow: `0 0 0 2px ${ring}`,
+            boxShadow: m.assumed
+              ? `0 0 0 1.5px ${ring}, 0 0 0 2.5px transparent`
+              : `0 0 0 2px ${ring}`,
+            outline: m.assumed ? `1.5px dashed rgba(161, 161, 170, 0.55)` : undefined,
+            outlineOffset: m.assumed ? '-1px' : undefined,
+            opacity: m.assumed ? 0.5 : 1,
           }}
-          title={m.display_name}
+          title={m.assumed ? `${m.display_name} — antatt` : m.display_name}
         >
           <MemberAvatar name={m.display_name} initials={m.initials} avatarUrl={m.avatar_url} size={size} />
         </div>

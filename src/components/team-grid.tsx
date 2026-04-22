@@ -24,16 +24,20 @@ import { CellEditor } from '@/components/cell-editor'
 import { spring } from '@/lib/motion'
 import { useEntries } from '@/hooks/use-entries'
 import { no } from '@/lib/i18n/no'
-import type { Entry, EntryStatus } from '@/lib/supabase/types'
+import type { Entry, EntryStatus, PresenceAssumption } from '@/lib/supabase/types'
+import { inferStatus } from '@/lib/presence'
 
 interface RowSegment {
   days: SegmentDay[]
   dates: Date[]
+  /** Set when the segment comes from a real registered entry. */
   entry: Entry | null
+  /** Set when the segment is inferred from the org / member default. Mutually
+   *  exclusive with `entry` — a segment is either real or assumed, never both. */
+  assumedStatus: EntryStatus | null
 }
 
 function entriesMergeable(a: Entry | null, b: Entry | null): boolean {
-  // Never merge empty days — each empty slot stays clickable on its own.
   if (a === null || b === null) return false
   return (
     a.status === b.status &&
@@ -42,25 +46,47 @@ function entriesMergeable(a: Entry | null, b: Entry | null): boolean {
   )
 }
 
+function segmentsMergeable(
+  aEntry: Entry | null,
+  aAssumed: EntryStatus | null,
+  bEntry: Entry | null,
+  bAssumed: EntryStatus | null,
+): boolean {
+  if (aEntry && bEntry) return entriesMergeable(aEntry, bEntry)
+  // Both assumed (entries absent) → merge when they share the same inferred
+  // status. Mixed (one real, one assumed) → never merge.
+  if (!aEntry && !bEntry) return aAssumed !== null && aAssumed === bAssumed
+  return false
+}
+
 function buildRowSegments(
   weekDays: Date[],
   memberId: string,
-  entryMap: Map<string, Entry>
+  entryMap: Map<string, Entry>,
+  memberDefaultStatus: EntryStatus | null,
+  assumption: PresenceAssumption,
 ): RowSegment[] {
   const segments: RowSegment[] = []
   let i = 0
+  // Local wrapper — avoids recomputing the assumption on every iteration.
+  const inferred = (entry: Entry | null) =>
+    entry ? null : inferStatus({ default_status: memberDefaultStatus }, assumption)
+
   while (i < weekDays.length) {
     const startEntry = entryMap.get(`${memberId}_${toDateString(weekDays[i])}`) ?? null
+    const startAssumed = inferred(startEntry)
     let j = i + 1
     while (j < weekDays.length) {
       const nextEntry = entryMap.get(`${memberId}_${toDateString(weekDays[j])}`) ?? null
-      if (!entriesMergeable(startEntry, nextEntry)) break
+      const nextAssumed = inferred(nextEntry)
+      if (!segmentsMergeable(startEntry, startAssumed, nextEntry, nextAssumed)) break
       j++
     }
     const dates = weekDays.slice(i, j)
     segments.push({
       dates,
       entry: startEntry,
+      assumedStatus: startEntry ? null : startAssumed,
       days: dates.map((date) => ({
         date: toDateString(date),
         dateLabel: formatDateLabel(date),
@@ -174,6 +200,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
 
   const [members, setMembers] = useState<Member[]>([])
   const [offices, setOffices] = useState<Office[]>([])
+  const [presenceAssumption, setPresenceAssumption] = useState<PresenceAssumption>('none')
   const [membersLoading, setMembersLoading] = useState(true)
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null)
 
@@ -204,11 +231,14 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     return map
   }, [entries])
 
-  // Only show members that have at least one entry in the visible week.
+  // Only show members that have at least one entry in the visible week —
+  // unless the org opted into an assumption, in which case every active
+  // member gets a row (their empty days render as assumed segments).
   const visibleMembers = useMemo(() => {
+    if (presenceAssumption !== 'none') return members
     const memberIdsWithEntries = new Set(entries.map((e) => e.member_id))
     return members.filter((m) => memberIdsWithEntries.has(m.id))
-  }, [members, entries])
+  }, [members, entries, presenceAssumption])
 
   // Fetch members once (they rarely change)
   const fetchMembers = useCallback(async () => {
@@ -216,7 +246,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     const supabase = createClient()
     // Fetch members and offices in parallel — the hover card needs the home
     // office's name + timezone to show each member's local time.
-    const [{ data: ms }, { data: os }] = await Promise.all([
+    const [{ data: ms }, { data: os }, { data: org }] = await Promise.all([
       supabase
         .from('members')
         .select('*')
@@ -228,9 +258,15 @@ export function TeamGrid({ orgId }: TeamGridProps) {
         .select('*')
         .eq('org_id', orgId)
         .order('sort_order'),
+      supabase
+        .from('organizations')
+        .select('default_presence_assumption')
+        .eq('id', orgId)
+        .maybeSingle(),
     ])
     setMembers(ms ?? [])
     setOffices(os ?? [])
+    setPresenceAssumption((org?.default_presence_assumption ?? 'none') as PresenceAssumption)
     setMembersLoading(false)
   }, [orgId])
 
@@ -475,7 +511,8 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     const dateStr = toDateString(weekDays[dayIdx])
     const entry = entryMap.get(`${memberId}_${dateStr}`)
     if (entry) {
-      const segments = buildRowSegments(weekDays, memberId, entryMap)
+      const memberDefault = members.find((m) => m.id === memberId)?.default_status ?? null
+      const segments = buildRowSegments(weekDays, memberId, entryMap, memberDefault, presenceAssumption)
       let cursor = 0
       for (const seg of segments) {
         const n = seg.days.length
@@ -626,18 +663,32 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     setYear(nextYear)
   }
 
-  // Today's entries for the Pulse widget
+  // Today's entries for the Pulse widget. When the org opts into an
+  // assumption, members without a real entry are included too — their row
+  // carries `assumed: true` so TodayPulse can render them at lower opacity.
   const todayStr = toDateString(new Date())
   const todayEntries = members
     .map((m) => {
       const entry = entryMap.get(`${m.id}_${todayStr}`)
-      if (!entry) return null
+      if (entry) {
+        return {
+          id: m.id,
+          display_name: m.display_name,
+          avatar_url: m.avatar_url,
+          status: entry.status,
+          location_label: entry.location_label,
+          assumed: false,
+        }
+      }
+      const assumed = inferStatus({ default_status: m.default_status }, presenceAssumption)
+      if (!assumed) return null
       return {
         id: m.id,
         display_name: m.display_name,
         avatar_url: m.avatar_url,
-        status: entry.status,
-        location_label: entry.location_label,
+        status: assumed,
+        location_label: null,
+        assumed: true,
       }
     })
     .filter(Boolean) as Array<{
@@ -646,6 +697,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
       avatar_url: string | null
       status: import('@/lib/supabase/types').EntryStatus
       location_label: string | null
+      assumed: boolean
     }>
 
   return (
@@ -856,7 +908,13 @@ export function TeamGrid({ orgId }: TeamGridProps) {
 
                     {/* Day cells — merged into segments when consecutive days share status + location + note */}
                     {(() => {
-                      const segments = buildRowSegments(weekDays, member.id, entryMap)
+                      const segments = buildRowSegments(
+                        weekDays,
+                        member.id,
+                        entryMap,
+                        member.default_status ?? null,
+                        presenceAssumption,
+                      )
                       const highlights = dayHighlightsForMember(member.id)
                       let cursor = 0
                       const segmentHighlights: boolean[][] = segments.map((seg) => {
@@ -880,9 +938,10 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                         return (
                           <StatusSegment
                             key={`${member.id}-${segIdx}-${seg.days[0].date}`}
-                            status={seg.entry?.status ?? null}
+                            status={seg.entry?.status ?? seg.assumedStatus ?? null}
                             location={seg.entry?.location_label ?? null}
                             note={seg.entry?.note ?? null}
+                            assumed={!seg.entry && seg.assumedStatus !== null}
                             days={seg.days}
                             onSelectDay={() => {
                               /* replaced by drag mousedown/mouseup flow */

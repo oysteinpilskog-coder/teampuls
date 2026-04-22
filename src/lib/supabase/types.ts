@@ -7,6 +7,14 @@ export type MemberRole = 'admin' | 'member'
 export type EntrySource = 'manual' | 'ai_web' | 'ai_email'
 export type EventCategory = 'company' | 'trade_show' | 'training' | 'milestone' | 'holiday' | 'deadline' | 'other'
 export type WorkspaceRegion = 'eu' | 'uk' | 'us' | 'apac'
+/**
+ * How the UI should render days with no registered entry.
+ * - 'none'       : leave the cell empty — no assumption (default)
+ * - 'office'     : assume "office" for all members with no entry
+ * - 'remote'     : assume "remote" for all members with no entry
+ * - 'per_member' : use each member's own default_status
+ */
+export type PresenceAssumption = 'none' | 'office' | 'remote' | 'per_member'
 
 export interface Account {
   id: string
@@ -36,6 +44,8 @@ export interface Organization {
   archived_at: string | null
   /** Per-org override of the 7 status colors. NULL/undefined = use DEFAULT_HEX_COLORS. */
   status_colors?: Partial<Record<EntryStatus, string>> | null
+  /** How the UI should render unregistered days — see PresenceAssumption. */
+  default_presence_assumption?: PresenceAssumption
   timezone: string
   week_start: number
   created_at: string
@@ -103,6 +113,9 @@ export interface Member {
   avatar_url: string | null
   nicknames: string[]
   home_office_id: string | null
+  /** Member-level fallback used when org default_presence_assumption === 'per_member'.
+   *  Optional because legacy code paths select only a subset of columns. */
+  default_status?: EntryStatus | null
   role: MemberRole
   is_active: boolean
   created_at: string
