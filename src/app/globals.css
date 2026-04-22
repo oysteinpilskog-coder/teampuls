@@ -261,11 +261,50 @@
     font-family: var(--font-sora), system-ui, sans-serif;
   }
 
-  /* Focus ring */
+  /* Focus ring — solid ring, soft accent glow, and gentle scale bounce.
+     Matches the accent color and never clips against rounded corners. */
   :focus-visible {
     outline: 2px solid var(--accent-color);
-    outline-offset: 4px;
-    border-radius: 4px;
+    outline-offset: 3px;
+    border-radius: 6px;
+    box-shadow:
+      0 0 0 4px color-mix(in oklab, var(--accent-color) 18%, transparent),
+      0 6px 18px -6px color-mix(in oklab, var(--accent-color) 45%, transparent);
+    transition: box-shadow 180ms ease, outline-offset 180ms ease;
+  }
+
+  /* Never show the ring on non-keyboard focus (mouse clicks, programmatic) */
+  :focus:not(:focus-visible) {
+    outline: none;
+    box-shadow: none;
+  }
+
+  /* Premium skeleton shimmer — a diagonal band sweeps across a muted base.
+     Use with inline width/height/border-radius to match the real content. */
+  .tp-shimmer {
+    display: inline-block;
+    position: relative;
+    overflow: hidden;
+    background: color-mix(in oklab, var(--bg-subtle) 85%, transparent);
+    isolation: isolate;
+  }
+  .tp-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      color-mix(in oklab, var(--bg-elevated) 75%, transparent) 50%,
+      transparent 80%
+    );
+    transform: translateX(-100%);
+    animation: tp-shimmer 1.6s infinite;
+    pointer-events: none;
+  }
+  @keyframes tp-shimmer {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 
   /* Reduced motion */

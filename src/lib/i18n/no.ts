@@ -84,6 +84,46 @@ export const no = {
     sending: 'Sender...',
     error: 'Noe gikk galt. Prøv igjen.',
   },
+  palette: {
+    placeholder: 'Søk, gå til, eller skriv en kommando…',
+    empty: 'Ingen treff',
+    kbd: {
+      nav: 'Naviger',
+      select: 'Velg',
+      close: 'Lukk',
+    },
+    group: {
+      nav: 'Gå til',
+      actions: 'Handlinger',
+      theme: 'Visning',
+    },
+    cmd: {
+      focusInput: 'Skriv statusoppdatering',
+      help: 'Vis tastatursnarveier',
+      themeLight: 'Bytt til lyst tema',
+      themeDark: 'Bytt til mørkt tema',
+      themeSystem: 'Følg systemtema',
+    },
+  },
+  hotkeys: {
+    title: 'Tastatursnarveier',
+    desc: 'Alt du kan gjøre uten å ta hendene fra tastaturet.',
+    group: {
+      global: 'Globalt',
+      week: 'Uke-navigasjon',
+      editing: 'Redigering',
+    },
+    k: {
+      palette: 'Åpne kommando-paletten',
+      slash: 'Fokusér statusfelt',
+      help: 'Vis denne hjelpen',
+      today: 'Hopp til i dag',
+      prevWeek: 'Forrige uke',
+      nextWeek: 'Neste uke',
+      esc: 'Lukk / avbryt',
+      enter: 'Lagre / velg',
+    },
+  },
   editor: {
     title: 'Rediger status',
     location: 'Sted',

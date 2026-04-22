@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useTransition, useState, useEffect } from 'react'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { openCommandPalette } from '@/components/command-palette'
 import { no } from '@/lib/i18n/no'
 import { spring } from '@/lib/motion'
 
@@ -140,6 +141,44 @@ export function AppHeader() {
 
           {/* Right side */}
           <div className="flex items-center gap-2 shrink-0">
+            <motion.button
+              type="button"
+              onClick={() => openCommandPalette()}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.97 }}
+              transition={spring.snappy}
+              aria-label="Åpne kommandopaletten"
+              className="group hidden sm:flex items-center gap-2 pl-3 pr-2 h-8 rounded-xl text-[12px] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+              style={{
+                color: 'var(--text-secondary)',
+                background: 'color-mix(in oklab, var(--bg-elevated) 70%, transparent)',
+                backdropFilter: 'blur(14px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(14px) saturate(180%)',
+                border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.4)',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              <svg viewBox="0 0 16 16" width="12" height="12" fill="none" aria-hidden>
+                <path
+                  d="M7 2.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Zm0 1.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm3.77 6.47 2.12 2.12a.8.8 0 1 1-1.13 1.13l-2.12-2.12a.8.8 0 1 1 1.13-1.13Z"
+                  fill="currentColor"
+                />
+              </svg>
+              <span className="hidden md:inline">Søk</span>
+              <span
+                className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded-md text-[10px] font-semibold"
+                style={{
+                  background: 'color-mix(in oklab, var(--bg-subtle) 80%, transparent)',
+                  color: 'var(--text-tertiary)',
+                  border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+                  fontFamily: 'var(--font-body)',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                ⌘K
+              </span>
+            </motion.button>
             <ThemeToggle />
           </div>
         </div>

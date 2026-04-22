@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
+import { motion, useMotionValue, useSpring, useTransform, useReducedMotion } from 'framer-motion'
 import { StatusIcon } from '@/components/icons/status-icons'
 import type { EntryStatus } from '@/lib/supabase/types'
 import { AvatarStack } from '@/components/member-avatar'
@@ -49,6 +49,7 @@ export function TodayPulse({ entries }: TodayPulseProps) {
   useEffect(() => setMounted(true), [])
   const isDark = mounted && resolvedTheme === 'dark'
   const STATUS_COLORS = useStatusColors()
+  const reduce = !!useReducedMotion()
 
   const visibleGroups = GROUPS
     .map((g) => ({ ...g, members: entries.filter((e) => e.status === g.status) }))
@@ -68,8 +69,9 @@ export function TodayPulse({ entries }: TodayPulseProps) {
   return (
     <section className="relative isolate">
       {/* Aurora backdrop — multi-blob mesh gradient that breathes behind the whole section.
-          Sits at z-index -1 inside the isolate so it never bleeds into anything outside. */}
-      <AuroraBackdrop mounted={mounted} palette={palette} />
+          Sits at z-index -1 inside the isolate so it never bleeds into anything outside.
+          Gated on reduced-motion so users with the pref get a still, non-drifting backdrop. */}
+      {!reduce && <AuroraBackdrop mounted={mounted} palette={palette} />}
 
       {/* Dramatic header — big day label, live clock, totals */}
       <PulseHeader mounted={mounted} totalToday={totalToday} />
@@ -85,6 +87,7 @@ export function TodayPulse({ entries }: TodayPulseProps) {
             index={i}
             isDark={isDark}
             tone={STATUS_COLORS[group.status].icon}
+            reduce={reduce}
           />
         ))}
       </div>
@@ -184,6 +187,8 @@ function PulseHeader({ mounted, totalToday }: { mounted: boolean; totalToday: nu
 /** Five drifting blobs in the page palette — low contrast, always on the move,
  *  masked by the section itself so it never bleeds into the rest of the page. */
 function AuroraBackdrop({ mounted, palette }: { mounted: boolean; palette: string[] }) {
+  // Guard rails: no SSR render (so we don't ship the heavy decoration into the
+  // critical HTML), and no render at all when there's no palette to draw from.
   if (!mounted || palette.length === 0) return null
 
   const blobs = palette.slice(0, 5)
@@ -240,9 +245,10 @@ interface PulseCardProps {
   index: number
   isDark: boolean
   tone: string
+  reduce: boolean
 }
 
-function PulseCard({ status, label, members, index, isDark, tone }: PulseCardProps) {
+function PulseCard({ status, label, members, index, isDark, tone, reduce }: PulseCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState(false)
 
@@ -263,6 +269,7 @@ function PulseCard({ status, label, members, index, isDark, tone }: PulseCardPro
   const spotY = useTransform(smy, (v) => `${(v + 0.5) * 100}%`)
 
   function handleMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (reduce) return
     const el = cardRef.current
     if (!el) return
     const r = el.getBoundingClientRect()
@@ -303,7 +310,7 @@ function PulseCard({ status, label, members, index, isDark, tone }: PulseCardPro
     ? 'inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.32)'
     : 'inset 0 1px 0 rgba(255,255,255,0.50), inset 0 -1px 0 rgba(0,0,0,0.20)'
 
-  const count = useCountUp(members.length, 900 + index * 120)
+  const count = useCountUp(members.length, reduce ? 0 : 900 + index * 120)
 
   return (
     <motion.div
@@ -322,7 +329,8 @@ function PulseCard({ status, label, members, index, isDark, tone }: PulseCardPro
       }}
       className="relative"
     >
-      {/* Breathing ambient bloom — sits behind the card (z -1 within this stack) */}
+      {/* Breathing ambient bloom — sits behind the card (z -1 within this stack).
+          When reduced-motion is on, it stays put at a steady medium intensity. */}
       <motion.div
         aria-hidden
         className="absolute rounded-[32px] pointer-events-none"
@@ -332,11 +340,16 @@ function PulseCard({ status, label, members, index, isDark, tone }: PulseCardPro
           filter: 'blur(28px)',
           zIndex: -1,
         }}
-        animate={{ opacity: hover ? 1 : [0.5, 0.8, 0.5], scale: hover ? 1.04 : 1 }}
+        animate={{
+          opacity: reduce ? 0.65 : hover ? 1 : [0.5, 0.8, 0.5],
+          scale: reduce ? 1 : hover ? 1.04 : 1,
+        }}
         transition={
-          hover
-            ? { duration: 0.35 }
-            : { duration: 5, repeat: Infinity, ease: 'easeInOut', delay: index * 0.4 }
+          reduce
+            ? { duration: 0.2 }
+            : hover
+              ? { duration: 0.35 }
+              : { duration: 5, repeat: Infinity, ease: 'easeInOut', delay: index * 0.4 }
         }
       />
 
@@ -398,29 +411,32 @@ function PulseCard({ status, label, members, index, isDark, tone }: PulseCardPro
           }}
         />
 
-        {/* Diagonal shimmer sweep — slow, staggered, pauses between passes */}
-        <motion.div
-          aria-hidden
-          className="absolute pointer-events-none"
-          style={{
-            top: '-30%',
-            bottom: '-30%',
-            width: '45%',
-            background:
-              'linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.32) 45%, rgba(255,255,255,0) 100%)',
-            filter: 'blur(6px)',
-            mixBlendMode: 'soft-light',
-          }}
-          initial={{ left: '-60%' }}
-          animate={{ left: ['-60%', '160%'] }}
-          transition={{
-            duration: 5.5,
-            repeat: Infinity,
-            ease: 'easeInOut',
-            delay: 2.2 + index * 0.9,
-            repeatDelay: 4,
-          }}
-        />
+        {/* Diagonal shimmer sweep — slow, staggered, pauses between passes.
+            Skipped entirely when reduced-motion is requested. */}
+        {!reduce && (
+          <motion.div
+            aria-hidden
+            className="absolute pointer-events-none"
+            style={{
+              top: '-30%',
+              bottom: '-30%',
+              width: '45%',
+              background:
+                'linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.32) 45%, rgba(255,255,255,0) 100%)',
+              filter: 'blur(6px)',
+              mixBlendMode: 'soft-light',
+            }}
+            initial={{ left: '-60%' }}
+            animate={{ left: ['-60%', '160%'] }}
+            transition={{
+              duration: 5.5,
+              repeat: Infinity,
+              ease: 'easeInOut',
+              delay: 2.2 + index * 0.9,
+              repeatDelay: 4,
+            }}
+          />
+        )}
 
         {/* Premium noise grain */}
         <div
