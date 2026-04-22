@@ -25,11 +25,13 @@ interface StatusSegmentProps {
   onDayMouseEnter?: (dayIndex: number) => void
   /** Optional — length === days.length; true for days currently inside a drag selection. */
   dayHighlight?: boolean[]
+  /** Dim the bar — used while the segment is being move-dragged elsewhere. */
+  muted?: boolean
 }
 
 // iOS system palette — refined, tighter gradients for Outlook-calibre flow.
 // Each: [top, bottom] for a subtle vertical gradient with a glass highlight overlay.
-const STATUS_GRADIENT: Record<EntryStatus, { light: [string, string]; dark: [string, string] }> = {
+export const STATUS_GRADIENT: Record<EntryStatus, { light: [string, string]; dark: [string, string] }> = {
   // SF Blue — kontor
   office:   { light: ['#3A9CFF', '#0A66D9'], dark: ['#1E6FD1', '#0C4AA3'] },
   // SF Green — hjemmekontor
@@ -55,6 +57,7 @@ export function StatusSegment({
   onDayMouseDown,
   onDayMouseEnter,
   dayHighlight,
+  muted,
 }: StatusSegmentProps) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -89,8 +92,10 @@ export function StatusSegment({
             ? 'inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(0,0,0,0.28), 0 1px 2px rgba(0,0,0,0.22)'
             : 'inset 0 1px 0 rgba(255,255,255,0.34), inset 0 -1px 0 rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.07)'
           : undefined,
+        opacity: muted ? 0.28 : 1,
+        cursor: status && onDayMouseDown ? 'grab' : undefined,
       }}
-      whileHover={{ y: -0.5 }}
+      whileHover={muted ? undefined : { y: -0.5 }}
       transition={spring.snappy}
     >
       {/* iOS glossy top highlight — glass surface catching light */}

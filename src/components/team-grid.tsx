@@ -13,7 +13,9 @@ import {
   getTodayWeekAndYear,
 } from '@/lib/dates'
 import { WeekNav } from '@/components/week-nav'
-import { StatusSegment, type SegmentDay } from '@/components/status-segment'
+import { StatusSegment, STATUS_GRADIENT, type SegmentDay } from '@/components/status-segment'
+import { toast } from 'sonner'
+import { useTheme } from 'next-themes'
 import { MemberAvatar } from '@/components/member-avatar'
 import { TodayPulse } from '@/components/today-pulse'
 import { CellEditor } from '@/components/cell-editor'
@@ -95,6 +97,15 @@ interface DragPoint {
   dayIdx: number
 }
 
+interface MoveDrag {
+  memberId: string
+  segmentStart: number    // first day-idx of the source segment within the week
+  segmentSpan: number     // number of days in the source segment
+  grabOffset: number      // which day within the segment was grabbed (0..span-1)
+  currentDayIdx: number   // where the cursor is now (0..weekDays.length-1)
+  entry: Entry            // source entry (status + location + note to carry over)
+}
+
 interface TeamGridProps {
   orgId: string
 }
@@ -127,6 +138,10 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   const [dragStart, setDragStart] = useState<DragPoint | null>(null)
   const [dragCurrent, setDragCurrent] = useState<DragPoint | null>(null)
   const isDragging = dragStart !== null
+
+  const [moveDrag, setMoveDrag] = useState<MoveDrag | null>(null)
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
 
   const weekDays = useMemo(() => getWeekDays(week, year), [week, year])
   const dateStrings = useMemo(() => weekDays.map(toDateString), [weekDays])
@@ -167,11 +182,81 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     fetchMembers()
   }, [fetchMembers])
 
-  // Commit drag on global mouseup. Single click (no drag) opens single-day editor;
-  // drag across days opens the editor with a pre-selected range.
+  // Compute clamped target start for an in-progress move drag.
+  function moveTargetStart(m: MoveDrag): number {
+    const desired = m.currentDayIdx - m.grabOffset
+    const maxStart = Math.max(0, weekDays.length - m.segmentSpan)
+    return Math.max(0, Math.min(maxStart, desired))
+  }
+
+  // Commit drag on global mouseup. Handles three cases:
+  //  - Move-drag on a colored bar → reschedule (UPSERT new dates + DELETE leftovers)
+  //  - Tap on a colored bar (move-drag with no movement) → open editor
+  //  - Select-drag on empty cells → open editor with a pre-selected range
   useEffect(() => {
-    if (!isDragging) return
-    function onUp() {
+    if (!isDragging && !moveDrag) return
+    async function onUp() {
+      if (moveDrag) {
+        const mv = moveDrag
+        setMoveDrag(null)
+        const targetStart = moveTargetStart(mv)
+        const noMove = targetStart === mv.segmentStart
+        const member = members.find((m) => m.id === mv.memberId)
+        if (noMove || !member) {
+          // Tap on bar — open editor for the full segment
+          if (member) {
+            const startDate = weekDays[mv.segmentStart]
+            const endDate = weekDays[mv.segmentStart + mv.segmentSpan - 1]
+            setSelectedCell({
+              memberId: member.id,
+              memberName: member.display_name,
+              date: toDateString(startDate),
+              endDate: toDateString(endDate),
+              dateLabel: formatDateLabel(startDate),
+              status: mv.entry.status,
+              location: mv.entry.location_label,
+              note: mv.entry.note,
+            })
+          }
+          return
+        }
+        // Execute reschedule
+        const supabase = createClient()
+        const srcDates = weekDays
+          .slice(mv.segmentStart, mv.segmentStart + mv.segmentSpan)
+          .map(toDateString)
+        const dstDates = weekDays
+          .slice(targetStart, targetStart + mv.segmentSpan)
+          .map(toDateString)
+        const rows = dstDates.map((d) => ({
+          org_id: orgId,
+          member_id: mv.memberId,
+          date: d,
+          status: mv.entry.status,
+          location_label: mv.entry.location_label,
+          note: mv.entry.note,
+          source: 'manual' as const,
+        }))
+        const { error: upErr } = await supabase
+          .from('entries')
+          .upsert(rows, { onConflict: 'org_id,member_id,date' })
+        if (upErr) {
+          toast.error('Kunne ikke flytte oppføringen')
+          return
+        }
+        const toDelete = srcDates.filter((d) => !dstDates.includes(d))
+        if (toDelete.length > 0) {
+          await supabase
+            .from('entries')
+            .delete()
+            .eq('org_id', orgId)
+            .eq('member_id', mv.memberId)
+            .in('date', toDelete)
+        }
+        return
+      }
+
+      // Select-drag (empty cells) → open editor with range
       if (dragStart && dragCurrent && dragStart.memberId === dragCurrent.memberId) {
         const member = members.find((m) => m.id === dragStart.memberId)
         if (member) {
@@ -199,14 +284,44 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     }
     window.addEventListener('mouseup', onUp)
     return () => window.removeEventListener('mouseup', onUp)
-  }, [isDragging, dragStart, dragCurrent, members, weekDays, entryMap])
+  }, [isDragging, moveDrag, dragStart, dragCurrent, members, weekDays, entryMap, orgId])
 
   function handleDayMouseDown(memberId: string, dayIdx: number) {
+    // If this cell has an entry, start a move-drag for the whole segment.
+    // Otherwise, start a select-drag for creating a new range.
+    const dateStr = toDateString(weekDays[dayIdx])
+    const entry = entryMap.get(`${memberId}_${dateStr}`)
+    if (entry) {
+      const segments = buildRowSegments(weekDays, memberId, entryMap)
+      let cursor = 0
+      for (const seg of segments) {
+        const n = seg.days.length
+        if (dayIdx >= cursor && dayIdx < cursor + n && seg.entry) {
+          setMoveDrag({
+            memberId,
+            segmentStart: cursor,
+            segmentSpan: n,
+            grabOffset: dayIdx - cursor,
+            currentDayIdx: dayIdx,
+            entry: seg.entry,
+          })
+          return
+        }
+        cursor += n
+      }
+      return
+    }
     setDragStart({ memberId, dayIdx })
     setDragCurrent({ memberId, dayIdx })
   }
 
   function handleDayMouseEnter(memberId: string, dayIdx: number) {
+    if (moveDrag) {
+      if (moveDrag.memberId !== memberId) return
+      if (moveDrag.currentDayIdx === dayIdx) return
+      setMoveDrag({ ...moveDrag, currentDayIdx: dayIdx })
+      return
+    }
     if (!isDragging || !dragStart) return
     if (dragStart.memberId !== memberId) return
     setDragCurrent({ memberId, dayIdx })
@@ -435,7 +550,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
               : visibleMembers.map((member, rowIdx) => (
                   <motion.div
                     key={member.id}
-                    className="grid gap-2 items-center"
+                    className="relative grid gap-2 items-center"
                     style={{ gridTemplateColumns: '136px repeat(5, 1fr)' }}
                     initial={{ y: 16, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
@@ -467,31 +582,82 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                         cursor += seg.days.length
                         return slice
                       })
-                      return segments.map((seg, segIdx) => (
-                        <StatusSegment
-                          key={`${member.id}-${segIdx}-${seg.days[0].date}`}
-                          status={seg.entry?.status ?? null}
-                          location={seg.entry?.location_label ?? null}
-                          note={seg.entry?.note ?? null}
-                          days={seg.days}
-                          onSelectDay={() => {
-                            /* replaced by drag mousedown/mouseup flow */
+                      // Track segment starting day index to detect the move-drag source.
+                      let cursor2 = 0
+                      const segmentStarts: number[] = segments.map((seg) => {
+                        const start = cursor2
+                        cursor2 += seg.days.length
+                        return start
+                      })
+                      const isSourceRow =
+                        moveDrag !== null && moveDrag.memberId === member.id
+                      return segments.map((seg, segIdx) => {
+                        const isMoveSource =
+                          isSourceRow &&
+                          segmentStarts[segIdx] === moveDrag!.segmentStart &&
+                          seg.days.length === moveDrag!.segmentSpan
+                        return (
+                          <StatusSegment
+                            key={`${member.id}-${segIdx}-${seg.days[0].date}`}
+                            status={seg.entry?.status ?? null}
+                            location={seg.entry?.location_label ?? null}
+                            note={seg.entry?.note ?? null}
+                            days={seg.days}
+                            onSelectDay={() => {
+                              /* replaced by drag mousedown/mouseup flow */
+                            }}
+                            onDayMouseDown={(dayIdx) => {
+                              const absoluteIdx = weekDays.findIndex(
+                                (d) => toDateString(d) === seg.days[dayIdx].date
+                              )
+                              if (absoluteIdx >= 0) handleDayMouseDown(member.id, absoluteIdx)
+                            }}
+                            onDayMouseEnter={(dayIdx) => {
+                              const absoluteIdx = weekDays.findIndex(
+                                (d) => toDateString(d) === seg.days[dayIdx].date
+                              )
+                              if (absoluteIdx >= 0) handleDayMouseEnter(member.id, absoluteIdx)
+                            }}
+                            dayHighlight={segmentHighlights[segIdx]}
+                            muted={isMoveSource}
+                          />
+                        )
+                      })
+                    })()}
+
+                    {/* Move-drag ghost — shown while the user drags one of this row's bars */}
+                    {moveDrag && moveDrag.memberId === member.id && (() => {
+                      const targetStart = moveTargetStart(moveDrag)
+                      if (targetStart === moveDrag.segmentStart) return null
+                      const span = moveDrag.segmentSpan
+                      const palette = STATUS_GRADIENT[moveDrag.entry.status]
+                      const [g0, g1] = isDark ? palette.dark : palette.light
+                      // Row coords: 136px name col + 8px gap + N day cols with 8px gaps.
+                      // Per-day width = (rowWidth - 176) / 5. Day 0 starts at 144px.
+                      const leftCalc = `calc(144px + ${targetStart} * ((100% - 176px) / 5 + 8px))`
+                      const widthCalc = `calc(${span} * ((100% - 176px) / 5) + ${(span - 1) * 8}px)`
+                      return (
+                        <div
+                          aria-hidden
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            height: 36,
+                            left: leftCalc,
+                            width: widthCalc,
+                            borderRadius: 8,
+                            backgroundImage: `linear-gradient(180deg, ${g0} 0%, ${g1} 100%)`,
+                            backgroundColor: g1,
+                            boxShadow: isDark
+                              ? '0 0 0 1.5px rgba(255,255,255,0.65), 0 10px 24px -6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.18)'
+                              : '0 0 0 1.5px rgba(255,255,255,0.9), 0 10px 24px -6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.35)',
+                            opacity: 0.92,
+                            pointerEvents: 'none',
+                            zIndex: 25,
+                            transition: 'left 120ms cubic-bezier(0.2, 0.8, 0.2, 1), width 120ms cubic-bezier(0.2, 0.8, 0.2, 1)',
                           }}
-                          onDayMouseDown={(dayIdx) => {
-                            const absoluteIdx = weekDays.findIndex(
-                              (d) => toDateString(d) === seg.days[dayIdx].date
-                            )
-                            if (absoluteIdx >= 0) handleDayMouseDown(member.id, absoluteIdx)
-                          }}
-                          onDayMouseEnter={(dayIdx) => {
-                            const absoluteIdx = weekDays.findIndex(
-                              (d) => toDateString(d) === seg.days[dayIdx].date
-                            )
-                            if (absoluteIdx >= 0) handleDayMouseEnter(member.id, absoluteIdx)
-                          }}
-                          dayHighlight={segmentHighlights[segIdx]}
                         />
-                      ))
+                      )
                     })()}
                   </motion.div>
                 ))}
