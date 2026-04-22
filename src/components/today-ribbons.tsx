@@ -2,7 +2,6 @@
 
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
-import { useTheme } from 'next-themes'
 import { useEntries } from '@/hooks/use-entries'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { StatusIcon } from '@/components/icons/status-icons'
@@ -28,61 +27,41 @@ interface Band {
   label: string
   sublabel: string
   statuses: EntryStatus[]
-  // Three-stop gradient — light center, saturated edges, like the reference image
-  gradient: { light: [string, string, string]; dark: [string, string, string] }
-  glow: string
+  /** Category color — dempet, ikke neon. Drives left-border + soft glow. */
+  color: string
+  /** Lighter variant for text/labels when paired with the tinted bg. */
+  tint: string
 }
 
-// Colors chosen to evoke the inspiration: glossy red, saffron gold, cobalt blue.
+// Kategorifargene er hentet rett fra designsystemet (dempede pasteller).
 const BANDS: Band[] = [
   {
     id: 'together',
     label: no.today.bandTogether,
     sublabel: no.today.bandTogetherSub,
     statuses: ['office'],
-    gradient: {
-      light: ['#C1241A', '#FF6A35', '#B21B10'],
-      dark:  ['#A01A12', '#FF5A24', '#860E06'],
-    },
-    glow: '#FF4F2A',
+    color: '#2DD4BF', // teal — "work / tilstede"
+    tint: '#5EEAD4',
   },
   {
     id: 'spread',
     label: no.today.bandSpread,
     sublabel: no.today.bandSpreadSub,
     statuses: ['remote', 'customer', 'travel'],
-    gradient: {
-      light: ['#D68910', '#FFC83D', '#B87308'],
-      dark:  ['#B87308', '#FFB820', '#8A5406'],
-    },
-    glow: '#F5B40C',
+    color: '#FBBF24', // amber — "travel / spredt"
+    tint: '#FDE68A',
   },
   {
     id: 'rest',
     label: no.today.bandRest,
     sublabel: no.today.bandRestSub,
     statuses: ['vacation', 'sick', 'off'],
-    gradient: {
-      light: ['#0A4AA8', '#36A3FF', '#0640A0'],
-      dark:  ['#082F7A', '#2589F0', '#041F58'],
-    },
-    glow: '#2E97FF',
+    color: '#6366F1', // indigo — "focus / i ro"
+    tint: '#A5B4FC',
   },
 ]
 
-function ribbonGradient(band: Band, isDark: boolean): string {
-  const [a, b, c] = isDark ? band.gradient.dark : band.gradient.light
-  // Horizontal gloss with a bright center — like a polished metal strip
-  return `linear-gradient(90deg, ${a} 0%, ${b} 45%, ${b} 55%, ${c} 100%)`
-}
-
-function ribbonSheen(): string {
-  return 'linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.14) 35%, rgba(255,255,255,0) 55%, rgba(0,0,0,0.12) 100%)'
-}
-
 function useClock(timezone: string, mounted: boolean) {
-  // Start with null so the server render and initial client hydration match —
-  // we fill in real values only after mount, avoiding hydration mismatches.
   const [now, setNow] = useState<Date | null>(null)
   useEffect(() => {
     if (!mounted) return
@@ -106,15 +85,12 @@ function useClock(timezone: string, mounted: boolean) {
 }
 
 export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps) {
-  const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
-  const isDark = mounted && resolvedTheme === 'dark'
   const reduce = !!useReducedMotion()
   const statusColors = useStatusColors()
   const { now, timeStr } = useClock(timezone, mounted)
 
-  // Recompute "today" once per mount and at midnight transitions (cheap).
   const today = useMemo(() => toDateString(now ?? new Date()), [now])
   const { entries, loading } = useEntries(orgId, [today])
 
@@ -124,7 +100,6 @@ export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps)
     return m
   }, [allMembers])
 
-  // Group members by band
   const grouped = useMemo(() => {
     const map: Record<BandId, { member: Member; status: EntryStatus }[]> = {
       together: [],
@@ -143,71 +118,101 @@ export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps)
   }, [entries, memberById])
 
   const totalRegistered = entries.length
-  // Only show the empty-state card once we've actually fetched and found nothing;
-  // otherwise the three ribbons (dim, count=0) act as the skeleton.
   const emptyState = mounted && !loading && totalRegistered === 0
+
+  // "Primær" band = the one with most people. Gets violet accent treatment.
+  const primaryBand: BandId | null = useMemo(() => {
+    if (totalRegistered === 0) return null
+    let best: BandId = 'together'
+    let bestN = -1
+    for (const b of BANDS) {
+      const n = grouped.map[b.id].length
+      if (n > bestN) {
+        best = b.id
+        bestN = n
+      }
+    }
+    return bestN > 0 ? best : null
+  }, [grouped, totalRegistered])
 
   const [expanded, setExpanded] = useState<BandId | null>(null)
 
-  // Status chips in canonical order
   const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
   const STATUS_LABELS: Record<EntryStatus, string> = no.status
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10 md:py-14">
+    <div className="relative mx-auto max-w-6xl px-6 py-12 md:py-16">
+      {/* Scoped ambient aurora — violet top-right, teal bottom-left, 8% */}
+      <div className="lg-aurora" aria-hidden />
+
       {/* Header */}
-      <div className="flex items-end justify-between gap-4 mb-8 md:mb-12">
-        <div>
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+        className="relative flex items-end justify-between gap-6 mb-10 md:mb-14"
+      >
+        <div className="min-w-0">
           <div
-            className="text-[11px] font-semibold uppercase tracking-[0.22em] mb-2 min-h-[14px]"
-            style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+            className="lg-eyebrow mb-3 min-h-[14px]"
             suppressHydrationWarning
           >
-            {now ? formatDateLabelLong(now) : ' '}
+            {now ? formatDateLabelLong(now) : ' '}
           </div>
           <h1
-            className="font-bold leading-[0.9]"
+            className="lg-serif leading-[0.92]"
             style={{
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-sora)',
-              letterSpacing: '-0.055em',
-              fontSize: 'clamp(44px, 7vw, 84px)',
+              color: 'var(--lg-text-1)',
+              fontSize: 'clamp(48px, 8vw, 96px)',
             }}
           >
-            Hvor er teamet?
+            Hvor er teamet
+            <span style={{ color: 'var(--lg-accent)' }}>?</span>
           </h1>
         </div>
-        <div className="hidden md:flex items-center gap-2 pb-2 shrink-0">
-          <span
-            className="text-[12px] font-semibold uppercase tracking-[0.2em]"
-            style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-          >
-            {no.today.live}
-          </span>
+
+        {/* Live pill */}
+        <div
+          className="hidden md:flex items-center gap-2.5 shrink-0 pb-3 px-3.5 py-2 rounded-full"
+          style={{
+            background: 'rgba(22, 22, 27, 0.5)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid var(--lg-divider)',
+          }}
+        >
           <motion.span
-            className="w-2 h-2 rounded-full"
+            className="w-1.5 h-1.5 rounded-full"
             style={{
-              background: '#10B981',
-              boxShadow: '0 0 10px rgba(16,185,129,0.7)',
+              background: 'var(--lg-accent)',
+              boxShadow: '0 0 10px var(--lg-accent-glow)',
             }}
-            animate={{ opacity: [0.35, 1, 0.35] }}
+            animate={reduce ? {} : { opacity: [0.35, 1, 0.35] }}
             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
           />
+          <span className="lg-eyebrow" style={{ color: 'var(--lg-text-2)' }}>
+            {no.today.live}
+          </span>
+          <span
+            className="lg-mono text-[12px]"
+            style={{ color: 'var(--lg-text-1)' }}
+            suppressHydrationWarning
+          >
+            {timeStr || '––:––'}
+          </span>
         </div>
-      </div>
+      </motion.div>
 
       {/* Ribbons */}
       <div className="relative">
-        {/* Speech bubble — floats over the top ribbon, tail pointing down-left */}
-        <SpeechBubble timeStr={timeStr} />
-
         {emptyState ? (
           <RibbonEmpty />
         ) : (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4">
             {BANDS.map((band, i) => {
               const items = grouped.map[band.id]
               const isExpanded = expanded === band.id
+              const isPrimary = primaryBand === band.id
               return (
                 <Ribbon
                   key={band.id}
@@ -215,9 +220,8 @@ export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps)
                   index={i}
                   items={items}
                   total={totalRegistered}
-                  isDark={isDark}
                   isExpanded={isExpanded}
-                  reduce={reduce}
+                  isPrimary={isPrimary}
                   onToggle={() => setExpanded(isExpanded ? null : band.id)}
                 />
               )
@@ -226,48 +230,53 @@ export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps)
         )}
       </div>
 
-      {/* Breakdown chips — the fine-grained 7-status view */}
+      {/* Breakdown chips */}
       {!emptyState && (
-        <div className="mt-10 md:mt-14">
-          <div
-            className="text-[11px] font-semibold uppercase tracking-[0.22em] mb-4"
-            style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-          >
-            {no.today.breakdown}
-          </div>
-          <div className="flex flex-wrap gap-2.5">
-            {STATUS_ORDER.map((status) => {
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+          className="relative mt-14"
+        >
+          <div className="lg-eyebrow mb-4">{no.today.breakdown}</div>
+          <div className="flex flex-wrap gap-2">
+            {STATUS_ORDER.map((status, idx) => {
               const count = grouped.byStatus[status] ?? 0
               if (count === 0) return null
               const pal = statusColors[status]
               return (
                 <motion.div
                   key={status}
-                  initial={{ opacity: 0, y: 6 }}
+                  initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...spring.gentle, delay: 0.4 }}
-                  className="flex items-center gap-2 rounded-full pl-2 pr-3.5 py-1.5"
+                  transition={{ delay: 0.35 + idx * 0.04, duration: 0.25 }}
+                  className="flex items-center gap-2 rounded-full pl-2 pr-3 py-1"
                   style={{
-                    background: isDark ? pal.bgDark : pal.bg,
-                    color: isDark ? pal.textDark : pal.text,
-                    boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${pal.icon} 24%, transparent)`,
+                    background: 'var(--lg-surface-2)',
+                    border: '1px solid var(--lg-divider)',
                     fontFamily: 'var(--font-body)',
                   }}
                 >
                   <span
                     className="flex items-center justify-center rounded-full"
                     style={{
-                      width: 22,
-                      height: 22,
-                      background: pal.icon,
+                      width: 18,
+                      height: 18,
+                      background: `color-mix(in oklab, ${pal.icon} 22%, transparent)`,
+                      boxShadow: `0 0 0 1px color-mix(in oklab, ${pal.icon} 40%, transparent)`,
                     }}
                   >
-                    <StatusIcon status={status} size={12} color="#ffffff" />
+                    <StatusIcon status={status} size={10} color={pal.icon} />
                   </span>
-                  <span className="text-[13px] font-semibold">{STATUS_LABELS[status]}</span>
                   <span
-                    className="text-[13px] font-bold tabular-nums"
-                    style={{ color: pal.icon }}
+                    className="text-[12px] font-medium"
+                    style={{ color: 'var(--lg-text-2)' }}
+                  >
+                    {STATUS_LABELS[status]}
+                  </span>
+                  <span
+                    className="lg-mono text-[12px] font-semibold"
+                    style={{ color: 'var(--lg-text-1)' }}
                   >
                     {count}
                   </span>
@@ -275,76 +284,9 @@ export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps)
               )
             })}
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
-  )
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-
-function SpeechBubble({ timeStr }: { timeStr: string }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -18, scale: 0.7, rotate: -6 }}
-      animate={{ opacity: 1, y: 0, scale: 1, rotate: 0 }}
-      transition={{ ...spring.bouncy, delay: 0.35 }}
-      className="absolute z-20 right-4 md:right-10 pointer-events-none select-none"
-      style={{ top: -42 }}
-    >
-      <div
-        className="relative rounded-full px-5 py-2.5"
-        style={{
-          background: 'linear-gradient(180deg, #FF6D3D 0%, #E53A1F 100%)',
-          boxShadow:
-            '0 12px 30px -10px rgba(229,58,31,0.55), 0 2px 4px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.35)',
-        }}
-      >
-        <div className="flex items-baseline gap-2.5">
-          <span
-            className="text-white font-bold"
-            style={{
-              fontFamily: 'var(--font-sora)',
-              fontSize: 18,
-              letterSpacing: '-0.02em',
-              textShadow: '0 1px 1px rgba(0,0,0,0.18)',
-            }}
-          >
-            {no.today.bubble}
-          </span>
-          <span
-            className="text-white/85 font-semibold tabular-nums"
-            style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: 13,
-              letterSpacing: '-0.01em',
-            }}
-          >
-            {timeStr}
-          </span>
-        </div>
-        {/* Tail */}
-        <svg
-          aria-hidden
-          width="28"
-          height="34"
-          viewBox="0 0 28 34"
-          className="absolute"
-          style={{ left: 18, bottom: -22 }}
-        >
-          <path
-            d="M 4 0 C 4 14, 18 24, 24 32 C 10 28, 2 18, 0 4 Z"
-            fill="url(#bubbleTail)"
-          />
-          <defs>
-            <linearGradient id="bubbleTail" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#E53A1F" />
-              <stop offset="1" stopColor="#B82410" />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
-    </motion.div>
   )
 }
 
@@ -355,31 +297,27 @@ function Ribbon({
   index,
   items,
   total,
-  isDark,
   isExpanded,
-  reduce,
+  isPrimary,
   onToggle,
 }: {
   band: Band
   index: number
   items: { member: Member; status: EntryStatus }[]
   total: number
-  isDark: boolean
   isExpanded: boolean
-  reduce: boolean
+  isPrimary: boolean
   onToggle: () => void
 }) {
   const count = items.length
   const hasMembers = count > 0
-  const gradient = ribbonGradient(band, isDark)
   const pct = total > 0 ? count / total : 0
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -30, scaleX: 0.92 }}
-      animate={{ opacity: 1, x: 0, scaleX: 1 }}
-      transition={{ ...spring.gentle, delay: 0.05 + index * 0.1 }}
-      style={{ originX: 0 }}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: 0.08 + index * 0.05, ease: [0.4, 0, 0.2, 1] }}
     >
       <button
         type="button"
@@ -387,96 +325,61 @@ function Ribbon({
         disabled={!hasMembers}
         aria-expanded={isExpanded}
         aria-label={`${band.label} — ${count} ${count === 1 ? no.today.person : no.today.people}`}
-        className="group relative block w-full text-left overflow-hidden rounded-[28px]"
+        className="group relative block w-full text-left overflow-hidden rounded-[16px] transition-[transform,border-color,background] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
         style={{
-          background: hasMembers ? gradient : isDark ? '#1A1918' : '#EFECEA',
+          background: hasMembers
+            ? 'rgba(22, 22, 27, 0.55)'
+            : 'var(--lg-surface-1)',
+          border: `1px solid ${isPrimary ? 'rgba(139, 92, 246, 0.35)' : 'var(--lg-divider)'}`,
+          backdropFilter: hasMembers ? 'blur(20px) saturate(180%)' : undefined,
+          WebkitBackdropFilter: hasMembers ? 'blur(20px) saturate(180%)' : undefined,
           boxShadow: hasMembers
-            ? `0 30px 60px -24px ${band.glow}66,
-               0 10px 24px -12px rgba(0,0,0,0.25),
-               inset 0 1px 0 rgba(255,255,255,0.32),
-               inset 0 -1px 0 rgba(0,0,0,0.2)`
-            : isDark
-              ? 'inset 0 0 0 1px rgba(255,255,255,0.05)'
-              : 'inset 0 0 0 1px rgba(0,0,0,0.06)',
-          transition: 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 320ms',
+            ? isPrimary
+              ? `inset 2px 0 0 ${band.color}, 0 0 0 0 ${band.color}, 0 0 24px -6px ${band.color}44, 0 0 0 3px rgba(139, 92, 246, 0.10)`
+              : `inset 2px 0 0 ${band.color}, 0 0 18px -8px ${band.color}55`
+            : 'none',
           cursor: hasMembers ? 'pointer' : 'default',
-          minHeight: 164,
+          minHeight: 112,
         }}
       >
-        {/* Top sheen for the polished "glass strip" look */}
-        {hasMembers && (
-          <div
-            aria-hidden
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: ribbonSheen() }}
-          />
-        )}
-
-        {/* Bright center highlight — sweeps across on hover.
-            Held still when reduced-motion is requested. */}
-        {hasMembers && (
-          <motion.div
-            aria-hidden
-            className="absolute inset-y-0 pointer-events-none"
-            style={{
-              width: '38%',
-              left: '10%',
-              background:
-                'radial-gradient(60% 100% at 50% 50%, rgba(255,255,255,0.45), rgba(255,255,255,0) 70%)',
-              mixBlendMode: 'soft-light',
-            }}
-            animate={reduce ? { x: '0%' } : { x: ['-6%', '6%', '-6%'] }}
-            transition={
-              reduce
-                ? { duration: 0 }
-                : { duration: 7 + index * 1.3, repeat: Infinity, ease: 'easeInOut' }
-            }
-          />
-        )}
-
-        {/* Content */}
-        <div className="relative flex items-stretch gap-5 md:gap-8 p-5 md:p-7" style={{ minHeight: 164 }}>
-          {/* Left — label and sublabel */}
-          <div className="flex-1 flex flex-col justify-between min-w-0">
-            <div className="flex flex-col gap-1.5">
+        <div className="relative flex items-stretch gap-6 md:gap-10 p-5 md:p-6">
+          {/* Left — label stack */}
+          <div className="flex-1 min-w-0 flex flex-col justify-between">
+            <div className="flex flex-col gap-1">
+              {/* Band label — small mono eyebrow (already uppercase in i18n) */}
               <div
-                className="font-bold leading-none"
+                className="lg-mono text-[10.5px] font-semibold"
                 style={{
-                  color: hasMembers ? '#FFFFFF' : 'var(--text-tertiary)',
-                  fontFamily: 'var(--font-sora)',
-                  fontSize: 'clamp(22px, 3.2vw, 34px)',
-                  letterSpacing: '0.02em',
-                  textShadow: hasMembers ? '0 2px 6px rgba(0,0,0,0.22)' : 'none',
+                  color: hasMembers ? band.tint : 'var(--lg-text-3)',
+                  letterSpacing: '0.2em',
                 }}
               >
                 {band.label}
               </div>
+              {/* Sublabel — serif italic, the quiet feature typography */}
               <div
-                className="font-medium"
+                className="lg-serif"
                 style={{
-                  color: hasMembers ? 'rgba(255,255,255,0.88)' : 'var(--text-tertiary)',
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 14,
-                  letterSpacing: '-0.005em',
-                  textShadow: hasMembers ? '0 1px 2px rgba(0,0,0,0.18)' : 'none',
+                  color: hasMembers ? 'var(--lg-text-1)' : 'var(--lg-text-3)',
+                  fontSize: 'clamp(22px, 3.2vw, 32px)',
+                  lineHeight: 1.1,
                 }}
               >
                 {band.sublabel}
               </div>
             </div>
 
-            {/* Avatars along the strip */}
             {hasMembers && (
               <div className="flex items-center gap-0 mt-4 flex-wrap">
                 {items.slice(0, 10).map((it, i) => (
                   <motion.div
                     key={it.member.id}
-                    initial={{ opacity: 0, y: 8 }}
+                    initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ ...spring.gentle, delay: 0.3 + index * 0.08 + i * 0.04 }}
+                    transition={{ ...spring.gentle, delay: 0.2 + index * 0.05 + i * 0.03 }}
                     style={{
-                      marginLeft: i === 0 ? 0 : -10,
-                      boxShadow: '0 0 0 2px rgba(255,255,255,0.7)',
+                      marginLeft: i === 0 ? 0 : -8,
+                      boxShadow: `0 0 0 2px var(--lg-surface-1)`,
                       borderRadius: 9999,
                       position: 'relative',
                       zIndex: items.length - i,
@@ -494,18 +397,16 @@ function Ribbon({
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 + index * 0.08 }}
-                    className="flex items-center justify-center font-semibold rounded-full"
+                    transition={{ delay: 0.35 + index * 0.05 }}
+                    className="lg-mono flex items-center justify-center font-semibold rounded-full"
                     style={{
-                      width: 28,
-                      height: 28,
-                      marginLeft: -10,
-                      background: 'rgba(255,255,255,0.28)',
-                      color: '#ffffff',
+                      width: 26,
+                      height: 26,
+                      marginLeft: -8,
+                      background: 'var(--lg-surface-3)',
+                      color: 'var(--lg-text-2)',
                       fontSize: 10,
-                      letterSpacing: '-0.02em',
-                      boxShadow: '0 0 0 2px rgba(255,255,255,0.7)',
-                      backdropFilter: 'blur(4px)',
+                      boxShadow: `0 0 0 2px var(--lg-surface-1)`,
                     }}
                   >
                     +{items.length - 10}
@@ -515,66 +416,53 @@ function Ribbon({
             )}
           </div>
 
-          {/* Right — big count */}
-          <div className="flex flex-col items-end justify-between shrink-0">
+          {/* Right — count + meta */}
+          <div className="flex flex-col items-end justify-between shrink-0 min-w-[96px]">
             <div className="flex items-baseline gap-2">
               <motion.span
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ ...spring.bouncy, delay: 0.25 + index * 0.08 }}
-                className="font-bold tabular-nums leading-none"
+                transition={{ ...spring.gentle, delay: 0.15 + index * 0.05 }}
+                className="lg-mono leading-none"
                 style={{
-                  color: hasMembers ? '#FFFFFF' : 'var(--text-tertiary)',
-                  fontFamily: 'var(--font-sora)',
-                  fontSize: 'clamp(56px, 9vw, 104px)',
-                  letterSpacing: '-0.06em',
-                  textShadow: hasMembers
-                    ? '0 6px 20px rgba(0,0,0,0.3), 0 2px 4px rgba(0,0,0,0.18)'
-                    : 'none',
+                  color: hasMembers ? 'var(--lg-text-1)' : 'var(--lg-text-3)',
+                  fontSize: 'clamp(44px, 7vw, 72px)',
+                  fontWeight: 500,
                 }}
               >
                 {count}
               </motion.span>
             </div>
-            <div
-              className="font-semibold lowercase"
-              style={{
-                color: hasMembers ? 'rgba(255,255,255,0.85)' : 'var(--text-tertiary)',
-                fontFamily: 'var(--font-body)',
-                fontSize: 13,
-                letterSpacing: '-0.005em',
-                textShadow: hasMembers ? '0 1px 2px rgba(0,0,0,0.18)' : 'none',
-              }}
-            >
-              {count === 1 ? no.today.person : no.today.people}
-              {total > 0 && hasMembers && (
-                <span className="ml-2 opacity-70 tabular-nums">
+
+            {total > 0 && hasMembers && (
+              <div className="flex items-center gap-2 mt-2">
+                {/* Slim proportional bar — live data, restrained */}
+                <div
+                  aria-hidden
+                  className="h-1 w-16 rounded-full overflow-hidden"
+                  style={{ background: 'var(--lg-divider)' }}
+                >
+                  <motion.div
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: pct }}
+                    transition={{ delay: 0.3 + index * 0.05, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                    className="h-full w-full origin-left rounded-full"
+                    style={{
+                      background: band.color,
+                      boxShadow: `0 0 8px ${band.color}88`,
+                    }}
+                  />
+                </div>
+                <span
+                  className="lg-mono text-[11px]"
+                  style={{ color: 'var(--lg-text-3)' }}
+                >
                   {Math.round(pct * 100)}%
                 </span>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Proportional fill bar at the bottom — live data rendered into glass */}
-        {hasMembers && total > 0 && (
-          <div
-            aria-hidden
-            className="absolute left-0 right-0 bottom-0 h-[5px]"
-            style={{ background: 'rgba(0,0,0,0.22)' }}
-          >
-            <motion.div
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: pct }}
-              transition={{ ...spring.smooth, delay: 0.35 + index * 0.1 }}
-              className="h-full origin-left"
-              style={{
-                background: 'linear-gradient(90deg, rgba(255,255,255,0.75), rgba(255,255,255,1))',
-                boxShadow: '0 0 12px rgba(255,255,255,0.6)',
-              }}
-            />
-          </div>
-        )}
       </button>
 
       {/* Expanded member list */}
@@ -583,16 +471,16 @@ function Ribbon({
           <motion.div
             key="expanded"
             initial={{ opacity: 0, height: 0, marginTop: 0 }}
-            animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+            animate={{ opacity: 1, height: 'auto', marginTop: 8 }}
             exit={{ opacity: 0, height: 0, marginTop: 0 }}
-            transition={{ ...spring.smooth }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             className="overflow-hidden"
           >
             <div
               className="rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"
               style={{
-                background: 'var(--bg-elevated)',
-                boxShadow: 'var(--shadow-md)',
+                background: 'var(--lg-surface-2)',
+                border: '1px solid var(--lg-divider)',
               }}
             >
               {items.map((it) => (
@@ -620,7 +508,7 @@ function MemberLine({ member, status }: { member: Member; status: EntryStatus })
             width: 18,
             height: 18,
             background: pal.icon,
-            boxShadow: '0 0 0 2px var(--bg-elevated)',
+            boxShadow: '0 0 0 2px var(--lg-surface-2)',
           }}
         >
           <StatusIcon status={status} size={10} color="#ffffff" />
@@ -628,14 +516,14 @@ function MemberLine({ member, status }: { member: Member; status: EntryStatus })
       </div>
       <div className="min-w-0">
         <div
-          className="text-[13px] font-semibold truncate"
-          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+          className="text-[13px] font-medium truncate"
+          style={{ color: 'var(--lg-text-1)', fontFamily: 'var(--font-body)' }}
         >
           {member.display_name}
         </div>
         <div
           className="text-[11px] truncate"
-          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+          style={{ color: 'var(--lg-text-3)', fontFamily: 'var(--font-body)' }}
         >
           {no.status[status]}
         </div>

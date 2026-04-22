@@ -500,25 +500,28 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
   const totalEntries = entries.length
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6">
+      {/* Scoped ambient aurora — violet + teal diagonal, 8% opacity */}
+      <div className="lg-aurora" aria-hidden />
+
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-4">
+      <div className="relative flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4 min-w-0">
           <MemberAvatar name={memberName} avatarUrl={avatarUrl} size="md" />
-          <div>
+          <div className="min-w-0">
+            <div className="lg-eyebrow mb-1.5">{memberName}</div>
             <h1
-              className="text-[32px] font-bold leading-none"
+              className="lg-serif leading-[0.95]"
               style={{
-                fontFamily: 'var(--font-sora)',
-                letterSpacing: '-0.03em',
-                color: 'var(--text-primary)',
+                color: 'var(--lg-text-1)',
+                fontSize: 'clamp(40px, 5vw, 56px)',
               }}
             >
               Min plan
             </h1>
             <p
-              className="text-[13px] mt-1.5"
-              style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+              className="text-[12.5px] mt-2"
+              style={{ color: 'var(--lg-text-3)', fontFamily: 'var(--font-body)' }}
             >
               {loading
                 ? 'Laster…'
@@ -529,75 +532,62 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
           </div>
         </div>
 
-        {/* Year picker */}
-        <div className="flex items-center gap-2">
-          <div
-            className="flex items-center gap-1 rounded-xl p-1"
-            style={{
-              background: 'color-mix(in oklab, var(--bg-elevated) 60%, transparent)',
-              backdropFilter: 'blur(14px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(14px) saturate(180%)',
-              border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-            }}
+        {/* Year picker — glass toolbar */}
+        <div
+          className="flex items-center gap-1 rounded-full p-1"
+          style={{
+            background: 'rgba(22, 22, 27, 0.5)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid var(--lg-divider)',
+          }}
+        >
+          <button
+            onClick={goPrevYear}
+            className="flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-150 focus:outline-none"
+            style={{ color: 'var(--lg-text-2)' }}
+            aria-label="Forrige år"
           >
-            <motion.button
-              onClick={goPrevYear}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.94 }}
-              transition={spring.snappy}
-              className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-              aria-label="Forrige år"
-            >
-              <ChevronLeft className="w-4 h-4" strokeWidth={1.75} />
-            </motion.button>
-            <motion.button
-              onClick={goNextYear}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.94 }}
-              transition={spring.snappy}
-              className="flex items-center justify-center w-8 h-8 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-              aria-label="Neste år"
-            >
-              <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
-            </motion.button>
-          </div>
+            <ChevronLeft className="w-4 h-4" strokeWidth={1.75} />
+          </button>
 
           <motion.span
             key={year}
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             transition={spring.gentle}
-            className="text-[28px] font-bold tabular-nums leading-none"
+            className="lg-mono px-3 text-[15px] font-medium"
             style={{
-              fontFamily: 'var(--font-sora)',
-              letterSpacing: '-0.03em',
-              color: 'var(--text-primary)',
-              background:
-                year === currentYear
-                  ? 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 55%, #6B2ECB))'
-                  : undefined,
-              WebkitBackgroundClip: year === currentYear ? 'text' : undefined,
-              WebkitTextFillColor: year === currentYear ? 'transparent' : undefined,
-              backgroundClip: year === currentYear ? 'text' : undefined,
+              color:
+                year === currentYear ? 'var(--lg-accent)' : 'var(--lg-text-1)',
+              textShadow:
+                year === currentYear ? '0 0 18px var(--lg-accent-glow)' : undefined,
             }}
           >
             {year}
           </motion.span>
+
+          <button
+            onClick={goNextYear}
+            className="flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-150 focus:outline-none"
+            style={{ color: 'var(--lg-text-2)' }}
+            aria-label="Neste år"
+          >
+            <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
+          </button>
 
           {year !== currentYear && (
             <motion.button
               onClick={goCurrentYear}
               initial={{ opacity: 0, scale: 0.94 }}
               animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.96 }}
               transition={spring.snappy}
-              className="ml-1 px-3.5 h-8 rounded-xl text-[12px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+              className="ml-1 px-3 h-8 rounded-full text-[11.5px] font-medium focus:outline-none transition-[box-shadow,background] duration-150"
               style={{
                 color: '#fff',
-                background: 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 70%, black))',
-                boxShadow: '0 4px 12px color-mix(in oklab, var(--accent-color) 35%, transparent)',
+                background: 'var(--lg-accent)',
+                boxShadow:
+                  '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 20px var(--lg-accent-glow)',
                 fontFamily: 'var(--font-body)',
               }}
             >
@@ -638,18 +628,25 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
               <motion.div
                 key={`${wk.year}-${wk.weekNumber}`}
                 ref={wk.isCurrentWeek ? currentWeekRef : undefined}
-                initial={{ y: 10, opacity: 0 }}
+                initial={{ y: 6, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ ...spring.gentle, delay: Math.min(wkIdx, 18) * 0.015 }}
-                className="relative rounded-3xl overflow-hidden"
+                transition={{ duration: 0.2, delay: Math.min(wkIdx, 18) * 0.015, ease: [0.4, 0, 0.2, 1] }}
+                className="relative rounded-2xl overflow-hidden"
                 style={{
-                  background: 'color-mix(in oklab, var(--bg-elevated) 78%, transparent)',
-                  backdropFilter: 'blur(22px) saturate(180%)',
-                  WebkitBackdropFilter: 'blur(22px) saturate(180%)',
-                  border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
-                  boxShadow:
-                    '0 12px 32px -16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.03)',
-                  opacity: !hasEntries && !wk.isCurrentWeek ? 0.62 : 1,
+                  background: wk.isCurrentWeek
+                    ? 'rgba(22, 22, 27, 0.55)'
+                    : 'var(--lg-surface-1)',
+                  backdropFilter: wk.isCurrentWeek
+                    ? 'blur(20px) saturate(180%)'
+                    : undefined,
+                  WebkitBackdropFilter: wk.isCurrentWeek
+                    ? 'blur(20px) saturate(180%)'
+                    : undefined,
+                  border: `1px solid ${wk.isCurrentWeek ? 'rgba(139, 92, 246, 0.28)' : 'var(--lg-divider)'}`,
+                  boxShadow: wk.isCurrentWeek
+                    ? '0 0 0 3px rgba(139, 92, 246, 0.10), 0 0 24px -6px var(--lg-accent-glow)'
+                    : 'none',
+                  opacity: !hasEntries && !wk.isCurrentWeek ? 0.5 : 1,
                 }}
               >
                 <div
@@ -661,40 +658,40 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
                 >
                   {/* Week label column */}
                   <div className="flex flex-col justify-center pr-2">
-                    <div className="flex items-baseline gap-1.5">
+                    <div className="flex items-baseline gap-2">
                       <span
-                        className="text-[10px] font-bold uppercase tracking-[0.18em]"
+                        className="lg-mono text-[10px] font-medium uppercase"
                         style={{
                           color: wk.isCurrentWeek
-                            ? 'var(--accent-color)'
-                            : 'var(--text-tertiary)',
-                          fontFamily: 'var(--font-body)',
+                            ? 'var(--lg-accent)'
+                            : 'var(--lg-text-3)',
+                          letterSpacing: '0.2em',
                         }}
                       >
                         {no.matrix.weekLabel}
                       </span>
                       <span
-                        className="text-[22px] font-bold tabular-nums leading-none"
+                        className="lg-mono text-[22px] leading-none"
                         style={{
-                          fontFamily: 'var(--font-sora)',
-                          letterSpacing: '-0.03em',
-                          color: 'var(--text-primary)',
-                          background: wk.isCurrentWeek
-                            ? 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 55%, #6B2ECB))'
+                          color: wk.isCurrentWeek
+                            ? 'var(--lg-accent)'
+                            : 'var(--lg-text-1)',
+                          textShadow: wk.isCurrentWeek
+                            ? '0 0 18px var(--lg-accent-glow)'
                             : undefined,
-                          WebkitBackgroundClip: wk.isCurrentWeek ? 'text' : undefined,
-                          WebkitTextFillColor: wk.isCurrentWeek ? 'transparent' : undefined,
-                          backgroundClip: wk.isCurrentWeek ? 'text' : undefined,
+                          fontWeight: 500,
                         }}
                       >
                         {wk.weekNumber}
                       </span>
                     </div>
                     <div
-                      className="text-[11px] font-medium mt-0.5 capitalize"
+                      className="lg-serif mt-0.5 capitalize"
                       style={{
-                        color: 'var(--text-tertiary)',
-                        fontFamily: 'var(--font-body)',
+                        color: wk.isCurrentWeek
+                          ? 'var(--lg-text-2)'
+                          : 'var(--lg-text-3)',
+                        fontSize: 14,
                       }}
                     >
                       {wk.monthLabel}
