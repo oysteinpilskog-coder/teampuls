@@ -96,6 +96,9 @@ export function AIInput({ orgId: _orgId }: AIInputProps) {
 
       // Success
       setState('success')
+      // Broadcast so useEntries can refetch immediately — belt-and-braces
+      // alongside Supabase realtime, which can lag or drop reconnected events.
+      window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
       const names = data.updates?.map(u => u.member_name).join(', ')
       toast.success(names ? `${no.aiInput.success} — ${names}` : no.aiInput.success)
       setTimeout(() => setState('idle'), 1500)

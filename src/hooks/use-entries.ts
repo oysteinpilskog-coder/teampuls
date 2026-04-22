@@ -37,6 +37,16 @@ export function useEntries(orgId: string, dateStrings: string[]) {
     fetchEntries()
   }, [fetchEntries])
 
+  // Refetch on explicit broadcast — AIInput emits this after a successful
+  // parse since realtime can lag or drop events on reconnect. This keeps
+  // the matrix and the "Akkurat nå" widget in lockstep with what the user
+  // just typed.
+  useEffect(() => {
+    const handler = () => fetchEntries()
+    window.addEventListener('teampulse:entries-changed', handler)
+    return () => window.removeEventListener('teampulse:entries-changed', handler)
+  }, [fetchEntries])
+
   // Subscribe to Realtime changes for this org — one subscription per orgId
   useEffect(() => {
     const supabase = createClient()
