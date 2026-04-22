@@ -14,6 +14,7 @@ import {
 } from '@/lib/dates'
 import { no } from '@/lib/i18n/no'
 import { spring } from '@/lib/motion'
+import { useHaptic } from '@/hooks/use-haptic'
 
 interface WeekNavProps {
   week: number
@@ -30,6 +31,7 @@ export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, on
   const weekDays = getWeekDays(week, year)
   const first = getDayLabel(weekDays[0])
   const last = getDayLabel(weekDays[weekDays.length - 1])
+  const haptic = useHaptic()
   const rangeLabel =
     first.month === last.month
       ? `${first.day}–${last.day} ${last.month}`
@@ -94,7 +96,7 @@ export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, on
         }}
       >
         <motion.button
-          onClick={onPrev}
+          onClick={() => { haptic('light'); onPrev() }}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.94 }}
           transition={spring.snappy}
@@ -105,7 +107,7 @@ export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, on
         </motion.button>
 
         <motion.button
-          onClick={onToday}
+          onClick={() => { haptic('medium'); onToday() }}
           disabled={isCurrentWeek}
           whileHover={isCurrentWeek ? undefined : { scale: 1.03 }}
           whileTap={isCurrentWeek ? undefined : { scale: 0.97 }}
@@ -127,7 +129,7 @@ export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, on
         </motion.button>
 
         <motion.button
-          onClick={onNext}
+          onClick={() => { haptic('light'); onNext() }}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.94 }}
           transition={spring.snappy}

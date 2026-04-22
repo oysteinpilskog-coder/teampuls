@@ -9,6 +9,7 @@ import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import { MemberAvatar } from '@/components/member-avatar'
 import { CellEditor } from '@/components/cell-editor'
+import { EmptyState } from '@/components/empty-state'
 import { StatusSegment, type SegmentDay } from '@/components/status-segment'
 import {
   toDateString,
@@ -606,6 +607,10 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
         </div>
       </div>
 
+      {/* First-time / empty-year encouragement — shown above the grid so the
+          structure is still visible underneath and clickable. */}
+      {!loading && totalEntries === 0 && <MyPlanEmpty year={year} />}
+
       {/* Weeks */}
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
@@ -809,5 +814,29 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
         onMutated={loadEntries}
       />
     </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function MyPlanEmpty({ year }: { year: number }) {
+  return (
+    <EmptyState
+      icon={
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none">
+          <rect x="3.5" y="5" width="17" height="15" rx="2.5" stroke="currentColor" strokeWidth="1.75" />
+          <path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+          <circle cx="12" cy="14.5" r="1.25" fill="currentColor" />
+        </svg>
+      }
+      title={`Ingen oppføringer i ${year} ennå`}
+      description={
+        <>
+          Skriv en statusoppdatering på <strong style={{ color: 'var(--text-primary)' }}>Oversikt</strong>,
+          eller klikk en dag i rutenettet nedenfor for å komme i gang. Planen fyller seg selv etter hvert
+          som teamet sender oppdateringer.
+        </>
+      }
+    />
   )
 }

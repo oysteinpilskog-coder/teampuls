@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { no } from '@/lib/i18n/no'
 import { spring } from '@/lib/motion'
+import { useHaptic } from '@/hooks/use-haptic'
 
 const PLACEHOLDERS = no.aiInput.placeholder
 const ROTATE_INTERVAL = 3500
@@ -40,6 +41,7 @@ export function AIInput({ orgId }: AIInputProps) {
   const [memberNames, setMemberNames] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const rotateRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const haptic = useHaptic()
 
   // Fetch just the display names for ghost-completion. Cheap and cached by
   // Supabase; we only need the string list so the payload is tiny.
@@ -110,6 +112,7 @@ export function AIInput({ orgId }: AIInputProps) {
       if (!res.ok || data.error) {
         setState('error')
         setValue(text) // restore so the user can fix and retry
+        haptic('error')
         toast.error(data.error ?? no.aiInput.error)
         setTimeout(() => setState('idle'), 2000)
         return
@@ -124,6 +127,7 @@ export function AIInput({ orgId }: AIInputProps) {
 
       // Success
       setState('success')
+      haptic('success')
       // Broadcast so useEntries can refetch immediately — belt-and-braces
       // alongside Supabase realtime, which can lag or drop reconnected events.
       window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
