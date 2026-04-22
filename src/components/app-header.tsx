@@ -11,7 +11,6 @@ import { spring } from '@/lib/motion'
 
 const navLinks = [
   { href: '/', label: no.nav.home },
-  { href: '/i-dag', label: no.nav.today },
   { href: '/min-plan', label: no.nav.myPlan },
   { href: '/wheel', label: no.nav.wheel },
   { href: '/dashboard', label: no.nav.dashboard },
