@@ -43,17 +43,8 @@ export function AIInput({ orgId: _orgId }: AIInputProps) {
     }
   }, [focused, value])
 
-  // ⌘K / Ctrl+K global shortcut to focus
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        inputRef.current?.focus()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  // Global ⌘K is owned by the command palette; "/" focuses this input from anywhere.
+  // The palette also exposes a "Skriv statusoppdatering" action that routes here.
 
   const submit = useCallback(async () => {
     const text = value.trim()
@@ -334,7 +325,7 @@ export function AIInput({ orgId: _orgId }: AIInputProps) {
                     fontFamily: 'var(--font-body)',
                   }}
                 >
-                  ⌘K
+                  /
                 </motion.span>
               ) : null}
             </AnimatePresence>

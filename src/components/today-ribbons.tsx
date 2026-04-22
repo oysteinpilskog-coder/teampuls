@@ -1,6 +1,6 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useEffect, useMemo, useState } from 'react'
 import { useTheme } from 'next-themes'
 import { useEntries } from '@/hooks/use-entries'
@@ -109,6 +109,7 @@ export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps)
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
   const isDark = mounted && resolvedTheme === 'dark'
+  const reduce = !!useReducedMotion()
   const statusColors = useStatusColors()
   const { now, timeStr } = useClock(timezone, mounted)
 
@@ -215,6 +216,7 @@ export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps)
                   total={totalRegistered}
                   isDark={isDark}
                   isExpanded={isExpanded}
+                  reduce={reduce}
                   onToggle={() => setExpanded(isExpanded ? null : band.id)}
                 />
               )
@@ -354,6 +356,7 @@ function Ribbon({
   total,
   isDark,
   isExpanded,
+  reduce,
   onToggle,
 }: {
   band: Band
@@ -362,6 +365,7 @@ function Ribbon({
   total: number
   isDark: boolean
   isExpanded: boolean
+  reduce: boolean
   onToggle: () => void
 }) {
   const count = items.length
@@ -407,7 +411,8 @@ function Ribbon({
           />
         )}
 
-        {/* Bright center highlight — sweeps across on hover */}
+        {/* Bright center highlight — sweeps across on hover.
+            Held still when reduced-motion is requested. */}
         {hasMembers && (
           <motion.div
             aria-hidden
@@ -419,8 +424,12 @@ function Ribbon({
                 'radial-gradient(60% 100% at 50% 50%, rgba(255,255,255,0.45), rgba(255,255,255,0) 70%)',
               mixBlendMode: 'soft-light',
             }}
-            animate={{ x: ['-6%', '6%', '-6%'] }}
-            transition={{ duration: 7 + index * 1.3, repeat: Infinity, ease: 'easeInOut' }}
+            animate={reduce ? { x: '0%' } : { x: ['-6%', '6%', '-6%'] }}
+            transition={
+              reduce
+                ? { duration: 0 }
+                : { duration: 7 + index * 1.3, repeat: Infinity, ease: 'easeInOut' }
+            }
           />
         )}
 

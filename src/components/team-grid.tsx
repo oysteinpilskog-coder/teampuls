@@ -121,16 +121,45 @@ interface TeamGridProps {
 }
 
 // Skeleton row for loading state
-function SkeletonRow() {
+function SkeletonRow({ index = 0 }: { index?: number }) {
+  // A content-shaped skeleton: avatar, name bar, and 5 day cells that don't
+  // all shimmer in lockstep. Staggered animation delays sell the liveness
+  // without requiring JS — a pure CSS shimmer.
+  const delay = `${index * 80}ms`
+  // Name bar length varies so rows don't look stamped out.
+  const nameWidth = [58, 72, 44, 64, 52, 76][index % 6]
+  // A sparse pattern of "cells" per row so the skeleton hints at real data.
+  const filled = [[0, 4], [1, 3], [], [0, 1, 4], [2], [0, 2, 3]][index % 6]
   return (
-    <div className="grid gap-2 items-center" style={{ gridTemplateColumns: '136px repeat(5, 1fr)' }}>
+    <div
+      className="grid gap-2 items-center"
+      style={{ gridTemplateColumns: '136px repeat(5, 1fr)' }}
+    >
       <div className="flex items-center gap-2 px-1">
-        <div className="w-7 h-7 rounded-full bg-[var(--bg-subtle)] animate-pulse" />
-        <div className="h-2.5 flex-1 rounded bg-[var(--bg-subtle)] animate-pulse" />
+        <span
+          className="shrink-0 tp-shimmer"
+          style={{ width: 28, height: 28, borderRadius: '9999px', animationDelay: delay }}
+        />
+        <span
+          className="tp-shimmer"
+          style={{ height: 10, width: `${nameWidth}%`, borderRadius: 4, animationDelay: delay }}
+        />
       </div>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="h-[36px] rounded-[8px] bg-[var(--bg-subtle)] animate-pulse" />
-      ))}
+      {Array.from({ length: 5 }).map((_, i) => {
+        const isFilled = filled.includes(i)
+        return (
+          <span
+            key={i}
+            className="tp-shimmer"
+            style={{
+              height: 36,
+              borderRadius: 10,
+              animationDelay: `${index * 80 + i * 40}ms`,
+              opacity: isFilled ? 1 : 0.45,
+            }}
+          />
+        )
+      })}
     </div>
   )
 }
@@ -466,12 +495,16 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     return Array.from({ length: weekDays.length }, (_, i) => i >= lo && i <= hi)
   }
 
-  // Keyboard navigation
+  // Keyboard navigation — ←/→ for week paging, T for "jump to this week".
+  // Guarded against typing targets so we never steal arrows inside inputs.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      if (e.key === 'ArrowLeft') goToPrev()
-      if (e.key === 'ArrowRight') goToNext()
+      if ((e.target as HTMLElement | null)?.isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'ArrowLeft') { e.preventDefault(); goToPrev() }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); goToNext() }
+      else if (e.key.toLowerCase() === 't') { e.preventDefault(); goToToday() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -664,7 +697,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
             style={{ userSelect: 'none' }}
           >
             {loading
-              ? Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
+              ? Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} index={i} />)
               : visibleMembers.map((member, rowIdx) => (
                   <motion.div
                     key={member.id}
