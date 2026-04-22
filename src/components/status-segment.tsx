@@ -1,8 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useTheme } from 'next-themes'
 import { StatusIcon } from '@/components/icons/status-icons'
 import type { EntryStatus } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
@@ -48,12 +46,8 @@ export function StatusSegment({
   muted,
   onSegmentResizeStart,
 }: StatusSegmentProps) {
-  const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
   const palettes = useStatusColors()
 
-  const isDark = mounted && resolvedTheme === 'dark'
   const span = days.length
   const todayIdx = days.findIndex((d) => d.isToday)
   const singleDay = span === 1
@@ -62,31 +56,24 @@ export function StatusSegment({
   const label = location || note
 
   const palette = status ? palettes[status] : null
-  const [g0, g1] = palette ? (isDark ? palette.gradient.dark : palette.gradient.light) : ['', '']
-  const glow = palette?.glow ?? ''
-
-  // Gentle top-down gradient — no longer a "polished jewel", just a clean
-  // category color with a subtle top highlight.
-  const gradient = palette
-    ? `linear-gradient(180deg, ${g0} 0%, ${g1} 100%)`
-    : undefined
+  const tone = palette?.icon ?? ''        // primary category color
+  const tint = palette?.textDark ?? '#fff' // lighter pastel — used for text/icon
+  const glow = palette?.glow ?? tone
 
   return (
     <motion.div
-      className="relative h-[36px] rounded-[10px] overflow-hidden"
+      className="relative h-[32px] rounded-[8px] overflow-hidden"
       style={{
         gridColumn: `span ${span}`,
-        backgroundColor: status ? g1 : 'transparent',
-        backgroundImage: status ? gradient : undefined,
-        // Restrained: inner rim + a soft category-tinted glow, no double halo.
+        // Cron-style glass tile: translucent category wash over the surface,
+        // NOT a solid painted fill. Tone comes from the rim + soft glow.
+        background: status
+          ? `linear-gradient(180deg, ${tone}22 0%, ${tone}14 100%)`
+          : 'transparent',
         boxShadow: status
-          ? isDark
-            ? `inset 0 1px 0 rgba(255,255,255,0.12),
-               inset 2px 0 0 ${glow},
-               0 0 12px -2px ${glow}66`
-            : `inset 0 1px 0 rgba(255,255,255,0.32),
-               inset 2px 0 0 ${glow},
-               0 0 12px -2px ${glow}77`
+          ? `inset 3px 0 0 ${tone},
+             inset 0 0 0 1px ${tone}30,
+             0 0 14px -4px ${glow}66`
           : undefined,
         opacity: muted ? 0.28 : 1,
         cursor: status && onDayMouseDown ? 'grab' : undefined,
@@ -94,30 +81,32 @@ export function StatusSegment({
       whileHover={muted ? undefined : { y: -1 }}
       transition={spring.snappy}
     >
-      {/* Single top sheen — 1/3 height, quiet. */}
+      {/* Very quiet top sheen — 30% height, barely visible. Keeps the tile from looking flat. */}
       {status && (
         <div
           aria-hidden
           className="absolute top-0 left-0 right-0 pointer-events-none z-[2]"
           style={{
-            height: '40%',
+            height: '35%',
             background:
-              'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 100%)',
+              'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 100%)',
           }}
         />
       )}
 
-      {/* Content — icon + label, tight spacing for slim bar */}
+      {/* Content — icon + label, tight spacing for slim bar.
+          Text is tinted to the category (lighter pastel) instead of fighting
+          white-on-saturated-color. Reads clean against the translucent tile. */}
       {status && (
-        <div className="absolute inset-0 flex items-center gap-1.5 px-2 pointer-events-none z-10">
-          <StatusIcon status={status} size={12} color="#ffffff" />
+        <div className="absolute inset-0 flex items-center gap-1.5 px-2.5 pointer-events-none z-10">
+          <StatusIcon status={status} size={11} color={tint} />
           {label && (
             <span
-              className="text-[11.5px] font-semibold leading-none truncate"
+              className="text-[11px] leading-none truncate"
               style={{
-                color: '#ffffff',
+                color: tint,
+                fontWeight: 500,
                 letterSpacing: '-0.005em',
-                textShadow: '0 1px 2px rgba(0,0,0,0.22)',
               }}
             >
               {label}
@@ -182,7 +171,7 @@ export function StatusSegment({
         })}
       </div>
 
-      {/* Today dot for multi-day segment */}
+      {/* Today dot for multi-day segment — violet accent, matches nav "nå" dot */}
       {!singleDay && todayIdx !== -1 && (
         <motion.div
           className="absolute pointer-events-none rounded-full z-30"
@@ -192,25 +181,23 @@ export function StatusSegment({
             transform: 'translateX(-50%)',
             width: 5,
             height: 5,
-            backgroundColor: status ? '#ffffff' : 'var(--accent-color)',
-            boxShadow: status
-              ? '0 0 0 1.5px rgba(255,255,255,0.3), 0 0 6px rgba(255,255,255,0.5)'
-              : '0 0 0 2px color-mix(in oklab, var(--accent-color) 25%, transparent), 0 0 6px color-mix(in oklab, var(--accent-color) 55%, transparent)',
+            backgroundColor: 'var(--lg-accent)',
+            boxShadow:
+              '0 0 0 2px rgba(139, 92, 246, 0.22), 0 0 6px var(--lg-accent-glow)',
           }}
           animate={{ scale: [1, 1.22, 1] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
         />
       )}
 
-      {/* Single-day today accent — luminous ring only on filled bars.
-          Empty today cells stay flat-white like every other empty cell. */}
+      {/* Single-day today accent — violet ring on filled bars. */}
       {singleDayIsToday && status && (
         <motion.div
           aria-hidden
-          className="absolute inset-0 rounded-[9px] pointer-events-none z-30"
+          className="absolute inset-0 rounded-[7px] pointer-events-none z-30"
           style={{
             boxShadow:
-              'inset 0 0 0 1.5px rgba(255,255,255,0.75), inset 0 0 12px rgba(255,255,255,0.25)',
+              'inset 0 0 0 1.5px rgba(139, 92, 246, 0.55), 0 0 10px var(--lg-accent-glow)',
           }}
           animate={{ opacity: [0.6, 1, 0.6] }}
           transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
@@ -222,35 +209,33 @@ export function StatusSegment({
           transition: box-shadow 140ms ease, background-color 140ms ease;
         }
         .resize-handle:hover {
-          background-color: rgba(255, 255, 255, 0.18);
+          background-color: ${tone ? `${tone}22` : 'rgba(255, 255, 255, 0.08)'};
         }
         .resize-handle-left:hover {
-          box-shadow: inset 2px 0 0 rgba(255, 255, 255, 0.72);
+          box-shadow: inset 2px 0 0 ${tone || 'rgba(255, 255, 255, 0.6)'};
         }
         .resize-handle-right:hover {
-          box-shadow: inset -2px 0 0 rgba(255, 255, 255, 0.72);
+          box-shadow: inset -2px 0 0 ${tone || 'rgba(255, 255, 255, 0.6)'};
         }
         .segment-day {
           transition: background-color 160ms ease;
         }
         .segment-day:hover {
           background-color: ${status
-            ? 'rgba(255,255,255,0.10)'
-            : isDark
-              ? 'rgba(255,255,255,0.05)'
-              : 'rgba(0,0,0,0.035)'};
+            ? `${tone}18`
+            : 'rgba(255,255,255,0.04)'};
         }
         .segment-day:focus-visible {
-          box-shadow: inset 0 0 0 2px var(--accent-color);
+          box-shadow: inset 0 0 0 2px var(--lg-accent);
           border-radius: 6px;
         }
         .segment-day.is-highlighted {
-          background-color: color-mix(in oklab, var(--accent-color) 28%, transparent);
-          box-shadow: inset 0 0 0 2px var(--accent-color);
+          background-color: rgba(139, 92, 246, 0.18);
+          box-shadow: inset 0 0 0 2px var(--lg-accent);
           border-radius: 6px;
         }
         .segment-day.is-highlighted:hover {
-          background-color: color-mix(in oklab, var(--accent-color) 36%, transparent);
+          background-color: rgba(139, 92, 246, 0.26);
         }
       `}</style>
     </motion.div>

@@ -11,8 +11,8 @@
 @theme inline {
   /* Fonts */
   --font-display: var(--font-sora);
-  --font-body:    var(--font-inter-tight);
-  --font-sans:    var(--font-inter-tight);
+  --font-body:    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter Tight", "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-sans:    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter Tight", "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
 
   /* Brand colors (shadcn semantic mapping) */
   --color-background:         var(--background);
@@ -259,9 +259,13 @@
   }
 
   html {
-    font-family: var(--font-inter-tight), system-ui, -apple-system, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", var(--font-inter-tight), "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
     @apply antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    /* Apple-like rendering: inherit SF Pro optical sizing + features when available. */
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
   }
 
   body {

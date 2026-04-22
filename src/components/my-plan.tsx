@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { addDays, getISOWeek, getISOWeekYear } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
-import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import { MemberAvatar } from '@/components/member-avatar'
 import { CellEditor } from '@/components/cell-editor'
@@ -156,8 +155,6 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
   const [moveDrag, setMoveDrag] = useState<MoveDrag | null>(null)
   const [resizeDrag, setResizeDrag] = useState<ResizeDrag | null>(null)
 
-  const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === 'dark'
   const palettes = useStatusColors()
 
   const currentWeekRef = useRef<HTMLDivElement | null>(null)
@@ -759,9 +756,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
                     if (!ghost) return null
                     const { start: targetStart, span, entry } = ghost
                     const palette = palettes[entry.status]
-                    const [g0, g1] = isDark ? palette.gradient.dark : palette.gradient.light
-                    // Row: px-4 (16) + 128 name col + 8 gap + 5 * 1fr with 8 gaps + px-4 (16).
-                    // Day 0 starts at 16 + 128 + 8 = 152px. Per-day = (100% - 200px) / 5.
+                    const tone = palette.icon
                     const leftCalc = `calc(152px + ${targetStart} * ((100% - 200px) / 5 + 8px))`
                     const widthCalc = `calc(${span} * ((100% - 200px) / 5) + ${(span - 1) * 8}px)`
                     return (
@@ -769,17 +764,14 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
                         aria-hidden
                         style={{
                           position: 'absolute',
-                          top: 12,
-                          height: 36,
+                          top: 14,
+                          height: 32,
                           left: leftCalc,
                           width: widthCalc,
-                          borderRadius: 9,
-                          backgroundImage: `linear-gradient(180deg, ${g0} 0%, ${g1} 100%)`,
-                          backgroundColor: g1,
-                          boxShadow: isDark
-                            ? '0 0 0 1.5px rgba(255,255,255,0.65), 0 10px 24px -6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.18)'
-                            : '0 0 0 1.5px rgba(255,255,255,0.9), 0 10px 24px -6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.35)',
-                          opacity: 0.92,
+                          borderRadius: 8,
+                          background: `linear-gradient(180deg, ${tone}33 0%, ${tone}22 100%)`,
+                          boxShadow: `inset 3px 0 0 ${tone}, inset 0 0 0 1px ${tone}55, 0 0 24px -4px ${tone}88`,
+                          opacity: 0.95,
                           pointerEvents: 'none',
                           zIndex: 25,
                           transition:
