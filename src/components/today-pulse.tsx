@@ -1,14 +1,15 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { StatusIcon } from '@/components/icons/status-icons'
 import type { EntryStatus } from '@/lib/supabase/types'
 import { AvatarStack } from '@/components/member-avatar'
 import { no } from '@/lib/i18n/no'
 import { useTheme } from 'next-themes'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { spring } from '@/lib/motion'
 import { useStatusColors } from '@/lib/status-colors/context'
+import { formatDateLabelLong } from '@/lib/dates'
 
 interface MemberWithEntry {
   id: string
@@ -22,8 +23,6 @@ interface TodayPulseProps {
   entries: MemberWithEntry[]
 }
 
-// One card per status — no more buckets. Order matches the ribbon:
-// "where they are" first, then "away" reasons.
 const GROUPS: Array<{ status: EntryStatus; label: string }> = [
   { status: 'office',   label: no.status.office },
   { status: 'remote',   label: no.status.remote },
@@ -34,14 +33,13 @@ const GROUPS: Array<{ status: EntryStatus; label: string }> = [
   { status: 'off',      label: no.status.off },
 ]
 
-// Tailwind needs full class names at build time — map count → responsive columns.
 const COL_CLASSES: Record<number, string> = {
-  1: 'grid-cols-1 md:grid-cols-1 lg:grid-cols-1',
-  2: 'grid-cols-2 md:grid-cols-2 lg:grid-cols-2',
-  3: 'grid-cols-2 md:grid-cols-3 lg:grid-cols-3',
-  4: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-4',
-  5: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5',
-  6: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6',
+  1: 'grid-cols-1',
+  2: 'grid-cols-1 md:grid-cols-2',
+  3: 'grid-cols-1 md:grid-cols-3',
+  4: 'grid-cols-2 md:grid-cols-4',
+  5: 'grid-cols-2 md:grid-cols-3 lg:grid-cols-5',
+  6: 'grid-cols-2 md:grid-cols-3 lg:grid-cols-6',
   7: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-7',
 }
 
@@ -56,41 +54,28 @@ export function TodayPulse({ entries }: TodayPulseProps) {
     .map((g) => ({ ...g, members: entries.filter((e) => e.status === g.status) }))
     .filter((g) => g.members.length > 0)
 
+  const totalToday = entries.length
+  const palette = useMemo(
+    () => visibleGroups.map((g) => STATUS_COLORS[g.status].icon),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visibleGroups.map((g) => g.status).join(','), STATUS_COLORS],
+  )
+
   if (visibleGroups.length === 0) return null
 
   const colClasses = COL_CLASSES[visibleGroups.length] ?? COL_CLASSES[7]
 
   return (
-    <div>
-      <div className="flex items-baseline gap-3 mb-5">
-        <h2
-          className="text-[22px] font-bold"
-          style={{
-            color: 'var(--text-primary)',
-            fontFamily: 'var(--font-sora)',
-            letterSpacing: '-0.03em',
-          }}
-        >
-          {no.pulse.title}
-        </h2>
-        <span
-          className="text-[11px] font-semibold uppercase tracking-[0.18em]"
-          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-        >
-          Live
-        </span>
-        <motion.span
-          className="w-1.5 h-1.5 rounded-full"
-          style={{
-            background: '#10B981',
-            boxShadow: '0 0 10px rgba(16,185,129,0.75)',
-          }}
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
+    <section className="relative isolate">
+      {/* Aurora backdrop — multi-blob mesh gradient that breathes behind the whole section.
+          Sits at z-index -1 inside the isolate so it never bleeds into anything outside. */}
+      <AuroraBackdrop mounted={mounted} palette={palette} />
 
-      <div className={`grid ${colClasses} gap-5`}>
+      {/* Dramatic header — big day label, live clock, totals */}
+      <PulseHeader mounted={mounted} totalToday={totalToday} />
+
+      {/* The cards */}
+      <div className={`grid ${colClasses} gap-5 md:gap-6`}>
         {visibleGroups.map((group, i) => (
           <PulseCard
             key={group.status}
@@ -103,6 +88,145 @@ export function TodayPulse({ entries }: TodayPulseProps) {
           />
         ))}
       </div>
+    </section>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function PulseHeader({ mounted, totalToday }: { mounted: boolean; totalToday: number }) {
+  const [now, setNow] = useState<Date | null>(null)
+  useEffect(() => {
+    if (!mounted) return
+    setNow(new Date())
+    const t = setInterval(() => setNow(new Date()), 15_000)
+    return () => clearInterval(t)
+  }, [mounted])
+
+  const time = now
+    ? new Intl.DateTimeFormat('nb-NO', { hour: '2-digit', minute: '2-digit' }).format(now)
+    : ''
+  const dateLabel = now ? formatDateLabelLong(now) : ''
+
+  return (
+    <div className="relative mb-8 md:mb-10">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2.5 mb-2">
+            <motion.span
+              className="w-2 h-2 rounded-full"
+              style={{
+                background: '#10B981',
+                boxShadow: '0 0 14px rgba(16,185,129,0.95), 0 0 3px rgba(16,185,129,0.6)',
+              }}
+              animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.18, 1] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <span
+              className="text-[11px] font-bold uppercase tracking-[0.25em]"
+              style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+            >
+              Live · akkurat nå
+            </span>
+          </div>
+          <h2
+            className="font-bold leading-[0.88]"
+            style={{
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-sora)',
+              letterSpacing: '-0.055em',
+              fontSize: 'clamp(40px, 6.5vw, 76px)',
+            }}
+          >
+            {totalToday} {totalToday === 1 ? 'person' : 'personer'}
+          </h2>
+          <div
+            className="mt-2 text-[14px] md:text-[15px] font-medium min-h-[20px]"
+            style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
+            suppressHydrationWarning
+          >
+            {dateLabel}
+          </div>
+        </div>
+
+        {/* Huge live clock */}
+        <div className="flex flex-col items-end shrink-0">
+          <span
+            className="text-[10px] font-bold uppercase tracking-[0.25em] mb-1"
+            style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+          >
+            Klokka er
+          </span>
+          <motion.span
+            key={time || 'empty'}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="font-bold tabular-nums leading-none min-h-[44px]"
+            style={{
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-sora)',
+              letterSpacing: '-0.05em',
+              fontSize: 'clamp(32px, 4vw, 52px)',
+            }}
+            suppressHydrationWarning
+          >
+            {time || ' '}
+          </motion.span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Five drifting blobs in the page palette — low contrast, always on the move,
+ *  masked by the section itself so it never bleeds into the rest of the page. */
+function AuroraBackdrop({ mounted, palette }: { mounted: boolean; palette: string[] }) {
+  if (!mounted || palette.length === 0) return null
+
+  const blobs = palette.slice(0, 5)
+
+  return (
+    <div
+      aria-hidden
+      className="absolute pointer-events-none overflow-hidden"
+      style={{
+        inset: '-60px',
+        zIndex: -1,
+        maskImage:
+          'radial-gradient(ellipse at center, black 40%, transparent 90%)',
+        WebkitMaskImage:
+          'radial-gradient(ellipse at center, black 40%, transparent 90%)',
+      }}
+    >
+      {blobs.map((color, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: 420,
+            height: 420,
+            left: `${(i * 22) + 6}%`,
+            top: `${20 + (i % 2) * 40}%`,
+            background: `radial-gradient(circle, ${color}55 0%, ${color}22 35%, transparent 70%)`,
+            filter: 'blur(48px)',
+            willChange: 'transform',
+          }}
+          animate={{
+            x: [0, 24, -14, 18, 0],
+            y: [0, -18, 22, -12, 0],
+            scale: [1, 1.12, 0.94, 1.08, 1],
+          }}
+          transition={{
+            duration: 16 + i * 3,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: i * 1.1,
+          }}
+        />
+      ))}
     </div>
   )
 }
@@ -119,110 +243,162 @@ interface PulseCardProps {
 }
 
 function PulseCard({ status, label, members, index, isDark, tone }: PulseCardProps) {
+  const cardRef = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState(false)
 
-  // Richer, deeper three-stop gradient:
-  // top = slightly lighter (highlight), middle = saturated, bottom = deeper.
-  // `color-mix` in oklab keeps the hue perceptually even across the stops.
-  const gradient = isDark
-    ? `linear-gradient(170deg,
-         color-mix(in oklab, ${tone} 94%, white) 0%,
-         ${tone} 46%,
-         color-mix(in oklab, ${tone} 70%, black) 100%)`
-    : `linear-gradient(170deg,
-         color-mix(in oklab, ${tone} 96%, white) 0%,
-         ${tone} 48%,
-         color-mix(in oklab, ${tone} 78%, black) 100%)`
+  // Cursor-driven 3D tilt — pointer position in [-0.5, 0.5] each axis.
+  const mx = useMotionValue(0)
+  const my = useMotionValue(0)
 
-  // Outer colored halo — this is the "gløde" the brief asked for. Two layers:
-  // a tight rim of color + a broader soft bloom that grows on hover.
-  const haloBase = isDark ? 0.55 : 0.45
-  const haloHover = isDark ? 0.85 : 0.7
+  // Smooth spring so the card doesn't chatter.
+  const smx = useSpring(mx, { stiffness: 260, damping: 26, mass: 0.4 })
+  const smy = useSpring(my, { stiffness: 260, damping: 26, mass: 0.4 })
+
+  // Map to rotation degrees — subtle; overcooked tilt feels cheap.
+  const rotateX = useTransform(smy, (v) => -v * 8)
+  const rotateY = useTransform(smx, (v) => v * 10)
+
+  // Spotlight follows the pointer across the card surface.
+  const spotX = useTransform(smx, (v) => `${(v + 0.5) * 100}%`)
+  const spotY = useTransform(smy, (v) => `${(v + 0.5) * 100}%`)
+
+  function handleMove(e: React.PointerEvent<HTMLDivElement>) {
+    const el = cardRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    mx.set((e.clientX - r.left) / r.width - 0.5)
+    my.set((e.clientY - r.top) / r.height - 0.5)
+  }
+
+  function handleLeave() {
+    mx.set(0)
+    my.set(0)
+    setHover(false)
+  }
+
+  // Deeper, more dimensional 3-stop gradient.
+  const gradient = isDark
+    ? `linear-gradient(168deg,
+         color-mix(in oklab, ${tone} 92%, white) 0%,
+         ${tone} 44%,
+         color-mix(in oklab, ${tone} 64%, black) 100%)`
+    : `linear-gradient(168deg,
+         color-mix(in oklab, ${tone} 96%, white) 0%,
+         ${tone} 46%,
+         color-mix(in oklab, ${tone} 74%, black) 100%)`
+
+  // Four-layer halo — tight rim, near glow, mid bloom, broad atmospheric pool.
   const outerGlow = hover
-    ? `0 0 0 1px color-mix(in oklab, ${tone} 55%, transparent),
-       0 8px 20px -8px color-mix(in oklab, ${tone} ${Math.round(haloHover * 100)}%, transparent),
-       0 24px 56px -16px color-mix(in oklab, ${tone} ${Math.round(haloHover * 100)}%, transparent),
-       0 44px 90px -24px color-mix(in oklab, ${tone} ${Math.round(haloHover * 70)}%, transparent)`
-    : `0 0 0 1px color-mix(in oklab, ${tone} 28%, transparent),
-       0 8px 20px -10px color-mix(in oklab, ${tone} ${Math.round(haloBase * 100)}%, transparent),
-       0 22px 44px -14px color-mix(in oklab, ${tone} ${Math.round(haloBase * 90)}%, transparent)`
+    ? `0 0 0 1.5px color-mix(in oklab, ${tone} 62%, transparent),
+       0 10px 24px -6px color-mix(in oklab, ${tone} 78%, transparent),
+       0 26px 60px -14px color-mix(in oklab, ${tone} 80%, transparent),
+       0 48px 100px -18px color-mix(in oklab, ${tone} 65%, transparent),
+       0 72px 140px -28px color-mix(in oklab, ${tone} 45%, transparent)`
+    : `0 0 0 1px color-mix(in oklab, ${tone} 30%, transparent),
+       0 8px 22px -8px color-mix(in oklab, ${tone} 55%, transparent),
+       0 24px 50px -14px color-mix(in oklab, ${tone} 55%, transparent),
+       0 44px 90px -24px color-mix(in oklab, ${tone} 35%, transparent)`
 
   const innerEdges = isDark
-    ? 'inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.28)'
-    : 'inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -1px 0 rgba(0,0,0,0.18)'
+    ? 'inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.32)'
+    : 'inset 0 1px 0 rgba(255,255,255,0.50), inset 0 -1px 0 rgba(0,0,0,0.20)'
+
+  const count = useCountUp(members.length, 900 + index * 120)
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 18, scale: 0.96 }}
+      ref={cardRef}
+      initial={{ opacity: 0, y: 28, scale: 0.94 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ ...spring.gentle, delay: 0.05 + index * 0.06 }}
-      onHoverStart={() => setHover(true)}
-      onHoverEnd={() => setHover(false)}
-      whileHover={{ y: -4 }}
-      whileTap={{ scale: 0.985 }}
+      transition={{ ...spring.gentle, delay: 0.08 + index * 0.08 }}
+      onPointerMove={handleMove}
+      onPointerEnter={() => setHover(true)}
+      onPointerLeave={handleLeave}
+      style={{
+        rotateX,
+        rotateY,
+        transformStyle: 'preserve-3d',
+        perspective: 1200,
+      }}
       className="relative"
     >
-      {/* Ambient bloom — a soft, breathing halo that sits BEHIND the card.
-          This is what makes the card feel like it's radiating light. */}
+      {/* Breathing ambient bloom — sits behind the card (z -1 within this stack) */}
       <motion.div
         aria-hidden
-        className="absolute rounded-[28px] pointer-events-none"
+        className="absolute rounded-[32px] pointer-events-none"
         style={{
-          inset: -14,
-          background: `radial-gradient(60% 60% at 50% 55%, color-mix(in oklab, ${tone} 55%, transparent) 0%, transparent 70%)`,
-          filter: 'blur(22px)',
+          inset: -20,
+          background: `radial-gradient(60% 60% at 50% 55%, color-mix(in oklab, ${tone} 62%, transparent) 0%, transparent 72%)`,
+          filter: 'blur(28px)',
           zIndex: -1,
         }}
-        animate={{ opacity: hover ? 0.95 : [0.45, 0.7, 0.45] }}
+        animate={{ opacity: hover ? 1 : [0.5, 0.8, 0.5], scale: hover ? 1.04 : 1 }}
         transition={
           hover
-            ? { duration: 0.35, ease: 'easeOut' }
-            : { duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: index * 0.4 }
+            ? { duration: 0.35 }
+            : { duration: 5, repeat: Infinity, ease: 'easeInOut', delay: index * 0.4 }
         }
       />
 
-      {/* The card itself */}
-      <div
-        className="relative rounded-[22px] overflow-hidden"
+      {/* THE CARD — large, dramatic, with layered materials */}
+      <motion.div
+        className="relative rounded-[26px] overflow-hidden"
         style={{
           background: gradient,
           boxShadow: `${outerGlow}, ${innerEdges}`,
-          transition: 'box-shadow 360ms cubic-bezier(0.22, 1, 0.36, 1)',
-          minHeight: 170,
+          transition: 'box-shadow 380ms cubic-bezier(0.22, 1, 0.36, 1)',
+          minHeight: 260,
         }}
       >
-        {/* Radial top-left highlight — the iOS liquid-glass "specular" point */}
-        <div
+        {/* Cursor-following spotlight — a soft white dot that brightens the card
+            wherever the pointer is. Only visible when actually hovering. */}
+        <motion.div
           aria-hidden
           className="absolute inset-0 pointer-events-none"
           style={{
-            background:
-              'radial-gradient(120% 90% at 12% 0%, rgba(255,255,255,0.42) 0%, rgba(255,255,255,0.12) 28%, rgba(255,255,255,0) 58%)',
+            background: useTransform(
+              [spotX, spotY] as unknown as [typeof spotX, typeof spotY],
+              ([x, y]) =>
+                `radial-gradient(260px circle at ${x} ${y}, rgba(255,255,255,0.35), rgba(255,255,255,0) 65%)`,
+            ),
+            opacity: hover ? 1 : 0,
+            transition: 'opacity 260ms ease-out',
             mixBlendMode: 'soft-light',
           }}
         />
 
-        {/* Glass top sheen + bottom dip — the layered gloss */}
+        {/* Static top-left specular — iOS liquid-glass point light */}
         <div
           aria-hidden
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              'linear-gradient(180deg, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0.06) 22%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.14) 100%)',
+              'radial-gradient(130% 90% at 10% -10%, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.14) 26%, rgba(255,255,255,0) 58%)',
+            mixBlendMode: 'soft-light',
           }}
         />
 
-        {/* Hairline specular edge along the top */}
+        {/* Top gloss + bottom dip */}
         <div
           aria-hidden
-          className="absolute top-0 left-[10%] right-[10%] h-px pointer-events-none"
+          className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.75) 50%, transparent 100%)',
+              'linear-gradient(180deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.06) 22%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.18) 100%)',
           }}
         />
 
-        {/* Shimmer sweep — a slow diagonal glint, like polished metal in sunlight */}
+        {/* Hairline top specular edge */}
+        <div
+          aria-hidden
+          className="absolute top-0 left-[8%] right-[8%] h-px pointer-events-none"
+          style={{
+            background:
+              'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.85) 50%, transparent 100%)',
+          }}
+        />
+
+        {/* Diagonal shimmer sweep — slow, staggered, pauses between passes */}
         <motion.div
           aria-hidden
           className="absolute pointer-events-none"
@@ -231,116 +407,155 @@ function PulseCard({ status, label, members, index, isDark, tone }: PulseCardPro
             bottom: '-30%',
             width: '45%',
             background:
-              'linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.28) 45%, rgba(255,255,255,0) 100%)',
+              'linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.32) 45%, rgba(255,255,255,0) 100%)',
             filter: 'blur(6px)',
             mixBlendMode: 'soft-light',
           }}
           initial={{ left: '-60%' }}
           animate={{ left: ['-60%', '160%'] }}
           transition={{
-            duration: 6,
+            duration: 5.5,
             repeat: Infinity,
             ease: 'easeInOut',
-            delay: 2 + index * 1.2,
-            repeatDelay: 3.5,
+            delay: 2.2 + index * 0.9,
+            repeatDelay: 4,
           }}
         />
 
-        {/* Grain texture — subtle noise for premium depth */}
+        {/* Premium noise grain */}
         <div
           aria-hidden
-          className="absolute inset-0 pointer-events-none opacity-[0.12] mix-blend-overlay"
+          className="absolute inset-0 pointer-events-none opacity-[0.14] mix-blend-overlay"
           style={{
             backgroundImage:
-              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
-            backgroundSize: '140px 140px',
+              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
+            backgroundSize: '160px 160px',
           }}
         />
 
         {/* Content */}
-        <div className="relative flex flex-col gap-4 p-4">
-          {/* Header row: icon chip + big count */}
-          <div className="relative flex items-start justify-between gap-2">
+        <div
+          className="relative flex flex-col justify-between h-full p-5 md:p-6"
+          style={{ minHeight: 260, transform: 'translateZ(30px)' }}
+        >
+          {/* Top row — glassy icon chip + massive count */}
+          <div className="flex items-start justify-between gap-3">
             <motion.div
-              className="flex items-center justify-center rounded-xl flex-shrink-0"
+              className="flex items-center justify-center rounded-2xl flex-shrink-0"
               animate={{
                 boxShadow: hover
-                  ? 'inset 0 0 0 1px rgba(255,255,255,0.42), 0 2px 6px rgba(0,0,0,0.18)'
-                  : 'inset 0 0 0 1px rgba(255,255,255,0.28), 0 1px 3px rgba(0,0,0,0.12)',
+                  ? 'inset 0 0 0 1.5px rgba(255,255,255,0.5), 0 8px 18px rgba(0,0,0,0.25)'
+                  : 'inset 0 0 0 1px rgba(255,255,255,0.32), 0 2px 6px rgba(0,0,0,0.14)',
               }}
               transition={{ duration: 0.3 }}
               style={{
-                width: 32,
-                height: 32,
+                width: 42,
+                height: 42,
                 background:
-                  'linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.12) 100%)',
-                backdropFilter: 'blur(8px)',
+                  'linear-gradient(180deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.14) 100%)',
+                backdropFilter: 'blur(10px)',
               }}
             >
-              <StatusIcon status={status} size={17} color="#ffffff" />
+              <StatusIcon status={status} size={22} color="#ffffff" />
             </motion.div>
 
-            <div className="flex items-baseline gap-0.5">
-              <motion.span
-                className="font-bold tabular-nums leading-none"
-                animate={{ scale: hover ? 1.04 : 1 }}
-                transition={spring.gentle}
-                style={{
-                  fontFamily: 'var(--font-sora)',
-                  color: '#ffffff',
-                  fontSize: 46,
-                  letterSpacing: '-0.055em',
-                  textShadow:
-                    '0 2px 8px rgba(0,0,0,0.22), 0 1px 1px rgba(0,0,0,0.18)',
-                }}
-              >
-                {members.length}
-              </motion.span>
-            </div>
+            <motion.span
+              className="font-bold tabular-nums leading-[0.88]"
+              animate={{ scale: hover ? 1.06 : 1 }}
+              transition={spring.gentle}
+              style={{
+                fontFamily: 'var(--font-sora)',
+                color: '#ffffff',
+                fontSize: 'clamp(68px, 8vw, 96px)',
+                letterSpacing: '-0.065em',
+                textShadow:
+                  '0 3px 14px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.22)',
+              }}
+            >
+              {count}
+            </motion.span>
           </div>
 
-          {/* Label — uppercase small caps, tight letter-spacing, carved shadow */}
-          <span
-            className="text-[12px] font-semibold truncate"
-            style={{
-              color: 'rgba(255,255,255,0.96)',
-              fontFamily: 'var(--font-body)',
-              letterSpacing: '-0.005em',
-              textShadow: '0 1px 2px rgba(0,0,0,0.22)',
-            }}
-          >
-            {label}
-          </span>
+          {/* Bottom — label + avatars */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-baseline justify-between gap-2">
+              <span
+                className="font-bold truncate"
+                style={{
+                  color: '#ffffff',
+                  fontFamily: 'var(--font-sora)',
+                  fontSize: 19,
+                  letterSpacing: '-0.025em',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.26)',
+                }}
+              >
+                {label}
+              </span>
+              <span
+                className="text-[11px] font-semibold uppercase tracking-[0.16em] shrink-0"
+                style={{
+                  color: 'rgba(255,255,255,0.78)',
+                  fontFamily: 'var(--font-body)',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                }}
+              >
+                {members.length === 1 ? 'person' : 'personer'}
+              </span>
+            </div>
 
-          {/* Avatar stack — larger rings for a more jewel-like finish */}
-          <div className="relative">
             <AvatarStack
               members={members}
-              max={4}
-              size="sm"
-              ringColor="rgba(255,255,255,0.85)"
+              max={5}
+              size="md"
+              ringColor="rgba(255,255,255,0.92)"
             />
           </div>
         </div>
 
-        {/* Live heartbeat pip — small, in bottom-right, only visible on hover */}
+        {/* Live heartbeat pip — only when hovered */}
         <motion.div
           aria-hidden
-          className="absolute bottom-3 right-3 rounded-full pointer-events-none"
+          className="absolute top-4 right-4 rounded-full pointer-events-none"
           style={{
             width: 6,
             height: 6,
             background: '#ffffff',
-            boxShadow: '0 0 10px rgba(255,255,255,0.8)',
+            boxShadow: '0 0 10px rgba(255,255,255,0.9)',
           }}
-          animate={{ opacity: hover ? [0.5, 1, 0.5] : 0 }}
+          animate={{ opacity: hover ? [0.4, 1, 0.4] : 0 }}
           transition={
             hover
-              ? { duration: 1.4, repeat: Infinity, ease: 'easeInOut' }
-              : { duration: 0.25 }
+              ? { duration: 1.3, repeat: Infinity, ease: 'easeInOut' }
+              : { duration: 0.2 }
           }
         />
-      </div>
+      </motion.div>
     </motion.div>
   )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Ease-out count animation from the previous value to `target`. */
+function useCountUp(target: number, duration = 900): number {
+  const [display, setDisplay] = useState(0)
+  const prevRef = useRef(0)
+
+  useEffect(() => {
+    const from = prevRef.current
+    const start = performance.now()
+    let raf = 0
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      const v = Math.round(from + (target - from) * eased)
+      setDisplay(v)
+      if (t < 1) raf = requestAnimationFrame(tick)
+      else prevRef.current = target
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
+
+  return display
 }
