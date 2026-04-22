@@ -27,6 +27,9 @@ interface StatusSegmentProps {
   dayHighlight?: boolean[]
   /** Dim the bar — used while the segment is being move-dragged elsewhere. */
   muted?: boolean
+  /** Fired on mousedown inside a left/right resize handle. When set, the bar exposes
+   * 8-px hit zones on each edge that take priority over the per-day buttons. */
+  onSegmentResizeStart?: (edge: 'left' | 'right') => void
 }
 
 // iOS system palette — refined, tighter gradients for Outlook-calibre flow.
@@ -58,6 +61,7 @@ export function StatusSegment({
   onDayMouseEnter,
   dayHighlight,
   muted,
+  onSegmentResizeStart,
 }: StatusSegmentProps) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -142,6 +146,33 @@ export function StatusSegment({
         </div>
       )}
 
+      {/* Resize handles — left/right edges on colored bars, Outlook-style.
+          Rendered at z-30 so they win mousedown over the per-day buttons (z-20). */}
+      {status && onSegmentResizeStart && (
+        <>
+          <div
+            aria-label="Dra for å endre startdato"
+            className="resize-handle resize-handle-left absolute top-0 bottom-0 left-0 z-30"
+            style={{ width: 10, cursor: 'ew-resize' }}
+            onMouseDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onSegmentResizeStart('left')
+            }}
+          />
+          <div
+            aria-label="Dra for å endre sluttdato"
+            className="resize-handle resize-handle-right absolute top-0 bottom-0 right-0 z-30"
+            style={{ width: 10, cursor: 'ew-resize' }}
+            onMouseDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onSegmentResizeStart('right')
+            }}
+          />
+        </>
+      )}
+
       {/* Per-day click targets */}
       <div className="absolute inset-0 flex z-20">
         {days.map((d, i) => {
@@ -207,6 +238,18 @@ export function StatusSegment({
       )}
 
       <style jsx>{`
+        .resize-handle {
+          transition: box-shadow 140ms ease, background-color 140ms ease;
+        }
+        .resize-handle:hover {
+          background-color: rgba(255, 255, 255, 0.18);
+        }
+        .resize-handle-left:hover {
+          box-shadow: inset 2px 0 0 rgba(255, 255, 255, 0.72);
+        }
+        .resize-handle-right:hover {
+          box-shadow: inset -2px 0 0 rgba(255, 255, 255, 0.72);
+        }
         .segment-day {
           transition: background-color 160ms ease;
         }

@@ -106,6 +106,15 @@ interface MoveDrag {
   entry: Entry            // source entry (status + location + note to carry over)
 }
 
+interface ResizeDrag {
+  memberId: string
+  edge: 'left' | 'right'
+  origStart: number       // segment's original first day-idx
+  origSpan: number        // segment's original span
+  currentDayIdx: number   // where the cursor is now (0..weekDays.length-1)
+  entry: Entry
+}
+
 interface TeamGridProps {
   orgId: string
 }
@@ -140,6 +149,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   const isDragging = dragStart !== null
 
   const [moveDrag, setMoveDrag] = useState<MoveDrag | null>(null)
+  const [resizeDrag, setResizeDrag] = useState<ResizeDrag | null>(null)
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
 
@@ -189,13 +199,105 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     return Math.max(0, Math.min(maxStart, desired))
   }
 
-  // Commit drag on global mouseup. Handles three cases:
+  // Compute clamped new range for an in-progress resize drag.
+  function resizeTargetRange(r: ResizeDrag): { start: number; end: number } {
+    const anchorStart = r.origStart
+    const anchorEnd = r.origStart + r.origSpan - 1
+    if (r.edge === 'right') {
+      const newEnd = Math.max(anchorStart, Math.min(weekDays.length - 1, r.currentDayIdx))
+      return { start: anchorStart, end: newEnd }
+    }
+    const newStart = Math.max(0, Math.min(anchorEnd, r.currentDayIdx))
+    return { start: newStart, end: anchorEnd }
+  }
+
+  // Unified ghost-range query: what range should the ghost bar occupy for this row?
+  function ghostRangeFor(memberId: string): { start: number; span: number; entry: Entry } | null {
+    if (resizeDrag && resizeDrag.memberId === memberId) {
+      const { start, end } = resizeTargetRange(resizeDrag)
+      return { start, span: end - start + 1, entry: resizeDrag.entry }
+    }
+    if (moveDrag && moveDrag.memberId === memberId) {
+      return { start: moveTargetStart(moveDrag), span: moveDrag.segmentSpan, entry: moveDrag.entry }
+    }
+    return null
+  }
+
+  // What segment (origStart, origSpan) is currently being dragged in this row?
+  function sourceSegmentFor(memberId: string): { start: number; span: number } | null {
+    if (resizeDrag && resizeDrag.memberId === memberId) {
+      return { start: resizeDrag.origStart, span: resizeDrag.origSpan }
+    }
+    if (moveDrag && moveDrag.memberId === memberId) {
+      return { start: moveDrag.segmentStart, span: moveDrag.segmentSpan }
+    }
+    return null
+  }
+
+  // Commit drag on global mouseup. Handles four cases:
+  //  - Resize-drag on a bar edge → UPSERT new dates + DELETE trimmed leftovers
   //  - Move-drag on a colored bar → reschedule (UPSERT new dates + DELETE leftovers)
-  //  - Tap on a colored bar (move-drag with no movement) → open editor
+  //  - Tap on a colored bar (move/resize with no change) → open editor
   //  - Select-drag on empty cells → open editor with a pre-selected range
   useEffect(() => {
-    if (!isDragging && !moveDrag) return
+    if (!isDragging && !moveDrag && !resizeDrag) return
     async function onUp() {
+      if (resizeDrag) {
+        const rz = resizeDrag
+        setResizeDrag(null)
+        const { start: newStart, end: newEnd } = resizeTargetRange(rz)
+        const origStart = rz.origStart
+        const origEnd = rz.origStart + rz.origSpan - 1
+        const member = members.find((m) => m.id === rz.memberId)
+        const noChange = newStart === origStart && newEnd === origEnd
+        if (noChange || !member) {
+          if (member) {
+            const startDate = weekDays[origStart]
+            const endDate = weekDays[origEnd]
+            setSelectedCell({
+              memberId: member.id,
+              memberName: member.display_name,
+              date: toDateString(startDate),
+              endDate: toDateString(endDate),
+              dateLabel: formatDateLabel(startDate),
+              status: rz.entry.status,
+              location: rz.entry.location_label,
+              note: rz.entry.note,
+            })
+          }
+          return
+        }
+        const supabase = createClient()
+        const newDates = weekDays.slice(newStart, newEnd + 1).map(toDateString)
+        const origDates = weekDays.slice(origStart, origEnd + 1).map(toDateString)
+        const rows = newDates.map((d) => ({
+          org_id: orgId,
+          member_id: rz.memberId,
+          date: d,
+          status: rz.entry.status,
+          location_label: rz.entry.location_label,
+          note: rz.entry.note,
+          source: 'manual' as const,
+        }))
+        const { error: upErr } = await supabase
+          .from('entries')
+          .upsert(rows, { onConflict: 'org_id,member_id,date' })
+        if (upErr) {
+          toast.error('Kunne ikke endre datoområdet')
+          return
+        }
+        const toDelete = origDates.filter((d) => !newDates.includes(d))
+        if (toDelete.length > 0) {
+          await supabase
+            .from('entries')
+            .delete()
+            .eq('org_id', orgId)
+            .eq('member_id', rz.memberId)
+            .in('date', toDelete)
+        }
+        return
+      }
+
       if (moveDrag) {
         const mv = moveDrag
         setMoveDrag(null)
@@ -284,7 +386,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     }
     window.addEventListener('mouseup', onUp)
     return () => window.removeEventListener('mouseup', onUp)
-  }, [isDragging, moveDrag, dragStart, dragCurrent, members, weekDays, entryMap, orgId])
+  }, [isDragging, moveDrag, resizeDrag, dragStart, dragCurrent, members, weekDays, entryMap, orgId])
 
   function handleDayMouseDown(memberId: string, dayIdx: number) {
     // If this cell has an entry, start a move-drag for the whole segment.
@@ -316,6 +418,12 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   }
 
   function handleDayMouseEnter(memberId: string, dayIdx: number) {
+    if (resizeDrag) {
+      if (resizeDrag.memberId !== memberId) return
+      if (resizeDrag.currentDayIdx === dayIdx) return
+      setResizeDrag({ ...resizeDrag, currentDayIdx: dayIdx })
+      return
+    }
     if (moveDrag) {
       if (moveDrag.memberId !== memberId) return
       if (moveDrag.currentDayIdx === dayIdx) return
@@ -325,6 +433,23 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     if (!isDragging || !dragStart) return
     if (dragStart.memberId !== memberId) return
     setDragCurrent({ memberId, dayIdx })
+  }
+
+  function handleSegmentResizeStart(
+    memberId: string,
+    segStart: number,
+    segSpan: number,
+    edge: 'left' | 'right',
+    entry: Entry
+  ) {
+    setResizeDrag({
+      memberId,
+      edge,
+      origStart: segStart,
+      origSpan: segSpan,
+      currentDayIdx: edge === 'left' ? segStart : segStart + segSpan - 1,
+      entry,
+    })
   }
 
   function dayHighlightsForMember(memberId: string): boolean[] {
@@ -582,20 +707,19 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                         cursor += seg.days.length
                         return slice
                       })
-                      // Track segment starting day index to detect the move-drag source.
+                      // Track segment starting day index to detect the dragged source.
                       let cursor2 = 0
                       const segmentStarts: number[] = segments.map((seg) => {
                         const start = cursor2
                         cursor2 += seg.days.length
                         return start
                       })
-                      const isSourceRow =
-                        moveDrag !== null && moveDrag.memberId === member.id
+                      const src = sourceSegmentFor(member.id)
                       return segments.map((seg, segIdx) => {
-                        const isMoveSource =
-                          isSourceRow &&
-                          segmentStarts[segIdx] === moveDrag!.segmentStart &&
-                          seg.days.length === moveDrag!.segmentSpan
+                        const isDragSource =
+                          src !== null &&
+                          segmentStarts[segIdx] === src.start &&
+                          seg.days.length === src.span
                         return (
                           <StatusSegment
                             key={`${member.id}-${segIdx}-${seg.days[0].date}`}
@@ -619,18 +743,30 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                               if (absoluteIdx >= 0) handleDayMouseEnter(member.id, absoluteIdx)
                             }}
                             dayHighlight={segmentHighlights[segIdx]}
-                            muted={isMoveSource}
+                            muted={isDragSource}
+                            onSegmentResizeStart={
+                              seg.entry
+                                ? (edge) =>
+                                    handleSegmentResizeStart(
+                                      member.id,
+                                      segmentStarts[segIdx],
+                                      seg.days.length,
+                                      edge,
+                                      seg.entry!
+                                    )
+                                : undefined
+                            }
                           />
                         )
                       })
                     })()}
 
-                    {/* Move-drag ghost — shown while the user drags one of this row's bars */}
-                    {moveDrag && moveDrag.memberId === member.id && (() => {
-                      const targetStart = moveTargetStart(moveDrag)
-                      if (targetStart === moveDrag.segmentStart) return null
-                      const span = moveDrag.segmentSpan
-                      const palette = STATUS_GRADIENT[moveDrag.entry.status]
+                    {/* Drag ghost — shown for move OR resize while the user drags a bar in this row */}
+                    {(() => {
+                      const ghost = ghostRangeFor(member.id)
+                      if (!ghost) return null
+                      const { start: targetStart, span, entry } = ghost
+                      const palette = STATUS_GRADIENT[entry.status]
                       const [g0, g1] = isDark ? palette.dark : palette.light
                       // Row coords: 136px name col + 8px gap + N day cols with 8px gaps.
                       // Per-day width = (rowWidth - 176) / 5. Day 0 starts at 144px.
