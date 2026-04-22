@@ -51,19 +51,21 @@ export function useEntries(orgId: string, dateStrings: string[]) {
           filter: `org_id=eq.${orgId}`,
         },
         (payload) => {
-          const changedEntry = (payload.new ?? payload.old) as Entry | undefined
-          if (!changedEntry?.date || !dateStringsRef.current.includes(changedEntry.date)) return
-
+          // DELETE: payload.old may only contain the primary key when the
+          // table uses the default REPLICA IDENTITY, so fall back to removing
+          // by id alone and skip the date-window check.
           if (payload.eventType === 'DELETE') {
-            const deleted = payload.old as Entry
+            const deleted = payload.old as Partial<Entry>
+            if (!deleted.id) return
             setEntries(prev => prev.filter(e => e.id !== deleted.id))
-          } else {
-            const upserted = payload.new as Entry
-            setEntries(prev => {
-              const without = prev.filter(e => e.id !== upserted.id)
-              return [...without, upserted]
-            })
+            return
           }
+          const upserted = payload.new as Entry
+          if (!upserted?.date || !dateStringsRef.current.includes(upserted.date)) return
+          setEntries(prev => {
+            const without = prev.filter(e => e.id !== upserted.id)
+            return [...without, upserted]
+          })
         }
       )
       .subscribe()

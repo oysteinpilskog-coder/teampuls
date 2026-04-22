@@ -142,7 +142,53 @@ export function CellEditor({
     if (!initialStatus || saving) return
     setSaving(true)
     const supabase = createClient()
-    const dates = expandedDates()
+
+    // If the user explicitly picked a range, honor it. Otherwise expand to the
+    // full contiguous event span — adjacent days sharing status + location +
+    // note — so deleting one day of a multi-day event clears the whole event
+    // (Outlook-style).
+    const userPickedRange = rangeStart !== date || rangeEnd !== date
+    let dates: string[]
+    if (userPickedRange) {
+      dates = expandedDates()
+    } else {
+      const windowStart = toDateString(addDays(parseISO(date), -90))
+      const windowEnd = toDateString(addDays(parseISO(date), 90))
+      const { data: nearby } = await supabase
+        .from('entries')
+        .select('date, status, location_label, note')
+        .eq('org_id', orgId)
+        .eq('member_id', memberId)
+        .gte('date', windowStart)
+        .lte('date', windowEnd)
+      const targetLocation: string | null = initialLocation ?? null
+      const targetNote: string | null = initialNote ?? null
+      const byDate = new Map(
+        (nearby ?? []).map(r => [r.date as string, r])
+      )
+      const matches = (d: string) => {
+        const row = byDate.get(d)
+        if (!row) return false
+        return (
+          row.status === initialStatus &&
+          (row.location_label ?? null) === targetLocation &&
+          (row.note ?? null) === targetNote
+        )
+      }
+      const span: string[] = [date]
+      for (let i = 1; i <= 90; i++) {
+        const d = toDateString(addDays(parseISO(date), -i))
+        if (!matches(d)) break
+        span.unshift(d)
+      }
+      for (let i = 1; i <= 90; i++) {
+        const d = toDateString(addDays(parseISO(date), i))
+        if (!matches(d)) break
+        span.push(d)
+      }
+      dates = span
+    }
+
     const { error } = await supabase
       .from('entries')
       .delete()
