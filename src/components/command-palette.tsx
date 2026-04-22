@@ -19,7 +19,6 @@ import {
   PenSquare,
   Keyboard,
   CircleUser,
-  Clock,
   Monitor,
   Sparkles,
 } from 'lucide-react'
@@ -414,14 +413,6 @@ function useCommands({
         icon: <Home className="w-4 h-4" />,
         keywords: 'oversikt hjem team kalender uke',
         run: nav('/'),
-      },
-      {
-        id: 'nav-today',
-        label: no.nav.today,
-        group: 'nav',
-        icon: <Clock className="w-4 h-4" />,
-        keywords: 'i dag akkurat nå puls',
-        run: nav('/i-dag'),
       },
       {
         id: 'nav-myplan',
