@@ -1446,9 +1446,16 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
           {activeTodayDeg !== null && activeTodayTip && (() => {
             // Pill anchor sits outside the outer ring, along today's angle.
             // Label text stays horizontal (not rotated), so it reads correctly from any angle.
-            const anchor = polarPoint(R.monthOuter + 44, activeTodayDeg)
+            const rawAnchor = polarPoint(R.monthOuter + 44, activeTodayDeg)
             const pillW = 86
             const pillH = 26
+            // Clamp so the pill stays fully within the 800×800 viewBox
+            // (at angles near 3/9 o'clock the raw anchor sits beyond the edge).
+            const pad = 4
+            const anchor = {
+              x: Math.min(Math.max(rawAnchor.x, pillW / 2 + pad), 800 - pillW / 2 - pad),
+              y: Math.min(Math.max(rawAnchor.y, pillH / 2 + pad), 800 - pillH / 2 - pad),
+            }
             const pillX = anchor.x - pillW / 2
             const pillY = anchor.y - pillH / 2
             const todayLabel = `${weekdayAbbr(today).toUpperCase()} ${today.getDate()}`
