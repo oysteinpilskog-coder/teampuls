@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useId, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
-import { getISOWeek } from '@/lib/dates'
+import { getISOWeek, getWeekStart, getLastISOWeek } from '@/lib/dates'
 import { spring } from '@/lib/motion'
 import { CATEGORY_COLORS, EventEditor } from '@/components/event-editor'
 import { useEvents } from '@/hooks/use-events'
@@ -139,12 +139,21 @@ function getMonthSegments(year: number) {
 }
 
 function getWeekSegments(year: number) {
-  const total = 52
-  return Array.from({ length: total }, (_, i) => ({
-    weekNum: i + 1,
-    start: (i / total) * 360,
-    end: ((i + 1) / total) * 360,
-  }))
+  const total = daysInYear(year)
+  const lastWeek = getLastISOWeek(year)
+  const segs: Array<{ weekNum: number; start: number; end: number }> = []
+  for (let w = 1; w <= lastWeek; w++) {
+    const mon = getWeekStart(w, year)
+    const nextMon = getWeekStart(w + 1, year)
+    const startDay = mon.getFullYear() < year ? 0 : dayOfYear(mon)
+    const endDay = nextMon.getFullYear() > year ? total : dayOfYear(nextMon)
+    segs.push({
+      weekNum: w,
+      start: (startDay / total) * 360,
+      end: (endDay / total) * 360,
+    })
+  }
+  return segs
 }
 
 // ─── Month-focus math ─────────────────────────────────────────────
