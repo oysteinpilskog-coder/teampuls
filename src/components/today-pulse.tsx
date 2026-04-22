@@ -34,12 +34,31 @@ const GROUPS: Array<{ status: EntryStatus; label: string }> = [
   { status: 'off',      label: no.status.off },
 ]
 
+// Tailwind needs full class names at build time — map count → responsive columns.
+const COL_CLASSES: Record<number, string> = {
+  1: 'grid-cols-1 md:grid-cols-1 lg:grid-cols-1',
+  2: 'grid-cols-2 md:grid-cols-2 lg:grid-cols-2',
+  3: 'grid-cols-2 md:grid-cols-3 lg:grid-cols-3',
+  4: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-4',
+  5: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-5',
+  6: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-6',
+  7: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-7',
+}
+
 export function TodayPulse({ entries }: TodayPulseProps) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
   const isDark = mounted && resolvedTheme === 'dark'
   const STATUS_COLORS = useStatusColors()
+
+  const visibleGroups = GROUPS
+    .map((g) => ({ ...g, members: entries.filter((e) => e.status === g.status) }))
+    .filter((g) => g.members.length > 0)
+
+  if (visibleGroups.length === 0) return null
+
+  const colClasses = COL_CLASSES[visibleGroups.length] ?? COL_CLASSES[7]
 
   return (
     <div>
@@ -70,10 +89,10 @@ export function TodayPulse({ entries }: TodayPulseProps) {
           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         />
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-        {GROUPS.map((group, i) => {
+      <div className={`grid ${colClasses} gap-4`}>
+        {visibleGroups.map((group, i) => {
           const { status } = group
-          const groupMembers = entries.filter((e) => e.status === status)
+          const groupMembers = group.members
           const colors = STATUS_COLORS[status]
           const tone = colors.icon
 
@@ -140,19 +159,7 @@ export function TodayPulse({ entries }: TodayPulseProps) {
 
               {/* Avatar stack */}
               <div className="relative">
-                {groupMembers.length > 0 ? (
-                  <AvatarStack members={groupMembers} max={4} size="sm" ringColor="rgba(255,255,255,0.55)" />
-                ) : (
-                  <p
-                    className="text-[12px] font-medium"
-                    style={{
-                      color: 'rgba(255,255,255,0.72)',
-                      fontFamily: 'var(--font-body)',
-                    }}
-                  >
-                    Ingen
-                  </p>
-                )}
+                <AvatarStack members={groupMembers} max={4} size="sm" ringColor="rgba(255,255,255,0.55)" />
               </div>
             </motion.div>
           )
