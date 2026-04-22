@@ -21,7 +21,9 @@ export function buildStableSystemPrompt(members: Member[]): string {
     full_name: m.full_name ?? null,
     initials: m.initials ?? null,
     email: m.email,
-    nicknames: m.nicknames ?? [],
+    // `aliases` = any extra name variants stored historically (legacy "nicknames"
+    // column). Treat them as equal-weight fallbacks when matching by name.
+    aliases: m.nicknames ?? [],
   }))
 
   return `Du er kalenderassistenten for et team. Du tolker korte, uformelle meldinger på norsk (eller engelsk) og returnerer strukturerte kalenderoppdateringer som JSON.
@@ -39,9 +41,9 @@ ${JSON.stringify(membersList, null, 2)}
    - "Fjerdingstad 20-23 mars" → avsender, status=customer, location="Fjerdingstad", 20.-23. mars
    - "Hjemme i morgen" → avsender, status=remote, i morgen
 2. NAVN NEVNT → oppdater den personen. Match i denne rekkefølgen:
-   a) 2-bokstavs-forkortelse (f.eks. "ØP", "JL", "JA") → match mot "initials" (case-insensitive)
-   b) Fornavn eller fullt navn → match mot "name", "full_name" eller "nicknames"
-   Eksempel: "fikser ØP fjerdingstad uke 18" → slå opp medlem der initials = "ØP" og bruk det navnet.
+   a) 2–3-bokstavs-forkortelse (f.eks. "ØP", "JL") → match mot \`initials\` (case-insensitive). Dette er den raskeste og mest entydige måten.
+   b) Enhver navneform → match mot \`name\`, \`full_name\` eller \`aliases\` (fornavn, etternavn, kallenavn — alle behandles likt).
+   Eksempel: "fikser ØP fjerdingstad uke 18" → medlem med initials = "ØP".
 3. FLERE NAVN (f.eks. "Øystein og Johan") → returner én update per person med identiske detaljer
 4. UNIKT MATCH KREVES — hvis flere medlemmer matcher et navn, returner clarification-spørsmål.
    Initials er unike per organisasjon, så 2-bokstavs-forkortelser matcher alltid entydig når de finnes.

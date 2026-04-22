@@ -21,7 +21,6 @@ interface MemberFormState {
   initials: string
   email: string
   role: MemberRole
-  nicknames: string  // comma-separated
 }
 
 const EMPTY_FORM: MemberFormState = {
@@ -30,7 +29,6 @@ const EMPTY_FORM: MemberFormState = {
   initials: '',
   email: '',
   role: 'member',
-  nicknames: '',
 }
 
 const ROLE_LABELS: Record<MemberRole, string> = {
@@ -60,7 +58,6 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
       initials: m.initials ?? '',
       email: m.email,
       role: m.role,
-      nicknames: m.nicknames.join(', '),
     })
     setEditTarget(m)
     setModalMode('edit')
@@ -76,52 +73,39 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
     const initials = form.initials.trim().toUpperCase() || null
     const full_name = form.full_name.trim() || null
 
-    const row = {
-      org_id: orgId,
+    const baseFields = {
       display_name: form.display_name.trim(),
       full_name,
       initials,
       email: form.email.trim().toLowerCase(),
       role: form.role,
-      nicknames: form.nicknames
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean),
     }
 
     if (modalMode === 'edit' && editTarget) {
       const { error } = await supabase
         .from('members')
-        .update({
-          display_name: row.display_name,
-          full_name: row.full_name,
-          initials: row.initials,
-          email: row.email,
-          role: row.role,
-          nicknames: row.nicknames,
-        })
+        .update(baseFields)
         .eq('id', editTarget.id)
       setSaving(false)
       if (error) {
-        toast.error(
-          error.code === '23505'
-            ? (error.message?.includes('initials') ? 'Initialene er allerede i bruk.' : 'E-posten er allerede i bruk.')
-            : 'Noe gikk galt.'
-        )
+        toast.error(describeSaveError(error))
         return
       }
-      setMembers(prev => prev.map(m => m.id === editTarget.id ? { ...m, ...row } : m))
+      setMembers(prev => prev.map(m => m.id === editTarget.id ? { ...m, ...baseFields } : m))
       toast.success('Endringer lagret')
     } else {
       const { data, error } = await supabase
         .from('members')
-        .insert({ ...row, is_active: true })
+        .insert({ ...baseFields, org_id: orgId, is_active: true, nicknames: [] })
         .select()
         .single()
       setSaving(false)
-      if (error) { toast.error('Noe gikk galt.'); return }
+      if (error) {
+        toast.error(describeSaveError(error))
+        return
+      }
       setMembers(prev => [...prev, data].sort((a, b) => a.display_name.localeCompare(b.display_name)))
-      toast.success(`${row.display_name} er lagt til`)
+      toast.success(`${baseFields.display_name} er lagt til`)
     }
     closeModal()
   }
@@ -273,62 +257,64 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                 </button>
               </div>
 
-              {/* Name */}
-              <Field label="Navn" hint="Vises i teamet — typisk fornavn">
-                <input
-                  type="text"
-                  value={form.display_name}
-                  onChange={e => setForm(f => ({ ...f, display_name: e.target.value }))}
-                  placeholder="Fornavn"
-                  className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
-                  style={inputStyle}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
-                />
-              </Field>
+              {/* Identity group */}
+              <div className="flex flex-col gap-4">
+                <Field label="Navn" hint="Fornavnet som vises i teamet">
+                  <input
+                    type="text"
+                    value={form.display_name}
+                    onChange={e => {
+                      const display_name = e.target.value
+                      setForm(f => ({
+                        ...f,
+                        display_name,
+                        initials: f.initials || deriveInitials(display_name, f.full_name),
+                      }))
+                    }}
+                    placeholder="Sindre"
+                    className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
+                    style={inputStyle}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                  />
+                </Field>
 
-              {/* Full name */}
-              <Field label="Fullt navn" hint="Valgfritt — brukes når AI utvider initialer">
-                <input
-                  type="text"
-                  value={form.full_name}
-                  onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
-                  placeholder="F.eks. Øystein Pilskog"
-                  className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
-                  style={inputStyle}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
-                />
-              </Field>
+                <Field label="Fullt navn" hint="Valgfritt — vises på hover og i oppsummeringer">
+                  <input
+                    type="text"
+                    value={form.full_name}
+                    onChange={e => {
+                      const full_name = e.target.value
+                      setForm(f => ({
+                        ...f,
+                        full_name,
+                        initials: f.initials || deriveInitials(f.display_name, full_name),
+                      }))
+                    }}
+                    placeholder="Sindre Barstad"
+                    className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
+                    style={inputStyle}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                  />
+                </Field>
 
-              {/* Initials */}
-              <Field label="Initialer" hint="2 bokstaver — f.eks. ØP. Brukes av AI: «fikser ØP uke 18»">
-                <input
-                  type="text"
-                  value={form.initials}
-                  onChange={e => setForm(f => ({ ...f, initials: e.target.value.slice(0, 3).toUpperCase() }))}
-                  placeholder="ØP"
-                  maxLength={3}
-                  className="w-24 px-3 py-2.5 rounded-xl text-[14px] font-semibold tracking-wider outline-none uppercase"
-                  style={inputStyle}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
-                />
-              </Field>
+                <Field label="E-post">
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="navn@firma.no"
+                    className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
+                    style={inputStyle}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                  />
+                </Field>
+              </div>
 
-              {/* Email */}
-              <Field label="E-post">
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  placeholder="navn@firma.no"
-                  className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
-                  style={inputStyle}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
-                />
-              </Field>
+              {/* Divider */}
+              <div className="h-px -mx-6" style={{ backgroundColor: 'var(--border-subtle)' }} />
 
               {/* Role */}
               <Field label="Rolle">
@@ -351,19 +337,34 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                 </div>
               </Field>
 
-              {/* Nicknames */}
-              <Field label="Kallenavn" hint="Kommaseparert — brukes av AI for navnegjenkjenning">
+              {/* AI group */}
+              <div
+                className="flex flex-col gap-2 p-3 rounded-xl"
+                style={{ backgroundColor: 'var(--bg-subtle)' }}
+              >
+                <div className="flex items-baseline gap-2">
+                  <label
+                    className="text-[11px] font-semibold uppercase tracking-widest"
+                    style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+                  >
+                    AI-kortkode
+                  </label>
+                  <span className="text-[11px]" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
+                    2 bokstaver for raske referanser — «ØP uke 18»
+                  </span>
+                </div>
                 <input
                   type="text"
-                  value={form.nicknames}
-                  onChange={e => setForm(f => ({ ...f, nicknames: e.target.value }))}
-                  placeholder="f.eks. Johan, JohanO"
-                  className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
-                  style={inputStyle}
+                  value={form.initials}
+                  onChange={e => setForm(f => ({ ...f, initials: e.target.value.slice(0, 3).toUpperCase() }))}
+                  placeholder="ØP"
+                  maxLength={3}
+                  className="w-24 px-3 py-2.5 rounded-xl text-[14px] font-semibold tracking-wider outline-none uppercase"
+                  style={{ ...inputStyle, backgroundColor: 'var(--bg-elevated)' }}
                   onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
                 />
-              </Field>
+              </div>
 
               {/* Actions */}
               <div className="flex items-center justify-end gap-2 pt-1">
@@ -471,6 +472,29 @@ const inputStyle: React.CSSProperties = {
   border: '1.5px solid transparent',
 }
 
+function deriveInitials(displayName: string, fullName: string): string {
+  const source = (fullName.trim() || displayName.trim())
+  if (!source) return ''
+  const words = source.split(/\s+/).filter(Boolean)
+  if (words.length === 0) return ''
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase()
+}
+
+type SupabaseError = { code?: string; message?: string }
+
+function describeSaveError(error: SupabaseError): string {
+  if (error.code === '23505') {
+    return error.message?.includes('initials')
+      ? 'Initialene er allerede i bruk i teamet.'
+      : 'E-posten er allerede i bruk.'
+  }
+  if (error.code === '42501' || error.message?.toLowerCase().includes('row-level security')) {
+    return 'Du må være admin for å endre medlemmer.'
+  }
+  return error.message || 'Noe gikk galt. Prøv igjen.'
+}
+
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
@@ -563,9 +587,6 @@ function MemberRow({
             <span>{member.full_name} · </span>
           )}
           {member.email}
-          {member.nicknames.length > 0 && (
-            <span> · {member.nicknames.join(', ')}</span>
-          )}
         </p>
       </div>
 
