@@ -194,7 +194,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   // Realtime entries hook — handles fetch + live subscription. We also keep
   // `refetch` so drag mutations can force an immediate reload instead of
   // waiting for the realtime round-trip (which can lag or drop silently).
-  const { entries, loading: entriesLoading, refetch } = useEntries(orgId, dateStrings)
+  const { entries, loading: entriesLoading, refetch, applyOptimistic } = useEntries(orgId, dateStrings)
   const loading = membersLoading || entriesLoading
 
   // Build entry lookup: member_id + date → Entry
@@ -332,11 +332,24 @@ export function TeamGrid({ orgId }: TeamGridProps) {
           note: rz.entry.note,
           source: 'manual' as const,
         }))
+
+        // Paint the new range in the grid immediately — the DB write races
+        // behind it. If it fails, refetch() rebuilds from the server's truth.
+        applyOptimistic((prev) =>
+          upsertDatesForMember(prev, rz.memberId, origDates, newDates, {
+            org_id: orgId,
+            status: rz.entry.status,
+            location_label: rz.entry.location_label,
+            note: rz.entry.note,
+          }),
+        )
+
         const { error: upErr } = await supabase
           .from('entries')
           .upsert(rows, { onConflict: 'org_id,member_id,date' })
         if (upErr) {
           toast.error('Kunne ikke endre datoområdet')
+          await refetch() // restore server truth
           return
         }
         const toDelete = origDates.filter((d) => !newDates.includes(d))
@@ -393,11 +406,24 @@ export function TeamGrid({ orgId }: TeamGridProps) {
           note: mv.entry.note,
           source: 'manual' as const,
         }))
+
+        // Optimistic paint — the bar jumps to its new slot the moment
+        // the mouse releases. refetch() reconciles after the write.
+        applyOptimistic((prev) =>
+          upsertDatesForMember(prev, mv.memberId, srcDates, dstDates, {
+            org_id: orgId,
+            status: mv.entry.status,
+            location_label: mv.entry.location_label,
+            note: mv.entry.note,
+          }),
+        )
+
         const { error: upErr } = await supabase
           .from('entries')
           .upsert(rows, { onConflict: 'org_id,member_id,date' })
         if (upErr) {
           toast.error('Kunne ikke flytte oppføringen')
+          await refetch()
           return
         }
         const toDelete = srcDates.filter((d) => !dstDates.includes(d))
@@ -943,9 +969,69 @@ export function TeamGrid({ orgId }: TeamGridProps) {
         initialNote={selectedCell?.note ?? null}
         initialRangeEnd={selectedCell?.endDate ?? null}
         onMutated={refetch}
+        onOptimisticSave={(dates, payload) => {
+          if (!selectedCell) return
+          applyOptimistic((prev) =>
+            upsertDatesForMember(prev, selectedCell.memberId, [], dates, {
+              org_id: orgId,
+              status: payload.status,
+              location_label: payload.location_label,
+              note: payload.note,
+            }),
+          )
+        }}
+        onOptimisticDelete={(dates) => {
+          if (!selectedCell) return
+          const memberId = selectedCell.memberId
+          const dateSet = new Set(dates)
+          applyOptimistic((prev) =>
+            prev.filter((e) => !(e.member_id === memberId && dateSet.has(e.date))),
+          )
+        }}
       />
     </div>
   )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Build the next entries list for an optimistic update: drop any existing
+ * entries for this member on `oldDates` ∪ `newDates`, then insert synthetic
+ * entries on `newDates` carrying `payload`. The synthetic entries use an
+ * "optimistic-*" ID so the realtime upsert for the real server row doesn't
+ * collide (last-write-wins via our Map keyed on member_id+date anyway).
+ */
+function upsertDatesForMember(
+  prev: Entry[],
+  memberId: string,
+  oldDates: string[],
+  newDates: string[],
+  payload: {
+    org_id: string
+    status: EntryStatus
+    location_label: string | null
+    note: string | null
+  },
+): Entry[] {
+  const affected = new Set<string>([...oldDates, ...newDates])
+  const filtered = prev.filter((e) => !(e.member_id === memberId && affected.has(e.date)))
+  const nowISO = new Date().toISOString()
+  const inserts: Entry[] = newDates.map((d) => ({
+    id: `optimistic-${memberId}-${d}`,
+    org_id: payload.org_id,
+    member_id: memberId,
+    date: d,
+    status: payload.status,
+    location_label: payload.location_label,
+    note: payload.note,
+    source: 'manual',
+    source_text: null,
+    created_by: null,
+    created_at: nowISO,
+    updated_at: nowISO,
+  }))
+  return [...filtered, ...inserts]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

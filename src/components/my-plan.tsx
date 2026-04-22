@@ -812,6 +812,36 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
         initialNote={selectedCell?.note ?? null}
         initialRangeEnd={selectedCell?.endDate ?? null}
         onMutated={loadEntries}
+        onOptimisticSave={(dates, payload) => {
+          const nowISO = new Date().toISOString()
+          const affected = new Set(dates)
+          setEntries((prev) => {
+            const filtered = prev.filter(
+              (e) => !(e.member_id === memberId && affected.has(e.date)),
+            )
+            const inserts: Entry[] = dates.map((d) => ({
+              id: `optimistic-${memberId}-${d}`,
+              org_id: orgId,
+              member_id: memberId,
+              date: d,
+              status: payload.status,
+              location_label: payload.location_label,
+              note: payload.note,
+              source: 'manual',
+              source_text: null,
+              created_by: null,
+              created_at: nowISO,
+              updated_at: nowISO,
+            }))
+            return [...filtered, ...inserts]
+          })
+        }}
+        onOptimisticDelete={(dates) => {
+          const affected = new Set(dates)
+          setEntries((prev) =>
+            prev.filter((e) => !(e.member_id === memberId && affected.has(e.date))),
+          )
+        }}
       />
     </div>
   )
