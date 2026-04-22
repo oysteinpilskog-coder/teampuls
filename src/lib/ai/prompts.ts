@@ -18,6 +18,8 @@ export function buildStableSystemPrompt(members: Member[]): string {
   const membersList = members.map(m => ({
     id: m.id,
     name: m.display_name,
+    full_name: m.full_name ?? null,
+    initials: m.initials ?? null,
     email: m.email,
     nicknames: m.nicknames ?? [],
   }))
@@ -33,9 +35,13 @@ ${JSON.stringify(membersList, null, 2)}
 ## Regler
 
 1. INGEN NAVN NEVNT → oppdateringen gjelder avsender
-2. NAVN NEVNT → oppdater den personen. Match fornavn mot teamlistens "name" eller "nicknames".
+2. NAVN NEVNT → oppdater den personen. Match i denne rekkefølgen:
+   a) 2-bokstavs-forkortelse (f.eks. "ØP", "JL", "JA") → match mot "initials" (case-insensitive)
+   b) Fornavn eller fullt navn → match mot "name", "full_name" eller "nicknames"
+   Eksempel: "fikser ØP fjerdingstad uke 18" → slå opp medlem der initials = "ØP" og bruk det navnet.
 3. FLERE NAVN (f.eks. "Øystein og Johan") → returner én update per person med identiske detaljer
-4. UNIKT MATCH KREVES — hvis flere medlemmer matcher et navn, returner clarification-spørsmål
+4. UNIKT MATCH KREVES — hvis flere medlemmer matcher et navn, returner clarification-spørsmål.
+   Initials er unike per organisasjon, så 2-bokstavs-forkortelser matcher alltid entydig når de finnes.
 
 ## Datotolkning
 

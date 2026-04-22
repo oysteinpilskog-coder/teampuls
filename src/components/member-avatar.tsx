@@ -8,7 +8,8 @@ function stringToHue(str: string): number {
   return Math.abs(hash) % 360
 }
 
-function getInitials(name: string): string {
+function getInitials(name: string, override?: string | null): string {
+  if (override && override.trim()) return override.trim().toUpperCase()
   return name
     .split(' ')
     .slice(0, 2)
@@ -29,6 +30,7 @@ export type AvatarSize = keyof typeof SIZE_MAP
 
 interface MemberAvatarProps {
   name: string
+  initials?: string | null
   avatarUrl?: string | null
   size?: AvatarSize
   className?: string
@@ -36,6 +38,7 @@ interface MemberAvatarProps {
 
 export function MemberAvatar({
   name,
+  initials,
   avatarUrl,
   size = 'sm',
   className = '',
@@ -72,7 +75,7 @@ export function MemberAvatar({
       title={name}
       aria-label={name}
     >
-      <span className="relative z-10">{getInitials(name)}</span>
+      <span className="relative z-10">{getInitials(name, initials)}</span>
       {/* Glossy top highlight */}
       <span
         aria-hidden
@@ -87,7 +90,7 @@ export function MemberAvatar({
 
 /** Horizontal stack of avatars with +N overflow chip */
 interface AvatarStackProps {
-  members: Array<{ id: string; display_name: string; avatar_url: string | null }>
+  members: Array<{ id: string; display_name: string; avatar_url: string | null; initials?: string | null }>
   max?: number
   size?: AvatarSize
 }
@@ -110,7 +113,7 @@ export function AvatarStack({ members, max = 6, size = 'sm', ringColor }: Avatar
           }}
           title={m.display_name}
         >
-          <MemberAvatar name={m.display_name} avatarUrl={m.avatar_url} size={size} />
+          <MemberAvatar name={m.display_name} initials={m.initials} avatarUrl={m.avatar_url} size={size} />
         </div>
       ))}
       {overflow > 0 && (

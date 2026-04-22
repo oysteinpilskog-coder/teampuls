@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     // Get all active members for this org (needed for name resolution)
     const { data: allMembers } = await supabase
       .from('members')
-      .select('id, org_id, user_id, display_name, email, avatar_url, nicknames, home_office_id, role, is_active, created_at, updated_at')
+      .select('id, org_id, user_id, display_name, full_name, initials, email, avatar_url, nicknames, home_office_id, role, is_active, created_at, updated_at')
       .eq('org_id', member.org_id)
       .eq('is_active', true)
 

@@ -42,6 +42,8 @@ export interface Member {
   org_id: string
   user_id: string | null
   display_name: string
+  full_name: string | null
+  initials: string | null
   email: string
   avatar_url: string | null
   nicknames: string[]

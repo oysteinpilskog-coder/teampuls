@@ -678,16 +678,26 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                     <div className="flex items-center gap-2 px-1 h-[36px]">
                       <MemberAvatar
                         name={member.display_name}
+                        initials={member.initials}
                         avatarUrl={member.avatar_url}
                         size="sm"
                       />
                       <span
                         className="text-[13px] font-semibold truncate leading-tight"
                         style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}
-                        title={member.display_name}
+                        title={member.full_name ?? member.display_name}
                       >
                         {member.display_name.split(' ')[0]}
                       </span>
+                      {member.initials && (
+                        <span
+                          className="text-[9px] font-semibold uppercase tracking-wider font-mono shrink-0"
+                          style={{ color: 'var(--text-tertiary)', letterSpacing: '0.08em' }}
+                          title={`Initialer: ${member.initials}`}
+                        >
+                          {member.initials}
+                        </span>
+                      )}
                     </div>
 
                     {/* Day cells — merged into segments when consecutive days share status + location + note */}

@@ -17,6 +17,8 @@ interface MembersClientProps {
 
 interface MemberFormState {
   display_name: string
+  full_name: string
+  initials: string
   email: string
   role: MemberRole
   nicknames: string  // comma-separated
@@ -24,6 +26,8 @@ interface MemberFormState {
 
 const EMPTY_FORM: MemberFormState = {
   display_name: '',
+  full_name: '',
+  initials: '',
   email: '',
   role: 'member',
   nicknames: '',
@@ -52,6 +56,8 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
   function openEdit(m: Member) {
     setForm({
       display_name: m.display_name,
+      full_name: m.full_name ?? '',
+      initials: m.initials ?? '',
       email: m.email,
       role: m.role,
       nicknames: m.nicknames.join(', '),
@@ -67,9 +73,14 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
     setSaving(true)
     const supabase = createClient()
 
+    const initials = form.initials.trim().toUpperCase() || null
+    const full_name = form.full_name.trim() || null
+
     const row = {
       org_id: orgId,
       display_name: form.display_name.trim(),
+      full_name,
+      initials,
       email: form.email.trim().toLowerCase(),
       role: form.role,
       nicknames: form.nicknames
@@ -83,6 +94,8 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
         .from('members')
         .update({
           display_name: row.display_name,
+          full_name: row.full_name,
+          initials: row.initials,
           email: row.email,
           role: row.role,
           nicknames: row.nicknames,
@@ -90,7 +103,11 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
         .eq('id', editTarget.id)
       setSaving(false)
       if (error) {
-        toast.error(error.code === '23505' ? 'E-posten er allerede i bruk.' : 'Noe gikk galt.')
+        toast.error(
+          error.code === '23505'
+            ? (error.message?.includes('initials') ? 'Initialene er allerede i bruk.' : 'E-posten er allerede i bruk.')
+            : 'Noe gikk galt.'
+        )
         return
       }
       setMembers(prev => prev.map(m => m.id === editTarget.id ? { ...m, ...row } : m))
@@ -257,13 +274,42 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
               </div>
 
               {/* Name */}
-              <Field label="Navn">
+              <Field label="Navn" hint="Vises i teamet — typisk fornavn">
                 <input
                   type="text"
                   value={form.display_name}
                   onChange={e => setForm(f => ({ ...f, display_name: e.target.value }))}
-                  placeholder="Fullt navn"
+                  placeholder="Fornavn"
                   className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
+                  style={inputStyle}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                />
+              </Field>
+
+              {/* Full name */}
+              <Field label="Fullt navn" hint="Valgfritt — brukes når AI utvider initialer">
+                <input
+                  type="text"
+                  value={form.full_name}
+                  onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
+                  placeholder="F.eks. Øystein Pilskog"
+                  className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
+                  style={inputStyle}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                />
+              </Field>
+
+              {/* Initials */}
+              <Field label="Initialer" hint="2 bokstaver — f.eks. ØP. Brukes av AI: «fikser ØP uke 18»">
+                <input
+                  type="text"
+                  value={form.initials}
+                  onChange={e => setForm(f => ({ ...f, initials: e.target.value.slice(0, 3).toUpperCase() }))}
+                  placeholder="ØP"
+                  maxLength={3}
+                  className="w-24 px-3 py-2.5 rounded-xl text-[14px] font-semibold tracking-wider outline-none uppercase"
                   style={inputStyle}
                   onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
@@ -469,7 +515,12 @@ function MemberRow({
         opacity: member.is_active ? 1 : 0.5,
       }}
     >
-      <MemberAvatar name={member.display_name} avatarUrl={member.avatar_url} size="md" />
+      <MemberAvatar
+        name={member.display_name}
+        initials={member.initials}
+        avatarUrl={member.avatar_url}
+        size="md"
+      />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -479,6 +530,15 @@ function MemberRow({
           >
             {member.display_name}
           </span>
+          {member.initials && (
+            <span
+              className="text-[10px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded-md font-mono"
+              style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}
+              title="Initialer"
+            >
+              {member.initials}
+            </span>
+          )}
           {isSelf && (
             <span
               className="text-[10px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded-md"
@@ -499,6 +559,9 @@ function MemberRow({
           </span>
         </div>
         <p className="text-[12px] truncate" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
+          {member.full_name && member.full_name !== member.display_name && (
+            <span>{member.full_name} · </span>
+          )}
           {member.email}
           {member.nicknames.length > 0 && (
             <span> · {member.nicknames.join(', ')}</span>
