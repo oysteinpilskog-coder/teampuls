@@ -1508,123 +1508,50 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
             )}
           </AnimatePresence>
 
-          {/* Today: spotlight beam + hairline ray + labeled Dynamic-Island pill */}
-          {activeTodayDeg !== null && activeTodayTip && (() => {
-            // Build the label first, then size the pill to fit it. SVG clips
-            // anything outside the viewBox by default, so the clamp uses the
-            // *actual* pill width — this is what prevents the right-edge truncation
-            // ("…DAG") that used to appear at certain angles.
-            const todayLabel = `I DAG · ${weekdayAbbr(today).toUpperCase()} ${today.getDate()}`
-            const pillH = 28
-            // 11px font + 0.12em tracking ≈ 6.6px advance per char + 22px h-padding.
-            const pillW = Math.max(96, Math.ceil(todayLabel.length * 6.6 + 22))
-            // Pill anchor sits outside the outer ring, along today's angle.
-            // Label text stays horizontal (not rotated), so it reads correctly from any angle.
-            const rawAnchor = polarPoint(R.monthOuter + 44, activeTodayDeg)
-            // Clamp so the pill stays fully within the 800×800 viewBox.
-            const pad = 6
-            const anchor = {
-              x: Math.min(Math.max(rawAnchor.x, pillW / 2 + pad), 800 - pillW / 2 - pad),
-              y: Math.min(Math.max(rawAnchor.y, pillH / 2 + pad), 800 - pillH / 2 - pad),
-            }
-            const pillX = anchor.x - pillW / 2
-            const pillY = anchor.y - pillH / 2
-            return (
-              <g key={`today-${focus ? `month-${focus.month}` : 'year'}`}>
-                {/* Soft wedge beam behind today */}
-                <motion.path
-                  d={pieSlice(R.monthOuter + 10, activeTodayDeg - (focus ? 2.4 : 1.8), activeTodayDeg + (focus ? 2.4 : 1.8))}
-                  fill={`url(#${ID.todayBeam})`}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: [0.85, 1, 0.85] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                />
-                {/* Hairline ray from center out through today — iOS-clean clarity line */}
-                <line
-                  x1={f(polarPoint(R.centerRing + 2, activeTodayDeg).x)}
-                  y1={f(polarPoint(R.centerRing + 2, activeTodayDeg).y)}
-                  x2={f(polarPoint(R.monthOuter + 2, activeTodayDeg).x)}
-                  y2={f(polarPoint(R.monthOuter + 2, activeTodayDeg).y)}
-                  stroke="var(--accent-color)"
-                  strokeOpacity={0.38}
-                  strokeWidth={1}
-                  strokeLinecap="round"
-                  style={{ pointerEvents: 'none' }}
-                />
-                {/* Connector: today-tip → pill */}
-                <line
-                  x1={f(activeTodayTip.x)} y1={f(activeTodayTip.y)}
-                  x2={f(anchor.x)} y2={f(anchor.y)}
-                  stroke="var(--accent-color)"
-                  strokeOpacity={0.75}
-                  strokeWidth={1.25}
-                  strokeLinecap="round"
-                  style={{ pointerEvents: 'none' }}
-                />
-                {/* Halo pulse at today-tip */}
-                <motion.circle
-                  cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
-                  fill="var(--accent-color)"
-                  initial={{ r: 6, opacity: 0.5 }}
-                  animate={{ r: [6, 16, 6], opacity: [0.5, 0, 0.5] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
-                />
-                <circle
-                  cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
-                  r={5}
-                  fill="var(--accent-color)"
-                  style={{ filter: `url(#${ID.bloom})` }}
-                />
-                <circle
-                  cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
-                  r={3}
-                  fill="white"
-                />
-                {/* Floating "I DAG · TIR 21" pill */}
-                <motion.g
-                  initial={{ opacity: 0, scale: 0.92 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ ...spring.gentle, delay: 0.4 }}
-                  style={{ transformOrigin: `${f(anchor.x)}px ${f(anchor.y)}px` }}
-                >
-                  <rect
-                    x={f(pillX)} y={f(pillY)}
-                    width={pillW} height={pillH}
-                    rx={pillH / 2} ry={pillH / 2}
-                    fill="var(--accent-color)"
-                    style={{ filter: `url(#${ID.softShadow})` }}
-                  />
-                  <rect
-                    x={f(pillX + 0.5)} y={f(pillY + 0.5)}
-                    width={pillW - 1} height={pillH - 1}
-                    rx={(pillH - 1) / 2} ry={(pillH - 1) / 2}
-                    fill="none"
-                    stroke="white"
-                    strokeOpacity={0.3}
-                    strokeWidth={1}
-                  />
-                  <text
-                    x={f(anchor.x)} y={f(anchor.y)}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize={11}
-                    fontWeight={700}
-                    fill="white"
-                    style={{
-                      fontFamily: 'var(--font-body)',
-                      letterSpacing: '0.12em',
-                      fontVariantNumeric: 'tabular-nums',
-                      pointerEvents: 'none',
-                      userSelect: 'none',
-                      textShadow: '0 1px 2px rgba(0,0,0,0.18)',
-                    }}
-                  >
-                    {todayLabel}
-                  </text>
-                </motion.g>
-              </g>
-            )
-          })()}
+          {/* Today: spotlight beam + hairline ray + pin (label lives in the center disc) */}
+          {activeTodayDeg !== null && activeTodayTip && (
+            <g key={`today-${focus ? `month-${focus.month}` : 'year'}`}>
+              {/* Soft wedge beam behind today */}
+              <motion.path
+                d={pieSlice(R.monthOuter + 10, activeTodayDeg - (focus ? 2.4 : 1.8), activeTodayDeg + (focus ? 2.4 : 1.8))}
+                fill={`url(#${ID.todayBeam})`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0.85, 1, 0.85] }}
+                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              />
+              {/* Hairline ray from center out through today — iOS-clean clarity line */}
+              <line
+                x1={f(polarPoint(R.centerRing + 2, activeTodayDeg).x)}
+                y1={f(polarPoint(R.centerRing + 2, activeTodayDeg).y)}
+                x2={f(polarPoint(R.monthOuter + 2, activeTodayDeg).x)}
+                y2={f(polarPoint(R.monthOuter + 2, activeTodayDeg).y)}
+                stroke="var(--accent-color)"
+                strokeOpacity={0.38}
+                strokeWidth={1}
+                strokeLinecap="round"
+                style={{ pointerEvents: 'none' }}
+              />
+              {/* Halo pulse at today-tip */}
+              <motion.circle
+                cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
+                fill="var(--accent-color)"
+                initial={{ r: 6, opacity: 0.5 }}
+                animate={{ r: [6, 16, 6], opacity: [0.5, 0, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+              />
+              <circle
+                cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
+                r={5}
+                fill="var(--accent-color)"
+                style={{ filter: `url(#${ID.bloom})` }}
+              />
+              <circle
+                cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
+                r={3}
+                fill="white"
+              />
+            </g>
+          )}
         </motion.svg>
 
         {/* Hover tooltip */}
