@@ -32,26 +32,27 @@ interface StatusSegmentProps {
   onSegmentResizeStart?: (edge: 'left' | 'right') => void
 }
 
-// Premium luminous palette — saturated gradients with glow hues for Apple-calibre finish.
-// Each: [top, bottom] vertical gradient + glow tint for colored halos.
+// Modern status palette — quiet, perceptually balanced tones.
+// Single source of truth, shared with STATUS_COLORS in icons/status-icons.tsx.
+// Each: [top, bottom] 2-stop gradient + `tint` (mid-tone used for icon/text accents).
 export const STATUS_GRADIENT: Record<
   EntryStatus,
-  { light: [string, string]; dark: [string, string]; glow: string }
+  { light: [string, string]; dark: [string, string]; tint: string }
 > = {
-  // Electric blue — kontor
-  office:   { light: ['#4AB0FF', '#0057E0'], dark: ['#2E86FF', '#0D4BC7'], glow: '#3A9CFF' },
-  // Vibrant green — hjemmekontor
-  remote:   { light: ['#6CE889', '#14A544'], dark: ['#37C568', '#0F8E38'], glow: '#3EE57F' },
-  // Sunset orange — hos kunde
-  customer: { light: ['#FFB94A', '#E06A00'], dark: ['#FF9A1F', '#A35400'], glow: '#FFA630' },
-  // Royal indigo — reise
-  travel:   { light: ['#8E8CFF', '#3E38D8'], dark: ['#6E6AF0', '#2E29A5'], glow: '#6B68F0' },
-  // Liquid gold — ferie
-  vacation: { light: ['#FFD46B', '#C48200'], dark: ['#E0A31E', '#7A4600'], glow: '#FFC23E' },
-  // Ruby red — syk
-  sick:     { light: ['#FF7467', '#D01C12'], dark: ['#E3342A', '#8A1610'], glow: '#FF4D42' },
-  // Cool graphite — fri
-  off:      { light: ['#B8B8BD', '#74747A'], dark: ['#7A7B80', '#4A4B50'], glow: '#9EA0A6' },
+  // Kontor — cobalt
+  office:   { light: ['#3B82F6', '#2563EB'], dark: ['#3B82F6', '#1D4ED8'], tint: '#2563EB' },
+  // Hjemmekontor — emerald
+  remote:   { light: ['#10B981', '#059669'], dark: ['#10B981', '#047857'], tint: '#059669' },
+  // Hos kunde — amber
+  customer: { light: ['#F59E0B', '#D97706'], dark: ['#F59E0B', '#B45309'], tint: '#D97706' },
+  // Reise — violet
+  travel:   { light: ['#8B5CF6', '#7C3AED'], dark: ['#8B5CF6', '#6D28D9'], tint: '#7C3AED' },
+  // Ferie — saffron
+  vacation: { light: ['#EAB308', '#CA8A04'], dark: ['#EAB308', '#A16207'], tint: '#CA8A04' },
+  // Syk — coral
+  sick:     { light: ['#F43F5E', '#E11D48'], dark: ['#F43F5E', '#BE123C'], tint: '#E11D48' },
+  // Fri — warm stone
+  off:      { light: ['#A8A29E', '#78716C'], dark: ['#78716C', '#57534E'], tint: '#78716C' },
 }
 
 export function StatusSegment({
@@ -80,11 +81,10 @@ export function StatusSegment({
 
   const palette = status ? STATUS_GRADIENT[status] : null
   const [g0, g1] = palette ? (isDark ? palette.dark : palette.light) : ['', '']
-  const glow = palette?.glow ?? ''
 
-  // Richer multi-stop gradient — top highlight tint → body → deeper foot.
+  // Subtle 2-stop vertical gradient — modern, Linear/Notion-style depth without heaviness.
   const gradient = palette
-    ? `linear-gradient(170deg, ${g0} 0%, ${g0} 18%, ${g1} 82%, ${g1} 100%)`
+    ? `linear-gradient(180deg, ${g0} 0%, ${g1} 100%)`
     : undefined
 
   return (
@@ -94,11 +94,11 @@ export function StatusSegment({
         gridColumn: `span ${span}`,
         backgroundColor: status ? g1 : 'transparent',
         backgroundImage: status ? gradient : undefined,
-        // Premium edge + colored outer glow matching status hue — the "wow".
+        // One soft, neutral shadow — no colored halos, no glow.
         boxShadow: status
           ? isDark
-            ? `inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.30), 0 6px 18px -4px ${glow}66, 0 0 22px -2px ${glow}33`
-            : `inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -1px 0 rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.08), 0 6px 20px -6px ${glow}80, 0 0 24px -4px ${glow}44`
+            ? 'inset 0 1px 0 rgba(255,255,255,0.10), 0 1px 2px rgba(0,0,0,0.35), 0 2px 4px rgba(0,0,0,0.20)'
+            : 'inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 2px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.06)'
           : undefined,
         opacity: muted ? 0.28 : 1,
         cursor: status && onDayMouseDown ? 'grab' : undefined,
@@ -106,44 +106,6 @@ export function StatusSegment({
       whileHover={muted ? undefined : { y: -1 }}
       transition={spring.snappy}
     >
-      {/* Glossy top highlight — thicker, brighter liquid-glass sheen */}
-      {status && (
-        <div
-          aria-hidden
-          className="absolute top-0 left-0 right-0 pointer-events-none z-[1]"
-          style={{
-            height: '60%',
-            background:
-              'linear-gradient(180deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.12) 55%, transparent 100%)',
-          }}
-        />
-      )}
-
-      {/* Soft inner vignette — adds depth at the bottom */}
-      {status && (
-        <div
-          aria-hidden
-          className="absolute inset-x-0 bottom-0 pointer-events-none z-[1]"
-          style={{
-            height: '35%',
-            background:
-              'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.10) 100%)',
-          }}
-        />
-      )}
-
-      {/* Specular edge sheen — brighter, longer */}
-      {status && (
-        <div
-          aria-hidden
-          className="absolute top-0 left-[6%] right-[6%] pointer-events-none z-[2]"
-          style={{
-            height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.85), transparent)',
-          }}
-        />
-      )}
-
       {/* Content — icon + label, tight spacing for slim bar */}
       {status && (
         <div className="absolute inset-0 flex items-center gap-1.5 px-2 pointer-events-none z-10">
@@ -154,7 +116,7 @@ export function StatusSegment({
               style={{
                 color: '#ffffff',
                 letterSpacing: '-0.005em',
-                textShadow: '0 1px 2px rgba(0,0,0,0.30), 0 0 8px rgba(255,255,255,0.18)',
+                textShadow: '0 1px 2px rgba(0,0,0,0.18)',
               }}
             >
               {label}

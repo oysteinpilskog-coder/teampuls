@@ -68,8 +68,8 @@ export function TodayPulse({ entries }: TodayPulseProps) {
         <motion.span
           className="w-1.5 h-1.5 rounded-full"
           style={{
-            background: '#16A362',
-            boxShadow: '0 0 8px rgba(22,163,98,0.7)',
+            background: '#10B981',
+            boxShadow: '0 0 8px rgba(16,185,129,0.6)',
           }}
           animate={{ opacity: [0.4, 1, 0.4] }}
           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
@@ -82,14 +82,10 @@ export function TodayPulse({ entries }: TodayPulseProps) {
           const colors = STATUS_COLORS[status]
           const tone = colors.icon
 
-          // iPhone-glossy: vertical gradient, top bright → bottom deep, with lustrous overlay.
+          // Subtle 2-stop vertical gradient — flat modern surface, not a glossy orb.
           const gradient = isDark
-            ? `linear-gradient(180deg,
-                 color-mix(in oklab, ${tone} 68%, black) 0%,
-                 color-mix(in oklab, ${tone} 95%, black) 100%)`
-            : `linear-gradient(180deg,
-                 ${tone} 0%,
-                 color-mix(in oklab, ${tone} 82%, black) 100%)`
+            ? `linear-gradient(180deg, ${tone} 0%, color-mix(in oklab, ${tone} 85%, black) 100%)`
+            : `linear-gradient(180deg, ${tone} 0%, color-mix(in oklab, ${tone} 88%, black) 100%)`
 
           return (
             <motion.div
@@ -97,60 +93,19 @@ export function TodayPulse({ entries }: TodayPulseProps) {
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ ...spring.gentle, delay: 0.05 + i * 0.06 }}
-              whileHover={{ y: -4, scale: 1.015 }}
+              whileHover={{ y: -3 }}
               className="relative rounded-3xl p-5 flex flex-col gap-5 overflow-hidden"
               style={{
                 background: gradient,
                 boxShadow: isDark
-                  ? `0 22px 44px -12px color-mix(in oklab, ${tone} 60%, transparent),
-                     0 6px 14px -2px color-mix(in oklab, ${tone} 45%, transparent),
-                     inset 0 1px 0 rgba(255,255,255,0.2),
-                     inset 0 -1px 0 rgba(0,0,0,0.35),
-                     inset 0 0 0 1px color-mix(in oklab, ${tone} 50%, transparent)`
-                  : `0 22px 50px -14px color-mix(in oklab, ${tone} 70%, transparent),
-                     0 6px 14px -2px color-mix(in oklab, ${tone} 40%, transparent),
-                     inset 0 1px 0 rgba(255,255,255,0.55),
-                     inset 0 -1px 0 rgba(0,0,0,0.22),
-                     inset 0 0 0 0.5px rgba(255,255,255,0.2)`,
+                  ? `0 10px 24px -10px rgba(0,0,0,0.5),
+                     0 2px 4px rgba(0,0,0,0.3),
+                     inset 0 1px 0 rgba(255,255,255,0.10)`
+                  : `0 12px 28px -12px color-mix(in oklab, ${tone} 45%, rgba(15,23,42,0.12)),
+                     0 2px 4px rgba(15,23,42,0.06),
+                     inset 0 1px 0 rgba(255,255,255,0.25)`,
               }}
             >
-              {/* Glossy top reflection — premium glass highlight */}
-              <div
-                aria-hidden
-                className="absolute top-0 left-0 right-0 pointer-events-none"
-                style={{
-                  height: '55%',
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.1) 45%, transparent 100%)',
-                  borderTopLeftRadius: 'inherit',
-                  borderTopRightRadius: 'inherit',
-                }}
-              />
-
-              {/* Specular edge highlight */}
-              <div
-                aria-hidden
-                className="absolute top-0 left-[10%] right-[10%] pointer-events-none"
-                style={{
-                  height: '1px',
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent)',
-                }}
-              />
-
-              {/* Deep tone pool bottom-right — ambient depth */}
-              <div
-                aria-hidden
-                className="absolute pointer-events-none"
-                style={{
-                  bottom: '-40%',
-                  right: '-20%',
-                  width: '70%',
-                  height: '100%',
-                  background: `radial-gradient(circle, color-mix(in oklab, ${tone} 95%, black), transparent 65%)`,
-                  filter: 'blur(22px)',
-                  opacity: 0.45,
-                }}
-              />
-
               {/* Header */}
               <div className="relative flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -159,10 +114,8 @@ export function TodayPulse({ entries }: TodayPulseProps) {
                     style={{
                       width: 34,
                       height: 34,
-                      background: 'rgba(255,255,255,0.22)',
-                      backdropFilter: 'blur(6px)',
-                      WebkitBackdropFilter: 'blur(6px)',
-                      boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.38), 0 2px 6px rgba(0,0,0,0.12)',
+                      background: 'rgba(255,255,255,0.16)',
+                      boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.22)',
                     }}
                   >
                     <StatusIcon status={status} size={18} color="#ffffff" />
@@ -173,7 +126,6 @@ export function TodayPulse({ entries }: TodayPulseProps) {
                       color: '#ffffff',
                       fontFamily: 'var(--font-body)',
                       letterSpacing: '-0.005em',
-                      textShadow: '0 1px 2px rgba(0,0,0,0.2)',
                     }}
                   >
                     {group.label}
@@ -185,7 +137,6 @@ export function TodayPulse({ entries }: TodayPulseProps) {
                     fontFamily: 'var(--font-sora)',
                     color: '#ffffff',
                     letterSpacing: '-0.05em',
-                    textShadow: '0 2px 6px rgba(0,0,0,0.25)',
                   }}
                 >
                   {groupMembers.length}
@@ -195,14 +146,13 @@ export function TodayPulse({ entries }: TodayPulseProps) {
               {/* Avatar stack */}
               <div className="relative">
                 {groupMembers.length > 0 ? (
-                  <AvatarStack members={groupMembers} max={6} size="md" ringColor="rgba(255,255,255,0.65)" />
+                  <AvatarStack members={groupMembers} max={6} size="md" ringColor="rgba(255,255,255,0.55)" />
                 ) : (
                   <p
                     className="text-[12px] font-medium"
                     style={{
-                      color: 'rgba(255,255,255,0.75)',
+                      color: 'rgba(255,255,255,0.72)',
                       fontFamily: 'var(--font-body)',
-                      textShadow: '0 1px 2px rgba(0,0,0,0.15)',
                     }}
                   >
                     Ingen

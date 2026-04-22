@@ -12,7 +12,7 @@ export type EntryStatus = 'office' | 'remote' | 'customer' | 'travel' | 'vacatio
 // punch holes in the glyph (like Apple SF Symbols filled variants).
 
 // Kontor — Apartment building with 4 windows as cutouts
-export function OfficeIcon({ size = 24, color = '#0066FF', className }: IconProps) {
+export function OfficeIcon({ size = 24, color = '#2563EB', className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <path
@@ -26,7 +26,7 @@ export function OfficeIcon({ size = 24, color = '#0066FF', className }: IconProp
 }
 
 // Hjemmekontor — Solid house with chimney
-export function RemoteIcon({ size = 24, color = '#16A362', className }: IconProps) {
+export function RemoteIcon({ size = 24, color = '#059669', className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <path
@@ -40,7 +40,7 @@ export function RemoteIcon({ size = 24, color = '#16A362', className }: IconProp
 }
 
 // Hos kunde — Two overlapping figures (partnership)
-export function CustomerIcon({ size = 24, color = '#FF7A1A', className }: IconProps) {
+export function CustomerIcon({ size = 24, color = '#D97706', className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <circle cx="8" cy="7" r="3.5" fill={color} />
@@ -54,7 +54,7 @@ export function CustomerIcon({ size = 24, color = '#FF7A1A', className }: IconPr
 }
 
 // Reise — Paper plane pointing up-right
-export function TravelIcon({ size = 24, color = '#8B3FE6', className }: IconProps) {
+export function TravelIcon({ size = 24, color = '#7C3AED', className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <path
@@ -72,7 +72,7 @@ export function TravelIcon({ size = 24, color = '#8B3FE6', className }: IconProp
 }
 
 // Ferie — Sun with rays
-export function VacationIcon({ size = 24, color = '#E8B400', className }: IconProps) {
+export function VacationIcon({ size = 24, color = '#CA8A04', className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <circle cx="12" cy="12" r="4.5" fill={color} />
@@ -92,7 +92,7 @@ export function VacationIcon({ size = 24, color = '#E8B400', className }: IconPr
 }
 
 // Syk — Solid thermometer
-export function SickIcon({ size = 24, color = '#E63946', className }: IconProps) {
+export function SickIcon({ size = 24, color = '#E11D48', className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <path
@@ -117,15 +117,17 @@ export function OffDayIcon({ size = 24, color = '#78716C', className }: IconProp
   )
 }
 
+// Aligned with STATUS_GRADIENT in status-segment.tsx — Tailwind-calibrated, perceptually balanced.
+// `icon` is the canonical mid-tone for each status; `text` darker for light-mode legibility;
+// `bg`/`bgDark` are soft tinted surfaces for chips/pills.
 export const STATUS_COLORS: Record<EntryStatus, { bg: string; text: string; icon: string; bgDark: string; textDark: string }> = {
-  office:   { bg: '#E8F1FE', text: '#0051D5', icon: '#0066FF', bgDark: '#0A1F3D', textDark: '#7FB2FF' },
-  remote:   { bg: '#E8F7EE', text: '#0F7A3E', icon: '#16A362', bgDark: '#0A2E1A', textDark: '#6FD49A' },
-  customer: { bg: '#FEF1E8', text: '#C04E00', icon: '#FF7A1A', bgDark: '#3D1F0A', textDark: '#FFB380' },
-  travel:   { bg: '#F0E8FE', text: '#6B2ECB', icon: '#8B3FE6', bgDark: '#1F0A3D', textDark: '#C49AFF' },
-  // Vacation uses a deeper amber so white text has safe contrast
-  vacation: { bg: '#FEF9E8', text: '#7A5200', icon: '#D49000', bgDark: '#3D2E0A', textDark: '#FFDA7F' },
-  sick:     { bg: '#FEE8EC', text: '#C41E3A', icon: '#E63946', bgDark: '#3D0A13', textDark: '#FF8A9E' },
-  off:      { bg: '#F1F1EF', text: '#44403C', icon: '#78716C', bgDark: '#1C1917', textDark: '#A8A29E' },
+  office:   { bg: '#DBEAFE', text: '#1E40AF', icon: '#2563EB', bgDark: '#172554', textDark: '#93C5FD' },
+  remote:   { bg: '#D1FAE5', text: '#065F46', icon: '#059669', bgDark: '#022C22', textDark: '#6EE7B7' },
+  customer: { bg: '#FEF3C7', text: '#92400E', icon: '#D97706', bgDark: '#3F1D05', textDark: '#FCD34D' },
+  travel:   { bg: '#EDE9FE', text: '#5B21B6', icon: '#7C3AED', bgDark: '#2E1065', textDark: '#C4B5FD' },
+  vacation: { bg: '#FEF9C3', text: '#854D0E', icon: '#CA8A04', bgDark: '#3A2A05', textDark: '#FDE047' },
+  sick:     { bg: '#FFE4E6', text: '#9F1239', icon: '#E11D48', bgDark: '#3F0714', textDark: '#FDA4AF' },
+  off:      { bg: '#F5F5F4', text: '#44403C', icon: '#78716C', bgDark: '#1C1917', textDark: '#D6D3D1' },
 }
 
 export function StatusIcon({ status, size = 24, className, color: colorProp }: { status: EntryStatus; size?: number; className?: string; color?: string }) {

@@ -555,30 +555,15 @@ export function TeamGrid({ orgId }: TeamGridProps) {
         className="relative rounded-3xl overflow-hidden"
         style={{
           background:
-            'linear-gradient(180deg, color-mix(in oklab, var(--bg-elevated) 86%, transparent) 0%, color-mix(in oklab, var(--bg-elevated) 74%, transparent) 100%)',
-          backdropFilter: 'blur(28px) saturate(190%)',
-          WebkitBackdropFilter: 'blur(28px) saturate(190%)',
+            'linear-gradient(180deg, color-mix(in oklab, var(--bg-elevated) 92%, transparent) 0%, color-mix(in oklab, var(--bg-elevated) 82%, transparent) 100%)',
+          backdropFilter: 'blur(24px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(160%)',
           border: '1px solid color-mix(in oklab, var(--border-subtle) 70%, transparent)',
           boxShadow:
-            '0 40px 90px -32px color-mix(in oklab, var(--accent-color) 26%, rgba(10,20,40,0.22)), 0 18px 40px -20px rgba(10,20,40,0.16), 0 1px 2px rgba(10,20,40,0.06), inset 0 1px 0 rgba(255,255,255,0.6), inset 0 0 0 1px rgba(255,255,255,0.04)',
+            '0 24px 48px -24px rgba(15,23,42,0.18), 0 10px 24px -16px rgba(15,23,42,0.10), 0 1px 2px rgba(15,23,42,0.04), inset 0 1px 0 rgba(255,255,255,0.45)',
         }}
       >
-        {/* Ambient accent halo — soft colored glow radiating from top */}
-        <div
-          aria-hidden
-          className="absolute pointer-events-none z-0"
-          style={{
-            top: '-30%',
-            left: '-10%',
-            right: '-10%',
-            height: '70%',
-            background:
-              'radial-gradient(ellipse 60% 100% at 50% 100%, color-mix(in oklab, var(--accent-color) 18%, transparent) 0%, transparent 70%)',
-            opacity: 0.75,
-            filter: 'blur(24px)',
-          }}
-        />
-        {/* Today column highlight — vertical band spanning full matrix */}
+        {/* Today column highlight — quiet vertical band, just enough to anchor the eye */}
         {(() => {
           const todayIdx = weekDays.findIndex(isToday)
           if (todayIdx === -1) return null
@@ -588,55 +573,20 @@ export function TeamGrid({ orgId }: TeamGridProps) {
           const left = `calc(160px + ${todayIdx} * ((100% - 208px) / 5 + 8px))`
           const width = `calc((100% - 208px) / 5)`
           return (
-            <>
-              {/* Luminous vertical gradient band */}
-              <div
-                aria-hidden
-                className="absolute pointer-events-none z-0"
-                style={{
-                  top: 0,
-                  bottom: 0,
-                  left,
-                  width,
-                  background:
-                    'linear-gradient(180deg, color-mix(in oklab, var(--accent-color) 32%, transparent) 0%, color-mix(in oklab, var(--accent-color) 14%, transparent) 45%, color-mix(in oklab, var(--accent-color) 4%, transparent) 100%)',
-                  borderLeft: '1px solid color-mix(in oklab, var(--accent-color) 28%, transparent)',
-                  borderRight: '1px solid color-mix(in oklab, var(--accent-color) 28%, transparent)',
-                  boxShadow:
-                    '0 0 40px -4px color-mix(in oklab, var(--accent-color) 22%, transparent)',
-                }}
-              />
-              {/* Top cap — bright specular line */}
-              <div
-                aria-hidden
-                className="absolute pointer-events-none z-0"
-                style={{
-                  top: 0,
-                  left,
-                  width,
-                  height: 4,
-                  background:
-                    'linear-gradient(90deg, transparent, var(--accent-color), transparent)',
-                  filter: 'blur(1.5px)',
-                  opacity: 1,
-                }}
-              />
-              {/* Secondary cap glow — larger soft halo */}
-              <div
-                aria-hidden
-                className="absolute pointer-events-none z-0"
-                style={{
-                  top: -10,
-                  left,
-                  width,
-                  height: 36,
-                  background:
-                    'radial-gradient(ellipse 60% 100% at 50% 0%, color-mix(in oklab, var(--accent-color) 55%, transparent), transparent 70%)',
-                  filter: 'blur(6px)',
-                  opacity: 0.85,
-                }}
-              />
-            </>
+            <div
+              aria-hidden
+              className="absolute pointer-events-none z-0"
+              style={{
+                top: 0,
+                bottom: 0,
+                left,
+                width,
+                background:
+                  'linear-gradient(180deg, color-mix(in oklab, var(--accent-color) 10%, transparent) 0%, color-mix(in oklab, var(--accent-color) 3%, transparent) 100%)',
+                borderLeft: '1px solid color-mix(in oklab, var(--accent-color) 18%, transparent)',
+                borderRight: '1px solid color-mix(in oklab, var(--accent-color) 18%, transparent)',
+              }}
+            />
           )
         })()}
 
@@ -670,19 +620,10 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                   className="tabular-nums leading-none mt-1"
                   style={{
                     fontFamily: 'var(--font-sora)',
-                    fontSize: today ? '30px' : '22px',
+                    fontSize: today ? '28px' : '22px',
                     fontWeight: today ? 700 : 600,
                     letterSpacing: '-0.035em',
-                    color: today ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    background: today
-                      ? 'linear-gradient(135deg, var(--accent-color) 0%, color-mix(in oklab, var(--accent-color) 60%, #8B3CE8) 60%, color-mix(in oklab, var(--accent-color) 40%, #FF4DA6) 100%)'
-                      : undefined,
-                    WebkitBackgroundClip: today ? 'text' : undefined,
-                    WebkitTextFillColor: today ? 'transparent' : undefined,
-                    backgroundClip: today ? 'text' : undefined,
-                    filter: today
-                      ? 'drop-shadow(0 0 12px color-mix(in oklab, var(--accent-color) 55%, transparent))'
-                      : undefined,
+                    color: today ? 'var(--accent-color)' : 'var(--text-secondary)',
                   }}
                 >
                   {day}
