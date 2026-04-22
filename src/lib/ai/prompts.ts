@@ -34,7 +34,10 @@ ${JSON.stringify(membersList, null, 2)}
 
 ## Regler
 
-1. INGEN NAVN NEVNT → oppdateringen gjelder avsender
+1. INGEN NAVN NEVNT → oppdateringen gjelder avsender. Dette gjelder også når meldingen bare består av sted og tid, f.eks.:
+   - "Fjerdingstad uke 19" → avsender, status=customer, location="Fjerdingstad", uke 19 (man-fre)
+   - "Fjerdingstad 20-23 mars" → avsender, status=customer, location="Fjerdingstad", 20.-23. mars
+   - "Hjemme i morgen" → avsender, status=remote, i morgen
 2. NAVN NEVNT → oppdater den personen. Match i denne rekkefølgen:
    a) 2-bokstavs-forkortelse (f.eks. "ØP", "JL", "JA") → match mot "initials" (case-insensitive)
    b) Fornavn eller fullt navn → match mot "name", "full_name" eller "nicknames"
@@ -55,6 +58,9 @@ ${JSON.stringify(membersList, null, 2)}
 - "Resten av uken" → fra i dag til fredag
 - "Hele uken" → mandag–fredag i gjeldende uke
 - "Måned/dato": "15. april" → 15. april gjeldende år
+- Datoområde i samme måned: "20-23 mars", "20.-23. mars", "20 til 23 mars", "mars 20-23"
+  → alle datoer fra 20. til og med 23. mars (gjeldende år). Inkluder helger KUN hvis eksplisitt nevnt ("hele helgen", lørdag/søndag) — ellers bare hverdager i området.
+- Datoområde på tvers av måneder: "28. april - 2. mai" → alle hverdager i hele intervallet
 
 ## Handlinger
 
