@@ -108,7 +108,7 @@ function SkeletonRow() {
         <div className="h-2.5 flex-1 rounded bg-[var(--bg-subtle)] animate-pulse" />
       </div>
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="h-[52px] rounded-xl bg-[var(--bg-subtle)] animate-pulse" />
+        <div key={i} className="h-[36px] rounded-[8px] bg-[var(--bg-subtle)] animate-pulse" />
       ))}
     </div>
   )
@@ -442,7 +442,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                     transition={{ ...spring.gentle, delay: rowIdx * 0.04 }}
                   >
                     {/* Avatar + name — horizontal, matches bar height */}
-                    <div className="flex items-center gap-2 px-1 h-[52px]">
+                    <div className="flex items-center gap-2 px-1 h-[36px]">
                       <MemberAvatar
                         name={member.display_name}
                         avatarUrl={member.avatar_url}

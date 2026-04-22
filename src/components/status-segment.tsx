@@ -27,23 +27,23 @@ interface StatusSegmentProps {
   dayHighlight?: boolean[]
 }
 
-// Apple iOS system colors — cohesive, premium, purpose-designed for status surfaces.
-// Each: [lighter start, deeper end] for a 135deg luminance gradient with white text on top.
-const STATUS_GRADIENT: Record<EntryStatus, { light: [string, string]; dark: [string, string]; shadow: string }> = {
+// iOS system palette — refined, tighter gradients for Outlook-calibre flow.
+// Each: [top, bottom] for a subtle vertical gradient with a glass highlight overlay.
+const STATUS_GRADIENT: Record<EntryStatus, { light: [string, string]; dark: [string, string] }> = {
   // SF Blue — kontor
-  office:   { light: ['#007AFF', '#003F8A'], dark: ['#0A4FB5', '#062D6B'], shadow: '0, 122, 255' },
+  office:   { light: ['#3A9CFF', '#0A66D9'], dark: ['#1E6FD1', '#0C4AA3'] },
   // SF Green — hjemmekontor
-  remote:   { light: ['#34C759', '#14652A'], dark: ['#128033', '#0A4A1E'], shadow: '52, 199, 89' },
+  remote:   { light: ['#5DD67E', '#1E9E44'], dark: ['#2AA550', '#15762F'] },
   // SF Orange — hos kunde
-  customer: { light: ['#FF9500', '#A55800'], dark: ['#B06000', '#6F3B00'], shadow: '255, 149, 0' },
+  customer: { light: ['#FFB238', '#CC7400'], dark: ['#C97900', '#844C00'] },
   // SF Indigo — reise
-  travel:   { light: ['#5856D6', '#2E2C8A'], dark: ['#3D3B9C', '#1F1D5E'], shadow: '88, 86, 214' },
-  // Tailwind amber-500 → amber-900 — ferie (deeper than SF Yellow for white-text contrast)
-  vacation: { light: ['#F59E0B', '#78350F'], dark: ['#A15C06', '#4D2204'], shadow: '245, 158, 11' },
+  travel:   { light: ['#7977E0', '#3936B5'], dark: ['#5754C6', '#2F2D89'] },
+  // Amber — ferie
+  vacation: { light: ['#F5BD4C', '#A25500'], dark: ['#B87206', '#5E3302'] },
   // SF Red — syk
-  sick:     { light: ['#FF3B30', '#96120A'], dark: ['#A41810', '#5D0A06'], shadow: '255, 59, 48' },
+  sick:     { light: ['#FF6157', '#C11A11'], dark: ['#C71E15', '#78100B'] },
   // SF Gray — fri
-  off:      { light: ['#8E8E93', '#4A4A4E'], dark: ['#4F4F53', '#2D2D30'], shadow: '142, 142, 147' },
+  off:      { light: ['#ABABB0', '#6C6C71'], dark: ['#6A6B6F', '#45454A'] },
 }
 
 export function StatusSegment({
@@ -70,100 +70,65 @@ export function StatusSegment({
 
   const palette = status ? STATUS_GRADIENT[status] : null
   const [g0, g1] = palette ? (isDark ? palette.dark : palette.light) : ['', '']
-  const shadowRgb = palette?.shadow
 
-  // Vertical gradient (top bright, bottom deep) — classic iOS card shading.
   const gradient = palette
     ? `linear-gradient(180deg, ${g0} 0%, ${g1} 100%)`
     : undefined
 
-  // Layered glossy shadow: colored drop + inner top highlight + inner bottom rim.
-  const coloredShadow = shadowRgb
-    ? isDark
-      ? `0 14px 32px -10px rgba(${shadowRgb},0.6),
-         0 4px 10px -2px rgba(${shadowRgb},0.4),
-         inset 0 1px 0 rgba(255,255,255,0.12),
-         inset 0 -1px 0 rgba(0,0,0,0.35),
-         inset 0 0 0 1px rgba(${shadowRgb},0.3)`
-      : `0 12px 28px -8px rgba(${shadowRgb},0.55),
-         0 3px 8px -2px rgba(${shadowRgb},0.28),
-         inset 0 1px 0 rgba(255,255,255,0.38),
-         inset 0 -1px 0 rgba(0,0,0,0.2),
-         inset 0 0 0 0.5px rgba(255,255,255,0.15)`
-    : undefined
-
   return (
     <motion.div
-      className="relative h-[52px] rounded-xl overflow-hidden"
+      className="relative h-[36px] rounded-[8px] overflow-hidden"
       style={{
         gridColumn: `span ${span}`,
-        // Separate backgroundColor (solid fallback) + backgroundImage (gradient overlay)
-        // — guarantees color shows even if gradient fails to render.
-        backgroundColor: status
-          ? g1 // darker end as solid fallback
-          : isDark
-            ? 'rgba(255,255,255,0.025)'
-            : 'rgba(255,255,255,0.4)',
-        backgroundImage: status
-          ? gradient
-          : `repeating-linear-gradient(135deg, transparent, transparent 8px, ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.035)'} 8px, ${isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.035)'} 9px)`,
+        backgroundColor: status ? g1 : 'transparent',
+        backgroundImage: status ? gradient : undefined,
+        // Flat Outlook-style edge: a hairline rim + the subtle iOS top-highlight / bottom-depth
+        // on colored bars only. Empty days are fully transparent — no ring, no hatching.
         boxShadow: status
-          ? coloredShadow
-          : 'inset 0 0 0 1px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.4)',
-        border: singleDayIsToday
-          ? '1.5px solid var(--accent-color)'
+          ? isDark
+            ? 'inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(0,0,0,0.28), 0 1px 2px rgba(0,0,0,0.22)'
+            : 'inset 0 1px 0 rgba(255,255,255,0.34), inset 0 -1px 0 rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.07)'
           : undefined,
       }}
-      whileHover={{ y: -1, scale: 1.01 }}
+      whileHover={{ y: -0.5 }}
       transition={spring.snappy}
     >
-      {/* Glossy top reflection — simulates glass surface catching light */}
+      {/* iOS glossy top highlight — glass surface catching light */}
       {status && (
         <div
           aria-hidden
           className="absolute top-0 left-0 right-0 pointer-events-none z-[1]"
           style={{
             height: '55%',
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.08) 45%, transparent 100%)',
-            borderTopLeftRadius: 'inherit',
-            borderTopRightRadius: 'inherit',
+            background:
+              'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.06) 60%, transparent 100%)',
           }}
         />
       )}
 
-      {/* Specular edge highlight at very top */}
+      {/* Specular edge sheen */}
       {status && (
         <div
           aria-hidden
-          className="absolute top-0 left-[8%] right-[8%] pointer-events-none z-[2]"
+          className="absolute top-0 left-[10%] right-[10%] pointer-events-none z-[2]"
           style={{
             height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent)',
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)',
           }}
         />
       )}
 
-      {/* Content — icon + label */}
+      {/* Content — icon + label, tight spacing for slim bar */}
       {status && (
-        <div className="absolute inset-0 flex items-center gap-2 px-2.5 pointer-events-none z-10">
-          <div
-            className="flex items-center justify-center rounded-lg shrink-0"
-            style={{
-              width: 28,
-              height: 28,
-              background: 'rgba(255,255,255,0.22)',
-              boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.35), 0 1px 3px rgba(0,0,0,0.12)',
-            }}
-          >
-            <StatusIcon status={status} size={14} color="#ffffff" />
-          </div>
+        <div className="absolute inset-0 flex items-center gap-1.5 px-2 pointer-events-none z-10">
+          <StatusIcon status={status} size={12} color="#ffffff" />
           {label && (
             <span
-              className="text-[12.5px] font-semibold leading-tight truncate"
+              className="text-[11.5px] font-semibold leading-none truncate"
               style={{
                 color: '#ffffff',
-                letterSpacing: '-0.01em',
-                textShadow: '0 1px 2px rgba(0,0,0,0.25)',
+                letterSpacing: '-0.005em',
+                textShadow: '0 1px 1.5px rgba(0,0,0,0.22)',
               }}
             >
               {label}
@@ -206,27 +171,31 @@ export function StatusSegment({
         <motion.div
           className="absolute pointer-events-none rounded-full z-30"
           style={{
-            top: '6px',
+            top: '4px',
             left: `${((todayIdx + 0.5) / span) * 100}%`,
             transform: 'translateX(-50%)',
-            width: 6,
-            height: 6,
+            width: 5,
+            height: 5,
             backgroundColor: status ? '#ffffff' : 'var(--accent-color)',
             boxShadow: status
-              ? '0 0 0 2px rgba(255,255,255,0.3), 0 0 8px rgba(255,255,255,0.55)'
-              : '0 0 0 3px rgba(0,102,255,0.2), 0 0 8px rgba(0,102,255,0.55)',
+              ? '0 0 0 1.5px rgba(255,255,255,0.3), 0 0 6px rgba(255,255,255,0.5)'
+              : '0 0 0 2px rgba(0,102,255,0.2), 0 0 6px rgba(0,102,255,0.5)',
           }}
           animate={{ scale: [1, 1.22, 1] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
         />
       )}
 
-      {/* Single-day today pulse */}
+      {/* Single-day today accent — subtle ring on accent color only */}
       {singleDayIsToday && (
         <motion.div
           aria-hidden
-          className="absolute inset-0 rounded-xl pointer-events-none z-30"
-          style={{ boxShadow: '0 0 0 1.5px var(--accent-color), 0 0 20px -4px rgba(0,102,255,0.35)' }}
+          className="absolute inset-0 rounded-[8px] pointer-events-none z-30"
+          style={{
+            boxShadow: status
+              ? 'inset 0 0 0 1.5px rgba(255,255,255,0.55)'
+              : 'inset 0 0 0 1.5px var(--accent-color)',
+          }}
           animate={{ opacity: [0.55, 1, 0.55] }}
           transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
         />
@@ -234,22 +203,26 @@ export function StatusSegment({
 
       <style jsx>{`
         .segment-day {
-          transition: background-color 180ms ease;
+          transition: background-color 160ms ease;
         }
         .segment-day:hover {
-          background-color: ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.15)'};
+          background-color: ${status
+            ? 'rgba(255,255,255,0.10)'
+            : isDark
+              ? 'rgba(255,255,255,0.05)'
+              : 'rgba(0,0,0,0.035)'};
         }
         .segment-day:focus-visible {
           box-shadow: inset 0 0 0 2px var(--accent-color);
-          border-radius: 10px;
+          border-radius: 6px;
         }
         .segment-day.is-highlighted {
-          background-color: color-mix(in oklab, var(--accent-color) 32%, transparent);
+          background-color: color-mix(in oklab, var(--accent-color) 28%, transparent);
           box-shadow: inset 0 0 0 2px var(--accent-color);
-          border-radius: 10px;
+          border-radius: 6px;
         }
         .segment-day.is-highlighted:hover {
-          background-color: color-mix(in oklab, var(--accent-color) 40%, transparent);
+          background-color: color-mix(in oklab, var(--accent-color) 36%, transparent);
         }
       `}</style>
     </motion.div>
