@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { addDays, getISOWeek, getISOWeekYear } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -131,6 +131,20 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
   const [dragCurrent, setDragCurrent] = useState<DragPoint | null>(null)
   const isDragging = dragStart !== null
 
+  const currentWeekRef = useRef<HTMLDivElement | null>(null)
+  const didScrollToCurrentWeek = useRef(false)
+
+  useEffect(() => {
+    if (didScrollToCurrentWeek.current) return
+    if (year !== currentYear) return
+    const el = currentWeekRef.current
+    if (!el) return
+    didScrollToCurrentWeek.current = true
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+  }, [year, currentYear, weeks])
+
   useEffect(() => {
     const supabase = createClient()
     let active = true
@@ -236,6 +250,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
   function goCurrentYear() {
     setDirY(year < currentYear ? 'next' : 'prev')
     setYear(currentYear)
+    didScrollToCurrentWeek.current = false
   }
 
   const totalEntries = entries.length
@@ -374,6 +389,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
             return (
               <motion.div
                 key={`${wk.year}-${wk.weekNumber}`}
+                ref={wk.isCurrentWeek ? currentWeekRef : undefined}
                 initial={{ y: 10, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ ...spring.gentle, delay: Math.min(wkIdx, 18) * 0.015 }}
