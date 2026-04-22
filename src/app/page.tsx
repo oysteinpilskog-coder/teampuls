@@ -3,6 +3,7 @@ import { TeamGrid } from '@/components/team-grid'
 import { AIInput } from '@/components/ai-input'
 import { EmptyState } from '@/components/empty-state'
 import { PresenceHeatmap } from '@/components/presence-heatmap'
+import { DaysTogether } from '@/components/days-together'
 import { getSessionMember } from '@/lib/supabase/session'
 
 export default async function HomePage() {
@@ -47,6 +48,7 @@ export default async function HomePage() {
         <AIInput orgId={member.org_id} />
       </div>
       <TeamGrid orgId={member.org_id} />
+      <DaysTogether />
       <PresenceHeatmap orgId={member.org_id} />
     </div>
   )

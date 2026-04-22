@@ -21,6 +21,7 @@ import {
   CircleUser,
   Clock,
   Monitor,
+  Sparkles,
 } from 'lucide-react'
 
 type CommandGroup = 'nav' | 'actions' | 'theme'
@@ -471,6 +472,22 @@ function useCommands({
             requestAnimationFrame(() => {
               const el = document.querySelector('main input[type="text"]') as HTMLInputElement | null
               el?.focus()
+            })
+          })
+        },
+      },
+      {
+        id: 'action-suggest-days',
+        label: 'Foreslå samlingsdager',
+        group: 'actions',
+        icon: <Sparkles className="w-4 h-4" />,
+        keywords: 'ai samlingsdager koordinere kontor sammen ukentlig møte',
+        run: () => {
+          router.push('/')
+          // Let the page mount before scrolling.
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              window.dispatchEvent(new CustomEvent('teampulse:days-together:focus'))
             })
           })
         },
