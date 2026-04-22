@@ -38,13 +38,19 @@ const RING_BOUNDS = [
   { outer: R.ring3Outer, inner: R.ring3Inner, mid: (R.ring3Outer + R.ring3Inner) / 2 },
 ] as const
 
-// Ring label positions — scattered around the wheel to avoid visual clustering
-// and to land in areas where categorically few events cluster.
-const RING_LABEL_RANGES: Array<[number, number]> = [
+// Fallback ring-label positions used only when a ring has no events at all.
+// Scattered so the three labels never stack on top of each other.
+const RING_LABEL_FALLBACK: Array<[number, number]> = [
   [336,  24],  // ring 0 (Viktige datoer) — across New Year, top
   [256, 304],  // ring 1 (Aktiviteter)    — left side
   [156, 204],  // ring 2 (Merkedager)     — bottom
 ]
+
+// Each ring label needs ~30° of clear arc. We aim for a 56° "ideal" arc so the
+// letters land with breathing room, but shrink to fit smaller gaps and hide
+// entirely if no gap on the ring is wide enough.
+const RING_LABEL_MIN_SPAN  = 30
+const RING_LABEL_IDEAL_ARC = 56
 
 // ─── Month palette ───────────────────────────────────────────────
 // Smooth seasonal HSL — each month has [lighter outer, darker inner] for radial depth.
@@ -112,6 +118,53 @@ function labelArcPath(r: number, startDeg: number, endDeg: number): string {
   const sweep = reverse ? 0 : 1
   const large = Math.abs(b - a) > 180 ? 1 : 0
   return `M${f(p1.x)},${f(p1.y)} A${r},${r},0,${large},${sweep},${f(p2.x)},${f(p2.y)}`
+}
+
+// Find the largest event-free arc on a given ring and return a centered
+// label range inside it. Returns null when no gap is wide enough to fit
+// the label cleanly — the caller should hide that ring's label.
+function computeRingLabelRange(
+  events: OrgEvent[],
+  ringIdx: number,
+  year: number,
+): [number, number] | null {
+  const occupied: Array<[number, number]> = events
+    .filter(ev => ringIdxForCategory(ev.category) === ringIdx)
+    .map(ev => {
+      const start = dateStringToDeg(ev.start_date, year)
+      const end   = dateStringToDeg(ev.end_date, year) + (360 / daysInYear(year))
+      return [start, Math.min(end, 360)] as [number, number]
+    })
+    .filter(([s, e]) => e > s)
+    .sort((a, b) => a[0] - b[0])
+
+  if (occupied.length === 0) return RING_LABEL_FALLBACK[ringIdx]
+
+  // Merge overlaps so adjacent events count as one occupied block.
+  const merged: Array<[number, number]> = []
+  for (const [s, e] of occupied) {
+    const last = merged[merged.length - 1]
+    if (last && s <= last[1] + 0.5) last[1] = Math.max(last[1], e)
+    else merged.push([s, e])
+  }
+
+  // Largest gap, considering wrap-around from last block back to first.
+  let bestStart = merged[merged.length - 1][1]
+  let bestSpan  = merged[0][0] + 360 - bestStart
+  for (let i = 0; i < merged.length - 1; i++) {
+    const span = merged[i + 1][0] - merged[i][1]
+    if (span > bestSpan) {
+      bestSpan = span
+      bestStart = merged[i][1]
+    }
+  }
+
+  if (bestSpan < RING_LABEL_MIN_SPAN) return null
+
+  const center = bestStart + bestSpan / 2
+  const half   = Math.min(RING_LABEL_IDEAL_ARC, bestSpan - 4) / 2
+  const norm   = (deg: number) => ((deg % 360) + 360) % 360
+  return [norm(center - half), norm(center + half)]
 }
 
 function dayOfYear(date: Date): number {
@@ -464,6 +517,13 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
   const monthSegs = getMonthSegments(year)
   const weekSegs  = getWeekSegments(year)
 
+  // Auto-place each ring's watermark label into its largest event-free arc.
+  // null = no clean gap, so we skip rendering that label entirely.
+  const ringLabelRanges = useMemo(
+    () => RINGS.map((_, i) => computeRingLabelRange(events, i, year)),
+    [events, year],
+  )
+
   const [hover, setHover] = useState<HoverInfo | null>(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [focusedMonth, setFocusedMonth] = useState<number | null>(null)
@@ -785,7 +845,9 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
 
             {/* Ring category label paths (shared) */}
             {RINGS.map((_, i) => {
-              const [s, e] = RING_LABEL_RANGES[i]
+              const range = ringLabelRanges[i]
+              if (!range) return null
+              const [s, e] = range
               return (
                 <path
                   key={`rp-${i}`}
@@ -1220,26 +1282,30 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
             )}
           </AnimatePresence>
 
-          {/* Ring category labels — textPath watermarks */}
-          {RINGS.map((ring, ri) => (
-            <text
-              key={`rlbl-${ri}`}
-              fontSize={9}
-              fontWeight={700}
-              fill={`hsl(${ring.hue}, 35%, 42%)`}
-              fillOpacity={0.62}
-              style={{
-                fontFamily: 'var(--font-body)',
-                letterSpacing: '0.36em',
-                userSelect: 'none',
-                pointerEvents: 'none',
-              }}
-            >
-              <textPath href={`#${ID.ringPath(ri)}`} startOffset="50%" textAnchor="middle">
-                {ring.name.toUpperCase()}
-              </textPath>
-            </text>
-          ))}
+          {/* Ring category labels — textPath watermarks. Hidden on rings whose
+              event distribution leaves no clean gap to land in. */}
+          {RINGS.map((ring, ri) => {
+            if (!ringLabelRanges[ri]) return null
+            return (
+              <text
+                key={`rlbl-${ri}`}
+                fontSize={9}
+                fontWeight={700}
+                fill={`hsl(${ring.hue}, 35%, 42%)`}
+                fillOpacity={0.62}
+                style={{
+                  fontFamily: 'var(--font-body)',
+                  letterSpacing: '0.36em',
+                  userSelect: 'none',
+                  pointerEvents: 'none',
+                }}
+              >
+                <textPath href={`#${ID.ringPath(ri)}`} startOffset="50%" textAnchor="middle">
+                  {ring.name.toUpperCase()}
+                </textPath>
+              </text>
+            )
+          })}
 
           {/* ── Center: aurora → glass → hero content ── */}
           <circle cx={CX} cy={CY} r={R.centerRing + 24} fill={`url(#${ID.aurora})`} />
@@ -1444,21 +1510,25 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
 
           {/* Today: spotlight beam + hairline ray + labeled Dynamic-Island pill */}
           {activeTodayDeg !== null && activeTodayTip && (() => {
+            // Build the label first, then size the pill to fit it. SVG clips
+            // anything outside the viewBox by default, so the clamp uses the
+            // *actual* pill width — this is what prevents the right-edge truncation
+            // ("…DAG") that used to appear at certain angles.
+            const todayLabel = `I DAG · ${weekdayAbbr(today).toUpperCase()} ${today.getDate()}`
+            const pillH = 28
+            // 11px font + 0.12em tracking ≈ 6.6px advance per char + 22px h-padding.
+            const pillW = Math.max(96, Math.ceil(todayLabel.length * 6.6 + 22))
             // Pill anchor sits outside the outer ring, along today's angle.
             // Label text stays horizontal (not rotated), so it reads correctly from any angle.
             const rawAnchor = polarPoint(R.monthOuter + 44, activeTodayDeg)
-            const pillW = 86
-            const pillH = 26
-            // Clamp so the pill stays fully within the 800×800 viewBox
-            // (at angles near 3/9 o'clock the raw anchor sits beyond the edge).
-            const pad = 4
+            // Clamp so the pill stays fully within the 800×800 viewBox.
+            const pad = 6
             const anchor = {
               x: Math.min(Math.max(rawAnchor.x, pillW / 2 + pad), 800 - pillW / 2 - pad),
               y: Math.min(Math.max(rawAnchor.y, pillH / 2 + pad), 800 - pillH / 2 - pad),
             }
             const pillX = anchor.x - pillW / 2
             const pillY = anchor.y - pillH / 2
-            const todayLabel = `${weekdayAbbr(today).toUpperCase()} ${today.getDate()}`
             return (
               <g key={`today-${focus ? `month-${focus.month}` : 'year'}`}>
                 {/* Soft wedge beam behind today */}
@@ -1549,7 +1619,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
                       textShadow: '0 1px 2px rgba(0,0,0,0.18)',
                     }}
                   >
-                    I DAG · {todayLabel}
+                    {todayLabel}
                   </text>
                 </motion.g>
               </g>
