@@ -30,8 +30,10 @@ export default async function MinPlanPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8 space-y-8">
-      <AIInput orgId={member.org_id} />
+    <div className="mx-auto max-w-7xl px-6 py-10 md:py-12 space-y-10">
+      <div className="mx-auto max-w-3xl">
+        <AIInput orgId={member.org_id} />
+      </div>
       <MyPlan
         orgId={member.org_id}
         memberId={member.id}

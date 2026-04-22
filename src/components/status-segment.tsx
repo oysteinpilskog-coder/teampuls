@@ -65,13 +65,10 @@ export function StatusSegment({
   const [g0, g1] = palette ? (isDark ? palette.gradient.dark : palette.gradient.light) : ['', '']
   const glow = palette?.glow ?? ''
 
-  // 3-stop gradient — highlight on top, saturated middle, slightly deeper base.
-  // Gives the bar real dimensionality without looking cartoonish.
+  // Gentle top-down gradient — no longer a "polished jewel", just a clean
+  // category color with a subtle top highlight.
   const gradient = palette
-    ? `linear-gradient(180deg,
-         color-mix(in oklab, ${g0} 94%, white) 0%,
-         ${g0} 32%,
-         ${g1} 100%)`
+    ? `linear-gradient(180deg, ${g0} 0%, ${g1} 100%)`
     : undefined
 
   return (
@@ -81,20 +78,15 @@ export function StatusSegment({
         gridColumn: `span ${span}`,
         backgroundColor: status ? g1 : 'transparent',
         backgroundImage: status ? gradient : undefined,
-        // Stacked halo — tight rim of color, mid halo, broad soft bloom.
-        // The result reads as a glowing jewel, not a painted rectangle.
+        // Restrained: inner rim + a soft category-tinted glow, no double halo.
         boxShadow: status
           ? isDark
-            ? `inset 0 1px 0 rgba(255,255,255,0.22),
-               inset 0 -1px 0 rgba(0,0,0,0.28),
-               0 1px 2px rgba(0,0,0,0.32),
-               0 6px 14px -4px ${glow}7A,
-               0 18px 36px -14px ${glow}99`
-            : `inset 0 1px 0 rgba(255,255,255,0.48),
-               inset 0 -1px 0 rgba(0,0,0,0.14),
-               0 1px 2px rgba(15,23,42,0.10),
-               0 6px 14px -4px ${glow}8A,
-               0 18px 36px -14px ${glow}B0`
+            ? `inset 0 1px 0 rgba(255,255,255,0.12),
+               inset 2px 0 0 ${glow},
+               0 0 12px -2px ${glow}66`
+            : `inset 0 1px 0 rgba(255,255,255,0.32),
+               inset 2px 0 0 ${glow},
+               0 0 12px -2px ${glow}77`
           : undefined,
         opacity: muted ? 0.28 : 1,
         cursor: status && onDayMouseDown ? 'grab' : undefined,
@@ -102,40 +94,15 @@ export function StatusSegment({
       whileHover={muted ? undefined : { y: -1 }}
       transition={spring.snappy}
     >
-      {/* Radial top-left highlight — the iOS specular "point light" */}
-      {status && (
-        <div
-          aria-hidden
-          className="absolute inset-0 pointer-events-none z-[1]"
-          style={{
-            background:
-              'radial-gradient(120% 160% at 14% 0%, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.08) 30%, transparent 60%)',
-            mixBlendMode: 'soft-light',
-          }}
-        />
-      )}
-
-      {/* Glossy top sheen — subtle, 1/3 height, keeps the bar feeling glassy without shouting. */}
+      {/* Single top sheen — 1/3 height, quiet. */}
       {status && (
         <div
           aria-hidden
           className="absolute top-0 left-0 right-0 pointer-events-none z-[2]"
           style={{
-            height: '45%',
+            height: '40%',
             background:
-              'linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.05) 70%, transparent 100%)',
-          }}
-        />
-      )}
-
-      {/* Specular edge — 1px highlight along the top */}
-      {status && (
-        <div
-          aria-hidden
-          className="absolute top-0 left-[8%] right-[8%] pointer-events-none z-[3]"
-          style={{
-            height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.72), transparent)',
+              'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 100%)',
           }}
         />
       )}

@@ -153,19 +153,32 @@
    ============================================================ */
 
 .dark {
-  /* Backgrounds */
-  --bg-primary:    #0A0A0A;
-  --bg-elevated:   #151513;
-  --bg-subtle:     #1C1917;
+  /* Backgrounds — 2026 liquid-glass stack */
+  --bg-primary:    #0A0A0B;
+  --bg-elevated:   #111114;
+  --bg-subtle:     #16161B;
+
+  /* Liquid-glass surface stack (new, restrained) */
+  --lg-bg:          #0A0A0B;
+  --lg-surface-1:   #111114;
+  --lg-surface-2:   #16161B;
+  --lg-surface-3:   #1C1C22;
+  --lg-divider:     #1F1F24;
+  --lg-divider-soft:#17171C;
+
+  /* Liquid-glass text tokens */
+  --lg-text-1:     #F5F5F7;
+  --lg-text-2:     #A1A1AA;
+  --lg-text-3:     #636369;
 
   /* Text */
-  --text-primary:   #FAFAF9;
-  --text-secondary: #A8A29E;
-  --text-tertiary:  #57534E;
+  --text-primary:   #F5F5F7;
+  --text-secondary: #A1A1AA;
+  --text-tertiary:  #636369;
 
   /* Borders */
-  --border-subtle: #262626;
-  --border-strong: #404040;
+  --border-subtle: #1F1F24;
+  --border-strong: #2A2A31;
 
   /* Aurora (dark) */
   --aurora-a: hsla(220, 90%, 55%, 0.3);
@@ -697,4 +710,121 @@
   opacity: var(--surface-sheen-opacity);
   pointer-events: none;
   mix-blend-mode: screen;
+}
+
+/* ============================================================
+   DARK LIQUID GLASS — 2026 MAKEOVER TOKENS & UTILITIES
+   Scoped to .dark so the existing light palette is untouched.
+   ============================================================ */
+
+:root {
+  /* Violet accent — reserved for "now / aktiv / primær handling" */
+  --lg-accent:       #8B5CF6;
+  --lg-accent-soft:  rgba(139, 92, 246, 0.15);
+  --lg-accent-glow:  rgba(139, 92, 246, 0.35);
+
+  /* Category colors — dempet, ikke neon */
+  --lg-cat-work:       #2DD4BF;
+  --lg-cat-personal:   #A78BFA;
+  --lg-cat-important:  #FB7185;
+  --lg-cat-travel:     #FBBF24;
+  --lg-cat-focus:      #6366F1;
+}
+
+/* Primary liquid-glass panel — use kirurgisk, ikke overalt */
+.lg-panel {
+  position: relative;
+  background: rgba(22, 22, 27, 0.5);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--lg-divider);
+  border-radius: 12px;
+}
+
+/* Flat surface card — quiet, no glass. Prefer this for dashboard bento. */
+.lg-surface {
+  background: var(--lg-surface-1);
+  border: 1px solid var(--lg-divider);
+  border-radius: 12px;
+}
+
+.lg-surface-2 {
+  background: var(--lg-surface-2);
+  border: 1px solid var(--lg-divider);
+  border-radius: 12px;
+}
+
+/* Subtle hairline — "nesten usynlig" divider */
+.lg-divider {
+  border-color: var(--lg-divider);
+}
+.lg-divider-soft {
+  border-color: var(--lg-divider-soft);
+}
+
+/* Active / "now" treatment — violet glow + soft ring */
+.lg-active {
+  background: var(--lg-accent);
+  box-shadow:
+    0 0 0 3px rgba(139, 92, 246, 0.18),
+    0 0 20px var(--lg-accent-glow);
+}
+
+/* Ambient background glow — fixed, 8% opacity, violet + teal diagonal */
+.lg-aurora {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.lg-aurora::before,
+.lg-aurora::after {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(120px);
+  opacity: 0.08;
+}
+.lg-aurora::before {
+  top: -20%;
+  right: -10%;
+  width: 55vw;
+  height: 55vw;
+  background: radial-gradient(circle, var(--lg-accent), transparent 60%);
+}
+.lg-aurora::after {
+  bottom: -25%;
+  left: -10%;
+  width: 55vw;
+  height: 55vw;
+  background: radial-gradient(circle, var(--lg-cat-work), transparent 60%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-aurora::before,
+  .lg-aurora::after { animation: none; }
+}
+
+/* Typography utilities */
+.lg-serif {
+  font-family: var(--font-serif), "Iowan Old Style", Georgia, serif;
+  font-style: italic;
+  letter-spacing: -0.03em;
+  font-weight: 400;
+}
+.lg-mono {
+  font-family: var(--font-mono), "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Small-caps meta label — used for section labels like "FORDELING" */
+.lg-eyebrow {
+  font-family: var(--font-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lg-text-3);
 }
