@@ -112,6 +112,14 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
       toast.error('Fyll inn by, postnummer eller adresse')
       return null
     }
+    // Requiring a country eliminates the "wrong Newcastle" problem — there
+    // are 15+ cities named "Newcastle" globally; without a country filter
+    // the geocoder will happily pick the one in New South Wales.
+    if (!form.country_code) {
+      setGeo({ state: 'error', message: 'Velg land før du søker' })
+      toast.error('Velg land først — ellers gjetter kartet feil by')
+      return null
+    }
 
     setGeo({ state: 'working' })
     try {
@@ -119,11 +127,22 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
         address: form.address || null,
         postalCode: form.postal_code || null,
         city: form.city || null,
-        countryCode: form.country_code || null,
+        countryCode: form.country_code,
       })
       if (!hit) {
         setGeo({ state: 'error', message: 'Fant ikke denne adressen' })
         toast.error('Fant ikke adressen på kartet')
+        return null
+      }
+      // Defensive check: the geocoder should respect countrycodes, but if
+      // the filter got ignored upstream we'd rather fail loudly than place
+      // the marker on another continent.
+      if (hit.countryCode && hit.countryCode !== form.country_code) {
+        setGeo({
+          state: 'error',
+          message: `Fant kun treff i ${hit.countryCode} — sjekk at by og land stemmer`,
+        })
+        toast.error('Treffet lå i feil land — prøv igjen med mer spesifikk adresse')
         return null
       }
       setForm(f => ({
@@ -133,7 +152,6 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
         // Fill in blanks that the user didn't provide but the geocoder confirmed.
         city: f.city || hit.city || f.city,
         postal_code: f.postal_code || hit.postalCode || f.postal_code,
-        country_code: f.country_code || hit.countryCode || f.country_code,
       }))
       setGeo({ state: 'done', display: hit.displayName })
       return { lat: hit.lat, lng: hit.lng }
@@ -146,16 +164,24 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
 
   async function handleSave() {
     if (!form.name.trim() || saving) return
+    // Require country when anything address-like is set. Without it the
+    // geocoder can place the marker on another continent.
+    const hasAddressInput = [form.address, form.postal_code, form.city].some(v => v.trim())
+    const hasManualCoords = form.latitude.trim() !== '' && form.longitude.trim() !== ''
+    if (hasAddressInput && !hasManualCoords && !form.country_code) {
+      toast.error('Velg land før du lagrer — ellers gjetter kartet feil by')
+      return
+    }
     setSaving(true)
     const supabase = createClient()
 
     // Auto-geocode if the user provided an address/city but no coords.
     let lat = form.latitude ? parseFloat(form.latitude) : null
     let lng = form.longitude ? parseFloat(form.longitude) : null
-    const hasAddressInput = [form.address, form.postal_code, form.city].some(v => v.trim())
     if ((lat == null || lng == null) && hasAddressInput) {
       const hit = await runGeocode()
       if (hit) { lat = hit.lat; lng = hit.lng }
+      else { setSaving(false); return }
     }
 
     const row = {
@@ -330,9 +356,11 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={spring.bouncy}
-              className="fixed z-50 w-[520px] rounded-2xl p-6 flex flex-col gap-4"
+              className="fixed z-50 w-[520px] max-w-[calc(100vw-24px)] rounded-2xl p-6 flex flex-col gap-4"
               style={{
                 top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+                maxHeight: 'calc(100vh - 24px)',
+                overflowY: 'auto',
                 backgroundColor: 'var(--bg-elevated)',
                 boxShadow: 'var(--shadow-xl)',
               }}
@@ -415,7 +443,7 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
                 </div>
 
                 <div className="col-span-3">
-                  <OfficeField label="Land">
+                  <OfficeField label="Land" required hint="unngår feil by">
                     <select
                       value={form.country_code}
                       onChange={e => updateForm('country_code', e.target.value)}
@@ -624,10 +652,12 @@ const inputStyle: React.CSSProperties = {
 function OfficeField({
   label,
   hint,
+  required,
   children,
 }: {
   label: string
   hint?: string
+  required?: boolean
   children: React.ReactNode
 }) {
   return (
@@ -637,6 +667,15 @@ function OfficeField({
         style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
       >
         {label}
+        {required && (
+          <span
+            className="ml-1 font-semibold"
+            style={{ color: 'var(--accent-color)' }}
+            aria-hidden
+          >
+            *
+          </span>
+        )}
         {hint && (
           <span
             className="ml-1.5 font-normal normal-case tracking-normal"
