@@ -1,19 +1,21 @@
 import type { EntryStatus } from '@/lib/supabase/types'
 
 /**
- * Canonical default hex colors per status — the Linear/Notion-calibrated palette.
- * Organizations can override via `organizations.status_colors` JSONB column.
+ * Canonical default hex colors per status.
  *
- * Single value per status: gradient top + darker bottom + glow are all derived from this one hex.
+ * Dark Liquid Glass (2026) palette — "dempet, ikke neon". Shifted from the
+ * previous saturated Linear/Notion palette to subdued pastels that read as
+ * category accents against dark glass surfaces rather than as primary signals.
+ * Organizations can still override via `organizations.status_colors`.
  */
 export const DEFAULT_HEX_COLORS: Record<EntryStatus, string> = {
-  office:   '#2563EB',  // cobalt
-  remote:   '#059669',  // emerald
-  customer: '#14B8A6',  // teal
-  travel:   '#7C3AED',  // violet
-  vacation: '#CA8A04',  // saffron
-  sick:     '#E11D48',  // coral
-  off:      '#78716C',  // warm stone
+  office:   '#6366F1',  // indigo — "focus / tilstede"
+  remote:   '#2DD4BF',  // teal — "work / hjemme"
+  customer: '#A78BFA',  // soft violet — "ute / hos kunde"
+  travel:   '#FBBF24',  // amber — "reise"
+  vacation: '#FB7185',  // rose — "viktig / ferie"
+  sick:     '#F87171',  // coral-dempet — "syk"
+  off:      '#94A3B8',  // slate — "fri / borte"
 }
 
 export type HexColors = Record<EntryStatus, string>

@@ -661,26 +661,18 @@ export function TeamGrid({ orgId }: TeamGridProps) {
         onJumpTo={jumpTo}
       />
 
-      {/* Matrix */}
+      {/* Matrix — dark liquid glass panel */}
       <div
-        className="relative rounded-3xl overflow-hidden"
+        className="relative rounded-2xl overflow-hidden"
         style={{
-          background:
-            'linear-gradient(180deg, color-mix(in oklab, var(--bg-elevated) 92%, transparent) 0%, color-mix(in oklab, var(--bg-elevated) 82%, transparent) 100%)',
-          backdropFilter: 'blur(24px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(160%)',
-          border: '1px solid color-mix(in oklab, var(--border-subtle) 70%, transparent)',
-          boxShadow:
-            '0 24px 48px -24px rgba(15,23,42,0.18), 0 10px 24px -16px rgba(15,23,42,0.10), 0 1px 2px rgba(15,23,42,0.04), inset 0 1px 0 rgba(255,255,255,0.45)',
+          background: 'var(--lg-surface-1)',
+          border: '1px solid var(--lg-divider)',
         }}
       >
-        {/* Today column highlight — quiet vertical band, just enough to anchor the eye */}
+        {/* Today column highlight — violet hairline + soft tint */}
         {(() => {
           const todayIdx = weekDays.findIndex(isToday)
           if (todayIdx === -1) return null
-          // Grid: px-4 padding (16) + 136px name col + 8px gap + 5 * 1fr with 8px gaps + px-4 padding.
-          // Available per day: (100% - 16*2 - 136 - 8*5) / 5 = (100% - 208px) / 5
-          // Left offset to col i: 16 + 136 + 8 + i * ((100% - 208px)/5 + 8px)
           const left = `calc(160px + ${todayIdx} * ((100% - 208px) / 5 + 8px))`
           const width = `calc((100% - 208px) / 5)`
           return (
@@ -692,10 +684,9 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                 bottom: 0,
                 left,
                 width,
-                background:
-                  'linear-gradient(180deg, color-mix(in oklab, var(--accent-color) 10%, transparent) 0%, color-mix(in oklab, var(--accent-color) 3%, transparent) 100%)',
-                borderLeft: '1px solid color-mix(in oklab, var(--accent-color) 18%, transparent)',
-                borderRight: '1px solid color-mix(in oklab, var(--accent-color) 18%, transparent)',
+                background: 'rgba(139, 92, 246, 0.06)',
+                borderLeft: '1px solid rgba(139, 92, 246, 0.22)',
+                borderRight: '1px solid rgba(139, 92, 246, 0.22)',
               }}
             />
           )
@@ -706,7 +697,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
           className="relative grid gap-2 px-4 py-4 z-10"
           style={{
             gridTemplateColumns: '136px repeat(5, 1fr)',
-            borderBottom: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+            borderBottom: '1px solid var(--lg-divider-soft)',
           }}
         >
           <div /> {/* empty for name column */}
@@ -719,41 +710,36 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                 className="text-center relative flex flex-col items-center gap-1"
               >
                 <div
-                  className="text-[10px] font-bold uppercase tracking-[0.2em]"
+                  className="lg-mono text-[10px] font-medium uppercase"
                   style={{
-                    color: today ? 'var(--accent-color)' : 'var(--text-tertiary)',
-                    fontFamily: 'var(--font-body)',
+                    color: today ? 'var(--lg-accent)' : 'var(--lg-text-3)',
+                    letterSpacing: '0.2em',
                   }}
                 >
                   {weekday}
                 </div>
                 <div
-                  className="flex items-center justify-center tabular-nums leading-none"
+                  className="lg-mono flex items-center justify-center leading-none"
                   style={{
-                    fontFamily: 'var(--font-sora)',
-                    fontSize: '22px',
-                    fontWeight: 600,
-                    letterSpacing: '-0.035em',
-                    color: today ? '#ffffff' : 'var(--text-secondary)',
-                    width: 36,
-                    height: 36,
+                    fontSize: '20px',
+                    fontWeight: 500,
+                    color: today ? '#ffffff' : 'var(--lg-text-1)',
+                    width: 34,
+                    height: 34,
                     borderRadius: 9999,
-                    background: today
-                      ? 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 70%, black))'
-                      : 'transparent',
+                    background: today ? 'var(--lg-accent)' : 'transparent',
                     boxShadow: today
-                      ? '0 6px 14px -4px color-mix(in oklab, var(--accent-color) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.28)'
+                      ? '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 18px var(--lg-accent-glow)'
                       : 'none',
                   }}
                 >
                   {day}
                 </div>
                 <div
-                  className="text-[10px] font-medium mt-0.5"
+                  className="lg-serif mt-0.5 capitalize"
                   style={{
-                    color: 'var(--text-tertiary)',
-                    fontFamily: 'var(--font-body)',
-                    letterSpacing: '0.04em',
+                    color: today ? 'var(--lg-text-2)' : 'var(--lg-text-3)',
+                    fontSize: 12,
                   }}
                 >
                   {month}
@@ -1083,56 +1069,52 @@ function WeeklySummaryToast({
     <div
       className="flex items-center gap-3 px-4 py-3 rounded-2xl"
       style={{
-        background: 'color-mix(in oklab, var(--bg-elevated) 92%, transparent)',
-        backdropFilter: 'blur(22px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(22px) saturate(180%)',
-        border: '1px solid color-mix(in oklab, var(--border-subtle) 55%, transparent)',
-        boxShadow:
-          '0 24px 48px -16px rgba(10,20,40,0.22), 0 10px 20px -12px rgba(10,20,40,0.14), inset 0 1px 0 rgba(255,255,255,0.55)',
-        color: 'var(--text-primary)',
-        fontFamily: 'var(--font-inter-tight)',
-        fontSize: 13.5,
-        letterSpacing: '-0.005em',
+        background: 'rgba(22, 22, 27, 0.5)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        border: '1px solid var(--lg-divider)',
+        color: 'var(--lg-text-1)',
+        fontFamily: 'var(--font-body)',
+        fontSize: 13,
         minWidth: 260,
       }}
     >
       <span
-        className="flex items-center justify-center rounded-lg shrink-0 font-bold tabular-nums"
+        className="lg-mono flex items-center justify-center rounded-lg shrink-0"
         style={{
-          width: 32,
-          height: 32,
-          background: 'color-mix(in oklab, var(--accent-color) 14%, transparent)',
-          color: 'var(--accent-color)',
-          fontFamily: 'var(--font-sora)',
-          letterSpacing: '-0.02em',
+          width: 30,
+          height: 30,
+          background: 'rgba(139, 92, 246, 0.12)',
+          color: 'var(--lg-accent)',
           fontSize: 13,
+          fontWeight: 500,
         }}
       >
         {weekNumber}
       </span>
       <div className="flex-1 min-w-0">
-        <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>
+        <div className="lg-eyebrow">
           {no.matrix.weekLabel} {weekNumber}
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+        <div className="flex items-center gap-1.5 flex-wrap mt-1">
           {top.map((x) => (
             <span key={x.status} className="inline-flex items-center gap-1">
               <span
                 className="w-1.5 h-1.5 rounded-full"
                 style={{ background: x.tone }}
               />
-              <span className="tabular-nums font-semibold">{x.count}</span>
-              <span style={{ color: 'var(--text-secondary)' }}>{x.label.toLowerCase()}</span>
+              <span className="lg-mono font-medium">{x.count}</span>
+              <span style={{ color: 'var(--lg-text-2)' }}>{x.label.toLowerCase()}</span>
             </span>
           )).reduce<React.ReactNode[]>((acc, node, i) => {
-            if (i > 0) acc.push(<span key={`sep-${i}`} style={{ color: 'var(--text-tertiary)' }}>·</span>)
+            if (i > 0) acc.push(<span key={`sep-${i}`} style={{ color: 'var(--lg-text-3)' }}>·</span>)
             acc.push(node)
             return acc
           }, [])}
           {rest > 0 && (
             <>
-              <span style={{ color: 'var(--text-tertiary)' }}>·</span>
-              <span style={{ color: 'var(--text-tertiary)' }}>+{rest} andre</span>
+              <span style={{ color: 'var(--lg-text-3)' }}>·</span>
+              <span style={{ color: 'var(--lg-text-3)' }}>+{rest} andre</span>
             </>
           )}
         </div>

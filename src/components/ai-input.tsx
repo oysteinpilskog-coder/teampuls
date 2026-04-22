@@ -164,20 +164,20 @@ export function AIInput({ orgId }: AIInputProps) {
 
   const borderColor = focused
     ? isLoading
-      ? 'var(--accent-color)'
+      ? 'var(--lg-accent)'
       : isSuccess
-        ? '#16A362'
-        : 'var(--accent-color)'
-    : 'color-mix(in oklab, var(--border-subtle) 70%, transparent)'
+        ? '#34D399'
+        : 'var(--lg-accent)'
+    : 'var(--lg-divider)'
 
   const glowStyle = focused
     ? {
         boxShadow: isSuccess
-          ? '0 0 0 4px rgba(22, 163, 98, 0.15), 0 20px 48px -12px rgba(22, 163, 98, 0.25), var(--shadow-lg)'
-          : '0 0 0 4px color-mix(in oklab, var(--accent-color) 16%, transparent), 0 20px 48px -12px color-mix(in oklab, var(--accent-color) 35%, transparent), var(--shadow-lg)',
+          ? '0 0 0 3px rgba(52, 211, 153, 0.18), 0 0 24px rgba(52, 211, 153, 0.25)'
+          : '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 24px var(--lg-accent-glow)',
       }
     : {
-        boxShadow: '0 12px 32px -12px color-mix(in oklab, var(--accent-color) 18%, transparent), 0 4px 10px rgba(0,0,0,0.04), 0 0 0 1px color-mix(in oklab, var(--border-subtle) 50%, transparent)',
+        boxShadow: 'none',
       }
 
   return (
@@ -187,38 +187,14 @@ export function AIInput({ orgId }: AIInputProps) {
         transition={spring.smooth}
         className="rounded-2xl relative"
       >
-        {/* Ambient gradient rim — visible idle, bright on focus */}
         <div
-          aria-hidden
-          className="absolute -inset-[2px] rounded-2xl pointer-events-none"
+          className="relative flex items-center gap-3 px-5 py-[16px] rounded-2xl border transition-colors duration-200"
           style={{
-            background: focused
-              ? 'linear-gradient(135deg, rgba(0,102,255,0.85), rgba(139,63,230,0.55) 40%, rgba(255,122,26,0.65) 80%)'
-              : 'linear-gradient(135deg, rgba(0,102,255,0.38), rgba(139,63,230,0.22) 40%, rgba(255,122,26,0.28) 80%)',
-            filter: 'blur(1px)',
-            transition: 'background 250ms ease',
-          }}
-        />
-        {/* Ambient outer bloom for depth */}
-        <motion.div
-          aria-hidden
-          className="absolute rounded-2xl pointer-events-none"
-          style={{
-            inset: '-10px',
-            background: 'radial-gradient(ellipse at center, rgba(0,102,255,0.18), transparent 60%)',
-            filter: 'blur(20px)',
-          }}
-          animate={{ opacity: focused ? 1 : [0.4, 0.7, 0.4] }}
-          transition={focused ? { duration: 0.3 } : { duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <div
-          className="relative flex items-center gap-3 px-5 py-[18px] rounded-2xl border transition-colors duration-200"
-          style={{
-            background: 'color-mix(in oklab, var(--bg-elevated) 80%, transparent)',
-            backdropFilter: 'blur(22px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(22px) saturate(180%)',
+            background: 'rgba(22, 22, 27, 0.55)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
             borderColor,
-            borderWidth: focused ? '2px' : '1.5px',
+            borderWidth: 1,
           }}
         >
           {/* Left icon — animated state indicator */}
@@ -337,10 +313,10 @@ export function AIInput({ orgId }: AIInputProps) {
               placeholder={focused ? no.aiInput.label : ''}
               className="relative w-full bg-transparent outline-none disabled:opacity-50"
               style={{
-                fontSize: '17px',
-                color: 'var(--text-primary)',
+                fontSize: '15px',
+                color: 'var(--lg-text-1)',
                 fontFamily: 'var(--font-body)',
-                caretColor: 'var(--accent-color)',
+                caretColor: 'var(--lg-accent)',
               }}
               autoComplete="off"
               spellCheck={false}
@@ -382,10 +358,10 @@ export function AIInput({ orgId }: AIInputProps) {
                   whileTap={{ scale: 0.94 }}
                   transition={spring.snappy}
                   onClick={submit}
-                  className="flex items-center justify-center w-9 h-9 rounded-xl transition-colors"
+                  className="flex items-center justify-center w-9 h-9 rounded-xl transition-[box-shadow] duration-150"
                   style={{
-                    background: 'linear-gradient(135deg, hsl(220, 95%, 60%), hsl(235, 85%, 55%))',
-                    boxShadow: '0 6px 16px rgba(0, 102, 255, 0.35), 0 2px 4px rgba(0, 102, 255, 0.2)',
+                    background: 'var(--lg-accent)',
+                    boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 18px var(--lg-accent-glow)',
                   }}
                   title="Send (Enter)"
                 >
@@ -406,12 +382,11 @@ export function AIInput({ orgId }: AIInputProps) {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="text-[11px] font-medium px-1.5 py-0.5 rounded-md border"
+                  className="lg-mono text-[10.5px] px-1.5 py-0.5 rounded-md border"
                   style={{
-                    color: 'var(--text-tertiary)',
-                    borderColor: 'var(--border-subtle)',
-                    backgroundColor: 'var(--bg-subtle)',
-                    fontFamily: 'var(--font-body)',
+                    color: 'var(--lg-text-3)',
+                    borderColor: 'var(--lg-divider)',
+                    backgroundColor: 'var(--lg-surface-2)',
                   }}
                 >
                   /
@@ -432,15 +407,15 @@ export function AIInput({ orgId }: AIInputProps) {
             transition={spring.gentle}
           >
             <div
-              className="flex items-start gap-2.5 px-4 py-3 rounded-xl text-[14px]"
+              className="flex items-start gap-2.5 px-4 py-3 rounded-xl text-[13px]"
               style={{
-                backgroundColor: 'color-mix(in srgb, var(--accent-color) 8%, var(--bg-elevated))',
-                border: '1px solid color-mix(in srgb, var(--accent-color) 20%, transparent)',
-                color: 'var(--text-secondary)',
+                backgroundColor: 'var(--lg-surface-2)',
+                border: '1px solid var(--lg-divider)',
+                color: 'var(--lg-text-2)',
                 fontFamily: 'var(--font-body)',
               }}
             >
-              <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--accent-color)' }}>
+              <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--lg-accent)' }}>
                 <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth={1.5} />
                 <path d="M8 5v4M8 11v.5" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" />
               </svg>
