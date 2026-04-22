@@ -710,10 +710,12 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                 className="text-center relative flex flex-col items-center gap-1"
               >
                 <div
-                  className="lg-mono text-[10px] font-medium uppercase"
+                  className="lg-mono text-[10px] uppercase"
                   style={{
                     color: today ? 'var(--lg-accent)' : 'var(--lg-text-3)',
+                    fontWeight: today ? 600 : 500,
                     letterSpacing: '0.2em',
+                    textShadow: today ? '0 0 10px var(--lg-accent-glow)' : undefined,
                   }}
                 >
                   {weekday}
@@ -793,7 +795,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                           todayLocation={todayEntry?.location_label ?? null}
                           todayNote={todayEntry?.note ?? null}
                         >
-                          <div className="flex items-center gap-2 px-1 h-[36px]">
+                          <div className="flex items-center gap-2.5 px-1 h-[32px]">
                             <MemberAvatar
                               name={member.display_name}
                               initials={member.initials}
@@ -801,19 +803,15 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                               size="sm"
                             />
                             <span
-                              className="text-[13px] font-semibold truncate leading-tight"
-                              style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}
+                              className="text-[13px] truncate leading-tight"
+                              style={{
+                                color: 'var(--lg-text-1)',
+                                fontWeight: 500,
+                                letterSpacing: '-0.01em',
+                              }}
                             >
                               {member.display_name.split(' ')[0]}
                             </span>
-                            {member.initials && (
-                              <span
-                                className="text-[9px] font-semibold uppercase tracking-wider font-mono shrink-0"
-                                style={{ color: 'var(--text-tertiary)', letterSpacing: '0.08em' }}
-                              >
-                                {member.initials}
-                              </span>
-                            )}
                           </div>
                         </MemberHoverCard>
                       )

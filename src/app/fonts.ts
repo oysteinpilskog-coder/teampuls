@@ -1,4 +1,4 @@
-import { Sora, Inter_Tight, Instrument_Serif, JetBrains_Mono } from 'next/font/google'
+import { Sora, Inter_Tight, Instrument_Serif } from 'next/font/google'
 
 export const fontDisplay = Sora({
   subsets: ['latin'],
@@ -23,10 +23,8 @@ export const fontSerif = Instrument_Serif({
   style: ['normal', 'italic'],
 })
 
-// Mono for numerals, dates, week numbers — precision typography on the bars.
-export const fontMono = JetBrains_Mono({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-mono',
-  weight: ['400', '500', '600'],
-})
+/**
+ * Mono is delivered via the system stack (SF Mono on Apple, Consolas/Menlo elsewhere).
+ * We keep the --font-mono variable for backwards compat but it's now empty —
+ * the .lg-mono utility in globals.css resolves to the system mono stack directly.
+ */

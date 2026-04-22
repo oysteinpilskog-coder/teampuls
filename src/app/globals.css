@@ -261,8 +261,8 @@
   html {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", var(--font-inter-tight), "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
     @apply antialiased;
-    /* Apple-like rendering: inherit SF Pro optical sizing + features when available. */
-    font-feature-settings: "ss01", "cv11";
+    /* Let SF Pro use its own defaults — the old Inter features (ss01/cv11) can
+       misrender SF Pro. Keep only the cross-platform smoothing hints. */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     letter-spacing: -0.011em;
@@ -824,14 +824,15 @@
   font-weight: 400;
 }
 .lg-mono {
-  font-family: var(--font-mono), "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  /* Apple's SF Mono on Mac/iOS, sensible fallbacks elsewhere. */
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 /* Small-caps meta label — used for section labels like "FORDELING" */
 .lg-eyebrow {
-  font-family: var(--font-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 10.5px;
   font-weight: 500;
   letter-spacing: 0.18em;
