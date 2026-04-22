@@ -10,6 +10,20 @@ export const no = {
     dashboard: 'Dashboard',
     settings: 'Innstillinger',
   },
+  workspace: {
+    switcher: 'Arbeidsområde',
+    switchTo: 'Bytt til',
+    current: 'Aktivt',
+    searchPlaceholder: 'Søk arbeidsområder…',
+    switchFailed: 'Kunne ikke bytte arbeidsområde',
+    switched: 'Byttet til',
+    regionEU: 'EU',
+    regionUK: 'UK',
+    regionUS: 'US',
+    regionAPAC: 'APAC',
+    shortcutHint: '⌘{n} for rask bytte',
+    only: 'Eneste arbeidsområde',
+  },
   status: {
     office: 'Kontor',
     remote: 'Hjemmekontor',
@@ -76,6 +90,7 @@ export const no = {
       nav: 'Gå til',
       actions: 'Handlinger',
       theme: 'Visning',
+      workspace: 'Arbeidsområder',
     },
     cmd: {
       focusInput: 'Skriv statusoppdatering',

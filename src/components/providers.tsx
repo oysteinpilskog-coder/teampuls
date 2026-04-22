@@ -4,17 +4,23 @@ import { ThemeProvider } from 'next-themes'
 import { Toaster } from 'sonner'
 import { ThemeVariantProvider } from '@/components/theme-variant-provider'
 import { StatusColorsProvider } from '@/lib/status-colors/context'
+import { WorkspaceProvider } from '@/lib/workspace/context'
 import { CommandPalette } from '@/components/command-palette'
 import { KeyboardHelp } from '@/components/keyboard-help'
 import { OnboardingHint } from '@/components/onboarding-hint'
 import type { HexColors } from '@/lib/status-colors/defaults'
+import type { WorkspaceSummary } from '@/lib/supabase/types'
 
 export function Providers({
   children,
   initialStatusColors,
+  initialWorkspaces,
+  initialActiveSlug,
 }: {
   children: React.ReactNode
   initialStatusColors?: Partial<HexColors> | null
+  initialWorkspaces: WorkspaceSummary[]
+  initialActiveSlug: string | null
 }) {
   return (
     <ThemeProvider
@@ -25,8 +31,12 @@ export function Providers({
     >
       <ThemeVariantProvider>
         <StatusColorsProvider initialColors={initialStatusColors}>
-          {children}
-          <CommandPalette />
+          <WorkspaceProvider
+            initialWorkspaces={initialWorkspaces}
+            initialActiveSlug={initialActiveSlug}
+          >
+            {children}
+            <CommandPalette />
           <KeyboardHelp />
           <OnboardingHint />
           <Toaster
@@ -48,6 +58,7 @@ export function Providers({
               },
             }}
           />
+          </WorkspaceProvider>
         </StatusColorsProvider>
       </ThemeVariantProvider>
     </ThemeProvider>
