@@ -43,3 +43,9 @@ supabase/.branches/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# claude code (local, per-user)
+.claude/settings.local.json
+
+# script caches (downloaded geojson, etc.)
+scripts/.cache/
