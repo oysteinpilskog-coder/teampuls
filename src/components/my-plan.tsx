@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { addDays, getISOWeek, getISOWeekYear } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { toast } from 'sonner'
+import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import { MemberAvatar } from '@/components/member-avatar'
 import { CellEditor } from '@/components/cell-editor'
@@ -19,6 +21,7 @@ import {
 import type { Entry, EntryStatus } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { no } from '@/lib/i18n/no'
+import { useStatusColors } from '@/lib/status-colors/context'
 
 interface MyPlanProps {
   orgId: string
@@ -114,6 +117,24 @@ interface DragPoint {
   d: number
 }
 
+interface MoveDrag {
+  wk: number
+  segmentStart: number   // first day-idx of the source segment within the week
+  segmentSpan: number    // number of days in the source segment
+  grabOffset: number     // which day within the segment was grabbed (0..span-1)
+  currentDayIdx: number  // where the cursor is now (0..4)
+  entry: Entry           // source entry (status + location + note to carry over)
+}
+
+interface ResizeDrag {
+  wk: number
+  edge: 'left' | 'right'
+  origStart: number      // segment's original first day-idx
+  origSpan: number       // segment's original span
+  currentDayIdx: number  // where the cursor is now
+  entry: Entry
+}
+
 export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) {
   const currentYear = useMemo(() => getISOWeekYear(new Date()), [])
   const [year, setYear] = useState(currentYear)
@@ -130,6 +151,13 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
   const [dragStart, setDragStart] = useState<DragPoint | null>(null)
   const [dragCurrent, setDragCurrent] = useState<DragPoint | null>(null)
   const isDragging = dragStart !== null
+
+  const [moveDrag, setMoveDrag] = useState<MoveDrag | null>(null)
+  const [resizeDrag, setResizeDrag] = useState<ResizeDrag | null>(null)
+
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === 'dark'
+  const palettes = useStatusColors()
 
   const currentWeekRef = useRef<HTMLDivElement | null>(null)
   const didScrollToCurrentWeek = useRef(false)
@@ -197,11 +225,159 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
     return map
   }, [entries])
 
-  // Commit drag on global mouseup. Single-day drag (no movement) opens single-day editor;
-  // multi-day drag opens with a pre-selected range.
+  // Clamp helpers for in-progress drags.
+  function moveTargetStart(m: MoveDrag): number {
+    const wkDays = weeks[m.wk].days.length
+    const desired = m.currentDayIdx - m.grabOffset
+    const maxStart = Math.max(0, wkDays - m.segmentSpan)
+    return Math.max(0, Math.min(maxStart, desired))
+  }
+
+  function resizeTargetRange(r: ResizeDrag): { start: number; end: number } {
+    const wkDays = weeks[r.wk].days.length
+    const anchorStart = r.origStart
+    const anchorEnd = r.origStart + r.origSpan - 1
+    if (r.edge === 'right') {
+      const newEnd = Math.max(anchorStart, Math.min(wkDays - 1, r.currentDayIdx))
+      return { start: anchorStart, end: newEnd }
+    }
+    const newStart = Math.max(0, Math.min(anchorEnd, r.currentDayIdx))
+    return { start: newStart, end: anchorEnd }
+  }
+
+  function ghostRangeFor(wkIdx: number): { start: number; span: number; entry: Entry } | null {
+    if (resizeDrag && resizeDrag.wk === wkIdx) {
+      const { start, end } = resizeTargetRange(resizeDrag)
+      return { start, span: end - start + 1, entry: resizeDrag.entry }
+    }
+    if (moveDrag && moveDrag.wk === wkIdx) {
+      return { start: moveTargetStart(moveDrag), span: moveDrag.segmentSpan, entry: moveDrag.entry }
+    }
+    return null
+  }
+
+  function sourceSegmentFor(wkIdx: number): { start: number; span: number } | null {
+    if (resizeDrag && resizeDrag.wk === wkIdx) {
+      return { start: resizeDrag.origStart, span: resizeDrag.origSpan }
+    }
+    if (moveDrag && moveDrag.wk === wkIdx) {
+      return { start: moveDrag.segmentStart, span: moveDrag.segmentSpan }
+    }
+    return null
+  }
+
+  // Commit drag on global mouseup. Handles: resize, move, tap-on-bar, select-drag (empty cells).
   useEffect(() => {
-    if (!isDragging) return
-    function onUp() {
+    if (!isDragging && !moveDrag && !resizeDrag) return
+    async function onUp() {
+      if (resizeDrag) {
+        const rz = resizeDrag
+        setResizeDrag(null)
+        const wkDays = weeks[rz.wk].days
+        const { start: newStart, end: newEnd } = resizeTargetRange(rz)
+        const origStart = rz.origStart
+        const origEnd = rz.origStart + rz.origSpan - 1
+        const noChange = newStart === origStart && newEnd === origEnd
+        if (noChange) {
+          const startDate = wkDays[origStart]
+          const endDate = wkDays[origEnd]
+          setSelectedCell({
+            date: toDateString(startDate),
+            endDate: toDateString(endDate),
+            dateLabel: formatDateLabelLong(startDate),
+            status: rz.entry.status,
+            location: rz.entry.location_label,
+            note: rz.entry.note,
+          })
+          return
+        }
+        const supabase = createClient()
+        const newDates = wkDays.slice(newStart, newEnd + 1).map(toDateString)
+        const origDates = wkDays.slice(origStart, origEnd + 1).map(toDateString)
+        const rows = newDates.map((d) => ({
+          org_id: orgId,
+          member_id: memberId,
+          date: d,
+          status: rz.entry.status,
+          location_label: rz.entry.location_label,
+          note: rz.entry.note,
+          source: 'manual' as const,
+        }))
+        const { error: upErr } = await supabase
+          .from('entries')
+          .upsert(rows, { onConflict: 'org_id,member_id,date' })
+        if (upErr) {
+          toast.error('Kunne ikke endre datoområdet')
+          return
+        }
+        const toDelete = origDates.filter((d) => !newDates.includes(d))
+        if (toDelete.length > 0) {
+          await supabase
+            .from('entries')
+            .delete()
+            .eq('org_id', orgId)
+            .eq('member_id', memberId)
+            .in('date', toDelete)
+        }
+        await loadEntries()
+        return
+      }
+
+      if (moveDrag) {
+        const mv = moveDrag
+        setMoveDrag(null)
+        const wkDays = weeks[mv.wk].days
+        const targetStart = moveTargetStart(mv)
+        const noMove = targetStart === mv.segmentStart
+        if (noMove) {
+          const startDate = wkDays[mv.segmentStart]
+          const endDate = wkDays[mv.segmentStart + mv.segmentSpan - 1]
+          setSelectedCell({
+            date: toDateString(startDate),
+            endDate: toDateString(endDate),
+            dateLabel: formatDateLabelLong(startDate),
+            status: mv.entry.status,
+            location: mv.entry.location_label,
+            note: mv.entry.note,
+          })
+          return
+        }
+        const supabase = createClient()
+        const srcDates = wkDays
+          .slice(mv.segmentStart, mv.segmentStart + mv.segmentSpan)
+          .map(toDateString)
+        const dstDates = wkDays
+          .slice(targetStart, targetStart + mv.segmentSpan)
+          .map(toDateString)
+        const rows = dstDates.map((d) => ({
+          org_id: orgId,
+          member_id: memberId,
+          date: d,
+          status: mv.entry.status,
+          location_label: mv.entry.location_label,
+          note: mv.entry.note,
+          source: 'manual' as const,
+        }))
+        const { error: upErr } = await supabase
+          .from('entries')
+          .upsert(rows, { onConflict: 'org_id,member_id,date' })
+        if (upErr) {
+          toast.error('Kunne ikke flytte oppføringen')
+          return
+        }
+        const toDelete = srcDates.filter((d) => !dstDates.includes(d))
+        if (toDelete.length > 0) {
+          await supabase
+            .from('entries')
+            .delete()
+            .eq('org_id', orgId)
+            .eq('member_id', memberId)
+            .in('date', toDelete)
+        }
+        await loadEntries()
+        return
+      }
+
       if (dragStart && dragCurrent && dragStart.wk === dragCurrent.wk) {
         const wk = weeks[dragStart.wk]
         const lo = Math.min(dragStart.d, dragCurrent.d)
@@ -225,17 +401,70 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
     }
     window.addEventListener('mouseup', onUp)
     return () => window.removeEventListener('mouseup', onUp)
-  }, [isDragging, dragStart, dragCurrent, weeks, entryByDate])
+  }, [isDragging, moveDrag, resizeDrag, dragStart, dragCurrent, weeks, entryByDate, orgId, memberId, loadEntries])
 
   function handleDayMouseDown(wk: number, d: number) {
+    // If this cell has an entry, start a move-drag for the whole segment.
+    // Otherwise start a select-drag for creating a new range.
+    const dateStr = toDateString(weeks[wk].days[d])
+    const entry = entryByDate.get(dateStr)
+    if (entry) {
+      const segments = buildWeekSegments(weeks[wk].days, entryByDate)
+      let cursor = 0
+      for (const seg of segments) {
+        const n = seg.days.length
+        if (d >= cursor && d < cursor + n && seg.entry) {
+          setMoveDrag({
+            wk,
+            segmentStart: cursor,
+            segmentSpan: n,
+            grabOffset: d - cursor,
+            currentDayIdx: d,
+            entry: seg.entry,
+          })
+          return
+        }
+        cursor += n
+      }
+      return
+    }
     setDragStart({ wk, d })
     setDragCurrent({ wk, d })
   }
 
   function handleDayMouseEnter(wk: number, d: number) {
+    if (resizeDrag) {
+      if (resizeDrag.wk !== wk) return
+      if (resizeDrag.currentDayIdx === d) return
+      setResizeDrag({ ...resizeDrag, currentDayIdx: d })
+      return
+    }
+    if (moveDrag) {
+      if (moveDrag.wk !== wk) return
+      if (moveDrag.currentDayIdx === d) return
+      setMoveDrag({ ...moveDrag, currentDayIdx: d })
+      return
+    }
     if (!isDragging || !dragStart) return
     if (dragStart.wk !== wk) return
     setDragCurrent({ wk, d })
+  }
+
+  function handleSegmentResizeStart(
+    wk: number,
+    segStart: number,
+    segSpan: number,
+    edge: 'left' | 'right',
+    entry: Entry
+  ) {
+    setResizeDrag({
+      wk,
+      edge,
+      origStart: segStart,
+      origSpan: segSpan,
+      currentDayIdx: edge === 'left' ? segStart : segStart + segSpan - 1,
+      entry,
+    })
   }
 
   function dayHighlightsForWeek(wkIdx: number, daysInWeek: number): boolean[] {
@@ -245,6 +474,13 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
     const hi = Math.max(dragStart.d, dragCurrent.d)
     return Array.from({ length: daysInWeek }, (_, i) => i >= lo && i <= hi)
   }
+
+  // Refetch on explicit broadcast — AIInput emits this after a successful parse.
+  useEffect(() => {
+    const handler = () => loadEntries()
+    window.addEventListener('teampulse:entries-changed', handler)
+    return () => window.removeEventListener('teampulse:entries-changed', handler)
+  }, [loadEntries])
 
   function goPrevYear() {
     setDirY('prev')
@@ -461,34 +697,95 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
                   </div>
 
                   {/* Segments — multi-day blocks like oversikt/Outlook */}
-                  {segments.map((seg, segIdx) => (
-                    <StatusSegment
-                      key={`${wkIdx}-${segIdx}-${seg.days[0].date}`}
-                      status={seg.entry?.status ?? null}
-                      location={seg.entry?.location_label ?? null}
-                      note={seg.entry?.note ?? null}
-                      days={seg.days}
-                      onSelectDay={() => {
-                        /* replaced by drag mousedown/mouseup flow */
-                      }}
-                      onDayMouseDown={(dayIdx) => {
-                        // `dayIdx` is within the segment; translate to week-day index.
-                        const absoluteIdx =
-                          wk.days.findIndex(
-                            (d) => toDateString(d) === seg.days[dayIdx].date
-                          )
-                        if (absoluteIdx >= 0) handleDayMouseDown(wkIdx, absoluteIdx)
-                      }}
-                      onDayMouseEnter={(dayIdx) => {
-                        const absoluteIdx =
-                          wk.days.findIndex(
-                            (d) => toDateString(d) === seg.days[dayIdx].date
-                          )
-                        if (absoluteIdx >= 0) handleDayMouseEnter(wkIdx, absoluteIdx)
-                      }}
-                      dayHighlight={segmentHighlights[segIdx]}
-                    />
-                  ))}
+                  {(() => {
+                    let cursor2 = 0
+                    const segmentStarts: number[] = segments.map((seg) => {
+                      const start = cursor2
+                      cursor2 += seg.days.length
+                      return start
+                    })
+                    const src = sourceSegmentFor(wkIdx)
+                    return segments.map((seg, segIdx) => {
+                      const isDragSource =
+                        src !== null &&
+                        segmentStarts[segIdx] === src.start &&
+                        seg.days.length === src.span
+                      return (
+                        <StatusSegment
+                          key={`${wkIdx}-${segIdx}-${seg.days[0].date}`}
+                          status={seg.entry?.status ?? null}
+                          location={seg.entry?.location_label ?? null}
+                          note={seg.entry?.note ?? null}
+                          days={seg.days}
+                          onSelectDay={() => {
+                            /* replaced by drag mousedown/mouseup flow */
+                          }}
+                          onDayMouseDown={(dayIdx) => {
+                            const absoluteIdx = wk.days.findIndex(
+                              (d) => toDateString(d) === seg.days[dayIdx].date
+                            )
+                            if (absoluteIdx >= 0) handleDayMouseDown(wkIdx, absoluteIdx)
+                          }}
+                          onDayMouseEnter={(dayIdx) => {
+                            const absoluteIdx = wk.days.findIndex(
+                              (d) => toDateString(d) === seg.days[dayIdx].date
+                            )
+                            if (absoluteIdx >= 0) handleDayMouseEnter(wkIdx, absoluteIdx)
+                          }}
+                          dayHighlight={segmentHighlights[segIdx]}
+                          muted={isDragSource}
+                          onSegmentResizeStart={
+                            seg.entry
+                              ? (edge) =>
+                                  handleSegmentResizeStart(
+                                    wkIdx,
+                                    segmentStarts[segIdx],
+                                    seg.days.length,
+                                    edge,
+                                    seg.entry!
+                                  )
+                              : undefined
+                          }
+                        />
+                      )
+                    })
+                  })()}
+
+                  {/* Drag ghost — shown for move OR resize while the user drags a bar in this week */}
+                  {(() => {
+                    const ghost = ghostRangeFor(wkIdx)
+                    if (!ghost) return null
+                    const { start: targetStart, span, entry } = ghost
+                    const palette = palettes[entry.status]
+                    const [g0, g1] = isDark ? palette.gradient.dark : palette.gradient.light
+                    // Row: px-4 (16) + 128 name col + 8 gap + 5 * 1fr with 8 gaps + px-4 (16).
+                    // Day 0 starts at 16 + 128 + 8 = 152px. Per-day = (100% - 200px) / 5.
+                    const leftCalc = `calc(152px + ${targetStart} * ((100% - 200px) / 5 + 8px))`
+                    const widthCalc = `calc(${span} * ((100% - 200px) / 5) + ${(span - 1) * 8}px)`
+                    return (
+                      <div
+                        aria-hidden
+                        style={{
+                          position: 'absolute',
+                          top: 12,
+                          height: 36,
+                          left: leftCalc,
+                          width: widthCalc,
+                          borderRadius: 9,
+                          backgroundImage: `linear-gradient(180deg, ${g0} 0%, ${g1} 100%)`,
+                          backgroundColor: g1,
+                          boxShadow: isDark
+                            ? '0 0 0 1.5px rgba(255,255,255,0.65), 0 10px 24px -6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.18)'
+                            : '0 0 0 1.5px rgba(255,255,255,0.9), 0 10px 24px -6px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.35)',
+                          opacity: 0.92,
+                          pointerEvents: 'none',
+                          zIndex: 25,
+                          transition:
+                            'left 120ms cubic-bezier(0.2, 0.8, 0.2, 1), width 120ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+                        }}
+                      />
+                    )
+                  })()}
                 </div>
               </motion.div>
             )
