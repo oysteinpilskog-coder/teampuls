@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { TeamGrid } from '@/components/team-grid'
 import { AIInput } from '@/components/ai-input'
 import { EmptyState } from '@/components/empty-state'
+import { PresenceHeatmap } from '@/components/presence-heatmap'
 import { getSessionMember } from '@/lib/supabase/session'
 
 export default async function HomePage() {
@@ -46,6 +47,7 @@ export default async function HomePage() {
         <AIInput orgId={member.org_id} />
       </div>
       <TeamGrid orgId={member.org_id} />
+      <PresenceHeatmap orgId={member.org_id} />
     </div>
   )
 }
