@@ -38,8 +38,10 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8 space-y-8">
-      <AIInput orgId={member.org_id} />
+    <div className="mx-auto max-w-7xl px-6 py-10 space-y-10">
+      <div className="mx-auto max-w-3xl">
+        <AIInput orgId={member.org_id} />
+      </div>
       <TeamGrid orgId={member.org_id} />
     </div>
   )

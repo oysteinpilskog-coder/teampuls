@@ -538,19 +538,17 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     }>
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-5">
       {/* Week navigation */}
-      <div className="flex items-center justify-between">
-        <WeekNav
-          week={week}
-          year={year}
-          isCurrentWeek={isCurrentWeek}
-          onPrev={goToPrev}
-          onNext={goToNext}
-          onToday={goToToday}
-          onJumpTo={jumpTo}
-        />
-      </div>
+      <WeekNav
+        week={week}
+        year={year}
+        isCurrentWeek={isCurrentWeek}
+        onPrev={goToPrev}
+        onNext={goToNext}
+        onToday={goToToday}
+        onJumpTo={jumpTo}
+      />
 
       {/* Matrix */}
       <div
@@ -607,10 +605,10 @@ export function TeamGrid({ orgId }: TeamGridProps) {
             return (
               <div
                 key={date.toISOString()}
-                className="text-center relative"
+                className="text-center relative flex flex-col items-center gap-1"
               >
                 <div
-                  className="text-[10px] font-bold uppercase tracking-[0.18em]"
+                  className="text-[10px] font-bold uppercase tracking-[0.2em]"
                   style={{
                     color: today ? 'var(--accent-color)' : 'var(--text-tertiary)',
                     fontFamily: 'var(--font-body)',
@@ -619,23 +617,32 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                   {weekday}
                 </div>
                 <div
-                  className="tabular-nums leading-none mt-1"
+                  className="flex items-center justify-center tabular-nums leading-none"
                   style={{
                     fontFamily: 'var(--font-sora)',
-                    fontSize: today ? '28px' : '22px',
-                    fontWeight: today ? 700 : 600,
+                    fontSize: '22px',
+                    fontWeight: 600,
                     letterSpacing: '-0.035em',
-                    color: today ? 'var(--accent-color)' : 'var(--text-secondary)',
+                    color: today ? '#ffffff' : 'var(--text-secondary)',
+                    width: 36,
+                    height: 36,
+                    borderRadius: 9999,
+                    background: today
+                      ? 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 70%, black))'
+                      : 'transparent',
+                    boxShadow: today
+                      ? '0 6px 14px -4px color-mix(in oklab, var(--accent-color) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.28)'
+                      : 'none',
                   }}
                 >
                   {day}
                 </div>
                 <div
-                  className="text-[11px] font-medium mt-0.5"
+                  className="text-[10px] font-medium mt-0.5"
                   style={{
-                    color: today ? 'color-mix(in oklab, var(--accent-color) 80%, var(--text-tertiary))' : 'var(--text-tertiary)',
+                    color: 'var(--text-tertiary)',
                     fontFamily: 'var(--font-body)',
-                    letterSpacing: '0.02em',
+                    letterSpacing: '0.04em',
                   }}
                 >
                   {month}
