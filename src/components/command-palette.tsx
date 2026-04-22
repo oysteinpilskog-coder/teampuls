@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { spring } from '@/lib/motion'
 import { no } from '@/lib/i18n/no'
 import { useHotkeys } from '@/hooks/use-hotkeys'
+import { useWorkspace } from '@/lib/workspace/context'
 import {
   ArrowRight,
   Calendar,
@@ -21,9 +22,10 @@ import {
   CircleUser,
   Monitor,
   Sparkles,
+  Building2,
 } from 'lucide-react'
 
-type CommandGroup = 'nav' | 'actions' | 'theme'
+type CommandGroup = 'nav' | 'actions' | 'theme' | 'workspace'
 
 interface Command {
   id: string
@@ -101,7 +103,14 @@ export function CommandPalette() {
     }
   }, [open])
 
-  const commands = useCommands({ router, resolvedTheme, setTheme, close: () => setOpen(false) })
+  const workspace = useWorkspace()
+  const commands = useCommands({
+    router,
+    resolvedTheme,
+    setTheme,
+    close: () => setOpen(false),
+    workspace,
+  })
 
   const filtered = useMemo(() => filterCommands(commands, query), [commands, query])
 
@@ -391,11 +400,13 @@ function useCommands({
   resolvedTheme,
   setTheme,
   close,
+  workspace,
 }: {
   router: ReturnType<typeof useRouter>
   resolvedTheme: string | undefined
   setTheme: (t: string) => void
   close: () => void
+  workspace: ReturnType<typeof useWorkspace>
 }): Command[] {
   return useMemo<Command[]>(() => {
     const nav = (href: string) => () => {
@@ -403,6 +414,20 @@ function useCommands({
     }
 
     const isDark = resolvedTheme === 'dark'
+
+    const workspaceCommands: Command[] = workspace.workspaces
+      .filter((w) => w.slug !== workspace.active?.slug)
+      .map((w, i) => ({
+        id: `workspace-${w.slug}`,
+        label: `${no.workspace.switchTo} ${w.name}`,
+        group: 'workspace' as CommandGroup,
+        icon: <Building2 className="w-4 h-4" />,
+        shortcut: i < 9 ? [`⌘${workspace.workspaces.findIndex((x) => x.slug === w.slug) + 1}`] : undefined,
+        keywords: `workspace arbeidsomrade bytt switch ${w.name} ${w.slug} ${w.region}`,
+        run: () => {
+          void workspace.switchTo(w.slug)
+        },
+      }))
 
     return [
       // NAVIGATION
@@ -512,9 +537,11 @@ function useCommands({
         keywords: 'system auto',
         run: () => setTheme('system'),
       },
+
+      ...workspaceCommands,
     ]
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, resolvedTheme])
+  }, [router, resolvedTheme, workspace.active?.slug, workspace.workspaces])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -540,11 +567,12 @@ function filterCommands(commands: Command[], query: string): Command[] {
 }
 
 function groupByHeading(cmds: Command[]): Array<{ group: CommandGroup; label: string; items: Command[] }> {
-  const order: CommandGroup[] = ['nav', 'actions', 'theme']
+  const order: CommandGroup[] = ['workspace', 'nav', 'actions', 'theme']
   const labels: Record<CommandGroup, string> = {
     nav: no.palette.group.nav,
     actions: no.palette.group.actions,
     theme: no.palette.group.theme,
+    workspace: no.palette.group.workspace,
   }
   return order
     .map((group) => ({ group, label: labels[group], items: cmds.filter((c) => c.group === group) }))
