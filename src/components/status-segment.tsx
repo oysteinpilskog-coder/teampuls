@@ -26,6 +26,10 @@ interface StatusSegmentProps {
   dayHighlight?: boolean[]
   /** Dim the bar — used while the segment is being move-dragged elsewhere. */
   muted?: boolean
+  /** When true, the bar is inferred from the org/member default rather than a
+   *  real entry. Rendered at 40% opacity with a dashed rim so the viewer can
+   *  still tell registered data from an assumption. */
+  assumed?: boolean
   /** Fired on mousedown inside a left/right resize handle. When set, the bar exposes
    * 8-px hit zones on each edge that take priority over the per-day buttons. */
   onSegmentResizeStart?: (edge: 'left' | 'right') => void
@@ -44,6 +48,7 @@ export function StatusSegment({
   onDayMouseEnter,
   dayHighlight,
   muted,
+  assumed,
   onSegmentResizeStart,
 }: StatusSegmentProps) {
   const palettes = useStatusColors()
@@ -60,6 +65,10 @@ export function StatusSegment({
   const tint = palette?.textDark ?? '#fff' // lighter pastel — used for text/icon
   const glow = palette?.glow ?? tone
 
+  // Assumed bars: diminished fill + a dashed rim, so the viewer can tell
+  // "inferred" from "registered" at a glance without a second label.
+  const fillOpacity = assumed ? 0.4 : 1
+
   return (
     <motion.div
       className="relative h-[32px] rounded-[8px] overflow-hidden"
@@ -68,14 +77,18 @@ export function StatusSegment({
         // Cron-style glass tile: translucent category wash over the surface,
         // NOT a solid painted fill. Tone comes from the rim + soft glow.
         background: status
-          ? `linear-gradient(180deg, ${tone}22 0%, ${tone}14 100%)`
+          ? assumed
+            ? `linear-gradient(180deg, ${tone}11 0%, ${tone}08 100%)`
+            : `linear-gradient(180deg, ${tone}22 0%, ${tone}14 100%)`
           : 'transparent',
-        boxShadow: status
+        boxShadow: status && !assumed
           ? `inset 3px 0 0 ${tone},
              inset 0 0 0 1px ${tone}30,
              0 0 14px -4px ${glow}66`
           : undefined,
-        opacity: muted ? 0.28 : 1,
+        // Dashed 1.5px rim for assumed — no inner solid rim, no outer glow.
+        border: status && assumed ? `1.5px dashed ${tone}66` : undefined,
+        opacity: muted ? 0.28 : fillOpacity,
         cursor: status && onDayMouseDown ? 'grab' : undefined,
       }}
       whileHover={muted ? undefined : { y: -1 }}
