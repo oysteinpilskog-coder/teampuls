@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
-import type { Member } from '@/lib/supabase/types'
+import type { Member, Office } from '@/lib/supabase/types'
 import {
   getWeekDays,
   getLastISOWeek,
@@ -18,6 +18,7 @@ import { useStatusColors } from '@/lib/status-colors/context'
 import { toast } from 'sonner'
 import { useTheme } from 'next-themes'
 import { MemberAvatar } from '@/components/member-avatar'
+import { MemberHoverCard } from '@/components/member-hover-card'
 import { TodayPulse } from '@/components/today-pulse'
 import { CellEditor } from '@/components/cell-editor'
 import { spring } from '@/lib/motion'
@@ -171,6 +172,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   const [slideDir, setSlideDir] = useState<'next' | 'prev'>('next')
 
   const [members, setMembers] = useState<Member[]>([])
+  const [offices, setOffices] = useState<Office[]>([])
   const [membersLoading, setMembersLoading] = useState(true)
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null)
 
@@ -211,19 +213,36 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   const fetchMembers = useCallback(async () => {
     setMembersLoading(true)
     const supabase = createClient()
-    const { data } = await supabase
-      .from('members')
-      .select('*')
-      .eq('org_id', orgId)
-      .eq('is_active', true)
-      .order('display_name')
-    setMembers(data ?? [])
+    // Fetch members and offices in parallel — the hover card needs the home
+    // office's name + timezone to show each member's local time.
+    const [{ data: ms }, { data: os }] = await Promise.all([
+      supabase
+        .from('members')
+        .select('*')
+        .eq('org_id', orgId)
+        .eq('is_active', true)
+        .order('display_name'),
+      supabase
+        .from('offices')
+        .select('*')
+        .eq('org_id', orgId)
+        .order('sort_order'),
+    ])
+    setMembers(ms ?? [])
+    setOffices(os ?? [])
     setMembersLoading(false)
   }, [orgId])
 
   useEffect(() => {
     fetchMembers()
   }, [fetchMembers])
+
+  // Office lookup by id — cheap and stable across renders.
+  const officeById = useMemo(() => {
+    const map = new Map<string, Office>()
+    offices.forEach((o) => map.set(o.id, o))
+    return map
+  }, [offices])
 
   // Compute clamped target start for an in-progress move drag.
   function moveTargetStart(m: MoveDrag): number {
@@ -707,31 +726,53 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ ...spring.gentle, delay: rowIdx * 0.04 }}
                   >
-                    {/* Avatar + name — horizontal, matches bar height */}
-                    <div className="flex items-center gap-2 px-1 h-[36px]">
-                      <MemberAvatar
-                        name={member.display_name}
-                        initials={member.initials}
-                        avatarUrl={member.avatar_url}
-                        size="sm"
-                      />
-                      <span
-                        className="text-[13px] font-semibold truncate leading-tight"
-                        style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}
-                        title={member.full_name ?? member.display_name}
-                      >
-                        {member.display_name.split(' ')[0]}
-                      </span>
-                      {member.initials && (
-                        <span
-                          className="text-[9px] font-semibold uppercase tracking-wider font-mono shrink-0"
-                          style={{ color: 'var(--text-tertiary)', letterSpacing: '0.08em' }}
-                          title={`Initialer: ${member.initials}`}
+                    {/* Avatar + name — horizontal, matches bar height.
+                        Hover reveals a card with the member's office + local time + today's status. */}
+                    {(() => {
+                      const office = member.home_office_id
+                        ? officeById.get(member.home_office_id)
+                        : undefined
+                      const todayStr = toDateString(new Date())
+                      const todayEntry = entries.find((e) => e.member_id === member.id && e.date === todayStr)
+                      return (
+                        <MemberHoverCard
+                          memberId={member.id}
+                          displayName={member.display_name}
+                          fullName={member.full_name}
+                          avatarUrl={member.avatar_url}
+                          initials={member.initials}
+                          officeName={office?.name ?? null}
+                          officeCity={office?.city ?? null}
+                          timezone={office?.timezone ?? null}
+                          todayStatus={todayEntry?.status ?? null}
+                          todayLocation={todayEntry?.location_label ?? null}
+                          todayNote={todayEntry?.note ?? null}
                         >
-                          {member.initials}
-                        </span>
-                      )}
-                    </div>
+                          <div className="flex items-center gap-2 px-1 h-[36px]">
+                            <MemberAvatar
+                              name={member.display_name}
+                              initials={member.initials}
+                              avatarUrl={member.avatar_url}
+                              size="sm"
+                            />
+                            <span
+                              className="text-[13px] font-semibold truncate leading-tight"
+                              style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}
+                            >
+                              {member.display_name.split(' ')[0]}
+                            </span>
+                            {member.initials && (
+                              <span
+                                className="text-[9px] font-semibold uppercase tracking-wider font-mono shrink-0"
+                                style={{ color: 'var(--text-tertiary)', letterSpacing: '0.08em' }}
+                              >
+                                {member.initials}
+                              </span>
+                            )}
+                          </div>
+                        </MemberHoverCard>
+                      )
+                    })()}
 
                     {/* Day cells — merged into segments when consecutive days share status + location + note */}
                     {(() => {

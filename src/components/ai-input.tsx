@@ -1,13 +1,28 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 import { no } from '@/lib/i18n/no'
 import { spring } from '@/lib/motion'
 
 const PLACEHOLDERS = no.aiInput.placeholder
 const ROTATE_INTERVAL = 3500
+
+// Inline ghost-completions: short patterns the AI is likely to accept.
+// Key is the user-typed token (lowercased), value is the rest of a canonical phrase.
+const PHRASE_COMPLETIONS: Array<{ match: string; rest: string }> = [
+  { match: 'syk',           rest: ' i dag' },
+  { match: 'ferie',         rest: ' uke ' },
+  { match: 'hjemme',        rest: 'kontor i dag' },
+  { match: 'hjemmekontor',  rest: ' i dag' },
+  { match: 'kontor',        rest: 'et i morgen' },
+  { match: 'kontoret',      rest: ' i morgen' },
+  { match: 'reise',         rest: ' uke ' },
+  { match: 'kunde',         rest: ' uke ' },
+  { match: 'fri',           rest: ' i dag' },
+]
 
 interface AIInputProps {
   orgId: string
@@ -15,15 +30,37 @@ interface AIInputProps {
 
 type InputState = 'idle' | 'loading' | 'success' | 'error'
 
-export function AIInput({ orgId: _orgId }: AIInputProps) {
+export function AIInput({ orgId }: AIInputProps) {
   const [value, setValue] = useState('')
   const [state, setState] = useState<InputState>('idle')
   const [focused, setFocused] = useState(false)
   const [placeholderIdx, setPlaceholderIdx] = useState(0)
   const [placeholderVisible, setPlaceholderVisible] = useState(true)
   const [clarification, setClarification] = useState<string | null>(null)
+  const [memberNames, setMemberNames] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const rotateRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Fetch just the display names for ghost-completion. Cheap and cached by
+  // Supabase; we only need the string list so the payload is tiny.
+  useEffect(() => {
+    let cancelled = false
+    const supabase = createClient()
+    supabase
+      .from('members')
+      .select('display_name')
+      .eq('org_id', orgId)
+      .eq('is_active', true)
+      .then(({ data }) => {
+        if (cancelled) return
+        setMemberNames((data ?? []).map((m: { display_name: string }) => m.display_name))
+      })
+    return () => { cancelled = true }
+  }, [orgId])
+
+  // Compute an inline ghost completion for the current input value.
+  // Completes against member names first (most valuable), then canonical phrases.
+  const ghost = useMemo(() => computeGhost(value, memberNames), [value, memberNames])
 
   // Rotate placeholder when idle and not focused
   useEffect(() => {
@@ -102,6 +139,12 @@ export function AIInput({ orgId: _orgId }: AIInputProps) {
   }, [value, state])
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    // Tab or Right-arrow at end of value accepts the ghost completion.
+    if (ghost && (e.key === 'Tab' || (e.key === 'ArrowRight' && inputRef.current?.selectionStart === value.length))) {
+      e.preventDefault()
+      setValue(value + ghost)
+      return
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       submit()
@@ -255,6 +298,26 @@ export function AIInput({ orgId: _orgId }: AIInputProps) {
                 {PLACEHOLDERS[placeholderIdx]}
               </motion.span>
             )}
+
+            {/* Ghost completion — renders the current input invisibly so
+                the ghost lines up 1:1 with the live text, then paints the
+                completion in a muted tone directly after. Tab or → accepts. */}
+            {ghost && focused && !isLoading && (
+              <div
+                aria-hidden
+                className="absolute inset-0 flex items-center pointer-events-none select-none"
+                style={{
+                  fontSize: '17px',
+                  fontFamily: 'var(--font-body)',
+                  whiteSpace: 'pre',
+                  overflow: 'hidden',
+                }}
+              >
+                <span style={{ color: 'transparent' }}>{value}</span>
+                <span style={{ color: 'var(--text-tertiary)', opacity: 0.75 }}>{ghost}</span>
+              </div>
+            )}
+
             <input
               ref={inputRef}
               type="text"
@@ -268,7 +331,7 @@ export function AIInput({ orgId: _orgId }: AIInputProps) {
               onBlur={() => setFocused(false)}
               disabled={isLoading}
               placeholder={focused ? no.aiInput.label : ''}
-              className="w-full bg-transparent outline-none disabled:opacity-50"
+              className="relative w-full bg-transparent outline-none disabled:opacity-50"
               style={{
                 fontSize: '17px',
                 color: 'var(--text-primary)',
@@ -279,6 +342,28 @@ export function AIInput({ orgId: _orgId }: AIInputProps) {
               spellCheck={false}
             />
           </div>
+
+          {/* Tab hint — small "Tab" pill shown when a ghost completion is available */}
+          <AnimatePresence>
+            {ghost && focused && !isLoading && !value.endsWith(' ') && (
+              <motion.span
+                key="tab-hint"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.15 }}
+                className="text-[10px] font-semibold uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-1"
+                style={{
+                  color: 'var(--text-tertiary)',
+                  background: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-subtle)',
+                  fontFamily: 'var(--font-body)',
+                }}
+              >
+                ↹ Tab
+              </motion.span>
+            )}
+          </AnimatePresence>
 
           {/* Right side — shortcut hint or send button */}
           <div className="flex-shrink-0">
@@ -362,4 +447,53 @@ export function AIInput({ orgId: _orgId }: AIInputProps) {
       </AnimatePresence>
     </div>
   )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Return the `rest` of a likely completion for the current input value, or ''.
+ *  Matches against member display names first (highest value), then a short
+ *  list of canonical status phrases. Case-insensitive, only completes when the
+ *  user has typed ≥ 2 chars of a final token. */
+function computeGhost(value: string, memberNames: string[]): string {
+  if (!value) return ''
+  // Only offer completions while the user is still typing the final token —
+  // a trailing space means they've "sealed" it and likely want the next word.
+  const trimmed = value.trimStart()
+  if (trimmed !== value) return ''
+  if (value.endsWith(' ')) return ''
+
+  // Find the last whitespace-separated token — that's what we're completing.
+  const tokens = value.split(/\s+/)
+  const last = tokens[tokens.length - 1]
+  if (last.length < 2) return ''
+
+  const prefix = last.toLowerCase()
+
+  // 1. Member names — case-insensitive startsWith on the first name.
+  for (const name of memberNames) {
+    const first = name.split(' ')[0]
+    if (first.toLowerCase().startsWith(prefix) && first.length > last.length) {
+      return first.slice(last.length)
+    }
+    // Also try matching on full display name for users typing "Øystein Pi..."
+    if (name.toLowerCase().startsWith(prefix) && name.length > last.length) {
+      return name.slice(last.length)
+    }
+  }
+
+  // 2. Phrase patterns — whole-token matches (e.g. typing "syk" → " i dag").
+  //    Only activates when the last token fully matches the pattern key.
+  for (const p of PHRASE_COMPLETIONS) {
+    if (prefix === p.match) return p.rest
+  }
+
+  // 3. Prefix-of-pattern — typed "sy" → "k i dag". Gives immediate feedback.
+  for (const p of PHRASE_COMPLETIONS) {
+    if (p.match.startsWith(prefix) && p.match.length > prefix.length) {
+      return p.match.slice(prefix.length) + p.rest
+    }
+  }
+
+  return ''
 }
