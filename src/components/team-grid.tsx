@@ -836,6 +836,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
         initialLocation={selectedCell?.location ?? null}
         initialNote={selectedCell?.note ?? null}
         initialRangeEnd={selectedCell?.endDate ?? null}
+        onMutated={refetch}
       />
     </div>
   )

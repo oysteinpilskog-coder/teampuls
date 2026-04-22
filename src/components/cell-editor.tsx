@@ -29,6 +29,9 @@ interface CellEditorProps {
   initialNote: string | null
   /** Optional — when set, opens with a pre-selected multi-day range [date … initialRangeEnd]. */
   initialRangeEnd?: string | null
+  /** Optional — invoked after a successful save or delete so the host can refetch local state
+   *  without waiting for Supabase Realtime (which can lag for self-initiated mutations). */
+  onMutated?: () => void | Promise<void>
 }
 
 export function CellEditor({
@@ -43,6 +46,7 @@ export function CellEditor({
   initialLocation,
   initialNote,
   initialRangeEnd,
+  onMutated,
 }: CellEditorProps) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -134,6 +138,7 @@ export function CellEditor({
     } else {
       const suffix = dates.length > 1 ? ` · ${dates.length} dager` : ''
       toast.success(`${no.aiInput.success} — ${memberName}${suffix}`)
+      await onMutated?.()
       onClose()
     }
   }
@@ -199,6 +204,7 @@ export function CellEditor({
     if (error) {
       toast.error(no.aiInput.error)
     } else {
+      await onMutated?.()
       onClose()
     }
   }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { addDays, getISOWeek, getISOWeekYear } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -145,25 +145,30 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
     })
   }, [year, currentYear, weeks])
 
-  useEffect(() => {
+  // Hoisted so CellEditor can trigger a refetch after save/delete without
+  // waiting for Supabase Realtime (which can lag for self-initiated mutations).
+  const loadEntries = useCallback(async () => {
     const supabase = createClient()
-    let active = true
-    async function load() {
-      setLoading(true)
-      const { data } = await supabase
-        .from('entries')
-        .select('*')
-        .eq('org_id', orgId)
-        .eq('member_id', memberId)
-        .gte('date', rangeStart)
-        .lte('date', rangeEnd)
-        .order('date')
-      if (!active) return
-      setEntries(data ?? [])
-      setLoading(false)
-    }
-    load()
+    const { data } = await supabase
+      .from('entries')
+      .select('*')
+      .eq('org_id', orgId)
+      .eq('member_id', memberId)
+      .gte('date', rangeStart)
+      .lte('date', rangeEnd)
+      .order('date')
+    setEntries(data ?? [])
+    setLoading(false)
+  }, [orgId, memberId, rangeStart, rangeEnd])
 
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    loadEntries().then(() => {
+      if (!active) return
+    })
+
+    const supabase = createClient()
     const channel = supabase
       .channel(`my-plan:${memberId}:${year}`)
       .on(
@@ -174,7 +179,9 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
           table: 'entries',
           filter: `member_id=eq.${memberId}`,
         },
-        () => load()
+        () => {
+          if (active) loadEntries()
+        }
       )
       .subscribe()
 
@@ -182,7 +189,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
       active = false
       supabase.removeChannel(channel)
     }
-  }, [orgId, memberId, rangeStart, rangeEnd, year])
+  }, [loadEntries, memberId, year])
 
   const entryByDate = useMemo(() => {
     const map = new Map<string, Entry>()
@@ -502,6 +509,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
         initialLocation={selectedCell?.location ?? null}
         initialNote={selectedCell?.note ?? null}
         initialRangeEnd={selectedCell?.endDate ?? null}
+        onMutated={loadEntries}
       />
     </div>
   )
