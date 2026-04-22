@@ -18,12 +18,24 @@ export interface GeocodeInput {
 }
 
 export async function geocode(input: GeocodeInput): Promise<GeocodeHit | null> {
-  const res = await fetch('/api/geocode', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  })
-  if (res.status === 404) return null
-  if (!res.ok) throw new Error(`Geocoding failed (${res.status})`)
-  return res.json() as Promise<GeocodeHit>
+  let res: Response
+  try {
+    res = await fetch('/api/geocode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+  } catch {
+    return null
+  }
+  if (!res.ok) return null
+  // Only attempt to parse when the server actually returned JSON. Auth
+  // redirects or middleware can serve HTML, which would throw.
+  const contentType = res.headers.get('content-type') ?? ''
+  if (!contentType.includes('application/json')) return null
+  try {
+    return await res.json() as GeocodeHit
+  } catch {
+    return null
+  }
 }
