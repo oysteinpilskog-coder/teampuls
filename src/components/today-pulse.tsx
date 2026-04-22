@@ -22,24 +22,17 @@ interface TodayPulseProps {
   entries: MemberWithEntry[]
 }
 
-const GROUPS: Array<{
-  key: string
-  label: string
-  statuses: EntryStatus[]
-}> = [
-  { key: 'office',   label: no.pulse.atOffice,   statuses: ['office'] },
-  { key: 'remote',   label: no.pulse.atHome,      statuses: ['remote'] },
-  { key: 'customer', label: no.pulse.atCustomer,  statuses: ['customer', 'travel'] },
-  { key: 'away',     label: no.pulse.away,        statuses: ['vacation', 'sick', 'off'] },
+// One card per status — no more buckets. Order matches the ribbon:
+// "where they are" first, then "away" reasons.
+const GROUPS: Array<{ status: EntryStatus; label: string }> = [
+  { status: 'office',   label: no.status.office },
+  { status: 'remote',   label: no.status.remote },
+  { status: 'customer', label: no.status.customer },
+  { status: 'travel',   label: no.status.travel },
+  { status: 'vacation', label: no.status.vacation },
+  { status: 'sick',     label: no.status.sick },
+  { status: 'off',      label: no.status.off },
 ]
-
-// Representative status for each group (for icon + color)
-const GROUP_STATUS: Record<string, EntryStatus> = {
-  office: 'office',
-  remote: 'remote',
-  customer: 'customer',
-  away: 'vacation',
-}
 
 export function TodayPulse({ entries }: TodayPulseProps) {
   const { resolvedTheme } = useTheme()
@@ -77,10 +70,10 @@ export function TodayPulse({ entries }: TodayPulseProps) {
           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         />
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         {GROUPS.map((group, i) => {
-          const groupMembers = entries.filter((e) => group.statuses.includes(e.status))
-          const status = GROUP_STATUS[group.key]
+          const { status } = group
+          const groupMembers = entries.filter((e) => e.status === status)
           const colors = STATUS_COLORS[status]
           const tone = colors.icon
 
@@ -91,12 +84,12 @@ export function TodayPulse({ entries }: TodayPulseProps) {
 
           return (
             <motion.div
-              key={group.key}
+              key={status}
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ ...spring.gentle, delay: 0.05 + i * 0.06 }}
               whileHover={{ y: -3 }}
-              className="relative rounded-3xl p-5 flex flex-col gap-5 overflow-hidden"
+              className="relative rounded-3xl p-4 flex flex-col gap-4 overflow-hidden"
               style={{
                 background: gradient,
                 boxShadow: isDark
@@ -108,47 +101,47 @@ export function TodayPulse({ entries }: TodayPulseProps) {
                      inset 0 1px 0 rgba(255,255,255,0.25)`,
               }}
             >
-              {/* Header */}
-              <div className="relative flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
+              {/* Header — stacked vertically so 7 cards fit comfortably */}
+              <div className="relative flex flex-col gap-2.5">
+                <div className="flex items-center justify-between gap-2">
                   <div
-                    className="flex items-center justify-center rounded-xl"
+                    className="flex items-center justify-center rounded-xl flex-shrink-0"
                     style={{
-                      width: 34,
-                      height: 34,
+                      width: 30,
+                      height: 30,
                       background: 'rgba(255,255,255,0.16)',
                       boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.22)',
                     }}
                   >
-                    <StatusIcon status={status} size={18} color="#ffffff" />
+                    <StatusIcon status={status} size={16} color="#ffffff" />
                   </div>
                   <span
-                    className="text-[13px] font-semibold"
+                    className="text-[40px] font-bold tabular-nums leading-none"
                     style={{
+                      fontFamily: 'var(--font-sora)',
                       color: '#ffffff',
-                      fontFamily: 'var(--font-body)',
-                      letterSpacing: '-0.005em',
+                      letterSpacing: '-0.05em',
                     }}
                   >
-                    {group.label}
+                    {groupMembers.length}
                   </span>
                 </div>
                 <span
-                  className="text-[52px] font-bold tabular-nums leading-none"
+                  className="text-[12px] font-semibold truncate"
                   style={{
-                    fontFamily: 'var(--font-sora)',
                     color: '#ffffff',
-                    letterSpacing: '-0.05em',
+                    fontFamily: 'var(--font-body)',
+                    letterSpacing: '-0.005em',
                   }}
                 >
-                  {groupMembers.length}
+                  {group.label}
                 </span>
               </div>
 
               {/* Avatar stack */}
               <div className="relative">
                 {groupMembers.length > 0 ? (
-                  <AvatarStack members={groupMembers} max={6} size="md" ringColor="rgba(255,255,255,0.55)" />
+                  <AvatarStack members={groupMembers} max={4} size="sm" ringColor="rgba(255,255,255,0.55)" />
                 ) : (
                   <p
                     className="text-[12px] font-medium"
