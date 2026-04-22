@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import { MemberAvatar } from '@/components/member-avatar'
 import { StatusIcon, STATUS_COLORS } from '@/components/icons/status-icons'
 import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
@@ -268,35 +268,42 @@ function Strip({
 
 export function TeamBoard({ members, todayMap }: TeamBoardProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [canScroll, setCanScroll] = useState({ top: false, bottom: false })
+  const [canScroll, setCanScroll] = useState<{ top: boolean; bottom: boolean }>({
+    top: false,
+    bottom: false,
+  })
 
+  // Only update state when the hint values actually change — otherwise we'd
+  // schedule a re-render for every scroll event and every resize tick.
   const updateScrollHints = useCallback(() => {
     const el = scrollRef.current
     if (!el) return
     const atTop = el.scrollTop <= 2
     const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 2
-    setCanScroll({
-      top: !atTop,
-      bottom: !atBottom && el.scrollHeight > el.clientHeight,
-    })
+    const nextTop = !atTop
+    const nextBottom = !atBottom && el.scrollHeight > el.clientHeight
+    setCanScroll(prev =>
+      prev.top === nextTop && prev.bottom === nextBottom
+        ? prev
+        : { top: nextTop, bottom: nextBottom },
+    )
   }, [])
-
-  useLayoutEffect(() => {
-    updateScrollHints()
-  })
 
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
+    updateScrollHints()
     const onScroll = () => updateScrollHints()
     el.addEventListener('scroll', onScroll, { passive: true })
-    const ro = new ResizeObserver(updateScrollHints)
-    ro.observe(el)
+    const ro = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(updateScrollHints)
+      : null
+    ro?.observe(el)
     return () => {
       el.removeEventListener('scroll', onScroll)
-      ro.disconnect()
+      ro?.disconnect()
     }
-  }, [updateScrollHints])
+  }, [updateScrollHints, members.length, todayMap.size])
 
   const buckets = STRIPS.map(strip => ({
     ...strip,
