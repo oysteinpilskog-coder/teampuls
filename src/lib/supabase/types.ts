@@ -14,6 +14,8 @@ export interface Organization {
   inbound_email: string
   logo_url: string | null
   primary_color: string
+  /** Per-org override of the 7 status colors. NULL/undefined = use DEFAULT_HEX_COLORS. */
+  status_colors?: Partial<Record<EntryStatus, string>> | null
   timezone: string
   week_start: number
   created_at: string

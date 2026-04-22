@@ -1,7 +1,8 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { StatusIcon, STATUS_COLORS } from '@/components/icons/status-icons'
+import { StatusIcon } from '@/components/icons/status-icons'
+import { useStatusColors } from '@/lib/status-colors/context'
 import { MemberAvatar } from '@/components/member-avatar'
 import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
 import { getDayLabel, getISOWeek } from '@/lib/dates'
@@ -31,6 +32,7 @@ const STATUS_LABELS: Record<EntryStatus, string> = {
 }
 
 export function MonthView({ members, weekDays, entries, orgName, time }: MonthViewProps) {
+  const STATUS_COLORS = useStatusColors()
   const hours   = pad(time.getHours())
   const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)

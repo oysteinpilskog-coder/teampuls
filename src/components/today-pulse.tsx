@@ -1,13 +1,14 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { StatusIcon, STATUS_COLORS } from '@/components/icons/status-icons'
+import { StatusIcon } from '@/components/icons/status-icons'
 import type { EntryStatus } from '@/lib/supabase/types'
 import { AvatarStack } from '@/components/member-avatar'
 import { no } from '@/lib/i18n/no'
 import { useTheme } from 'next-themes'
 import { useState, useEffect } from 'react'
 import { spring } from '@/lib/motion'
+import { useStatusColors } from '@/lib/status-colors/context'
 
 interface MemberWithEntry {
   id: string
@@ -45,6 +46,7 @@ export function TodayPulse({ entries }: TodayPulseProps) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
   const isDark = mounted && resolvedTheme === 'dark'
+  const STATUS_COLORS = useStatusColors()
 
   return (
     <div>

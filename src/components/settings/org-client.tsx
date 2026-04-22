@@ -3,10 +3,17 @@
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { Copy, Check, Upload, Trash2 } from 'lucide-react'
+import { Copy, Check, Upload, Trash2, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { Organization } from '@/lib/supabase/types'
+import type { Organization, EntryStatus } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
+import { DEFAULT_HEX_COLORS, mergeHexColors, type HexColors } from '@/lib/status-colors/defaults'
+import { derivePalette } from '@/lib/status-colors/derive'
+import { useStatusColorsController } from '@/lib/status-colors/context'
+import { StatusIcon } from '@/components/icons/status-icons'
+import { no } from '@/lib/i18n/no'
+
+const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
 
 interface OrgClientProps {
   org: Organization
@@ -29,15 +36,23 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
   const [timezone, setTimezone] = useState(initialOrg.timezone)
   const [logoUrl, setLogoUrl] = useState(initialOrg.logo_url ?? '')
   const [primaryColor, setPrimaryColor] = useState(initialOrg.primary_color ?? '#0066FF')
+  const [statusColors, setStatusColors] = useState<HexColors>(() =>
+    mergeHexColors(initialOrg.status_colors)
+  )
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const statusColorsCtx = useStatusColorsController()
+
+  const savedStatusColors = mergeHexColors(org.status_colors)
+  const statusColorsDirty = STATUS_ORDER.some(s => statusColors[s] !== savedStatusColors[s])
 
   const isDirty =
     name !== org.name ||
     timezone !== org.timezone ||
-    primaryColor !== (org.primary_color ?? '#0066FF')
+    primaryColor !== (org.primary_color ?? '#0066FF') ||
+    statusColorsDirty
 
   async function handleLogoFile(file: File) {
     const allowed = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']
@@ -124,18 +139,33 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     if (!name.trim() || saving) return
     setSaving(true)
     const supabase = createClient()
+    // If the colors match defaults, store NULL (cleaner DB state, cheaper queries).
+    const status_colors_payload = STATUS_ORDER.every(s => statusColors[s] === DEFAULT_HEX_COLORS[s])
+      ? null
+      : statusColors
     const { error } = await supabase
       .from('organizations')
       .update({
         name: name.trim(),
         timezone,
         primary_color: primaryColor,
+        status_colors: status_colors_payload,
       })
       .eq('id', org.id)
     setSaving(false)
     if (error) { toast.error('Noe gikk galt. Prøv igjen.'); return }
-    setOrg(o => ({ ...o, name: name.trim(), timezone, primary_color: primaryColor }))
+    setOrg(o => ({ ...o, name: name.trim(), timezone, primary_color: primaryColor, status_colors: status_colors_payload }))
+    // Push fresh colors through the context so the rest of the app updates immediately.
+    statusColorsCtx?.setHex(statusColors)
     toast.success('Innstillinger lagret')
+  }
+
+  function resetStatusColors() {
+    setStatusColors({ ...DEFAULT_HEX_COLORS })
+  }
+
+  function updateStatusColor(status: EntryStatus, hex: string) {
+    setStatusColors(prev => ({ ...prev, [status]: hex }))
   }
 
   async function copyEmail() {
@@ -327,6 +357,34 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
           </div>
         </SettingsField>
 
+        {/* Status colors */}
+        <SettingsField
+          label="Statusfarger"
+          description="Tilpass fargene for hver statustype — gradient og glød følger med automatisk"
+        >
+          <div className="flex flex-col gap-2.5">
+            {STATUS_ORDER.map(status => (
+              <StatusColorRow
+                key={status}
+                status={status}
+                hex={statusColors[status]}
+                onChange={hex => updateStatusColor(status, hex)}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={resetStatusColors}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium self-start transition-colors mt-1"
+              style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-color)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-tertiary)')}
+            >
+              <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.5} />
+              Tilbakestill til standard
+            </button>
+          </div>
+        </SettingsField>
+
         {/* Save */}
         <div className="flex justify-end pt-2">
           <motion.button
@@ -374,6 +432,104 @@ function SettingsField({
         </p>
       )}
       {children}
+    </div>
+  )
+}
+
+function StatusColorRow({
+  status,
+  hex,
+  onChange,
+}: {
+  status: EntryStatus
+  hex: string
+  onChange: (hex: string) => void
+}) {
+  const palette = derivePalette(hex)
+  const [g0, g1] = palette.gradient.light
+  const gradient = `linear-gradient(180deg, ${g0} 0%, ${g1} 100%)`
+  const label = no.status[status]
+
+  return (
+    <div className="flex items-center gap-3">
+      {/* Name label */}
+      <div
+        className="w-[108px] text-[13px] font-medium"
+        style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+      >
+        {label}
+      </div>
+
+      {/* Native swatch */}
+      <input
+        type="color"
+        value={hex}
+        onChange={e => onChange(e.target.value.toUpperCase())}
+        className="w-10 h-9 rounded-lg cursor-pointer border-0 p-0.5 shrink-0"
+        style={{ backgroundColor: 'var(--bg-subtle)' }}
+        aria-label={`Farge for ${label}`}
+      />
+
+      {/* Hex input */}
+      <input
+        type="text"
+        value={hex}
+        onChange={e => {
+          const v = e.target.value.trim()
+          if (/^#?[0-9a-fA-F]{0,6}$/.test(v)) {
+            onChange(v.startsWith('#') ? v.toUpperCase() : `#${v.toUpperCase()}`)
+          }
+        }}
+        maxLength={7}
+        className="w-[92px] px-2.5 py-2 rounded-lg text-[12.5px] outline-none font-mono shrink-0"
+        style={inputStyle}
+        onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+        onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+      />
+
+      {/* Live preview bar — same gradient + glow as the calendar matrix */}
+      <div
+        className="relative flex-1 h-[36px] rounded-[9px] overflow-hidden"
+        style={{
+          backgroundImage: gradient,
+          backgroundColor: g1,
+          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.40), 0 1px 2px rgba(15,23,42,0.08), 0 8px 20px -8px ${palette.glow}80`,
+        }}
+      >
+        {/* Subtle top sheen */}
+        <div
+          aria-hidden
+          className="absolute top-0 left-0 right-0 pointer-events-none"
+          style={{
+            height: '45%',
+            background:
+              'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.04) 70%, transparent 100%)',
+          }}
+        />
+        {/* Specular edge */}
+        <div
+          aria-hidden
+          className="absolute top-0 left-[8%] right-[8%] pointer-events-none"
+          style={{
+            height: '1px',
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)',
+          }}
+        />
+        {/* Icon + label */}
+        <div className="absolute inset-0 flex items-center gap-1.5 px-2.5">
+          <StatusIcon status={status} size={12} color="#ffffff" />
+          <span
+            className="text-[11.5px] font-semibold leading-none"
+            style={{
+              color: '#ffffff',
+              letterSpacing: '-0.005em',
+              textShadow: '0 1px 2px rgba(0,0,0,0.22)',
+            }}
+          >
+            {label}
+          </span>
+        </div>
+      </div>
     </div>
   )
 }

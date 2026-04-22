@@ -7,6 +7,7 @@ import { StatusIcon } from '@/components/icons/status-icons'
 import type { EntryStatus } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { no } from '@/lib/i18n/no'
+import { useStatusColors } from '@/lib/status-colors/context'
 
 export interface SegmentDay {
   date: string
@@ -32,28 +33,8 @@ interface StatusSegmentProps {
   onSegmentResizeStart?: (edge: 'left' | 'right') => void
 }
 
-// Modern status palette — quiet, perceptually balanced tones.
-// Single source of truth, shared with STATUS_COLORS in icons/status-icons.tsx.
-// Each: [top, bottom] 2-stop gradient + `tint` (mid-tone used for icon/text accents).
-export const STATUS_GRADIENT: Record<
-  EntryStatus,
-  { light: [string, string]; dark: [string, string]; tint: string }
-> = {
-  // Kontor — cobalt
-  office:   { light: ['#3B82F6', '#2563EB'], dark: ['#3B82F6', '#1D4ED8'], tint: '#2563EB' },
-  // Hjemmekontor — emerald
-  remote:   { light: ['#10B981', '#059669'], dark: ['#10B981', '#047857'], tint: '#059669' },
-  // Hos kunde — teal (lys grønn)
-  customer: { light: ['#2DD4BF', '#14B8A6'], dark: ['#14B8A6', '#0D9488'], tint: '#14B8A6' },
-  // Reise — violet
-  travel:   { light: ['#8B5CF6', '#7C3AED'], dark: ['#8B5CF6', '#6D28D9'], tint: '#7C3AED' },
-  // Ferie — saffron
-  vacation: { light: ['#EAB308', '#CA8A04'], dark: ['#EAB308', '#A16207'], tint: '#CA8A04' },
-  // Syk — coral
-  sick:     { light: ['#F43F5E', '#E11D48'], dark: ['#F43F5E', '#BE123C'], tint: '#E11D48' },
-  // Fri — warm stone
-  off:      { light: ['#A8A29E', '#78716C'], dark: ['#78716C', '#57534E'], tint: '#78716C' },
-}
+// Status color palettes live in `@/lib/status-colors/context` — `useStatusColors()`.
+// The static `STATUS_GRADIENT` has been replaced by org-customizable, hex-derived palettes.
 
 export function StatusSegment({
   status,
@@ -70,6 +51,7 @@ export function StatusSegment({
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
+  const palettes = useStatusColors()
 
   const isDark = mounted && resolvedTheme === 'dark'
   const span = days.length
@@ -79,10 +61,11 @@ export function StatusSegment({
 
   const label = location || note
 
-  const palette = status ? STATUS_GRADIENT[status] : null
-  const [g0, g1] = palette ? (isDark ? palette.dark : palette.light) : ['', '']
+  const palette = status ? palettes[status] : null
+  const [g0, g1] = palette ? (isDark ? palette.gradient.dark : palette.gradient.light) : ['', '']
+  const glow = palette?.glow ?? ''
 
-  // Subtle 2-stop vertical gradient — modern, Linear/Notion-style depth without heaviness.
+  // 2-stop gradient with a subtle glossy top — enough depth to feel premium, not overcooked.
   const gradient = palette
     ? `linear-gradient(180deg, ${g0} 0%, ${g1} 100%)`
     : undefined
@@ -94,11 +77,11 @@ export function StatusSegment({
         gridColumn: `span ${span}`,
         backgroundColor: status ? g1 : 'transparent',
         backgroundImage: status ? gradient : undefined,
-        // One soft, neutral shadow — no colored halos, no glow.
+        // Colored glow derived from the status hue — soft, single halo (not stacked).
         boxShadow: status
           ? isDark
-            ? 'inset 0 1px 0 rgba(255,255,255,0.10), 0 1px 2px rgba(0,0,0,0.35), 0 2px 4px rgba(0,0,0,0.20)'
-            : 'inset 0 1px 0 rgba(255,255,255,0.28), 0 1px 2px rgba(15,23,42,0.08), 0 2px 6px rgba(15,23,42,0.06)'
+            ? `inset 0 1px 0 rgba(255,255,255,0.16), 0 1px 2px rgba(0,0,0,0.30), 0 6px 18px -6px ${glow}66`
+            : `inset 0 1px 0 rgba(255,255,255,0.40), 0 1px 2px rgba(15,23,42,0.08), 0 8px 20px -8px ${glow}80`
           : undefined,
         opacity: muted ? 0.28 : 1,
         cursor: status && onDayMouseDown ? 'grab' : undefined,
@@ -106,6 +89,31 @@ export function StatusSegment({
       whileHover={muted ? undefined : { y: -1 }}
       transition={spring.snappy}
     >
+      {/* Glossy top sheen — subtle, 1/3 height, keeps the bar feeling glassy without shouting. */}
+      {status && (
+        <div
+          aria-hidden
+          className="absolute top-0 left-0 right-0 pointer-events-none z-[1]"
+          style={{
+            height: '45%',
+            background:
+              'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.04) 70%, transparent 100%)',
+          }}
+        />
+      )}
+
+      {/* Specular edge — 1px highlight along the top */}
+      {status && (
+        <div
+          aria-hidden
+          className="absolute top-0 left-[8%] right-[8%] pointer-events-none z-[2]"
+          style={{
+            height: '1px',
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)',
+          }}
+        />
+      )}
+
       {/* Content — icon + label, tight spacing for slim bar */}
       {status && (
         <div className="absolute inset-0 flex items-center gap-1.5 px-2 pointer-events-none z-10">
@@ -116,7 +124,7 @@ export function StatusSegment({
               style={{
                 color: '#ffffff',
                 letterSpacing: '-0.005em',
-                textShadow: '0 1px 2px rgba(0,0,0,0.18)',
+                textShadow: '0 1px 2px rgba(0,0,0,0.22)',
               }}
             >
               {label}

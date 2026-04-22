@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { project, resolveLocation } from '@/lib/geo'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
-import { STATUS_COLORS } from '@/components/icons/status-icons'
+import { useStatusColors } from '@/lib/status-colors/context'
 import { spring } from '@/lib/motion'
 import type { Member, Entry } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
@@ -39,6 +39,7 @@ export function CustomerMapView({
   orgName,
   time,
 }: CustomerMapViewProps) {
+  const STATUS_COLORS = useStatusColors()
   const hours = pad(time.getHours())
   const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)

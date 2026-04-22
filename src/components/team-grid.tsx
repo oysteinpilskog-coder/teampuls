@@ -13,7 +13,8 @@ import {
   getTodayWeekAndYear,
 } from '@/lib/dates'
 import { WeekNav } from '@/components/week-nav'
-import { StatusSegment, STATUS_GRADIENT, type SegmentDay } from '@/components/status-segment'
+import { StatusSegment, type SegmentDay } from '@/components/status-segment'
+import { useStatusColors } from '@/lib/status-colors/context'
 import { toast } from 'sonner'
 import { useTheme } from 'next-themes'
 import { MemberAvatar } from '@/components/member-avatar'
@@ -152,6 +153,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   const [resizeDrag, setResizeDrag] = useState<ResizeDrag | null>(null)
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
+  const palettes = useStatusColors()
 
   const weekDays = useMemo(() => getWeekDays(week, year), [week, year])
   const dateStrings = useMemo(() => weekDays.map(toDateString), [weekDays])
@@ -750,8 +752,8 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                       const ghost = ghostRangeFor(member.id)
                       if (!ghost) return null
                       const { start: targetStart, span, entry } = ghost
-                      const palette = STATUS_GRADIENT[entry.status]
-                      const [g0, g1] = isDark ? palette.dark : palette.light
+                      const palette = palettes[entry.status]
+                      const [g0, g1] = isDark ? palette.gradient.dark : palette.gradient.light
                       // Row coords: 136px name col + 8px gap + N day cols with 8px gaps.
                       // Per-day width = (rowWidth - 176) / 5. Day 0 starts at 144px.
                       const leftCalc = `calc(144px + ${targetStart} * ((100% - 176px) / 5 + 8px))`

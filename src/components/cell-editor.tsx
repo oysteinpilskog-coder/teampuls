@@ -5,7 +5,8 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { StatusIcon, STATUS_COLORS } from '@/components/icons/status-icons'
+import { StatusIcon } from '@/components/icons/status-icons'
+import { useStatusColors } from '@/lib/status-colors/context'
 import type { EntryStatus } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { no } from '@/lib/i18n/no'
@@ -52,6 +53,7 @@ export function CellEditor({
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
   const isDark = mounted && resolvedTheme === 'dark'
+  const STATUS_COLORS = useStatusColors()
 
   const [status, setStatus] = useState<EntryStatus | null>(initialStatus)
   const [location, setLocation] = useState(initialLocation ?? '')

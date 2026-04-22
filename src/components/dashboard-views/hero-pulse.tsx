@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { STATUS_COLORS } from '@/components/icons/status-icons'
+import { useStatusColors } from '@/lib/status-colors/context'
 import type { Entry, EntryStatus, Member } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { AnimatedCount } from './animated-count'
@@ -48,6 +48,7 @@ function insightFor(registered: number, total: number, todayEntries: Entry[]) {
 }
 
 export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
+  const STATUS_COLORS = useStatusColors()
   const total = members.length
   const registered = todayEntries.length
   const pct = total > 0 ? Math.round((registered / total) * 100) : 0

@@ -3,7 +3,8 @@
 import { motion } from 'framer-motion'
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { MemberAvatar } from '@/components/member-avatar'
-import { StatusIcon, STATUS_COLORS } from '@/components/icons/status-icons'
+import { StatusIcon } from '@/components/icons/status-icons'
+import { useStatusColors } from '@/lib/status-colors/context'
 import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { no } from '@/lib/i18n/no'
@@ -132,6 +133,7 @@ function Strip({
   members: Array<{ member: Member; entry: Entry | undefined }>
   delay: number
 }) {
+  const STATUS_COLORS = useStatusColors()
   const colors = STATUS_COLORS[representative]
   const accent = colors.icon
   const textTint = colors.textDark

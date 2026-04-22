@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { STATUS_COLORS } from '@/components/icons/status-icons'
+import { useStatusColors } from '@/lib/status-colors/context'
 import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
 import { getDayLabel, getISOWeek, isToday } from '@/lib/dates'
 import { spring } from '@/lib/motion'
@@ -54,6 +54,7 @@ function dedupeForMembers(entries: Entry[], members: Member[]): Map<string, Entr
 }
 
 export function TodayView({ members, weekDays, entries, todayEntries, orgName, time }: TodayViewProps) {
+  const STATUS_COLORS = useStatusColors()
   const hours   = pad(time.getHours())
   const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)

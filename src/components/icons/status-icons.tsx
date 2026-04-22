@@ -1,3 +1,6 @@
+import { DEFAULT_HEX_COLORS } from '@/lib/status-colors/defaults'
+import { derivePalettes } from '@/lib/status-colors/derive'
+
 type IconProps = {
   size?: number
   color?: string
@@ -12,7 +15,7 @@ export type EntryStatus = 'office' | 'remote' | 'customer' | 'travel' | 'vacatio
 // punch holes in the glyph (like Apple SF Symbols filled variants).
 
 // Kontor — Apartment building with 4 windows as cutouts
-export function OfficeIcon({ size = 24, color = '#2563EB', className }: IconProps) {
+export function OfficeIcon({ size = 24, color = DEFAULT_HEX_COLORS.office, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <path
@@ -26,7 +29,7 @@ export function OfficeIcon({ size = 24, color = '#2563EB', className }: IconProp
 }
 
 // Hjemmekontor — Solid house with chimney
-export function RemoteIcon({ size = 24, color = '#059669', className }: IconProps) {
+export function RemoteIcon({ size = 24, color = DEFAULT_HEX_COLORS.remote, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <path
@@ -40,7 +43,7 @@ export function RemoteIcon({ size = 24, color = '#059669', className }: IconProp
 }
 
 // Hos kunde — Two overlapping figures (partnership)
-export function CustomerIcon({ size = 24, color = '#14B8A6', className }: IconProps) {
+export function CustomerIcon({ size = 24, color = DEFAULT_HEX_COLORS.customer, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <circle cx="8" cy="7" r="3.5" fill={color} />
@@ -54,7 +57,7 @@ export function CustomerIcon({ size = 24, color = '#14B8A6', className }: IconPr
 }
 
 // Reise — Paper plane pointing up-right
-export function TravelIcon({ size = 24, color = '#7C3AED', className }: IconProps) {
+export function TravelIcon({ size = 24, color = DEFAULT_HEX_COLORS.travel, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <path
@@ -72,7 +75,7 @@ export function TravelIcon({ size = 24, color = '#7C3AED', className }: IconProp
 }
 
 // Ferie — Sun with rays
-export function VacationIcon({ size = 24, color = '#CA8A04', className }: IconProps) {
+export function VacationIcon({ size = 24, color = DEFAULT_HEX_COLORS.vacation, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <circle cx="12" cy="12" r="4.5" fill={color} />
@@ -92,7 +95,7 @@ export function VacationIcon({ size = 24, color = '#CA8A04', className }: IconPr
 }
 
 // Syk — Solid thermometer
-export function SickIcon({ size = 24, color = '#E11D48', className }: IconProps) {
+export function SickIcon({ size = 24, color = DEFAULT_HEX_COLORS.sick, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <path
@@ -106,7 +109,7 @@ export function SickIcon({ size = 24, color = '#E11D48', className }: IconProps)
 }
 
 // Fri — Solid crescent moon
-export function OffDayIcon({ size = 24, color = '#78716C', className }: IconProps) {
+export function OffDayIcon({ size = 24, color = DEFAULT_HEX_COLORS.off, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <path
@@ -117,17 +120,20 @@ export function OffDayIcon({ size = 24, color = '#78716C', className }: IconProp
   )
 }
 
-// Aligned with STATUS_GRADIENT in status-segment.tsx — Tailwind-calibrated, perceptually balanced.
-// `icon` is the canonical mid-tone for each status; `text` darker for light-mode legibility;
-// `bg`/`bgDark` are soft tinted surfaces for chips/pills.
+/**
+ * Static default palette — derived from DEFAULT_HEX_COLORS.
+ * Kept as a backwards-compatible export. For org-customizable colors,
+ * prefer the `useStatusColors()` hook from `@/lib/status-colors/context`.
+ */
+const DEFAULT_PALETTES = derivePalettes(DEFAULT_HEX_COLORS)
 export const STATUS_COLORS: Record<EntryStatus, { bg: string; text: string; icon: string; bgDark: string; textDark: string }> = {
-  office:   { bg: '#DBEAFE', text: '#1E40AF', icon: '#2563EB', bgDark: '#172554', textDark: '#93C5FD' },
-  remote:   { bg: '#D1FAE5', text: '#065F46', icon: '#059669', bgDark: '#022C22', textDark: '#6EE7B7' },
-  customer: { bg: '#CCFBF1', text: '#0F766E', icon: '#14B8A6', bgDark: '#042F2E', textDark: '#5EEAD4' },
-  travel:   { bg: '#EDE9FE', text: '#5B21B6', icon: '#7C3AED', bgDark: '#2E1065', textDark: '#C4B5FD' },
-  vacation: { bg: '#FEF9C3', text: '#854D0E', icon: '#CA8A04', bgDark: '#3A2A05', textDark: '#FDE047' },
-  sick:     { bg: '#FFE4E6', text: '#9F1239', icon: '#E11D48', bgDark: '#3F0714', textDark: '#FDA4AF' },
-  off:      { bg: '#F5F5F4', text: '#44403C', icon: '#78716C', bgDark: '#1C1917', textDark: '#D6D3D1' },
+  office:   { icon: DEFAULT_PALETTES.office.icon,   bg: DEFAULT_PALETTES.office.bg,   text: DEFAULT_PALETTES.office.text,   bgDark: DEFAULT_PALETTES.office.bgDark,   textDark: DEFAULT_PALETTES.office.textDark },
+  remote:   { icon: DEFAULT_PALETTES.remote.icon,   bg: DEFAULT_PALETTES.remote.bg,   text: DEFAULT_PALETTES.remote.text,   bgDark: DEFAULT_PALETTES.remote.bgDark,   textDark: DEFAULT_PALETTES.remote.textDark },
+  customer: { icon: DEFAULT_PALETTES.customer.icon, bg: DEFAULT_PALETTES.customer.bg, text: DEFAULT_PALETTES.customer.text, bgDark: DEFAULT_PALETTES.customer.bgDark, textDark: DEFAULT_PALETTES.customer.textDark },
+  travel:   { icon: DEFAULT_PALETTES.travel.icon,   bg: DEFAULT_PALETTES.travel.bg,   text: DEFAULT_PALETTES.travel.text,   bgDark: DEFAULT_PALETTES.travel.bgDark,   textDark: DEFAULT_PALETTES.travel.textDark },
+  vacation: { icon: DEFAULT_PALETTES.vacation.icon, bg: DEFAULT_PALETTES.vacation.bg, text: DEFAULT_PALETTES.vacation.text, bgDark: DEFAULT_PALETTES.vacation.bgDark, textDark: DEFAULT_PALETTES.vacation.textDark },
+  sick:     { icon: DEFAULT_PALETTES.sick.icon,     bg: DEFAULT_PALETTES.sick.bg,     text: DEFAULT_PALETTES.sick.text,     bgDark: DEFAULT_PALETTES.sick.bgDark,     textDark: DEFAULT_PALETTES.sick.textDark },
+  off:      { icon: DEFAULT_PALETTES.off.icon,      bg: DEFAULT_PALETTES.off.bg,      text: DEFAULT_PALETTES.off.text,      bgDark: DEFAULT_PALETTES.off.bgDark,      textDark: DEFAULT_PALETTES.off.textDark },
 }
 
 export function StatusIcon({ status, size = 24, className, color: colorProp }: { status: EntryStatus; size?: number; className?: string; color?: string }) {

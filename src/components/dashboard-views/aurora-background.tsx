@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import type { Entry, EntryStatus } from '@/lib/supabase/types'
-import { STATUS_COLORS } from '@/components/icons/status-icons'
+import { useStatusColors } from '@/lib/status-colors/context'
 
 interface AuroraBackgroundProps {
   entries: Entry[]
@@ -60,6 +60,7 @@ const LIGHTS: Array<{
 
 export function AuroraBackground({ entries }: AuroraBackgroundProps) {
   const total = entries.length || 1
+  const STATUS_COLORS = useStatusColors()
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>

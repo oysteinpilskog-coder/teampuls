@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { project, resolveLocation } from '@/lib/geo'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
-import { STATUS_COLORS } from '@/components/icons/status-icons'
+import { useStatusColors } from '@/lib/status-colors/context'
 import { spring } from '@/lib/motion'
 import type { Member, Entry, Office } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
@@ -36,6 +36,7 @@ export function OfficeMapView({
   orgName,
   time,
 }: OfficeMapViewProps) {
+  const STATUS_COLORS = useStatusColors()
   const hours = pad(time.getHours())
   const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)
@@ -72,7 +73,7 @@ export function OfficeMapView({
     .filter((p): p is PlacedOffice => p !== null)
 
   const totalAtOffice = placed.reduce((s, p) => s + p.peopleToday, 0)
-  const officeColor = STATUS_COLORS.office.icon   // #0066FF
+  const officeColor = STATUS_COLORS.office.icon
 
   const placedLabels = placeLabels(placed, { gap: 16, collisionRadius: 110 })
 
