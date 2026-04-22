@@ -13,16 +13,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get sender's member record
-    const { data: member, error: memberError } = await supabase
+    // Get sender's member record.
+    // Primary: by user_id (set once auth/callback links it).
+    // Fallback: by email — handles users whose member row was created
+    // after their last login, or whose link never fired. We backfill
+    // user_id so the next request takes the fast path.
+    let { data: member, error: memberError } = await supabase
       .from('members')
       .select('id, org_id, email, display_name')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .maybeSingle()
 
+    if (!member && user.email) {
+      const { data: byEmail } = await supabase
+        .from('members')
+        .select('id, org_id, email, display_name')
+        .ilike('email', user.email)
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (byEmail) {
+        await supabase
+          .from('members')
+          .update({ user_id: user.id })
+          .eq('id', byEmail.id)
+          .is('user_id', null)
+        member = byEmail
+        memberError = null
+      }
+    }
+
     if (memberError || !member) {
-      return NextResponse.json({ error: 'Member not found' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Din bruker er ikke koblet til et medlem. Kontakt en admin.' },
+        { status: 403 }
+      )
     }
 
     const { text } = await req.json() as { text: string }
