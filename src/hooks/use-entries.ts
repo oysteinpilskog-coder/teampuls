@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Entry } from '@/lib/supabase/types'
 
@@ -85,5 +85,19 @@ export function useEntries(orgId: string, dateStrings: string[]) {
     }
   }, [orgId])
 
-  return { entries, loading, refetch: fetchEntries }
+  /**
+   * Apply an in-memory update to the entries list without touching the DB.
+   * Use this to reflect a mutation in the UI instantly, then fire the DB
+   * write + refetch() to reconcile. On write failure, call refetch() to
+   * restore truth from the server.
+   */
+  const applyOptimistic = useCallback((updater: (prev: Entry[]) => Entry[]) => {
+    setEntries(updater)
+  }, [])
+
+  // Stable return object shape so consumers can destructure without refs
+  return useMemo(
+    () => ({ entries, loading, refetch: fetchEntries, applyOptimistic }),
+    [entries, loading, fetchEntries, applyOptimistic],
+  )
 }

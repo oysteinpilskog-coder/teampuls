@@ -33,6 +33,16 @@ interface CellEditorProps {
   /** Optional — invoked after a successful save or delete so the host can refetch local state
    *  without waiting for Supabase Realtime (which can lag for self-initiated mutations). */
   onMutated?: () => void | Promise<void>
+  /** Optional — apply an optimistic save to the host's local state before the
+   *  DB write completes. Called with the dates being written + the payload.
+   *  If the write fails, the host should call its own refetch() to reconcile. */
+  onOptimisticSave?: (dates: string[], payload: {
+    status: EntryStatus
+    location_label: string | null
+    note: string | null
+  }) => void
+  /** Optional — apply an optimistic delete to the host's local state. */
+  onOptimisticDelete?: (dates: string[]) => void
 }
 
 export function CellEditor({
@@ -48,6 +58,8 @@ export function CellEditor({
   initialNote,
   initialRangeEnd,
   onMutated,
+  onOptimisticSave,
+  onOptimisticDelete,
 }: CellEditorProps) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -120,15 +132,29 @@ export function CellEditor({
   async function handleSave() {
     if (!status || saving) return
     setSaving(true)
-    const supabase = createClient()
     const dates = expandedDates()
+    const locLabel = location.trim() || null
+    const noteLabel = note.trim() || null
+
+    // Optimistic paint + close — the dialog disappears immediately, the
+    // grid reflects the change, and the DB write races behind the scenes.
+    onOptimisticSave?.(dates, {
+      status,
+      location_label: locLabel,
+      note: noteLabel,
+    })
+    const suffix = dates.length > 1 ? ` · ${dates.length} dager` : ''
+    toast.success(`${no.aiInput.success} — ${memberName}${suffix}`)
+    onClose()
+
+    const supabase = createClient()
     const rows = dates.map(d => ({
       org_id: orgId,
       member_id: memberId,
       date: d,
       status,
-      location_label: location.trim() || null,
-      note: note.trim() || null,
+      location_label: locLabel,
+      note: noteLabel,
       source: 'manual' as const,
     }))
     const { error } = await supabase
@@ -137,12 +163,11 @@ export function CellEditor({
     setSaving(false)
     if (error) {
       toast.error(no.aiInput.error)
-    } else {
-      const suffix = dates.length > 1 ? ` · ${dates.length} dager` : ''
-      toast.success(`${no.aiInput.success} — ${memberName}${suffix}`)
-      await onMutated?.()
-      onClose()
     }
+    // onMutated still fires on success *and* failure so the host refetches
+    // the server's truth — this corrects the optimistic paint if the write
+    // was rejected (e.g. RLS violation, offline).
+    await onMutated?.()
   }
 
   async function handleDelete() {
@@ -196,6 +221,11 @@ export function CellEditor({
       dates = span
     }
 
+    // Optimistic delete + close so the bar disappears the moment the user
+    // clicks Slett. The DB request races behind; onMutated reconciles.
+    onOptimisticDelete?.(dates)
+    onClose()
+
     const { error } = await supabase
       .from('entries')
       .delete()
@@ -205,10 +235,8 @@ export function CellEditor({
     setSaving(false)
     if (error) {
       toast.error(no.aiInput.error)
-    } else {
-      await onMutated?.()
-      onClose()
     }
+    await onMutated?.()
   }
 
   const selectedColors = status ? STATUS_COLORS[status] : null
