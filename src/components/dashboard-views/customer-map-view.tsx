@@ -227,51 +227,62 @@ export function CustomerMapView({
                   {activeToday && (
                     <>
                       <motion.circle
-                        r={radius}
-                        fill={customerColor}
-                        opacity={0.3}
-                        animate={{ r: [radius, radius + 26, radius], opacity: [0.35, 0, 0.35] }}
-                        transition={{ duration: 2.8, repeat: Infinity, ease: 'easeOut' }}
-                      />
-                      <motion.circle
-                        r={radius + 8}
+                        r={radius + 6}
                         fill="none"
                         stroke={customerColor}
-                        strokeWidth={1.25}
-                        opacity={0.55}
-                        animate={{ r: [radius + 8, radius + 42, radius + 8], opacity: [0.55, 0, 0.55] }}
-                        transition={{ duration: 2.8, delay: 1.1, repeat: Infinity, ease: 'easeOut' }}
+                        strokeWidth={1.5}
+                        opacity={0.45}
+                        animate={{
+                          r: [radius + 6, radius + 34, radius + 6],
+                          opacity: [0.45, 0, 0.45],
+                        }}
+                        transition={{ duration: 3.2, repeat: Infinity, ease: 'easeOut' }}
+                      />
+                      <motion.circle
+                        r={radius + 12}
+                        fill="none"
+                        stroke={customerColor}
+                        strokeWidth={1}
+                        opacity={0.3}
+                        animate={{
+                          r: [radius + 12, radius + 54, radius + 12],
+                          opacity: [0.3, 0, 0.3],
+                        }}
+                        transition={{ duration: 3.2, delay: 1.2, repeat: Infinity, ease: 'easeOut' }}
                       />
                     </>
                   )}
 
                   <circle
-                    r={radius + 4}
+                    r={radius + 6}
                     fill={customerColor}
-                    opacity={activeToday ? 0.22 : 0.08}
-                    style={{ filter: `blur(8px)` }}
+                    opacity={activeToday ? 0.26 : 0.08}
+                    style={{ filter: 'blur(10px)' }}
                   />
 
                   <motion.circle
                     r={radius}
                     fill={customerColor}
-                    opacity={activeToday ? 1 : 0.55}
+                    stroke="rgba(255,255,255,0.55)"
+                    strokeWidth={0.8}
+                    opacity={activeToday ? 1 : 0.5}
                     initial={{ r: 0, opacity: 0 }}
-                    animate={{ r: radius, opacity: activeToday ? 1 : 0.55 }}
+                    animate={{ r: radius, opacity: activeToday ? 1 : 0.5 }}
                     transition={{ ...spring.gentle, delay: 0.3 + i * 0.07 }}
                     style={{
                       filter: activeToday
-                        ? `drop-shadow(0 0 16px ${customerColor})`
-                        : `drop-shadow(0 0 6px ${customerColor}66)`,
+                        ? `drop-shadow(0 0 14px ${customerColor}) drop-shadow(0 2px 4px rgba(0,0,0,0.4))`
+                        : `drop-shadow(0 0 4px ${customerColor}66)`,
                     }}
                   />
 
                   <circle
-                    r={radius * 0.42}
-                    cx={-radius * 0.18}
-                    cy={-radius * 0.22}
-                    fill="rgba(255,255,255,0.5)"
-                    opacity={activeToday ? 1 : 0.6}
+                    r={radius * 0.55}
+                    cx={-radius * 0.22}
+                    cy={-radius * 0.28}
+                    fill="white"
+                    opacity={activeToday ? 0.42 : 0.26}
+                    style={{ filter: 'blur(1.2px)' }}
                   />
 
                   <text
@@ -282,7 +293,7 @@ export function CustomerMapView({
                     fontWeight={700}
                     fontFamily="var(--font-sora)"
                     fill="white"
-                    style={{ userSelect: 'none' }}
+                    style={{ userSelect: 'none', letterSpacing: '-0.01em' }}
                   >
                     {countWeek}
                   </text>

@@ -1,24 +1,21 @@
 // Codegen for src/lib/europe-paths.ts — pre-projected SVG path data for
-// European countries using the same Mercator-ish projection as
-// src/lib/geo.ts (Mercator vertically, linear longitude horizontally,
-// 1400×900 viewBox, lat 35–72 × lng -12–32).
+// European countries using the SAME Lambert Conformal Conic projection
+// as src/lib/europe-projection.ts. Generated paths and live markers
+// project through identical math, so dots sit on real land.
 //
 // Two modes:
-//   1. No args → fetches Natural Earth 10m admin-0 countries GeoJSON from
-//      github.com/nvkelso/natural-earth-vector and caches it under
-//      scripts/.cache/. This is the default — high-resolution coastlines
-//      so coastal markers (Bergen, Stockholm, Lisbon, Tromsø, …) land on
-//      real land and not the sea.
+//   1. No args → fetches Natural Earth 10m admin-0 countries GeoJSON
+//      from github.com/nvkelso/natural-earth-vector and caches it under
+//      scripts/.cache/. Default.
 //   2. node scripts/generate-europe-paths.mjs <path-to-file.json>
-//      → reads a local TopoJSON or GeoJSON file instead of fetching. Use
-//      this when you already have a specific world-atlas file you want
-//      to project (e.g. a custom simplification or a 50m file).
+//      → reads a local TopoJSON or GeoJSON file instead of fetching.
 //
 // Output: src/lib/europe-paths.ts (overwritten)
 
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { geoConicConformal, geoPath } from 'd3-geo'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -27,22 +24,26 @@ const CACHE_FILE = path.join(CACHE_DIR, 'ne_10m_admin_0_countries.geojson')
 const SOURCE_URL =
   'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson'
 
-// ── Projection — must mirror src/lib/geo.ts ─────────────────────────
-const BOUNDS = { latMin: 35, latMax: 72, lngMin: -12, lngMax: 32 }
+// ── Projection — MUST match src/lib/europe-projection.ts ─────────────
 const MAP_W = 1400
 const MAP_H = 900
 
-function mercatorY(latDeg) {
-  const lat = (latDeg * Math.PI) / 180
-  return Math.log(Math.tan(Math.PI / 4 + lat / 2))
-}
-const Y_MAX = mercatorY(BOUNDS.latMax)
-const Y_MIN = mercatorY(BOUNDS.latMin)
+const projection = geoConicConformal()
+  .parallels([37, 65])
+  .rotate([-10, -52])
+  .scale(1020)
+  .translate([700, 470])
 
-function project(lat, lng) {
-  const x = ((lng - BOUNDS.lngMin) / (BOUNDS.lngMax - BOUNDS.lngMin)) * MAP_W
-  const y = ((Y_MAX - mercatorY(lat)) / (Y_MAX - Y_MIN)) * MAP_H
-  return [x, y]
+// One decimal pixel is ~0.07 mm on a typical monitor — plenty for a
+// 1400×900 viewport. Trimming decimals halves the output.
+const pathBuilder = geoPath(projection).pointRadius(0)
+
+function roundPath(d) {
+  // Keep 1 decimal on numbers; strip trailing ".0" altogether.
+  return d.replace(/-?\d+\.\d+/g, s => {
+    const n = Number(s)
+    return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '')
+  })
 }
 
 // ── Source loading ──────────────────────────────────────────────────
@@ -72,8 +73,8 @@ async function loadSource(localPath) {
   }
 }
 
-// ── TopoJSON → rings iterator ───────────────────────────────────────
-function topoToCountries(topo) {
+// ── TopoJSON → GeoJSON FeatureCollection ────────────────────────────
+function topoToFeatureCollection(topo) {
   const { transform, arcs: rawArcs, objects } = topo
   const [sx, sy] = transform.scale
   const [tx, ty] = transform.translate
@@ -102,93 +103,53 @@ function topoToCountries(topo) {
   const countriesObj = objects.countries ?? Object.values(objects)[0]
   if (!countriesObj) throw new Error('Expected a countries object in TopoJSON')
 
-  const out = []
-  for (const geom of countriesObj.geometries) {
-    const props = geom.properties ?? {}
-    const polys =
-      geom.type === 'Polygon' ? [geom.arcs.map(resolveArcs)]
-      : geom.type === 'MultiPolygon' ? geom.arcs.map(p => p.map(resolveArcs))
-      : []
-    out.push({ props, polys })
-  }
-  return out
+  const features = countriesObj.geometries.map(geom => {
+    let geometry = null
+    if (geom.type === 'Polygon') {
+      geometry = { type: 'Polygon', coordinates: geom.arcs.map(resolveArcs) }
+    } else if (geom.type === 'MultiPolygon') {
+      geometry = {
+        type: 'MultiPolygon',
+        coordinates: geom.arcs.map(p => p.map(resolveArcs)),
+      }
+    }
+    return { type: 'Feature', properties: geom.properties ?? {}, geometry }
+  })
+
+  return { type: 'FeatureCollection', features }
 }
 
-// ── GeoJSON → rings iterator ────────────────────────────────────────
-function geoToCountries(geo) {
-  if (geo.type !== 'FeatureCollection') {
-    throw new Error('Expected GeoJSON FeatureCollection')
-  }
-  const out = []
-  for (const feature of geo.features) {
-    const g = feature.geometry
-    if (!g) continue
-    const props = feature.properties ?? {}
-    const polys =
-      g.type === 'Polygon' ? [g.coordinates]
-      : g.type === 'MultiPolygon' ? g.coordinates
-      : []
-    out.push({ props, polys })
-  }
-  return out
-}
-
-// Auto-detect TopoJSON vs GeoJSON from the parsed root.
-function normaliseCountries(raw) {
-  if (raw.type === 'Topology') return topoToCountries(raw)
-  if (raw.type === 'FeatureCollection') return geoToCountries(raw)
+function toFeatureCollection(raw) {
+  if (raw.type === 'Topology') return topoToFeatureCollection(raw)
+  if (raw.type === 'FeatureCollection') return raw
   throw new Error(`Unknown source type: ${raw.type}`)
 }
 
 // ── Europe filter ───────────────────────────────────────────────────
-// Slightly larger than the render bounds so coastlines that leave the
-// viewport still render cleanly up to the edge.
-const FILTER = { latMin: 30, latMax: 78, lngMin: -28, lngMax: 48 }
+// Generous box so coastlines exiting the viewport still close cleanly.
+const FILTER = { latMin: 28, latMax: 78, lngMin: -28, lngMax: 48 }
 
-function anyPointInBox(ring) {
-  for (const [lng, lat] of ring) {
-    if (
-      lat >= FILTER.latMin && lat <= FILTER.latMax &&
-      lng >= FILTER.lngMin && lng <= FILTER.lngMax
-    ) return true
+function featureIntersectsEurope(feature) {
+  const g = feature.geometry
+  if (!g) return false
+  const polys =
+    g.type === 'Polygon' ? [g.coordinates]
+    : g.type === 'MultiPolygon' ? g.coordinates
+    : []
+  for (const poly of polys) {
+    for (const ring of poly) {
+      for (const [lng, lat] of ring) {
+        if (
+          lat >= FILTER.latMin && lat <= FILTER.latMax &&
+          lng >= FILTER.lngMin && lng <= FILTER.lngMax
+        ) return true
+      }
+    }
   }
   return false
 }
 
-// ── Ring → projected, rounded, de-duplicated SVG path command ───────
-// Pre-project and round to 0.5 px; drop consecutive vertices that round
-// to the same pixel. At 10m resolution this shrinks output dramatically
-// without visible change at 1400×900.
-function ringToCommands(ring) {
-  let d = ''
-  let lastKey = ''
-  let first = ''
-  let count = 0
-  for (let i = 0; i < ring.length; i++) {
-    const [lng, lat] = ring[i]
-    const [x, y] = project(lat, lng)
-    const rx = Math.round(x * 2) / 2
-    const ry = Math.round(y * 2) / 2
-    const key = rx + ',' + ry
-    if (key === lastKey) continue
-    if (count === 0) {
-      d += 'M' + rx + ',' + ry
-      first = key
-    } else {
-      d += 'L' + rx + ',' + ry
-    }
-    lastKey = key
-    count++
-  }
-  if (count < 3) return ''
-  d += 'Z'
-  void first
-  return d
-}
-
 // ── Name normalisation ──────────────────────────────────────────────
-// Different sources use slightly different names; we canonicalise so
-// call sites always get a stable label.
 const NAME_ALIASES = {
   'Bosnia and Herzegovina': 'Bosnia and Herz.',
   'Republic of Serbia': 'Serbia',
@@ -212,29 +173,24 @@ function displayName(props) {
 // ── Main ────────────────────────────────────────────────────────────
 const localPath = process.argv[2]
 const { raw, origin } = await loadSource(localPath)
-const countries = normaliseCountries(raw)
+const fc = toFeatureCollection(raw)
 
 const results = []
-let totalRings = 0
-let keptRings = 0
+let total = 0
+let kept = 0
 
-for (const { props, polys } of countries) {
-  if (polys.length === 0) continue
-  const name = displayName(props)
+for (const feature of fc.features) {
+  total++
+  if (!featureIntersectsEurope(feature)) continue
 
-  let d = ''
-  for (const poly of polys) {
-    for (const ring of poly) {
-      totalRings++
-      if (ring.length < 3) continue
-      if (!anyPointInBox(ring)) continue
-      keptRings++
-      d += ringToCommands(ring)
-    }
-  }
-
+  const d = pathBuilder(feature)
   if (!d) continue
-  results.push({ name, d })
+
+  const rounded = roundPath(d)
+  if (!rounded) continue
+
+  kept++
+  results.push({ name: displayName(feature.properties ?? {}), d: rounded })
 }
 
 results.sort((a, b) => a.name.localeCompare(b.name))
@@ -242,8 +198,8 @@ results.sort((a, b) => a.name.localeCompare(b.name))
 const header = `// AUTO-GENERATED by scripts/generate-europe-paths.mjs
 // Source: ${origin}
 //   https://github.com/nvkelso/natural-earth-vector
-// Projection: Mercator (lat) + linear (lng), viewBox 0 0 ${MAP_W} ${MAP_H}
-// Bounds: lat ${BOUNDS.latMin}–${BOUNDS.latMax}, lng ${BOUNDS.lngMin}–${BOUNDS.lngMax}
+// Projection: Lambert Conformal Conic, parallels 37°N / 65°N, viewBox 0 0 ${MAP_W} ${MAP_H}
+// Must stay in lockstep with src/lib/europe-projection.ts.
 // DO NOT EDIT — regenerate with \`node scripts/generate-europe-paths.mjs\`.
 
 export interface CountryPath {
@@ -265,5 +221,5 @@ fs.writeFileSync(outPath, out, 'utf8')
 
 console.log(
   `Wrote ${results.length} countries → ${outPath} ` +
-  `(${(out.length / 1024).toFixed(1)} KB, kept ${keptRings}/${totalRings} rings)`,
+  `(${(out.length / 1024).toFixed(1)} KB, kept ${kept}/${total} features)`,
 )

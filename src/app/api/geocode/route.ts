@@ -30,10 +30,23 @@ export async function POST(req: NextRequest) {
   const query = (body.query ?? parts.join(', ')).trim()
   if (!query) return NextResponse.json({ error: 'Missing query' }, { status: 400 })
 
+  // Require a country code for anything except an explicit raw `query`.
+  // Without this filter, "Newcastle" routinely resolves to Australia and
+  // "Paris" to Texas — both real issues we hit in practice.
+  if (!body.query && !body.countryCode) {
+    return NextResponse.json(
+      { error: 'Country code required when searching by city/address' },
+      { status: 400 },
+    )
+  }
+
   const url = new URL(NOMINATIM)
   url.searchParams.set('q', query)
   url.searchParams.set('format', 'json')
-  url.searchParams.set('limit', '1')
+  // Ask for a few hits so we can prefer the one that actually matches
+  // the requested country — Nominatim's `countrycodes` filter isn't
+  // always honoured for postal-code only queries.
+  url.searchParams.set('limit', '5')
   url.searchParams.set('addressdetails', '1')
   if (body.countryCode) {
     url.searchParams.set('countrycodes', body.countryCode.toLowerCase())
@@ -67,8 +80,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Fant ikke adressen' }, { status: 404 })
     }
 
-    const hit = hits[0]
+    // Prefer a hit whose country matches the requested one — defensive
+    // against upstream ignoring the `countrycodes` filter (rare but real).
+    const wanted = body.countryCode?.toLowerCase()
+    const hit =
+      (wanted && hits.find(h => h.address?.country_code?.toLowerCase() === wanted)) ||
+      hits[0]
     const addr = hit.address ?? {}
+
+    if (wanted && addr.country_code?.toLowerCase() !== wanted) {
+      return NextResponse.json(
+        {
+          error: `Fant ingen treff i ${body.countryCode} — prøv en mer spesifikk adresse`,
+        },
+        { status: 404 },
+      )
+    }
 
     return NextResponse.json({
       lat: parseFloat(hit.lat),
@@ -84,7 +111,7 @@ export async function POST(req: NextRequest) {
       countryCode: addr.country_code ? addr.country_code.toUpperCase() : null,
       postalCode: addr.postcode ?? null,
     })
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       { error: 'Nominatim unreachable' },
       { status: 502 },

@@ -1,7 +1,10 @@
 // Geographic helpers for the dashboard maps.
-// - Mercator projection tuned to Europe (lat 35–72, lng -12–32)
+// - Lambert Conformal Conic projection tuned to Europe (see
+//   ./europe-projection.ts for why)
 // - Static dictionary of well-known Nordic / European cities so free-text
 //   location_labels like "Fjerdingstad" or "Drammen" can be placed on the map.
+
+import { europeProjection, MAP_WIDTH, MAP_HEIGHT } from './europe-projection'
 
 export interface GeoBounds {
   latMin: number
@@ -11,6 +14,7 @@ export interface GeoBounds {
 }
 
 // Europe-focused frame. Wide enough to include Lisbon, tall enough for Tromsø.
+// Kept for label-culling and graticule drawing.
 export const EUROPE_BOUNDS: GeoBounds = {
   latMin: 35,
   latMax: 72,
@@ -18,32 +22,21 @@ export const EUROPE_BOUNDS: GeoBounds = {
   lngMax: 32,
 }
 
-function mercatorY(latDeg: number): number {
-  const lat = (latDeg * Math.PI) / 180
-  return Math.log(Math.tan(Math.PI / 4 + lat / 2))
-}
-
 /**
- * Project a lat/lng to pixel coordinates inside a given viewBox.
- * Uses Mercator vertically (so Norway doesn't look squished) and
- * linear horizontally (plain longitude) within the bounds.
+ * Project a lat/lng to pixel coordinates inside the map viewport.
+ * Width/height are accepted for call-site compatibility but the projection
+ * is pre-fitted to the shared MAP_WIDTH × MAP_HEIGHT — SVGs using that
+ * viewBox scale the output correctly.
  */
 export function project(
   lat: number,
   lng: number,
-  width: number,
-  height: number,
-  bounds: GeoBounds = EUROPE_BOUNDS,
+  _width: number = MAP_WIDTH,
+  _height: number = MAP_HEIGHT,
 ): { x: number; y: number } {
-  const { latMin, latMax, lngMin, lngMax } = bounds
-  const x = ((lng - lngMin) / (lngMax - lngMin)) * width
-
-  const yMax = mercatorY(latMax)
-  const yMin = mercatorY(latMin)
-  const yRaw = mercatorY(lat)
-  const y = ((yMax - yRaw) / (yMax - yMin)) * height
-
-  return { x, y }
+  const p = europeProjection([lng, lat])
+  if (!p) return { x: NaN, y: NaN }
+  return { x: p[0], y: p[1] }
 }
 
 /**
@@ -144,11 +137,20 @@ const CITY_TABLE: Record<string, CityCoord> = {
   manchester:      { lat: 53.4808, lng: -2.2426, display: 'Manchester' },
   birmingham:      { lat: 52.4862, lng: -1.8904, display: 'Birmingham' },
   liverpool:       { lat: 53.4084, lng: -2.9916, display: 'Liverpool' },
+  newcastle:       { lat: 54.9783, lng: -1.6178, display: 'Newcastle' },
+  'newcastle upon tyne': { lat: 54.9783, lng: -1.6178, display: 'Newcastle' },
+  leeds:           { lat: 53.8008, lng: -1.5491, display: 'Leeds' },
+  sheffield:       { lat: 53.3811, lng: -1.4701, display: 'Sheffield' },
+  nottingham:      { lat: 52.9548, lng: -1.1581, display: 'Nottingham' },
+  southampton:     { lat: 50.9097, lng: -1.4044, display: 'Southampton' },
   edinburgh:       { lat: 55.9533, lng: -3.1883, display: 'Edinburgh' },
   glasgow:         { lat: 55.8642, lng: -4.2518, display: 'Glasgow' },
+  aberdeen:        { lat: 57.1497, lng: -2.0943, display: 'Aberdeen' },
   cambridge:       { lat: 52.2053, lng:  0.1218, display: 'Cambridge' },
   oxford:          { lat: 51.7520, lng: -1.2577, display: 'Oxford' },
   bristol:         { lat: 51.4545, lng: -2.5879, display: 'Bristol' },
+  cardiff:         { lat: 51.4816, lng: -3.1791, display: 'Cardiff' },
+  belfast:         { lat: 54.5973, lng: -5.9301, display: 'Belfast' },
   dublin:          { lat: 53.3498, lng: -6.2603, display: 'Dublin' },
 
   // Sentral-Europa

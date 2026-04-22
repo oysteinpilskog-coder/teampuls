@@ -173,58 +173,69 @@ export function OfficeMapView({
 
             return (
               <g key={p.id} transform={`translate(${p.x} ${p.y})`}>
-                {/* Pulsing halo for active offices */}
+                {/* Concentric pulse — slower, more ambient */}
                 {active && (
                   <>
                     <motion.circle
-                      r={radius}
-                      fill={officeColor}
-                      opacity={0.25}
-                      animate={{ r: [radius, radius + 28, radius], opacity: [0.35, 0, 0.35] }}
-                      transition={{ duration: 3, repeat: Infinity, ease: 'easeOut' }}
-                    />
-                    <motion.circle
-                      r={radius + 8}
+                      r={radius + 6}
                       fill="none"
                       stroke={officeColor}
                       strokeWidth={1.5}
-                      opacity={0.5}
-                      animate={{ r: [radius + 8, radius + 44, radius + 8], opacity: [0.5, 0, 0.5] }}
-                      transition={{ duration: 3, delay: 1.2, repeat: Infinity, ease: 'easeOut' }}
+                      opacity={0.45}
+                      animate={{
+                        r: [radius + 6, radius + 38, radius + 6],
+                        opacity: [0.45, 0, 0.45],
+                      }}
+                      transition={{ duration: 3.4, repeat: Infinity, ease: 'easeOut' }}
+                    />
+                    <motion.circle
+                      r={radius + 12}
+                      fill="none"
+                      stroke={officeColor}
+                      strokeWidth={1}
+                      opacity={0.32}
+                      animate={{
+                        r: [radius + 12, radius + 58, radius + 12],
+                        opacity: [0.32, 0, 0.32],
+                      }}
+                      transition={{ duration: 3.4, delay: 1.3, repeat: Infinity, ease: 'easeOut' }}
                     />
                   </>
                 )}
 
-                {/* Outer soft glow */}
+                {/* Ambient halo — soft gaussian */}
                 <circle
-                  r={radius + 4}
+                  r={radius + 6}
                   fill={officeColor}
-                  opacity={active ? 0.22 : 0.1}
-                  style={{ filter: `blur(8px)` }}
+                  opacity={active ? 0.28 : 0.08}
+                  style={{ filter: 'blur(10px)' }}
                 />
 
-                {/* Main dot */}
+                {/* Dot base — hair-thin bright ring for definition */}
                 <motion.circle
                   r={radius}
                   fill={officeColor}
-                  opacity={active ? 1 : 0.55}
+                  stroke="rgba(255,255,255,0.55)"
+                  strokeWidth={0.8}
+                  opacity={active ? 1 : 0.5}
                   initial={{ r: 0, opacity: 0 }}
-                  animate={{ r: radius, opacity: active ? 1 : 0.55 }}
+                  animate={{ r: radius, opacity: active ? 1 : 0.5 }}
                   transition={{ ...spring.gentle, delay: 0.35 + i * 0.08 }}
                   style={{
                     filter: active
-                      ? `drop-shadow(0 0 18px ${officeColor})`
-                      : `drop-shadow(0 0 6px ${officeColor}66)`,
+                      ? `drop-shadow(0 0 14px ${officeColor}) drop-shadow(0 2px 4px rgba(0,0,0,0.4))`
+                      : `drop-shadow(0 0 4px ${officeColor}66)`,
                   }}
                 />
 
-                {/* Inner highlight — gives the dot a glass-bead feel */}
+                {/* Glass highlight */}
                 <circle
-                  r={radius * 0.42}
-                  cx={-radius * 0.18}
-                  cy={-radius * 0.22}
-                  fill="rgba(255,255,255,0.55)"
-                  opacity={active ? 1 : 0.6}
+                  r={radius * 0.55}
+                  cx={-radius * 0.22}
+                  cy={-radius * 0.28}
+                  fill="white"
+                  opacity={active ? 0.45 : 0.28}
+                  style={{ filter: 'blur(1.2px)' }}
                 />
 
                 {/* Count label inside the dot */}
@@ -233,11 +244,11 @@ export function OfficeMapView({
                     x={0}
                     y={radius > 22 ? 6 : 4}
                     textAnchor="middle"
-                    fontSize={radius > 26 ? 20 : 14}
+                    fontSize={radius > 26 ? 19 : 13}
                     fontWeight={700}
                     fontFamily="var(--font-sora)"
                     fill="white"
-                    style={{ userSelect: 'none' }}
+                    style={{ userSelect: 'none', letterSpacing: '-0.01em' }}
                   >
                     {p.peopleToday}
                   </text>
