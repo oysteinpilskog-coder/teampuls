@@ -153,6 +153,12 @@
    ============================================================ */
 
 .dark {
+  /* Accent — liquid-glass violet in place of the old cobalt.
+     Every chrome element still reading var(--accent-color) (focus rings, year-wheel
+     gradient stops, command palette, etc.) inherits the new tone. */
+  --accent-color: #8B5CF6;
+  --accent-glow:  rgba(139, 92, 246, 0.35);
+
   /* Backgrounds — 2026 liquid-glass stack */
   --bg-primary:    #0A0A0B;
   --bg-elevated:   #111114;
