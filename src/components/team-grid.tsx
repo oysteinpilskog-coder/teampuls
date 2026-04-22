@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import type { Member, Office } from '@/lib/supabase/types'
@@ -23,6 +23,7 @@ import { TodayPulse } from '@/components/today-pulse'
 import { CellEditor } from '@/components/cell-editor'
 import { spring } from '@/lib/motion'
 import { useEntries } from '@/hooks/use-entries'
+import { no } from '@/lib/i18n/no'
 import type { Entry, EntryStatus } from '@/lib/supabase/types'
 
 interface RowSegment {
@@ -514,6 +515,38 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     return Array.from({ length: weekDays.length }, (_, i) => i >= lo && i <= hi)
   }
 
+  // Weekly summary toast — when the user navigates to a new week, briefly
+  // show a breakdown like "Uke 18 — 5 kontor · 3 borte" so they get a
+  // one-glance read of the week they just landed on. Skips the initial
+  // mount and empty weeks (nothing useful to summarise).
+  const lastToastedKey = useRef<string>(`${todayWeek}-${todayYear}`)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    const key = `${week}-${year}`
+    if (lastToastedKey.current === key) return
+    if (entriesLoading) return
+    if (entries.length === 0) {
+      lastToastedKey.current = key
+      return
+    }
+    // Debounce — rapid arrow-presses shouldn't fire a toast per step.
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => {
+      const summary = summariseWeek(entries, palettes)
+      toast.custom((id) => (
+        <WeeklySummaryToast
+          weekNumber={week}
+          summary={summary}
+          onDismiss={() => toast.dismiss(id)}
+        />
+      ))
+      lastToastedKey.current = key
+    }, 250)
+    return () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current)
+    }
+  }, [week, year, entries, entriesLoading, palettes])
+
   // Keyboard navigation — ←/→ for week paging, T for "jump to this week".
   // Guarded against typing targets so we never steal arrows inside inputs.
   useEffect(() => {
@@ -911,6 +944,124 @@ export function TeamGrid({ orgId }: TeamGridProps) {
         initialRangeEnd={selectedCell?.endDate ?? null}
         onMutated={refetch}
       />
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface WeekSummaryItem {
+  status: EntryStatus
+  label: string
+  count: number
+  tone: string
+}
+
+function summariseWeek(
+  entries: Entry[],
+  palettes: ReturnType<typeof useStatusColors>,
+): WeekSummaryItem[] {
+  // Count unique members per status within the visible week — one person
+  // listed multiple times across days shouldn't inflate the number.
+  const byStatus = new Map<EntryStatus, Set<string>>()
+  for (const e of entries) {
+    if (!byStatus.has(e.status)) byStatus.set(e.status, new Set())
+    byStatus.get(e.status)!.add(e.member_id)
+  }
+  const order: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
+  const labels: Record<EntryStatus, string> = no.status
+  return order
+    .map((status) => ({
+      status,
+      label: labels[status],
+      count: byStatus.get(status)?.size ?? 0,
+      tone: palettes[status].icon,
+    }))
+    .filter((x) => x.count > 0)
+}
+
+function WeeklySummaryToast({
+  weekNumber,
+  summary,
+  onDismiss,
+}: {
+  weekNumber: number
+  summary: WeekSummaryItem[]
+  onDismiss: () => void
+}) {
+  // Show top three statuses by count; the rest collapse into a "+N mer" chip.
+  const sorted = [...summary].sort((a, b) => b.count - a.count)
+  const top = sorted.slice(0, 3)
+  const rest = sorted.slice(3).reduce((acc, x) => acc + x.count, 0)
+  return (
+    <div
+      className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+      style={{
+        background: 'color-mix(in oklab, var(--bg-elevated) 92%, transparent)',
+        backdropFilter: 'blur(22px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(22px) saturate(180%)',
+        border: '1px solid color-mix(in oklab, var(--border-subtle) 55%, transparent)',
+        boxShadow:
+          '0 24px 48px -16px rgba(10,20,40,0.22), 0 10px 20px -12px rgba(10,20,40,0.14), inset 0 1px 0 rgba(255,255,255,0.55)',
+        color: 'var(--text-primary)',
+        fontFamily: 'var(--font-inter-tight)',
+        fontSize: 13.5,
+        letterSpacing: '-0.005em',
+        minWidth: 260,
+      }}
+    >
+      <span
+        className="flex items-center justify-center rounded-lg shrink-0 font-bold tabular-nums"
+        style={{
+          width: 32,
+          height: 32,
+          background: 'color-mix(in oklab, var(--accent-color) 14%, transparent)',
+          color: 'var(--accent-color)',
+          fontFamily: 'var(--font-sora)',
+          letterSpacing: '-0.02em',
+          fontSize: 13,
+        }}
+      >
+        {weekNumber}
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>
+          {no.matrix.weekLabel} {weekNumber}
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+          {top.map((x) => (
+            <span key={x.status} className="inline-flex items-center gap-1">
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: x.tone }}
+              />
+              <span className="tabular-nums font-semibold">{x.count}</span>
+              <span style={{ color: 'var(--text-secondary)' }}>{x.label.toLowerCase()}</span>
+            </span>
+          )).reduce<React.ReactNode[]>((acc, node, i) => {
+            if (i > 0) acc.push(<span key={`sep-${i}`} style={{ color: 'var(--text-tertiary)' }}>·</span>)
+            acc.push(node)
+            return acc
+          }, [])}
+          {rest > 0 && (
+            <>
+              <span style={{ color: 'var(--text-tertiary)' }}>·</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>+{rest} andre</span>
+            </>
+          )}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+        style={{ color: 'var(--text-tertiary)' }}
+        aria-label="Lukk"
+      >
+        <svg viewBox="0 0 10 10" width="10" height="10" fill="none">
+          <path d="M1.5 1.5 8.5 8.5M8.5 1.5 1.5 8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </button>
     </div>
   )
 }

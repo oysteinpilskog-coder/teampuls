@@ -190,14 +190,55 @@ function HoverCardBody({
 
   return (
     <div className="p-4">
-      {/* Head: avatar + name block */}
+      {/* Head: avatar + name block. The avatar is wrapped in a halo ring
+          tinted by today's status — if the person is on vacation, the ring
+          picks up the vacation hue; if they're at the office, it glows blue. */}
       <div className="flex items-center gap-3">
-        <MemberAvatar
-          name={displayName}
-          avatarUrl={avatarUrl}
-          initials={initials}
-          size="lg"
-        />
+        <div className="relative">
+          {tone && (
+            <>
+              <span
+                aria-hidden
+                className="absolute rounded-full pointer-events-none"
+                style={{
+                  inset: -6,
+                  background: `radial-gradient(circle, color-mix(in oklab, ${tone} 55%, transparent) 0%, transparent 70%)`,
+                  filter: 'blur(10px)',
+                }}
+              />
+              <span
+                aria-hidden
+                className="absolute inset-0 rounded-full pointer-events-none"
+                style={{
+                  boxShadow: `0 0 0 2px color-mix(in oklab, ${tone} 38%, transparent),
+                              0 8px 20px -4px color-mix(in oklab, ${tone} 55%, transparent)`,
+                }}
+              />
+            </>
+          )}
+          <div className="relative">
+            <MemberAvatar
+              name={displayName}
+              avatarUrl={avatarUrl}
+              initials={initials}
+              size="lg"
+            />
+          </div>
+          {tone && (
+            <span
+              aria-hidden
+              className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full"
+              style={{
+                width: 20,
+                height: 20,
+                background: tone,
+                boxShadow: `0 0 0 2px var(--bg-elevated), 0 2px 6px color-mix(in oklab, ${tone} 55%, transparent)`,
+              }}
+            >
+              <StatusIcon status={status!} size={11} color="#ffffff" />
+            </span>
+          )}
+        </div>
         <div className="min-w-0 flex-1">
           <div
             className="font-bold truncate"
