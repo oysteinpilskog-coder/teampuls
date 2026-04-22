@@ -40,7 +40,7 @@ export function RemoteIcon({ size = 24, color = '#059669', className }: IconProp
 }
 
 // Hos kunde — Two overlapping figures (partnership)
-export function CustomerIcon({ size = 24, color = '#D97706', className }: IconProps) {
+export function CustomerIcon({ size = 24, color = '#14B8A6', className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <circle cx="8" cy="7" r="3.5" fill={color} />
@@ -123,7 +123,7 @@ export function OffDayIcon({ size = 24, color = '#78716C', className }: IconProp
 export const STATUS_COLORS: Record<EntryStatus, { bg: string; text: string; icon: string; bgDark: string; textDark: string }> = {
   office:   { bg: '#DBEAFE', text: '#1E40AF', icon: '#2563EB', bgDark: '#172554', textDark: '#93C5FD' },
   remote:   { bg: '#D1FAE5', text: '#065F46', icon: '#059669', bgDark: '#022C22', textDark: '#6EE7B7' },
-  customer: { bg: '#FEF3C7', text: '#92400E', icon: '#D97706', bgDark: '#3F1D05', textDark: '#FCD34D' },
+  customer: { bg: '#CCFBF1', text: '#0F766E', icon: '#14B8A6', bgDark: '#042F2E', textDark: '#5EEAD4' },
   travel:   { bg: '#EDE9FE', text: '#5B21B6', icon: '#7C3AED', bgDark: '#2E1065', textDark: '#C4B5FD' },
   vacation: { bg: '#FEF9C3', text: '#854D0E', icon: '#CA8A04', bgDark: '#3A2A05', textDark: '#FDE047' },
   sick:     { bg: '#FFE4E6', text: '#9F1239', icon: '#E11D48', bgDark: '#3F0714', textDark: '#FDA4AF' },

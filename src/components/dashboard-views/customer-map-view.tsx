@@ -44,7 +44,7 @@ export function CustomerMapView({
   const weekNum = getISOWeek(time)
 
   const memberById = new Map(members.map(m => [m.id, m]))
-  const customerColor = STATUS_COLORS.customer.icon  // #FF7A1A
+  const customerColor = STATUS_COLORS.customer.icon
 
   // Collect free-text labels that the static dictionary can't resolve.
   // These get sent to Nominatim (cached in localStorage) and placed live.

@@ -43,8 +43,8 @@ export const STATUS_GRADIENT: Record<
   office:   { light: ['#3B82F6', '#2563EB'], dark: ['#3B82F6', '#1D4ED8'], tint: '#2563EB' },
   // Hjemmekontor — emerald
   remote:   { light: ['#10B981', '#059669'], dark: ['#10B981', '#047857'], tint: '#059669' },
-  // Hos kunde — amber
-  customer: { light: ['#F59E0B', '#D97706'], dark: ['#F59E0B', '#B45309'], tint: '#D97706' },
+  // Hos kunde — teal (lys grønn)
+  customer: { light: ['#2DD4BF', '#14B8A6'], dark: ['#14B8A6', '#0D9488'], tint: '#14B8A6' },
   // Reise — violet
   travel:   { light: ['#8B5CF6', '#7C3AED'], dark: ['#8B5CF6', '#6D28D9'], tint: '#7C3AED' },
   // Ferie — saffron
