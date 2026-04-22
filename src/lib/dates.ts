@@ -1,4 +1,6 @@
 import { getISOWeek, getISOWeekYear, startOfISOWeek, addDays, format } from 'date-fns'
+import { no } from './i18n/no'
+import type { Dictionary } from './i18n/types'
 
 export { getISOWeek, getISOWeekYear }
 
@@ -27,25 +29,19 @@ export function toDateString(date: Date): string {
   return format(date, 'yyyy-MM-dd')
 }
 
-const WEEKDAY_SHORT: Record<number, string> = {
-  1: 'Man', 2: 'Tir', 3: 'Ons', 4: 'Tor', 5: 'Fre', 6: 'Lør', 0: 'Søn',
-}
-const MONTH_SHORT: Record<number, string> = {
-  0: 'jan', 1: 'feb', 2: 'mar', 3: 'apr', 4: 'mai', 5: 'jun',
-  6: 'jul', 7: 'aug', 8: 'sep', 9: 'okt', 10: 'nov', 11: 'des',
-}
-
 export interface DayLabel {
   weekday: string   // 'Man'
   day: number       // 20
   month: string     // 'apr'
 }
 
-export function getDayLabel(date: Date): DayLabel {
+/** Locale-aware day label. Falls back to Norwegian if no dict is given so
+ *  server-rendered / pre-locale call sites keep working. */
+export function getDayLabel(date: Date, dict: Dictionary = no): DayLabel {
   return {
-    weekday: WEEKDAY_SHORT[date.getDay()],
+    weekday: dict.dates.weekdaysShort[date.getDay()].slice(0, 3),
     day: date.getDate(),
-    month: MONTH_SHORT[date.getMonth()],
+    month: dict.dates.monthsShort[date.getMonth()],
   }
 }
 
@@ -75,17 +71,17 @@ export function getMonthForWeek(week: number, year: number): { month: number; ye
   return { month: monday.getMonth(), year: monday.getFullYear() }
 }
 
-export const MONTH_LONG_NB: Record<number, string> = {
-  0: 'januar', 1: 'februar', 2: 'mars', 3: 'april', 4: 'mai', 5: 'juni',
-  6: 'juli', 7: 'august', 8: 'september', 9: 'oktober', 10: 'november', 11: 'desember',
-}
+// Legacy Norwegian constants — kept as aliases so existing imports compile.
+// New code should read from `useT().dates` instead.
+export const MONTH_LONG_NB: Record<number, string> = Object.fromEntries(
+  no.dates.monthsLong.map((m, i) => [i, m]),
+) as Record<number, string>
 
-export const WEEKDAY_LONG_NB: Record<number, string> = {
-  0: 'Søndag', 1: 'Mandag', 2: 'Tirsdag', 3: 'Onsdag',
-  4: 'Torsdag', 5: 'Fredag', 6: 'Lørdag',
-}
+export const WEEKDAY_LONG_NB: Record<number, string> = Object.fromEntries(
+  no.dates.weekdaysLong.map((d, i) => [i, d]),
+) as Record<number, string>
 
-/** Full Norwegian date label: "Mandag 20. april" */
-export function formatDateLabelLong(date: Date): string {
-  return `${WEEKDAY_LONG_NB[date.getDay()]} ${date.getDate()}. ${MONTH_LONG_NB[date.getMonth()]}`
+/** Locale-aware long date label, e.g. "Mandag 20. april" in Norwegian. */
+export function formatDateLabelLong(date: Date, dict: Dictionary = no): string {
+  return `${dict.dates.weekdaysLong[date.getDay()]} ${date.getDate()}. ${dict.dates.monthsLong[date.getMonth()]}`
 }

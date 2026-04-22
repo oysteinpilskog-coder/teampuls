@@ -7,7 +7,7 @@ import { StatusIcon } from '@/components/icons/status-icons'
 import { useStatusColors } from '@/lib/status-colors/context'
 import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 import { AnimatedCount } from './animated-count'
 
 interface TeamBoardProps {
@@ -22,22 +22,8 @@ interface StripDef {
   representative: EntryStatus
 }
 
-const STRIPS: StripDef[] = [
-  { key: 'office',   label: no.pulse.atOffice,   statuses: ['office'],                      representative: 'office' },
-  { key: 'remote',   label: no.pulse.atHome,     statuses: ['remote'],                      representative: 'remote' },
-  { key: 'customer', label: no.pulse.atCustomer, statuses: ['customer', 'travel'],          representative: 'customer' },
-  { key: 'away',     label: no.pulse.away,       statuses: ['vacation', 'sick', 'off'],     representative: 'vacation' },
-]
-
-const STATUS_LABEL: Record<EntryStatus, string> = {
-  office: 'Kontor',
-  remote: 'Hjemme',
-  customer: 'Hos kunde',
-  travel: 'Reise',
-  vacation: 'Ferie',
-  sick: 'Syk',
-  off: 'Fri',
-}
+// STRIPS + STATUS_LABEL are built inside the component from useT() so they
+// re-render when the active locale changes.
 
 interface MemberCardProps {
   member: Member
@@ -49,7 +35,17 @@ interface MemberCardProps {
 }
 
 function MemberCard({ member, entry, accent, textTint, bg, delay }: MemberCardProps) {
-  const statusLabel = entry ? STATUS_LABEL[entry.status] : 'Ikke registrert'
+  const t = useT()
+  const STATUS_LABEL: Record<EntryStatus, string> = {
+    office: t.status.office,
+    remote: t.pulse.atHomeShort,
+    customer: t.status.customer,
+    travel: t.status.travel,
+    vacation: t.status.vacation,
+    sick: t.status.sick,
+    off: t.status.off,
+  }
+  const statusLabel = entry ? STATUS_LABEL[entry.status] : t.matrix.noStatus
   return (
     <motion.div
       initial={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -269,6 +265,13 @@ function Strip({
 }
 
 export function TeamBoard({ members, todayMap }: TeamBoardProps) {
+  const t = useT()
+  const STRIPS: StripDef[] = [
+    { key: 'office',   label: t.pulse.atOffice,   statuses: ['office'],                      representative: 'office'   },
+    { key: 'remote',   label: t.pulse.atHome,     statuses: ['remote'],                      representative: 'remote'   },
+    { key: 'customer', label: t.pulse.atCustomer, statuses: ['customer', 'travel'],          representative: 'customer' },
+    { key: 'away',     label: t.pulse.away,       statuses: ['vacation', 'sick', 'off'],     representative: 'vacation' },
+  ]
   const scrollRef = useRef<HTMLDivElement>(null)
   const [canScroll, setCanScroll] = useState<{ top: boolean; bottom: boolean }>({
     top: false,

@@ -4,7 +4,7 @@ import { Dialog } from '@base-ui/react/dialog'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { spring } from '@/lib/motion'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 
 interface Shortcut {
   keys: string[]
@@ -16,34 +16,35 @@ interface Section {
   items: Shortcut[]
 }
 
-const SECTIONS: Section[] = [
-  {
-    title: no.hotkeys.group.global,
-    items: [
-      { keys: ['⌘', 'K'], label: no.hotkeys.k.palette },
-      { keys: ['/'], label: no.hotkeys.k.slash },
-      { keys: ['?'], label: no.hotkeys.k.help },
-    ],
-  },
-  {
-    title: no.hotkeys.group.week,
-    items: [
-      { keys: ['T'], label: no.hotkeys.k.today },
-      { keys: ['←'], label: no.hotkeys.k.prevWeek },
-      { keys: ['→'], label: no.hotkeys.k.nextWeek },
-    ],
-  },
-  {
-    title: no.hotkeys.group.editing,
-    items: [
-      { keys: ['Esc'], label: no.hotkeys.k.esc },
-      { keys: ['↵'], label: no.hotkeys.k.enter },
-    ],
-  },
-]
-
 export function KeyboardHelp() {
   const [open, setOpen] = useState(false)
+  const t = useT()
+
+  const SECTIONS: Section[] = [
+    {
+      title: t.hotkeys.group.global,
+      items: [
+        { keys: ['⌘', 'K'], label: t.hotkeys.k.palette },
+        { keys: ['/'], label: t.hotkeys.k.slash },
+        { keys: ['?'], label: t.hotkeys.k.help },
+      ],
+    },
+    {
+      title: t.hotkeys.group.week,
+      items: [
+        { keys: ['T'], label: t.hotkeys.k.today },
+        { keys: ['←'], label: t.hotkeys.k.prevWeek },
+        { keys: ['→'], label: t.hotkeys.k.nextWeek },
+      ],
+    },
+    {
+      title: t.hotkeys.group.editing,
+      items: [
+        { keys: ['Esc'], label: t.hotkeys.k.esc },
+        { keys: ['↵'], label: t.hotkeys.k.enter },
+      ],
+    },
+  ]
 
   useEffect(() => {
     const handler = () => setOpen(true)
@@ -104,7 +105,7 @@ export function KeyboardHelp() {
                     letterSpacing: '-0.028em',
                   }}
                 >
-                  {no.hotkeys.title}
+                  {t.hotkeys.title}
                 </Dialog.Title>
                 <Dialog.Description
                   className="mt-0.5"
@@ -114,7 +115,7 @@ export function KeyboardHelp() {
                     fontSize: 13,
                   }}
                 >
-                  {no.hotkeys.desc}
+                  {t.hotkeys.desc}
                 </Dialog.Description>
               </div>
 
@@ -159,7 +160,7 @@ export function KeyboardHelp() {
                 }}
               >
                 <HelpKbd>Esc</HelpKbd>
-                <span>for å lukke</span>
+                <span>{t.hotkeys.closeHint}</span>
               </div>
             </Dialog.Popup>
           </Dialog.Portal>

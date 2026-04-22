@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { StatusIcon } from '@/components/icons/status-icons'
 import type { EntryStatus } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 import { useStatusColors } from '@/lib/status-colors/context'
 
 export interface SegmentDay {
@@ -47,6 +47,7 @@ export function StatusSegment({
   onSegmentResizeStart,
 }: StatusSegmentProps) {
   const palettes = useStatusColors()
+  const t = useT()
 
   const span = days.length
   const todayIdx = days.findIndex((d) => d.isToday)
@@ -162,8 +163,8 @@ export function StatusSegment({
               onMouseEnter={onDayMouseEnter ? () => onDayMouseEnter(i) : undefined}
               aria-label={
                 status
-                  ? `${no.status[status]}${label ? `, ${label}` : ''} — ${d.dateLabel}`
-                  : `${no.matrix.noStatus} — ${d.dateLabel}`
+                  ? `${t.status[status]}${label ? `, ${label}` : ''} — ${d.dateLabel}`
+                  : `${t.matrix.noStatus} — ${d.dateLabel}`
               }
               className={`segment-day flex-1 relative focus:outline-none focus-visible:z-10 ${isHi ? 'is-highlighted' : ''}`}
             />

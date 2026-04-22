@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { suggestCoordinationDays } from '@/lib/ai/suggest-days'
+import { getServerDict } from '@/lib/i18n/server'
 import type { Entry } from '@/lib/supabase/types'
 
 /**
@@ -13,6 +14,7 @@ import type { Entry } from '@/lib/supabase/types'
  * call — so the round-trip is fast and the answer is deterministic.
  */
 export async function GET() {
+  const dict = await getServerDict()
   try {
     const userClient = await createClient()
     const { data: { user } } = await userClient.auth.getUser()
@@ -39,7 +41,7 @@ export async function GET() {
       member = byEmail ?? null
     }
     if (!member) {
-      return NextResponse.json({ error: 'Ikke koblet til en org.' }, { status: 403 })
+      return NextResponse.json({ error: dict.ai.notLinkedToOrg }, { status: 403 })
     }
 
     // Members for the org.
@@ -80,6 +82,6 @@ export async function GET() {
     return NextResponse.json(result)
   } catch (err) {
     console.error('[ai/suggest-days] Error:', err)
-    return NextResponse.json({ error: 'Kunne ikke hente forslag' }, { status: 500 })
+    return NextResponse.json({ error: dict.ai.suggestionsFailed }, { status: 500 })
   }
 }

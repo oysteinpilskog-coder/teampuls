@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { MemberAvatar } from '@/components/member-avatar'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useStatusColors } from '@/lib/status-colors/context'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
 import type { EntryStatus } from '@/lib/supabase/types'
 
@@ -163,6 +163,7 @@ function HoverCardBody({
   todayNote: string | null
 }) {
   const colors = useStatusColors()
+  const t = useT()
   const [localTime, setLocalTime] = useState<string>('')
 
   useEffect(() => {
@@ -332,7 +333,7 @@ function HoverCardBody({
                 className="text-[13px] font-semibold truncate"
                 style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
               >
-                {no.status[status]}
+                {t.status[status]}
                 {todayLocation && (
                   <span
                     className="ml-1.5 font-medium"

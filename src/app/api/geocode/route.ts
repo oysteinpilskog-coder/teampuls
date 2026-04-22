@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getServerDict } from '@/lib/i18n/server'
 
 // Free, open geocoder. 1 req/s rate limit from a single IP — fine for
 // interactive office editing. We cache via Next's fetch cache (24h).
@@ -13,6 +14,7 @@ const CONTACT =
 const UA = `TeamPulse/1.0 (${CONTACT})`
 
 export async function POST(req: NextRequest) {
+  const dict = await getServerDict()
   // Auth — only logged-in members can geocode.
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -77,7 +79,7 @@ export async function POST(req: NextRequest) {
     }>
 
     if (!hits.length) {
-      return NextResponse.json({ error: 'Fant ikke adressen' }, { status: 404 })
+      return NextResponse.json({ error: dict.geocode.notFound }, { status: 404 })
     }
 
     // Prefer a hit whose country matches the requested one — defensive
@@ -91,7 +93,7 @@ export async function POST(req: NextRequest) {
     if (wanted && addr.country_code?.toLowerCase() !== wanted) {
       return NextResponse.json(
         {
-          error: `Fant ingen treff i ${body.countryCode} — prøv en mer spesifikk adresse`,
+          error: dict.geocode.noMatchesInCountry.replace('{country}', body.countryCode ?? ''),
         },
         { status: 404 },
       )

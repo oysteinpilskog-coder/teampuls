@@ -13,14 +13,14 @@ import { StatusSegment, type SegmentDay } from '@/components/status-segment'
 import {
   toDateString,
   isToday,
-  MONTH_LONG_NB,
   formatDateLabelLong,
   getWeekStart,
   getLastISOWeek,
 } from '@/lib/dates'
 import type { Entry, EntryStatus } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
+import type { Dictionary } from '@/lib/i18n/types'
 import { useStatusColors } from '@/lib/status-colors/context'
 
 interface MyPlanProps {
@@ -39,7 +39,7 @@ interface WeekBlock {
   isCurrentWeek: boolean
 }
 
-function buildYearWeeks(year: number): WeekBlock[] {
+function buildYearWeeks(year: number, t: Dictionary): WeekBlock[] {
   const today = new Date()
   const todayWeek = getISOWeek(today)
   const todayYear = getISOWeekYear(today)
@@ -50,7 +50,7 @@ function buildYearWeeks(year: number): WeekBlock[] {
     const start = getWeekStart(weekNumber, year)
     const days = Array.from({ length: 5 }, (_, d) => addDays(start, d))
     const midWeek = days[2]
-    const monthLabel = MONTH_LONG_NB[midWeek.getMonth()]
+    const monthLabel = t.dates.monthsLong[midWeek.getMonth()]
     return {
       weekNumber,
       year,
@@ -77,7 +77,7 @@ function entriesMergeable(a: Entry | null, b: Entry | null): boolean {
   )
 }
 
-function buildWeekSegments(weekDays: Date[], entryByDate: Map<string, Entry>): RowSegment[] {
+function buildWeekSegments(weekDays: Date[], entryByDate: Map<string, Entry>, t: Dictionary): RowSegment[] {
   const segments: RowSegment[] = []
   let i = 0
   while (i < weekDays.length) {
@@ -94,7 +94,7 @@ function buildWeekSegments(weekDays: Date[], entryByDate: Map<string, Entry>): R
       entry: startEntry,
       days: dates.map((date) => ({
         date: toDateString(date),
-        dateLabel: formatDateLabelLong(date),
+        dateLabel: formatDateLabelLong(date, t),
         isToday: isToday(date),
       })),
     })
@@ -136,11 +136,12 @@ interface ResizeDrag {
 }
 
 export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) {
+  const t = useT()
   const currentYear = useMemo(() => getISOWeekYear(new Date()), [])
   const [year, setYear] = useState(currentYear)
   const [dirY, setDirY] = useState<'next' | 'prev'>('next')
 
-  const weeks = useMemo(() => buildYearWeeks(year), [year])
+  const weeks = useMemo(() => buildYearWeeks(year, t), [year, t])
   const rangeStart = toDateString(weeks[0].start)
   const rangeEnd = toDateString(addDays(weeks[weeks.length - 1].start, 4))
 
@@ -282,7 +283,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
           setSelectedCell({
             date: toDateString(startDate),
             endDate: toDateString(endDate),
-            dateLabel: formatDateLabelLong(startDate),
+            dateLabel: formatDateLabelLong(startDate, t),
             status: rz.entry.status,
             location: rz.entry.location_label,
             note: rz.entry.note,
@@ -333,7 +334,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
           setSelectedCell({
             date: toDateString(startDate),
             endDate: toDateString(endDate),
-            dateLabel: formatDateLabelLong(startDate),
+            dateLabel: formatDateLabelLong(startDate, t),
             status: mv.entry.status,
             location: mv.entry.location_label,
             note: mv.entry.note,
@@ -388,7 +389,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
         setSelectedCell({
           date: startStr,
           endDate: endStr,
-          dateLabel: formatDateLabelLong(startDate),
+          dateLabel: formatDateLabelLong(startDate, t),
           status: entry?.status ?? null,
           location: entry?.location_label ?? null,
           note: entry?.note ?? null,
@@ -407,7 +408,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
     const dateStr = toDateString(weeks[wk].days[d])
     const entry = entryByDate.get(dateStr)
     if (entry) {
-      const segments = buildWeekSegments(weeks[wk].days, entryByDate)
+      const segments = buildWeekSegments(weeks[wk].days, entryByDate, t)
       let cursor = 0
       for (const seg of segments) {
         const n = seg.days.length
@@ -523,7 +524,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
               {loading
                 ? 'Laster…'
                 : totalEntries === 0
-                  ? `Ingen oppføringer i ${year}`
+                  ? t.myPlan.emptyYear.replace('{year}', String(year))
                   : `${totalEntries} ${totalEntries === 1 ? 'oppføring' : 'oppføringer'} i ${year}`}
             </p>
           </div>
@@ -543,7 +544,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
             onClick={goPrevYear}
             className="flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-150 focus:outline-none"
             style={{ color: 'var(--lg-text-2)' }}
-            aria-label="Forrige år"
+            aria-label={t.matrix.prevYear}
           >
             <ChevronLeft className="w-4 h-4" strokeWidth={1.75} />
           </button>
@@ -568,7 +569,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
             onClick={goNextYear}
             className="flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-150 focus:outline-none"
             style={{ color: 'var(--lg-text-2)' }}
-            aria-label="Neste år"
+            aria-label={t.matrix.nextYear}
           >
             <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
           </button>
@@ -609,7 +610,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
           className="space-y-3"
         >
           {weeks.map((wk, wkIdx) => {
-            const segments = buildWeekSegments(wk.days, entryByDate)
+            const segments = buildWeekSegments(wk.days, entryByDate, t)
             const hasEntries = segments.some((s) => s.entry !== null)
             const highlights = dayHighlightsForWeek(wkIdx, wk.days.length)
 
@@ -665,7 +666,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
                           letterSpacing: '0.2em',
                         }}
                       >
-                        {no.matrix.weekLabel}
+                        {t.matrix.weekLabel}
                       </span>
                       <span
                         className="lg-mono text-[22px] leading-none"
@@ -839,6 +840,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
 // ─────────────────────────────────────────────────────────────────────────────
 
 function MyPlanEmpty({ year }: { year: number }) {
+  const t = useT()
   return (
     <EmptyState
       icon={
@@ -848,14 +850,8 @@ function MyPlanEmpty({ year }: { year: number }) {
           <circle cx="12" cy="14.5" r="1.25" fill="currentColor" />
         </svg>
       }
-      title={`Ingen oppføringer i ${year} ennå`}
-      description={
-        <>
-          Skriv en statusoppdatering på <strong style={{ color: 'var(--text-primary)' }}>Oversikt</strong>,
-          eller klikk en dag i rutenettet nedenfor for å komme i gang. Planen fyller seg selv etter hvert
-          som teamet sender oppdateringer.
-        </>
-      }
+      title={t.myPlan.emptyListTitle.replace('{year}', String(year))}
+      description={t.myPlan.emptyListHint}
     />
   )
 }

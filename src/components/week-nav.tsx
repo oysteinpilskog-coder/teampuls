@@ -5,14 +5,13 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
-  MONTH_LONG_NB,
   getMonthForWeek,
   getISOWeekForMonth,
   getTodayWeekAndYear,
   getWeekDays,
   getDayLabel,
 } from '@/lib/dates'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
 import { useHaptic } from '@/hooks/use-haptic'
 
@@ -27,10 +26,11 @@ interface WeekNavProps {
 }
 
 export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, onJumpTo }: WeekNavProps) {
+  const t = useT()
   const { month: currentMonth, year: currentCalYear } = getMonthForWeek(week, year)
   const weekDays = getWeekDays(week, year)
-  const first = getDayLabel(weekDays[0])
-  const last = getDayLabel(weekDays[weekDays.length - 1])
+  const first = getDayLabel(weekDays[0], t)
+  const last = getDayLabel(weekDays[weekDays.length - 1], t)
   const haptic = useHaptic()
   const rangeLabel =
     first.month === last.month
@@ -48,7 +48,7 @@ export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, on
       >
         <div className="flex items-center gap-2 mb-1.5">
           <span className="lg-eyebrow">
-            {no.matrix.weekLabel} {week}
+            {t.matrix.weekLabel} {week}
             <span className="mx-2 opacity-50">·</span>
             {rangeLabel}
           </span>
@@ -95,7 +95,7 @@ export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, on
           onClick={() => { haptic('light'); onPrev() }}
           className="flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-150 focus:outline-none"
           style={{ color: 'var(--lg-text-2)' }}
-          aria-label={no.matrix.prevWeek}
+          aria-label={t.matrix.prevWeek}
         >
           <ChevronLeft className="w-4 h-4" strokeWidth={1.75} />
         </button>
@@ -114,14 +114,14 @@ export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, on
             fontFamily: 'var(--font-body)',
           }}
         >
-          {no.matrix.thisWeek}
+          {t.matrix.thisWeek}
         </motion.button>
 
         <button
           onClick={() => { haptic('light'); onNext() }}
           className="flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-150 focus:outline-none"
           style={{ color: 'var(--lg-text-2)' }}
-          aria-label={no.matrix.nextWeek}
+          aria-label={t.matrix.nextWeek}
         >
           <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
         </button>
@@ -141,6 +141,7 @@ interface MonthPickerTriggerProps {
 }
 
 function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerProps) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [viewYear, setViewYear] = useState(year)
 
@@ -163,7 +164,7 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
     >
       <PopoverTrigger
         className="group inline-flex items-baseline gap-3 focus:outline-none rounded-lg -mx-1 px-1"
-        aria-label="Velg måned"
+        aria-label={t.matrix.selectMonth}
       >
         <span
           className="lg-serif leading-[0.95]"
@@ -173,7 +174,7 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
             textTransform: 'capitalize',
           }}
         >
-          {MONTH_LONG_NB[month]}
+          {t.dates.monthsLong[month]}
         </span>
         <span
           className="lg-mono leading-[0.95]"
@@ -209,7 +210,7 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
             whileTap={{ scale: 0.94 }}
             transition={spring.snappy}
             className="flex items-center justify-center w-7 h-7 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-            aria-label="Forrige år"
+            aria-label={t.matrix.prevYear}
           >
             <ChevronLeft className="w-4 h-4" strokeWidth={1.75} />
           </motion.button>
@@ -225,7 +226,7 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
             whileTap={{ scale: 0.94 }}
             transition={spring.snappy}
             className="flex items-center justify-center w-7 h-7 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-            aria-label="Neste år"
+            aria-label={t.matrix.nextYear}
           >
             <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
           </motion.button>
@@ -258,7 +259,7 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
                     : '1px solid transparent',
                 }}
               >
-                {MONTH_LONG_NB[monthIdx].slice(0, 3)}
+                {t.dates.monthsLong[monthIdx].slice(0, 3)}
               </motion.button>
             )
           })}
@@ -280,7 +281,7 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
             fontFamily: 'var(--font-body)',
           }}
         >
-          Hopp til i dag
+          {t.hotkeys.k.today}
         </motion.button>
       </PopoverContent>
     </Popover>

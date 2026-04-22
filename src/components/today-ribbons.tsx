@@ -8,7 +8,8 @@ import { StatusIcon } from '@/components/icons/status-icons'
 import { MemberAvatar } from '@/components/member-avatar'
 import { toDateString, formatDateLabelLong } from '@/lib/dates'
 import { spring } from '@/lib/motion'
-import { no } from '@/lib/i18n/no'
+import { useI18n, useT } from '@/lib/i18n/context'
+import { LOCALE_META } from '@/lib/i18n/types'
 import { EmptyState } from '@/components/empty-state'
 import type { EntryStatus } from '@/lib/supabase/types'
 
@@ -33,35 +34,7 @@ interface Band {
   tint: string
 }
 
-// Kategorifargene er hentet rett fra designsystemet (dempede pasteller).
-const BANDS: Band[] = [
-  {
-    id: 'together',
-    label: no.today.bandTogether,
-    sublabel: no.today.bandTogetherSub,
-    statuses: ['office'],
-    color: '#2DD4BF', // teal — "work / tilstede"
-    tint: '#5EEAD4',
-  },
-  {
-    id: 'spread',
-    label: no.today.bandSpread,
-    sublabel: no.today.bandSpreadSub,
-    statuses: ['remote', 'customer', 'travel'],
-    color: '#FBBF24', // amber — "travel / spredt"
-    tint: '#FDE68A',
-  },
-  {
-    id: 'rest',
-    label: no.today.bandRest,
-    sublabel: no.today.bandRestSub,
-    statuses: ['vacation', 'sick', 'off'],
-    color: '#6366F1', // indigo — "focus / i ro"
-    tint: '#A5B4FC',
-  },
-]
-
-function useClock(timezone: string, mounted: boolean) {
+function useClock(timezone: string, mounted: boolean, intlLocale: string) {
   const [now, setNow] = useState<Date | null>(null)
   useEffect(() => {
     if (!mounted) return
@@ -72,24 +45,54 @@ function useClock(timezone: string, mounted: boolean) {
   const timeStr = useMemo(() => {
     if (!now) return ''
     try {
-      return new Intl.DateTimeFormat('nb-NO', {
+      return new Intl.DateTimeFormat(intlLocale, {
         hour: '2-digit',
         minute: '2-digit',
         timeZone: timezone,
       }).format(now)
     } catch {
-      return new Intl.DateTimeFormat('nb-NO', { hour: '2-digit', minute: '2-digit' }).format(now)
+      return new Intl.DateTimeFormat(intlLocale, { hour: '2-digit', minute: '2-digit' }).format(now)
     }
-  }, [now, timezone])
+  }, [now, timezone, intlLocale])
   return { now, timeStr }
 }
 
 export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps) {
+  const t = useT()
+  const { locale } = useI18n()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
   const reduce = !!useReducedMotion()
   const statusColors = useStatusColors()
-  const { now, timeStr } = useClock(timezone, mounted)
+  const { now, timeStr } = useClock(timezone, mounted, LOCALE_META[locale].intl)
+
+  // Kategorifargene er hentet rett fra designsystemet (dempede pasteller).
+  const BANDS: Band[] = [
+    {
+      id: 'together',
+      label: t.today.bandTogether,
+      sublabel: t.today.bandTogetherSub,
+      statuses: ['office'],
+      color: '#2DD4BF', // teal — "work / tilstede"
+      tint: '#5EEAD4',
+    },
+    {
+      id: 'spread',
+      label: t.today.bandSpread,
+      sublabel: t.today.bandSpreadSub,
+      statuses: ['remote', 'customer', 'travel'],
+      color: '#FBBF24', // amber — "travel / spredt"
+      tint: '#FDE68A',
+    },
+    {
+      id: 'rest',
+      label: t.today.bandRest,
+      sublabel: t.today.bandRestSub,
+      statuses: ['vacation', 'sick', 'off'],
+      color: '#6366F1', // indigo — "focus / i ro"
+      tint: '#A5B4FC',
+    },
+  ]
 
   const today = useMemo(() => toDateString(now ?? new Date()), [now])
   const { entries, loading } = useEntries(orgId, [today])
@@ -138,7 +141,7 @@ export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps)
   const [expanded, setExpanded] = useState<BandId | null>(null)
 
   const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
-  const STATUS_LABELS: Record<EntryStatus, string> = no.status
+  const STATUS_LABELS: Record<EntryStatus, string> = t.status
 
   return (
     <div className="relative mx-auto max-w-6xl px-6 py-12 md:py-16">
@@ -157,7 +160,7 @@ export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps)
             className="lg-eyebrow mb-3 min-h-[14px]"
             suppressHydrationWarning
           >
-            {now ? formatDateLabelLong(now) : ' '}
+            {now ? formatDateLabelLong(now, t) : ' '}
           </div>
           <h1
             className="lg-serif leading-[0.92]"
@@ -191,7 +194,7 @@ export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps)
             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
           />
           <span className="lg-eyebrow" style={{ color: 'var(--lg-text-2)' }}>
-            {no.today.live}
+            {t.today.live}
           </span>
           <span
             className="lg-mono text-[12px]"
@@ -238,7 +241,7 @@ export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps)
           transition={{ delay: 0.3, duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
           className="relative mt-14"
         >
-          <div className="lg-eyebrow mb-4">{no.today.breakdown}</div>
+          <div className="lg-eyebrow mb-4">{t.today.breakdown}</div>
           <div className="flex flex-wrap gap-2">
             {STATUS_ORDER.map((status, idx) => {
               const count = grouped.byStatus[status] ?? 0
@@ -309,6 +312,7 @@ function Ribbon({
   isPrimary: boolean
   onToggle: () => void
 }) {
+  const t = useT()
   const count = items.length
   const hasMembers = count > 0
   const pct = total > 0 ? count / total : 0
@@ -324,7 +328,7 @@ function Ribbon({
         onClick={onToggle}
         disabled={!hasMembers}
         aria-expanded={isExpanded}
-        aria-label={`${band.label} — ${count} ${count === 1 ? no.today.person : no.today.people}`}
+        aria-label={`${band.label} — ${count} ${count === 1 ? t.today.person : t.today.people}`}
         className="group relative block w-full text-left overflow-hidden rounded-[16px] transition-[transform,border-color,background] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]"
         style={{
           background: hasMembers
@@ -497,6 +501,7 @@ function Ribbon({
 // ────────────────────────────────────────────────────────────────────────────
 
 function MemberLine({ member, status }: { member: Member; status: EntryStatus }) {
+  const t = useT()
   const pal = useStatusColors()[status]
   return (
     <div className="flex items-center gap-3 min-w-0">
@@ -525,7 +530,7 @@ function MemberLine({ member, status }: { member: Member; status: EntryStatus })
           className="text-[11px] truncate"
           style={{ color: 'var(--lg-text-3)', fontFamily: 'var(--font-body)' }}
         >
-          {no.status[status]}
+          {t.status[status]}
         </div>
       </div>
     </div>
@@ -535,6 +540,7 @@ function MemberLine({ member, status }: { member: Member; status: EntryStatus })
 // ────────────────────────────────────────────────────────────────────────────
 
 function RibbonEmpty() {
+  const t = useT()
   return (
     <EmptyState
       icon={
@@ -543,8 +549,8 @@ function RibbonEmpty() {
           <path d="M12 7v5l3.5 2" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       }
-      title={no.today.noEntriesTitle}
-      description={no.today.noEntriesHint}
+      title={t.today.noEntriesTitle}
+      description={t.today.noEntriesHint}
     />
   )
 }

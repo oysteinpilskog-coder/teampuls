@@ -7,14 +7,18 @@ import { StatusColorsProvider } from '@/lib/status-colors/context'
 import { CommandPalette } from '@/components/command-palette'
 import { KeyboardHelp } from '@/components/keyboard-help'
 import { OnboardingHint } from '@/components/onboarding-hint'
+import { I18nProvider } from '@/lib/i18n/context'
+import type { Locale } from '@/lib/i18n/types'
 import type { HexColors } from '@/lib/status-colors/defaults'
 
 export function Providers({
   children,
   initialStatusColors,
+  initialLocale,
 }: {
   children: React.ReactNode
   initialStatusColors?: Partial<HexColors> | null
+  initialLocale?: Locale
 }) {
   return (
     <ThemeProvider
@@ -25,29 +29,31 @@ export function Providers({
     >
       <ThemeVariantProvider>
         <StatusColorsProvider initialColors={initialStatusColors}>
-          {children}
-          <CommandPalette />
-          <KeyboardHelp />
-          <OnboardingHint />
-          <Toaster
-            position="top-right"
-            offset={80}
-            duration={3600}
-            toastOptions={{
-              unstyled: true,
-              classNames: {
-                toast: 'tp-toast',
-                title: 'tp-toast-title',
-                description: 'tp-toast-desc',
-                success: 'tp-toast-success',
-                error: 'tp-toast-error',
-                info: 'tp-toast-info',
-                warning: 'tp-toast-warning',
-                icon: 'tp-toast-icon',
-                closeButton: 'tp-toast-close',
-              },
-            }}
-          />
+          <I18nProvider initialLocale={initialLocale}>
+            {children}
+            <CommandPalette />
+            <KeyboardHelp />
+            <OnboardingHint />
+            <Toaster
+              position="top-right"
+              offset={80}
+              duration={3600}
+              toastOptions={{
+                unstyled: true,
+                classNames: {
+                  toast: 'tp-toast',
+                  title: 'tp-toast-title',
+                  description: 'tp-toast-desc',
+                  success: 'tp-toast-success',
+                  error: 'tp-toast-error',
+                  info: 'tp-toast-info',
+                  warning: 'tp-toast-warning',
+                  icon: 'tp-toast-icon',
+                  closeButton: 'tp-toast-close',
+                },
+              }}
+            />
+          </I18nProvider>
         </StatusColorsProvider>
       </ThemeVariantProvider>
     </ThemeProvider>
