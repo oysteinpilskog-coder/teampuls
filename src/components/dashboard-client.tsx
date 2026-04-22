@@ -11,7 +11,7 @@ import { OfficeMapView } from '@/components/dashboard-views/office-map-view'
 import { CustomerMapView } from '@/components/dashboard-views/customer-map-view'
 import { AuroraBackground } from '@/components/dashboard-views/aurora-background'
 import { getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
-import type { Entry, Member, Office, Organization } from '@/lib/supabase/types'
+import type { Entry, Member, Office, Organization, Customer } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 
 interface DashboardClientProps {
@@ -51,6 +51,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [members, setMembers] = useState<Member[]>([])
   const [offices, setOffices] = useState<Office[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
   const [org, setOrg] = useState<Pick<Organization, 'name' | 'timezone'> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -75,7 +76,12 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
   // Fetch org + members + offices once
   const fetchData = useCallback(async () => {
     const supabase = createClient()
-    const [{ data: orgData }, { data: membersData }, { data: officesData }] = await Promise.all([
+    const [
+      { data: orgData },
+      { data: membersData },
+      { data: officesData },
+      { data: customersData },
+    ] = await Promise.all([
       supabase
         .from('organizations')
         .select('name, timezone')
@@ -92,10 +98,16 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
         .select('*')
         .eq('org_id', orgId)
         .order('sort_order'),
+      supabase
+        .from('customers')
+        .select('*')
+        .eq('org_id', orgId)
+        .order('name'),
     ])
     setOrg(orgData ?? { name: 'TeamPulse', timezone: 'Europe/Oslo' })
     setMembers(membersData ?? [])
     setOffices(officesData ?? [])
+    setCustomers(customersData ?? [])
   }, [orgId])
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -189,6 +201,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
                 members={members}
                 entries={entries}
                 todayEntries={dedupedTodayEntries}
+                customers={customers}
                 orgName={orgName}
                 time={time}
               />

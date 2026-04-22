@@ -37,6 +37,23 @@ export interface Office {
   created_at: string
 }
 
+export interface Customer {
+  id: string
+  org_id: string
+  name: string
+  address: string | null
+  city: string | null
+  postal_code: string | null
+  country_code: string | null
+  latitude: number | null
+  longitude: number | null
+  aliases: string[]
+  notes: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
 export interface Member {
   id: string
   org_id: string

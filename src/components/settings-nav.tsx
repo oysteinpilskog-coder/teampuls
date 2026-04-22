@@ -3,12 +3,13 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTransition, useState, useEffect } from 'react'
-import { Users, Building2, MapPin, Palette } from 'lucide-react'
+import { Users, Building2, MapPin, Briefcase, Palette } from 'lucide-react'
 
 const NAV_ITEMS = [
   { href: '/settings/members', label: 'Medlemmer', icon: Users },
   { href: '/settings/org', label: 'Organisasjon', icon: Building2 },
   { href: '/settings/offices', label: 'Kontorer', icon: MapPin },
+  { href: '/settings/customers', label: 'Kunder', icon: Briefcase },
   { href: '/settings/theme', label: 'Tema', icon: Palette },
 ]
 

@@ -59,13 +59,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing text' }, { status: 400 })
     }
 
-    // Get all active members for this org (needed for name resolution).
+    // Get active members + customer registry + org timezone in parallel.
     // Scoped strictly to the authenticated user's org.
-    const { data: allMembers } = await admin
-      .from('members')
-      .select('id, org_id, user_id, display_name, full_name, initials, email, avatar_url, nicknames, home_office_id, role, is_active, created_at, updated_at')
-      .eq('org_id', member.org_id)
-      .eq('is_active', true)
+    const [
+      { data: allMembers },
+      { data: allCustomers },
+      { data: org },
+    ] = await Promise.all([
+      admin
+        .from('members')
+        .select('id, org_id, user_id, display_name, full_name, initials, email, avatar_url, nicknames, home_office_id, role, is_active, created_at, updated_at')
+        .eq('org_id', member.org_id)
+        .eq('is_active', true),
+      admin
+        .from('customers')
+        .select('*')
+        .eq('org_id', member.org_id),
+      admin
+        .from('organizations')
+        .select('timezone')
+        .eq('id', member.org_id)
+        .maybeSingle(),
+    ])
 
     if (!allMembers?.length) {
       return NextResponse.json(
@@ -74,13 +89,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Get org timezone
-    const { data: org } = await admin
-      .from('organizations')
-      .select('timezone')
-      .eq('id', member.org_id)
-      .maybeSingle()
-
     const timezone = org?.timezone ?? 'Europe/Oslo'
 
     // Parse with Claude
@@ -88,6 +96,7 @@ export async function POST(req: NextRequest) {
       text: text.trim(),
       senderEmail: member.email,
       members: allMembers,
+      customers: allCustomers ?? [],
       today: new Date(),
       timezone,
     })

@@ -3,10 +3,11 @@
 import { motion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { project, resolveLocation } from '@/lib/geo'
+import { resolveCustomer } from '@/lib/customer-resolver'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { spring } from '@/lib/motion'
-import type { Member, Entry } from '@/lib/supabase/types'
+import type { Member, Entry, Customer } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
 import { useResolvedLocations } from '@/hooks/use-resolved-locations'
 import { useMemo } from 'react'
@@ -15,6 +16,7 @@ interface CustomerMapViewProps {
   members: Member[]
   entries: Entry[]       // full week
   todayEntries: Entry[]  // deduped to one per member
+  customers: Customer[]  // org customer registry
   orgName: string
   time: Date
 }
@@ -27,6 +29,7 @@ interface CustomerCluster {
   y: number
   radius: number
   display: string
+  isKnownCustomer: boolean
   memberIdsToday: Set<string>
   memberIdsWeek: Set<string>
   daysThisWeek: number
@@ -36,6 +39,7 @@ export function CustomerMapView({
   members,
   entries,
   todayEntries,
+  customers,
   orgName,
   time,
 }: CustomerMapViewProps) {
@@ -47,22 +51,25 @@ export function CustomerMapView({
   const memberById = new Map(members.map(m => [m.id, m]))
   const customerColor = STATUS_COLORS.customer.icon
 
-  // Collect free-text labels that the static dictionary can't resolve.
-  // These get sent to Nominatim (cached in localStorage) and placed live.
+  // Resolution priority: customer registry → city dictionary → Nominatim.
+  // Anything the customer registry handles skips Nominatim entirely, which
+  // is how "Diplomat" gets onto Skøyen instead of a random foreign city.
   const unknownLabels = useMemo(() => {
     const set = new Set<string>()
     for (const e of entries) {
       if (e.status !== 'customer' && e.status !== 'travel') continue
       const label = (e.location_label ?? '').trim()
-      if (!label || resolveLocation(label)) continue
+      if (!label) continue
+      if (resolveCustomer(label, customers)) continue
+      if (resolveLocation(label)) continue
       set.add(label)
     }
     return Array.from(set)
-  }, [entries])
+  }, [entries, customers])
   const dynamicResolved = useResolvedLocations(unknownLabels)
 
   // Cluster by resolved lat/lng. Unresolved labels are collected for a sidebar.
-  const byKey = new Map<string, CustomerCluster & { lat: number; lng: number }>()
+  const byKey = new Map<string, CustomerCluster & { lat: number; lng: number; isKnownCustomer: boolean }>()
   const unresolved = new Map<string, Set<string>>()  // label → member ids
 
   for (const e of entries) {
@@ -70,11 +77,23 @@ export function CustomerMapView({
     if (!memberById.has(e.member_id)) continue
 
     const label = (e.location_label ?? '').trim()
-    let resolved = resolveLocation(label)
+    let resolved: { lat: number; lng: number; display: string } | null = null
+    let isKnownCustomer = false
+
+    // 1) Customer registry (authoritative)
+    const asCustomer = resolveCustomer(label, customers)
+    if (asCustomer) {
+      resolved = { lat: asCustomer.lat, lng: asCustomer.lng, display: asCustomer.display }
+      isKnownCustomer = true
+    }
+    // 2) Static city dictionary
+    if (!resolved) resolved = resolveLocation(label)
+    // 3) Nominatim fallback
     if (!resolved && label) {
       const dyn = dynamicResolved.get(label)
       if (dyn) resolved = { lat: dyn.lat, lng: dyn.lng, display: dyn.display }
     }
+
     if (!resolved) {
       if (!label) continue
       const set = unresolved.get(label) ?? new Set<string>()
@@ -94,12 +113,17 @@ export function CustomerMapView({
         lat: resolved.lat,
         lng: resolved.lng,
         display: resolved.display,
+        isKnownCustomer,
         memberIdsToday: new Set(),
         memberIdsWeek: new Set(),
         daysThisWeek: 0,
       }
       byKey.set(key, cluster)
     }
+    // A cluster that resolves via any known customer is marked as such —
+    // we show a subtle visual distinction between "real customer" and
+    // "looked-up city" markers.
+    if (isKnownCustomer) cluster.isKnownCustomer = true
     cluster.memberIdsWeek.add(e.member_id)
     cluster.daysThisWeek += 1
     if (todayEntries.some(te => te.id === e.id)) {
@@ -114,6 +138,7 @@ export function CustomerMapView({
       y: c.y,
       radius: 12 + Math.sqrt(c.memberIdsWeek.size) * 7,
       display: c.display,
+      isKnownCustomer: c.isKnownCustomer,
       memberIdsToday: c.memberIdsToday,
       memberIdsWeek: c.memberIdsWeek,
       daysThisWeek: c.daysThisWeek,

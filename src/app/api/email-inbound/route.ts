@@ -96,12 +96,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'unknown_sender' }, { status: 200 })
   }
 
-  // ── 5. Fetch all org members for AI context ───────────────────────────────
-  const { data: allMembers } = await supabase
-    .from('members')
-    .select('id, org_id, user_id, display_name, full_name, initials, email, avatar_url, nicknames, home_office_id, role, is_active, created_at, updated_at')
-    .eq('org_id', sender.org_id)
-    .eq('is_active', true)
+  // ── 5. Fetch all org members + customer registry for AI context ──────────
+  const [{ data: allMembers }, { data: allCustomers }] = await Promise.all([
+    supabase
+      .from('members')
+      .select('id, org_id, user_id, display_name, full_name, initials, email, avatar_url, nicknames, home_office_id, role, is_active, created_at, updated_at')
+      .eq('org_id', sender.org_id)
+      .eq('is_active', true),
+    supabase
+      .from('customers')
+      .select('*')
+      .eq('org_id', sender.org_id),
+  ])
 
   if (!allMembers?.length) {
     return NextResponse.json({ ok: false, reason: 'no_members' }, { status: 200 })
@@ -114,6 +120,7 @@ export async function POST(req: NextRequest) {
       text,
       senderEmail: sender.email,
       members: allMembers,
+      customers: allCustomers ?? [],
       today: new Date(),
       timezone: (org as { timezone: string }).timezone ?? 'Europe/Oslo',
     })

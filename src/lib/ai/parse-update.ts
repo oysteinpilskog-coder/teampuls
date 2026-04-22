@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { buildStableSystemPrompt, buildDynamicSystemPrompt, buildUserPrompt } from './prompts'
-import type { Member } from '@/lib/supabase/types'
+import type { Member, Customer } from '@/lib/supabase/types'
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -30,17 +30,18 @@ export async function parseTeamUpdate(params: {
   text: string
   senderEmail: string
   members: Member[]
+  customers?: Customer[]
   today: Date
   timezone: string
 }): Promise<ParseResult> {
-  const { text, senderEmail, members, today, timezone } = params
+  const { text, senderEmail, members, customers = [], today, timezone } = params
 
   const sender = members.find(m => m.email === senderEmail)
   if (!sender) {
     throw new Error(`Unknown sender: ${senderEmail}`)
   }
 
-  const stablePrompt = buildStableSystemPrompt(members)
+  const stablePrompt = buildStableSystemPrompt(members, customers)
   const dynamicPrompt = buildDynamicSystemPrompt({
     today,
     senderName: sender.display_name,

@@ -1,5 +1,5 @@
 import { getISOWeek } from '@/lib/dates'
-import type { Member } from '@/lib/supabase/types'
+import type { Member, Customer } from '@/lib/supabase/types'
 
 const WEEKDAY_NORWEGIAN: Record<number, string> = {
   0: 'søndag', 1: 'mandag', 2: 'tirsdag', 3: 'onsdag',
@@ -12,9 +12,12 @@ function getWeekdayNorwegian(date: Date): string {
 
 /**
  * Returns the stable part of the system prompt (cacheable).
- * Contains team member list + all rules/instructions.
+ * Contains team member list, customer list + all rules/instructions.
  */
-export function buildStableSystemPrompt(members: Member[]): string {
+export function buildStableSystemPrompt(
+  members: Member[],
+  customers: Customer[] = [],
+): string {
   const membersList = members.map(m => ({
     id: m.id,
     name: m.display_name,
@@ -26,6 +29,12 @@ export function buildStableSystemPrompt(members: Member[]): string {
     aliases: m.nicknames ?? [],
   }))
 
+  const customersList = customers.map(c => ({
+    name: c.name,
+    city: c.city,
+    aliases: c.aliases ?? [],
+  }))
+
   return `Du er kalenderassistenten for et team. Du tolker korte, uformelle meldinger på norsk (eller engelsk) og returnerer strukturerte kalenderoppdateringer som JSON.
 
 Du er ALLTID presis med datoer. Du gjør ALDRI antagelser om perioder som ikke er spesifisert i meldingen.
@@ -33,6 +42,12 @@ Du er ALLTID presis med datoer. Du gjør ALDRI antagelser om perioder som ikke e
 ## Teammedlemmer
 
 ${JSON.stringify(membersList, null, 2)}
+
+## Kjente kunder
+
+Dette er firmaets registrerte kunder. Når et av disse navnene (eller aliaser) nevnes i meldingen, skal status være \`customer\` og location være kundens navn (EKSAKT slik det står under "name" her — ikke aliaset). Dette gir kartet riktig posisjon.
+
+${customersList.length > 0 ? JSON.stringify(customersList, null, 2) : '(Ingen kunder registrert ennå.)'}
 
 ## Regler
 
@@ -82,10 +97,17 @@ ${JSON.stringify(membersList, null, 2)}
 
 ## Stedstolking
 
-- Spesifikke byer/kunder uten statuskontekst → \`customer\` med location = stedsnavn
+- Hvis en kjent kunde (fra lista over) nevnes → \`customer\`, location = kundens EKSAKTE name
+- Spesifikke byer uten annen kontekst → \`customer\` med location = bynavn
 - "Oslo" → mest sannsynlig \`customer\` med location = "Oslo" (med mindre tydelig kontor-kontekst)
 - "På kontoret" uten by → \`office\`, ingen location
 - "Kunde X" eller "hos X" → \`customer\`, location = "X"
+
+### Eksempel — kjent kunde
+
+Gitt kundeliste med { "name": "Diplomat", "aliases": ["Diplomat AS"] }:
+- "Øystein Diplomat uke 17" → status=\`customer\`, location=\`"Diplomat"\` (IKKE "Diplomat AS")
+- "Hos Diplomat AS på torsdag" → status=\`customer\`, location=\`"Diplomat"\`
 
 ## Confidence og clarification
 
