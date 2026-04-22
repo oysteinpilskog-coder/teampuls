@@ -157,8 +157,10 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   const dateStrings = useMemo(() => weekDays.map(toDateString), [weekDays])
   const isCurrentWeek = week === todayWeek && year === todayYear
 
-  // Realtime entries hook — handles fetch + live subscription
-  const { entries, loading: entriesLoading } = useEntries(orgId, dateStrings)
+  // Realtime entries hook — handles fetch + live subscription. We also keep
+  // `refetch` so drag mutations can force an immediate reload instead of
+  // waiting for the realtime round-trip (which can lag or drop silently).
+  const { entries, loading: entriesLoading, refetch } = useEntries(orgId, dateStrings)
   const loading = membersLoading || entriesLoading
 
   // Build entry lookup: member_id + date → Entry
@@ -295,6 +297,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
             .eq('member_id', rz.memberId)
             .in('date', toDelete)
         }
+        await refetch()
         return
       }
 
@@ -355,6 +358,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
             .eq('member_id', mv.memberId)
             .in('date', toDelete)
         }
+        await refetch()
         return
       }
 
@@ -386,7 +390,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     }
     window.addEventListener('mouseup', onUp)
     return () => window.removeEventListener('mouseup', onUp)
-  }, [isDragging, moveDrag, resizeDrag, dragStart, dragCurrent, members, weekDays, entryMap, orgId])
+  }, [isDragging, moveDrag, resizeDrag, dragStart, dragCurrent, members, weekDays, entryMap, orgId, refetch])
 
   function handleDayMouseDown(memberId: string, dayIdx: number) {
     // If this cell has an entry, start a move-drag for the whole segment.
@@ -635,7 +639,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                     letterSpacing: '-0.03em',
                     color: today ? 'var(--text-primary)' : 'var(--text-secondary)',
                     background: today
-                      ? 'linear-gradient(135deg, var(--accent-color), hsl(260, 80%, 58%))'
+                      ? 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 55%, #6B2ECB))'
                       : undefined,
                     WebkitBackgroundClip: today ? 'text' : undefined,
                     WebkitTextFillColor: today ? 'transparent' : undefined,
