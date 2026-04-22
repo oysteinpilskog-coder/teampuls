@@ -669,7 +669,35 @@ export function TeamGrid({ orgId }: TeamGridProps) {
           border: '1px solid var(--lg-divider)',
         }}
       >
-        {/* Today column highlight — violet hairline + soft tint */}
+        {/* Vertical column dividers — hairlines between each day column,
+            from top of the matrix to the bottom. Gives the header real
+            calendar structure instead of floating day-chips. */}
+        {(() => {
+          const todayIdx = weekDays.findIndex(isToday)
+          return weekDays.map((_, i) => {
+            // Column starts at: 16 (px-4) + 136 (name col) + 8 (gap) + i * ((100% - 208px)/5 + 8px)
+            // We draw the left edge of each column (skip i=0 which would sit flush with the name-col).
+            const left = `calc(160px + ${i} * ((100% - 208px) / 5 + 8px) - 4px)`
+            const isTodayEdge = i === todayIdx || i === todayIdx + 1
+            return (
+              <div
+                key={`divider-${i}`}
+                aria-hidden
+                className="absolute top-0 bottom-0 w-px pointer-events-none z-0"
+                style={{
+                  left,
+                  background: isTodayEdge
+                    ? 'rgba(139, 92, 246, 0.22)'
+                    : 'var(--lg-divider-soft)',
+                  display: i === 0 ? 'none' : undefined,
+                }}
+              />
+            )
+          })
+        })()}
+
+        {/* Today column highlight — subtle violet light-shaft, brighter at top
+            (under the date disk), fading as it goes down through the rows. */}
         {(() => {
           const todayIdx = weekDays.findIndex(isToday)
           if (todayIdx === -1) return null
@@ -684,9 +712,8 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                 bottom: 0,
                 left,
                 width,
-                background: 'rgba(139, 92, 246, 0.06)',
-                borderLeft: '1px solid rgba(139, 92, 246, 0.22)',
-                borderRight: '1px solid rgba(139, 92, 246, 0.22)',
+                background:
+                  'linear-gradient(180deg, rgba(139, 92, 246, 0.14) 0%, rgba(139, 92, 246, 0.06) 40%, rgba(139, 92, 246, 0.03) 100%)',
               }}
             />
           )
@@ -694,20 +721,26 @@ export function TeamGrid({ orgId }: TeamGridProps) {
 
         {/* Day header */}
         <div
-          className="relative grid gap-2 px-4 py-4 z-10"
+          className="relative grid gap-2 px-4 pt-5 pb-4 z-10"
           style={{
             gridTemplateColumns: '136px repeat(5, 1fr)',
             borderBottom: '1px solid var(--lg-divider-soft)',
           }}
         >
           <div /> {/* empty for name column */}
-          {weekDays.map((date) => {
+          {weekDays.map((date, i) => {
             const { weekday, day, month } = getDayLabel(date)
             const today = isToday(date)
+            // Show month only when it changes from the previous day (or on the
+            // first day of the week). For a typical Mon-Fri view within April,
+            // only Monday would render "Apr". Saves us from five identical
+            // "Apr" labels stacked under every day.
+            const prev = i > 0 ? getDayLabel(weekDays[i - 1]) : null
+            const showMonth = !prev || prev.month !== month
             return (
               <div
                 key={date.toISOString()}
-                className="text-center relative flex flex-col items-center gap-1"
+                className="text-center relative flex flex-col items-center gap-1.5"
               >
                 <div
                   className="lg-mono text-[10px] uppercase"
@@ -723,29 +756,33 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                 <div
                   className="lg-mono flex items-center justify-center leading-none"
                   style={{
-                    fontSize: '20px',
-                    fontWeight: 500,
+                    fontSize: today ? 22 : 26,
+                    fontWeight: today ? 600 : 400,
                     color: today ? '#ffffff' : 'var(--lg-text-1)',
-                    width: 34,
-                    height: 34,
+                    width: today ? 40 : 'auto',
+                    height: today ? 40 : 'auto',
                     borderRadius: 9999,
                     background: today ? 'var(--lg-accent)' : 'transparent',
                     boxShadow: today
-                      ? '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 18px var(--lg-accent-glow)'
+                      ? '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 22px var(--lg-accent-glow)'
                       : 'none',
+                    letterSpacing: today ? '-0.02em' : '-0.02em',
                   }}
                 >
                   {day}
                 </div>
-                <div
-                  className="lg-serif mt-0.5 capitalize"
-                  style={{
-                    color: today ? 'var(--lg-text-2)' : 'var(--lg-text-3)',
-                    fontSize: 12,
-                  }}
-                >
-                  {month}
-                </div>
+                {showMonth && (
+                  <div
+                    className="lg-serif capitalize"
+                    style={{
+                      color: today ? 'var(--lg-accent)' : 'var(--lg-text-3)',
+                      fontSize: 12,
+                      opacity: today ? 0.9 : 0.65,
+                    }}
+                  >
+                    {month}
+                  </div>
+                )}
               </div>
             )
           })}
