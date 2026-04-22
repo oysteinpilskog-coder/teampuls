@@ -114,8 +114,8 @@
     0 8px 16px rgba(0, 0, 0, 0.04),
     0 0 0 1px rgba(0, 0, 0, 0.04);
   --shadow-accent:
-    0 8px 24px rgba(0, 102, 255, 0.15),
-    0 2px 4px rgba(0, 102, 255, 0.08);
+    0 8px 24px color-mix(in oklab, var(--accent-color) 20%, transparent),
+    0 2px 4px color-mix(in oklab, var(--accent-color) 10%, transparent);
 
   /* shadcn semantic tokens (stone-based) */
   --background:           oklch(0.985 0.001 80);

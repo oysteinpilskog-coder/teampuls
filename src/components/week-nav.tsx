@@ -73,7 +73,7 @@ export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, on
             letterSpacing: '-0.035em',
             color: 'var(--text-primary)',
             background: isCurrentWeek
-              ? 'linear-gradient(135deg, var(--accent-color), hsl(260, 80%, 60%))'
+              ? 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 55%, #6B2ECB))'
               : undefined,
             WebkitBackgroundClip: isCurrentWeek ? 'text' : undefined,
             WebkitTextFillColor: isCurrentWeek ? 'transparent' : undefined,
@@ -105,8 +105,8 @@ export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, on
           className="ml-1 px-3.5 h-8 rounded-xl text-[12px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
           style={{
             color: '#fff',
-            background: 'linear-gradient(135deg, var(--accent-color), hsl(235, 85%, 55%))',
-            boxShadow: '0 4px 12px rgba(0, 102, 255, 0.28)',
+            background: 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 70%, black))',
+            boxShadow: '0 4px 12px color-mix(in oklab, var(--accent-color) 35%, transparent)',
             fontFamily: 'var(--font-body)',
           }}
         >

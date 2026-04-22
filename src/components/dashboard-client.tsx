@@ -249,7 +249,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
                         'linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.06) 100%)',
                       border: '1px solid rgba(255,255,255,0.15)',
                       boxShadow:
-                        'inset 0 1px 0 rgba(255,255,255,0.24), 0 8px 18px -8px rgba(0,102,255,0.45)',
+                        'inset 0 1px 0 rgba(255,255,255,0.24), 0 8px 18px -8px color-mix(in oklab, var(--accent-color) 55%, transparent)',
                     }}
                   />
                 )}

@@ -223,8 +223,8 @@ function DayCell({
           style={{
             width: 26,
             height: 26,
-            background: 'linear-gradient(135deg, var(--accent-color), hsl(260, 80%, 58%))',
-            boxShadow: '0 4px 12px -2px rgba(0,102,255,0.45), inset 0 1px 0 rgba(255,255,255,0.3)',
+            background: 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 55%, #6B2ECB))',
+            boxShadow: '0 4px 12px -2px color-mix(in oklab, var(--accent-color) 45%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)',
           }}
         />
       )}

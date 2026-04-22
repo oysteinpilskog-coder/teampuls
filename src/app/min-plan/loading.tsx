@@ -6,7 +6,7 @@ export default function Loading() {
         style={{
           background: 'color-mix(in oklab, var(--bg-elevated) 80%, transparent)',
           border: '1.5px solid color-mix(in oklab, var(--border-subtle) 70%, transparent)',
-          boxShadow: '0 12px 32px -12px rgba(0, 102, 255, 0.14), 0 4px 10px rgba(0,0,0,0.04)',
+          boxShadow: '0 12px 32px -12px color-mix(in oklab, var(--accent-color) 18%, transparent), 0 4px 10px rgba(0,0,0,0.04)',
         }}
       />
 

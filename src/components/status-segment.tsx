@@ -215,7 +215,7 @@ export function StatusSegment({
             backgroundColor: status ? '#ffffff' : 'var(--accent-color)',
             boxShadow: status
               ? '0 0 0 1.5px rgba(255,255,255,0.3), 0 0 6px rgba(255,255,255,0.5)'
-              : '0 0 0 2px rgba(0,102,255,0.2), 0 0 6px rgba(0,102,255,0.5)',
+              : '0 0 0 2px color-mix(in oklab, var(--accent-color) 25%, transparent), 0 0 6px color-mix(in oklab, var(--accent-color) 55%, transparent)',
           }}
           animate={{ scale: [1, 1.22, 1] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}

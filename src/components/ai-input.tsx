@@ -133,11 +133,10 @@ export function AIInput({ orgId: _orgId }: AIInputProps) {
     ? {
         boxShadow: isSuccess
           ? '0 0 0 4px rgba(22, 163, 98, 0.15), 0 20px 48px -12px rgba(22, 163, 98, 0.25), var(--shadow-lg)'
-          : '0 0 0 4px rgba(0, 102, 255, 0.14), 0 20px 48px -12px rgba(0, 102, 255, 0.3), var(--shadow-lg)',
+          : '0 0 0 4px color-mix(in oklab, var(--accent-color) 16%, transparent), 0 20px 48px -12px color-mix(in oklab, var(--accent-color) 35%, transparent), var(--shadow-lg)',
       }
     : {
-        // subtle always-on ambient glow so the field never feels dead
-        boxShadow: '0 12px 32px -12px rgba(0, 102, 255, 0.14), 0 4px 10px rgba(0,0,0,0.04), 0 0 0 1px color-mix(in oklab, var(--border-subtle) 50%, transparent)',
+        boxShadow: '0 12px 32px -12px color-mix(in oklab, var(--accent-color) 18%, transparent), 0 4px 10px rgba(0,0,0,0.04), 0 0 0 1px color-mix(in oklab, var(--border-subtle) 50%, transparent)',
       }
 
   return (

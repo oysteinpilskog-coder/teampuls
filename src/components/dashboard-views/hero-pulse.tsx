@@ -111,12 +111,12 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
               animate={{ strokeDasharray: `${ringDash} ${ringCirc}` }}
               transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
               transform="rotate(-90)"
-              style={{ filter: 'drop-shadow(0 0 12px rgba(0,102,255,0.55))' }}
+              style={{ filter: 'drop-shadow(0 0 12px color-mix(in oklab, var(--accent-color) 60%, transparent))' }}
             />
             <defs>
               <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#7FB2FF" />
-                <stop offset="100%" stopColor="#0066FF" />
+                <stop offset="0%" stopColor="color-mix(in oklab, var(--accent-color) 50%, white)" />
+                <stop offset="100%" stopColor="var(--accent-color)" />
               </linearGradient>
             </defs>
           </svg>
@@ -302,8 +302,8 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
                 <span
                   className="text-[12px] tabular-nums font-semibold px-1.5 py-0.5 rounded-md"
                   style={{
-                    color: '#7FB2FF',
-                    background: 'rgba(0,102,255,0.15)',
+                    color: 'color-mix(in oklab, var(--accent-color) 55%, white)',
+                    background: 'color-mix(in oklab, var(--accent-color) 20%, transparent)',
                     fontFamily: 'var(--font-body)',
                     minWidth: 22,
                     textAlign: 'center',

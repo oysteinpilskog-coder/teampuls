@@ -112,15 +112,15 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
             <span
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase"
               style={{
-                background: 'rgba(0,102,255,0.12)',
-                border: '1px solid rgba(0,102,255,0.25)',
-                color: '#7FB2FF',
+                background: 'color-mix(in oklab, var(--accent-color) 16%, transparent)',
+                border: '1px solid color-mix(in oklab, var(--accent-color) 35%, transparent)',
+                color: 'color-mix(in oklab, var(--accent-color) 60%, white)',
                 fontFamily: 'var(--font-body)',
               }}
             >
               <motion.span
                 className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: '#0066FF' }}
+                style={{ backgroundColor: 'var(--accent-color)' }}
                 animate={{ opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
                 transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
               />
@@ -217,20 +217,20 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
               className="relative flex-1 flex flex-col items-center gap-1.5 rounded-xl py-2 px-2"
               style={{
                 background: today
-                  ? 'linear-gradient(180deg, rgba(0,102,255,0.15) 0%, rgba(0,102,255,0) 100%)'
+                  ? 'linear-gradient(180deg, color-mix(in oklab, var(--accent-color) 20%, transparent) 0%, color-mix(in oklab, var(--accent-color) 0%, transparent) 100%)'
                   : 'transparent',
                 border: today
-                  ? '1px solid rgba(0,102,255,0.4)'
+                  ? '1px solid color-mix(in oklab, var(--accent-color) 50%, transparent)'
                   : '1px solid transparent',
                 boxShadow: today
-                  ? '0 0 32px -8px rgba(0,102,255,0.55), inset 0 1px 0 rgba(127,178,255,0.2)'
+                  ? '0 0 32px -8px color-mix(in oklab, var(--accent-color) 65%, transparent), inset 0 1px 0 color-mix(in oklab, var(--accent-color) 30%, transparent)'
                   : 'none',
               }}
             >
               <span
                 className="text-[11px] font-semibold uppercase tracking-[0.18em]"
                 style={{
-                  color: today ? '#7FB2FF' : 'rgba(255,255,255,0.35)',
+                  color: today ? 'color-mix(in oklab, var(--accent-color) 60%, white)' : 'rgba(255,255,255,0.35)',
                   fontFamily: 'var(--font-body)',
                 }}
               >

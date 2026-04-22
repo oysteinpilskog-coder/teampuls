@@ -101,12 +101,12 @@ export function MonthPicker({ week, year, onChange }: MonthPickerProps) {
                   fontFamily: 'var(--font-body)',
                   color: isSelected ? '#fff' : 'var(--text-primary)',
                   background: isSelected
-                    ? 'linear-gradient(135deg, var(--accent-color), hsl(235, 85%, 55%))'
+                    ? 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 70%, black))'
                     : isThisMonth
                       ? 'color-mix(in oklab, var(--accent-color) 12%, transparent)'
                       : 'transparent',
                   boxShadow: isSelected
-                    ? '0 4px 12px rgba(0, 102, 255, 0.28)'
+                    ? '0 4px 12px color-mix(in oklab, var(--accent-color) 35%, transparent)'
                     : undefined,
                   border: isThisMonth && !isSelected
                     ? '1px solid color-mix(in oklab, var(--accent-color) 40%, transparent)'
