@@ -32,23 +32,26 @@ interface StatusSegmentProps {
   onSegmentResizeStart?: (edge: 'left' | 'right') => void
 }
 
-// iOS system palette — refined, tighter gradients for Outlook-calibre flow.
-// Each: [top, bottom] for a subtle vertical gradient with a glass highlight overlay.
-export const STATUS_GRADIENT: Record<EntryStatus, { light: [string, string]; dark: [string, string] }> = {
-  // SF Blue — kontor
-  office:   { light: ['#3A9CFF', '#0A66D9'], dark: ['#1E6FD1', '#0C4AA3'] },
-  // SF Green — hjemmekontor
-  remote:   { light: ['#5DD67E', '#1E9E44'], dark: ['#2AA550', '#15762F'] },
-  // SF Orange — hos kunde
-  customer: { light: ['#FFB238', '#CC7400'], dark: ['#C97900', '#844C00'] },
-  // SF Indigo — reise
-  travel:   { light: ['#7977E0', '#3936B5'], dark: ['#5754C6', '#2F2D89'] },
-  // Amber — ferie
-  vacation: { light: ['#F5BD4C', '#A25500'], dark: ['#B87206', '#5E3302'] },
-  // SF Red — syk
-  sick:     { light: ['#FF6157', '#C11A11'], dark: ['#C71E15', '#78100B'] },
-  // SF Gray — fri
-  off:      { light: ['#ABABB0', '#6C6C71'], dark: ['#6A6B6F', '#45454A'] },
+// Premium luminous palette — saturated gradients with glow hues for Apple-calibre finish.
+// Each: [top, bottom] vertical gradient + glow tint for colored halos.
+export const STATUS_GRADIENT: Record<
+  EntryStatus,
+  { light: [string, string]; dark: [string, string]; glow: string }
+> = {
+  // Electric blue — kontor
+  office:   { light: ['#4AB0FF', '#0057E0'], dark: ['#2E86FF', '#0D4BC7'], glow: '#3A9CFF' },
+  // Vibrant green — hjemmekontor
+  remote:   { light: ['#6CE889', '#14A544'], dark: ['#37C568', '#0F8E38'], glow: '#3EE57F' },
+  // Sunset orange — hos kunde
+  customer: { light: ['#FFB94A', '#E06A00'], dark: ['#FF9A1F', '#A35400'], glow: '#FFA630' },
+  // Royal indigo — reise
+  travel:   { light: ['#8E8CFF', '#3E38D8'], dark: ['#6E6AF0', '#2E29A5'], glow: '#6B68F0' },
+  // Liquid gold — ferie
+  vacation: { light: ['#FFD46B', '#C48200'], dark: ['#E0A31E', '#7A4600'], glow: '#FFC23E' },
+  // Ruby red — syk
+  sick:     { light: ['#FF7467', '#D01C12'], dark: ['#E3342A', '#8A1610'], glow: '#FF4D42' },
+  // Cool graphite — fri
+  off:      { light: ['#B8B8BD', '#74747A'], dark: ['#7A7B80', '#4A4B50'], glow: '#9EA0A6' },
 }
 
 export function StatusSegment({
@@ -77,52 +80,66 @@ export function StatusSegment({
 
   const palette = status ? STATUS_GRADIENT[status] : null
   const [g0, g1] = palette ? (isDark ? palette.dark : palette.light) : ['', '']
+  const glow = palette?.glow ?? ''
 
+  // Richer multi-stop gradient — top highlight tint → body → deeper foot.
   const gradient = palette
-    ? `linear-gradient(180deg, ${g0} 0%, ${g1} 100%)`
+    ? `linear-gradient(170deg, ${g0} 0%, ${g0} 18%, ${g1} 82%, ${g1} 100%)`
     : undefined
 
   return (
     <motion.div
-      className="relative h-[36px] rounded-[8px] overflow-hidden"
+      className="relative h-[36px] rounded-[9px] overflow-hidden"
       style={{
         gridColumn: `span ${span}`,
         backgroundColor: status ? g1 : 'transparent',
         backgroundImage: status ? gradient : undefined,
-        // Flat Outlook-style edge: a hairline rim + the subtle iOS top-highlight / bottom-depth
-        // on colored bars only. Empty days are fully transparent — no ring, no hatching.
+        // Premium edge + colored outer glow matching status hue — the "wow".
         boxShadow: status
           ? isDark
-            ? 'inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(0,0,0,0.28), 0 1px 2px rgba(0,0,0,0.22)'
-            : 'inset 0 1px 0 rgba(255,255,255,0.34), inset 0 -1px 0 rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.07)'
+            ? `inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -1px 0 rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.30), 0 6px 18px -4px ${glow}66, 0 0 22px -2px ${glow}33`
+            : `inset 0 1px 0 rgba(255,255,255,0.55), inset 0 -1px 0 rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.08), 0 6px 20px -6px ${glow}80, 0 0 24px -4px ${glow}44`
           : undefined,
         opacity: muted ? 0.28 : 1,
         cursor: status && onDayMouseDown ? 'grab' : undefined,
       }}
-      whileHover={muted ? undefined : { y: -0.5 }}
+      whileHover={muted ? undefined : { y: -1 }}
       transition={spring.snappy}
     >
-      {/* iOS glossy top highlight — glass surface catching light */}
+      {/* Glossy top highlight — thicker, brighter liquid-glass sheen */}
       {status && (
         <div
           aria-hidden
           className="absolute top-0 left-0 right-0 pointer-events-none z-[1]"
           style={{
-            height: '55%',
+            height: '60%',
             background:
-              'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.06) 60%, transparent 100%)',
+              'linear-gradient(180deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.12) 55%, transparent 100%)',
           }}
         />
       )}
 
-      {/* Specular edge sheen */}
+      {/* Soft inner vignette — adds depth at the bottom */}
       {status && (
         <div
           aria-hidden
-          className="absolute top-0 left-[10%] right-[10%] pointer-events-none z-[2]"
+          className="absolute inset-x-0 bottom-0 pointer-events-none z-[1]"
+          style={{
+            height: '35%',
+            background:
+              'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.10) 100%)',
+          }}
+        />
+      )}
+
+      {/* Specular edge sheen — brighter, longer */}
+      {status && (
+        <div
+          aria-hidden
+          className="absolute top-0 left-[6%] right-[6%] pointer-events-none z-[2]"
           style={{
             height: '1px',
-            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent)',
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.85), transparent)',
           }}
         />
       )}
@@ -137,7 +154,7 @@ export function StatusSegment({
               style={{
                 color: '#ffffff',
                 letterSpacing: '-0.005em',
-                textShadow: '0 1px 1.5px rgba(0,0,0,0.22)',
+                textShadow: '0 1px 2px rgba(0,0,0,0.30), 0 0 8px rgba(255,255,255,0.18)',
               }}
             >
               {label}
@@ -222,17 +239,17 @@ export function StatusSegment({
         />
       )}
 
-      {/* Single-day today accent — subtle ring on accent color only */}
+      {/* Single-day today accent — luminous ring */}
       {singleDayIsToday && (
         <motion.div
           aria-hidden
-          className="absolute inset-0 rounded-[8px] pointer-events-none z-30"
+          className="absolute inset-0 rounded-[9px] pointer-events-none z-30"
           style={{
             boxShadow: status
-              ? 'inset 0 0 0 1.5px rgba(255,255,255,0.55)'
-              : 'inset 0 0 0 1.5px var(--accent-color)',
+              ? 'inset 0 0 0 1.5px rgba(255,255,255,0.75), inset 0 0 12px rgba(255,255,255,0.25)'
+              : 'inset 0 0 0 1.5px var(--accent-color), inset 0 0 14px color-mix(in oklab, var(--accent-color) 30%, transparent)',
           }}
-          animate={{ opacity: [0.55, 1, 0.55] }}
+          animate={{ opacity: [0.6, 1, 0.6] }}
           transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
         />
       )}
