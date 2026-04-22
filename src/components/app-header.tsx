@@ -116,6 +116,8 @@ export function AppHeader() {
                   key={href}
                   href={href}
                   onClick={(e) => handleNav(href, e)}
+                  onMouseEnter={() => router.prefetch(href)}
+                  onFocus={() => router.prefetch(href)}
                   className="relative px-4 py-1.5 text-[13px] font-medium transition-colors"
                   style={{
                     color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',

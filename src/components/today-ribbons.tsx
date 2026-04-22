@@ -10,6 +10,7 @@ import { MemberAvatar } from '@/components/member-avatar'
 import { toDateString, formatDateLabelLong } from '@/lib/dates'
 import { spring } from '@/lib/motion'
 import { no } from '@/lib/i18n/no'
+import { EmptyState } from '@/components/empty-state'
 import type { EntryStatus } from '@/lib/supabase/types'
 
 type Member = { id: string; display_name: string; avatar_url: string | null }
@@ -201,7 +202,7 @@ export function TodayRibbons({ orgId, timezone, allMembers }: TodayRibbonsProps)
         <SpeechBubble timeStr={timeStr} />
 
         {emptyState ? (
-          <EmptyState />
+          <RibbonEmpty />
         ) : (
           <div className="flex flex-col gap-6">
             {BANDS.map((band, i) => {
@@ -645,44 +646,17 @@ function MemberLine({ member, status }: { member: Member; status: EntryStatus })
 
 // ────────────────────────────────────────────────────────────────────────────
 
-function EmptyState() {
+function RibbonEmpty() {
   return (
-    <div
-      className="rounded-3xl p-10 text-center"
-      style={{
-        background: 'var(--bg-elevated)',
-        boxShadow: 'var(--shadow-md)',
-      }}
-    >
-      <div className="mx-auto mb-4 w-14 h-14 rounded-full flex items-center justify-center"
-        style={{
-          background: 'linear-gradient(135deg, var(--bg-subtle), var(--bg-primary))',
-          boxShadow: 'inset 0 0 0 1px var(--border-subtle)',
-        }}
-      >
-        <motion.span
-          className="w-2.5 h-2.5 rounded-full"
-          style={{ background: 'var(--text-tertiary)' }}
-          animate={{ opacity: [0.35, 1, 0.35] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
-      <h2
-        className="text-[20px] font-bold mb-1.5"
-        style={{
-          color: 'var(--text-primary)',
-          fontFamily: 'var(--font-sora)',
-          letterSpacing: '-0.02em',
-        }}
-      >
-        {no.today.noEntriesTitle}
-      </h2>
-      <p
-        className="text-[14px]"
-        style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
-      >
-        {no.today.noEntriesHint}
-      </p>
-    </div>
+    <EmptyState
+      icon={
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
+          <path d="M12 7v5l3.5 2" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      }
+      title={no.today.noEntriesTitle}
+      description={no.today.noEntriesHint}
+    />
   )
 }

@@ -76,6 +76,16 @@ export function TodayPulse({ entries }: TodayPulseProps) {
       {/* Dramatic header — big day label, live clock, totals */}
       <PulseHeader mounted={mounted} totalToday={totalToday} />
 
+      {/* Team balance bar — proportional view of all seven statuses in one strip.
+          Sits between the big "X personer" headline and the cards, reinforcing
+          hierarchy without fighting the cards for attention. */}
+      <TeamBalanceBar
+        visibleGroups={visibleGroups}
+        total={totalToday}
+        statusColors={STATUS_COLORS}
+        reduce={reduce}
+      />
+
       {/* The cards */}
       <div className={`grid ${colClasses} gap-5 md:gap-6`}>
         {visibleGroups.map((group, i) => (
@@ -92,6 +102,106 @@ export function TodayPulse({ entries }: TodayPulseProps) {
         ))}
       </div>
     </section>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface TeamBalanceBarProps {
+  visibleGroups: Array<{ status: EntryStatus; label: string; members: MemberWithEntry[] }>
+  total: number
+  statusColors: ReturnType<typeof useStatusColors>
+  reduce: boolean
+}
+
+/** A single proportional strip showing each status' share of the team, inline
+ *  with a hover-to-highlight behaviour and the exact split rendered as a
+ *  legend above. Think Linear's "status breakdown" header — one glance,
+ *  done. */
+function TeamBalanceBar({ visibleGroups, total, statusColors, reduce }: TeamBalanceBarProps) {
+  const [hovered, setHovered] = useState<EntryStatus | null>(null)
+  if (total === 0) return null
+
+  const active = hovered ?? visibleGroups[0]?.status ?? null
+  const activeGroup = active ? visibleGroups.find((g) => g.status === active) : null
+  const activePct = activeGroup ? Math.round((activeGroup.members.length / total) * 100) : 0
+
+  return (
+    <div className="-mt-3 mb-7">
+      {/* Legend above the bar — the active segment's label + percentage */}
+      <div
+        className="flex items-center gap-2 mb-2 text-[11.5px] font-semibold h-[18px]"
+        style={{ fontFamily: 'var(--font-body)', color: 'var(--text-secondary)' }}
+      >
+        {activeGroup && (
+          <motion.div
+            key={activeGroup.status}
+            initial={reduce ? undefined : { opacity: 0, y: 2 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18 }}
+            className="flex items-center gap-2"
+          >
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ background: statusColors[activeGroup.status].icon }}
+            />
+            <span style={{ color: 'var(--text-primary)' }}>{activeGroup.label}</span>
+            <span>·</span>
+            <span className="tabular-nums">
+              {activeGroup.members.length} av {total}
+            </span>
+            <span>·</span>
+            <span className="tabular-nums">{activePct}%</span>
+          </motion.div>
+        )}
+      </div>
+
+      {/* The bar — a thin row of colored segments, each clickable. */}
+      <div
+        role="group"
+        aria-label="Team-fordeling i dag"
+        className="relative flex items-stretch w-full h-3.5 rounded-full overflow-hidden"
+        style={{
+          background: 'color-mix(in oklab, var(--bg-subtle) 75%, transparent)',
+          boxShadow: 'inset 0 0 0 1px color-mix(in oklab, var(--border-subtle) 50%, transparent)',
+        }}
+        onMouseLeave={() => setHovered(null)}
+      >
+        {visibleGroups.map((g, i) => {
+          const pct = (g.members.length / total) * 100
+          const tone = statusColors[g.status].icon
+          const isActive = (hovered ?? visibleGroups[0]?.status) === g.status
+          return (
+            <motion.button
+              key={g.status}
+              type="button"
+              onMouseEnter={() => setHovered(g.status)}
+              onFocus={() => setHovered(g.status)}
+              initial={reduce ? undefined : { width: 0 }}
+              animate={{ width: `${pct}%` }}
+              transition={
+                reduce
+                  ? { duration: 0 }
+                  : { duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.05 + i * 0.04 }
+              }
+              className="relative h-full focus:outline-none"
+              style={{
+                background: `linear-gradient(180deg,
+                  color-mix(in oklab, ${tone} 94%, white) 0%,
+                  ${tone} 50%,
+                  color-mix(in oklab, ${tone} 78%, black) 100%)`,
+                boxShadow: isActive
+                  ? `0 0 0 1px rgba(255,255,255,0.5), 0 4px 10px -2px ${tone}99`
+                  : 'inset 0 1px 0 rgba(255,255,255,0.4)',
+                transition: 'box-shadow 200ms, filter 200ms',
+                filter: hovered && !isActive ? 'saturate(0.6) brightness(0.92)' : 'none',
+              }}
+              aria-label={`${g.label}: ${g.members.length} av ${total}`}
+            />
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
