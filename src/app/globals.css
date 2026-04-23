@@ -9,10 +9,15 @@
    ============================================================ */
 
 @theme inline {
-  /* Fonts */
-  --font-display: var(--font-sora);
-  --font-body:    var(--font-inter-tight);
-  --font-sans:    var(--font-inter-tight);
+  /* Fonts — Offiview: Fraunces (display serif) + Manrope (UI body) */
+  --font-display: var(--font-fraunces);
+  --font-body:    var(--font-manrope);
+  --font-sans:    var(--font-manrope);
+  /* Legacy aliases — keep so existing components that read --font-sora /
+     --font-inter-tight / --font-serif directly still resolve to the new faces. */
+  --font-sora:         var(--font-fraunces);
+  --font-inter-tight:  var(--font-manrope);
+  --font-serif:        var(--font-fraunces);
 
   /* Brand colors (shadcn semantic mapping) */
   --color-background:         var(--background);
@@ -58,44 +63,65 @@
    ============================================================ */
 
 :root {
-  /* Backgrounds */
-  --bg-primary:    #FAFAF9;
-  --bg-elevated:   #FFFFFF;
-  --bg-subtle:     #F5F5F4;
+  /* === Offiview Brand — Jord (Earth) === */
+  --paper:       #F5EFE4;
+  --paper-soft:  #EDE5D1;
+  --stone:       #E0D8C8;
+  --stone-soft:  #F0EADF;
+  --ink:         #0E0B08;
+  --espresso:    #15110E;
+  --dusk:        #1F1913;
+  --mist:        #8A7F70;
 
-  /* Text */
-  --text-primary:   #1C1917;
-  --text-secondary: #57534E;
-  --text-tertiary:  #A8A29E;
+  /* === Glød (Ember) — action, primary accent === */
+  --ember:       #B45309;
+  --ember-soft:  #D97706;
+  --ember-deep:  #78350F;
+  --ember-glow:  #FBBF24;
 
-  /* Borders */
-  --border-subtle: #E7E5E4;
-  --border-strong: #D6D3D1;
+  /* === Nordlys (Aurora) — signature only, ONE per surface === */
+  --nordlys-a:   #00F5A0;
+  --nordlys-b:   #00D9F5;
+  --nordlys-c:   #7C3AED;
 
-  /* Accent */
-  --accent-color: #0066FF;
-  --accent-glow:  rgba(0, 102, 255, 0.2);
+  /* Legacy backgrounds — mapped to Paper family */
+  --bg-primary:    var(--paper);
+  --bg-elevated:   var(--paper-soft);
+  --bg-subtle:     var(--stone-soft);
 
-  /* Ambient aurora — per-theme tunable */
-  --aurora-a: hsla(220, 95%, 68%, 0.32);
-  --aurora-b: hsla(28, 95%, 62%, 0.24);
-  --aurora-opacity: 0.85;
+  /* Text — warm ink, never cold grey */
+  --text-primary:   var(--ink);
+  --text-secondary: var(--dusk);
+  --text-tertiary:  var(--mist);
+
+  /* Borders — Stone hairlines */
+  --border-subtle: var(--stone);
+  --border-strong: #C8BFAE;
+
+  /* Accent — Ember is the default primary */
+  --accent-color: var(--ember);
+  --accent-glow:  rgba(180, 83, 9, 0.22);
+
+  /* Ambient aurora — restrained, Ember-tinted */
+  --aurora-a: rgba(180, 83, 9, 0.12);
+  --aurora-b: rgba(251, 191, 36, 0.10);
+  --aurora-opacity: 0.9;
   --aurora-blur: 90px;
 
-  /* Glass / gloss layering — liquid-glass material */
-  --glass-tint: var(--bg-elevated);
-  --glass-tint-strength: 68%;
+  /* Glass / gloss layering — liquid-glass material (Paper-tinted) */
+  --glass-tint: var(--paper-soft);
+  --glass-tint-strength: 72%;
   --glass-blur: 28px;
-  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.1) 38%, rgba(255,255,255,0) 70%);
-  --glass-sheen-opacity: 0.55;
-  --surface-sheen: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0) 45%);
-  --surface-sheen-opacity: 0.35;
-  --glass-edge-top:    rgba(255,255,255,0.55);
-  --glass-edge-ring:   rgba(255,255,255,0.18);
+  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.08) 38%, rgba(255,255,255,0) 70%);
+  --glass-sheen-opacity: 0.5;
+  --surface-sheen: linear-gradient(180deg, rgba(255,255,255,0.3), rgba(255,255,255,0) 45%);
+  --surface-sheen-opacity: 0.32;
+  --glass-edge-top:    rgba(255,255,255,0.5);
+  --glass-edge-ring:   rgba(14,11,8,0.08);
   --glass-shadow:
-    0 30px 60px -18px rgba(10, 20, 40, 0.22),
-    0 14px 30px -14px rgba(10, 20, 40, 0.16),
-    0 1px 2px rgba(10, 20, 40, 0.06);
+    0 30px 60px -18px rgba(14, 11, 8, 0.18),
+    0 14px 30px -14px rgba(14, 11, 8, 0.12),
+    0 1px 2px rgba(14, 11, 8, 0.06);
 
   /* Shadows (used via inline styles or custom classes) */
   --shadow-sm:
@@ -114,38 +140,38 @@
     0 8px 16px rgba(0, 0, 0, 0.04),
     0 0 0 1px rgba(0, 0, 0, 0.04);
   --shadow-accent:
-    0 8px 24px color-mix(in oklab, var(--accent-color) 20%, transparent),
-    0 2px 4px color-mix(in oklab, var(--accent-color) 10%, transparent);
+    0 8px 24px color-mix(in oklab, var(--accent-color) 22%, transparent),
+    0 2px 4px color-mix(in oklab, var(--accent-color) 12%, transparent);
 
-  /* shadcn semantic tokens (stone-based) */
-  --background:           oklch(0.985 0.001 80);
-  --foreground:           oklch(0.148 0.006 64);
-  --card:                 oklch(1 0 0);
-  --card-foreground:      oklch(0.148 0.006 64);
-  --popover:              oklch(1 0 0);
-  --popover-foreground:   oklch(0.148 0.006 64);
-  --primary:              oklch(0.545 0.24 264);
-  --primary-foreground:   oklch(1 0 0);
-  --secondary:            oklch(0.965 0.001 80);
-  --secondary-foreground: oklch(0.148 0.006 64);
-  --muted:                oklch(0.965 0.001 80);
-  --muted-foreground:     oklch(0.68 0.008 64);
-  --accent-foreground:    oklch(1 0 0);
+  /* shadcn semantic tokens — Paper/Ink with Ember primary */
+  --background:           #F5EFE4;
+  --foreground:           #0E0B08;
+  --card:                 #EDE5D1;
+  --card-foreground:      #0E0B08;
+  --popover:              #F5EFE4;
+  --popover-foreground:   #0E0B08;
+  --primary:              #B45309;
+  --primary-foreground:   #F5EFE4;
+  --secondary:            #E0D8C8;
+  --secondary-foreground: #0E0B08;
+  --muted:                #F0EADF;
+  --muted-foreground:     #1F1913;
+  --accent-foreground:    #F5EFE4;
   --destructive:          oklch(0.577 0.245 27.325);
-  --border:               oklch(0.906 0.003 80);
-  --input:                oklch(0.906 0.003 80);
-  --ring:                 oklch(0.545 0.24 264);
-  --radius:               1rem;
+  --border:               #E0D8C8;
+  --input:                #E0D8C8;
+  --ring:                 #B45309;
+  --radius:               0.875rem;
 
-  /* Sidebar */
-  --sidebar:                    oklch(0.985 0.001 80);
-  --sidebar-foreground:         oklch(0.148 0.006 64);
-  --sidebar-primary:            oklch(0.545 0.24 264);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent:             oklch(0.965 0.001 80);
-  --sidebar-accent-foreground:  oklch(0.148 0.006 64);
-  --sidebar-border:             oklch(0.906 0.003 80);
-  --sidebar-ring:               oklch(0.545 0.24 264);
+  /* Sidebar — also Paper-based */
+  --sidebar:                    #F5EFE4;
+  --sidebar-foreground:         #0E0B08;
+  --sidebar-primary:            #B45309;
+  --sidebar-primary-foreground: #F5EFE4;
+  --sidebar-accent:             #EDE5D1;
+  --sidebar-accent-foreground:  #0E0B08;
+  --sidebar-border:             #E0D8C8;
+  --sidebar-ring:               #B45309;
 }
 
 /* ============================================================
@@ -153,47 +179,51 @@
    ============================================================ */
 
 .dark {
-  /* Backgrounds — 2026 liquid-glass stack */
-  --bg-primary:    #0A0A0B;
-  --bg-elevated:   #111114;
-  --bg-subtle:     #16161B;
+  /* === Dashboard dark: warm Espresso, not cold grey === */
+  --bg-primary:    #15110E;  /* espresso */
+  --bg-elevated:   #1F1913;  /* dusk */
+  --bg-subtle:     #0E0B08;  /* ink */
 
-  /* Liquid-glass surface stack (new, restrained) */
-  --lg-bg:          #0A0A0B;
-  --lg-surface-1:   #111114;
-  --lg-surface-2:   #16161B;
-  --lg-surface-3:   #1C1C22;
-  --lg-divider:     #1F1F24;
-  --lg-divider-soft:#17171C;
+  /* Liquid-glass surface stack — warmer, espresso-based */
+  --lg-bg:          #15110E;
+  --lg-surface-1:   #1F1913;
+  --lg-surface-2:   #261E17;
+  --lg-surface-3:   #2C231B;
+  --lg-divider:     rgba(245, 239, 228, 0.08);
+  --lg-divider-soft:rgba(245, 239, 228, 0.04);
 
-  /* Liquid-glass text tokens */
-  --lg-text-1:     #F5F5F7;
-  --lg-text-2:     #A1A1AA;
-  --lg-text-3:     #636369;
+  /* Text — Paper on Espresso */
+  --lg-text-1:     #F5EFE4;
+  --lg-text-2:     rgba(245, 239, 228, 0.6);
+  --lg-text-3:     rgba(245, 239, 228, 0.38);
 
-  /* Text */
-  --text-primary:   #F5F5F7;
-  --text-secondary: #A1A1AA;
-  --text-tertiary:  #636369;
+  --text-primary:   #F5EFE4;  /* paper */
+  --text-secondary: rgba(245, 239, 228, 0.6);
+  --text-tertiary:  rgba(245, 239, 228, 0.38);
 
-  /* Borders */
-  --border-subtle: #1F1F24;
-  --border-strong: #2A2A31;
+  /* Borders — low-opacity paper */
+  --border-subtle: rgba(245, 239, 228, 0.08);
+  --border-strong: rgba(245, 239, 228, 0.16);
 
-  /* Aurora (dark) */
-  --aurora-a: hsla(220, 90%, 55%, 0.3);
-  --aurora-b: hsla(280, 80%, 55%, 0.24);
-  --aurora-opacity: 0.7;
+  /* Accent — Ember-glow in dark for warmth */
+  --accent-color: #FBBF24;
+  --accent-glow:  rgba(251, 191, 36, 0.28);
 
-  /* Glass (dark) */
-  --glass-tint-strength: 58%;
-  --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.03) 38%, rgba(255,255,255,0) 70%);
-  --glass-sheen-opacity: 0.6;
-  --surface-sheen-opacity: 0.2;
-  --glass-edge-top:    rgba(255,255,255,0.12);
-  --glass-edge-ring:   rgba(255,255,255,0.08);
+  /* Aurora (dark) — espresso + ember, subtle */
+  --aurora-a: rgba(180, 83, 9, 0.18);
+  --aurora-b: rgba(0, 245, 160, 0.08); /* whisper of Nordlys */
+  --aurora-opacity: 0.85;
+
+  /* Glass (dark) — espresso-tinted */
+  --glass-tint: #1F1913;
+  --glass-tint-strength: 62%;
+  --glass-sheen: linear-gradient(180deg, rgba(245,239,228,0.10) 0%, rgba(245,239,228,0.02) 38%, rgba(245,239,228,0) 70%);
+  --glass-sheen-opacity: 0.55;
+  --surface-sheen-opacity: 0.18;
+  --glass-edge-top:    rgba(245,239,228,0.10);
+  --glass-edge-ring:   rgba(245,239,228,0.08);
   --glass-shadow:
-    0 30px 60px -18px rgba(0, 0, 0, 0.7),
+    0 30px 60px -18px rgba(0, 0, 0, 0.75),
     0 14px 30px -14px rgba(0, 0, 0, 0.55),
     0 1px 2px rgba(0, 0, 0, 0.4);
 
@@ -214,33 +244,33 @@
     0 8px 16px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(255, 255, 255, 0.06);
 
-  /* shadcn semantic tokens (dark stone-based) */
-  --background:           oklch(0.07 0 0);
-  --foreground:           oklch(0.985 0.001 80);
-  --card:                 oklch(0.105 0.002 80);
-  --card-foreground:      oklch(0.985 0.001 80);
-  --popover:              oklch(0.105 0.002 80);
-  --popover-foreground:   oklch(0.985 0.001 80);
-  --primary:              oklch(0.65 0.22 264);
-  --primary-foreground:   oklch(0.07 0 0);
-  --secondary:            oklch(0.148 0.006 64);
-  --secondary-foreground: oklch(0.985 0.001 80);
-  --muted:                oklch(0.148 0.006 64);
-  --muted-foreground:     oklch(0.68 0.008 64);
-  --accent-foreground:    oklch(0.07 0 0);
+  /* shadcn semantic tokens — Espresso/Paper with Ember-glow ring */
+  --background:           #15110E;
+  --foreground:           #F5EFE4;
+  --card:                 #1F1913;
+  --card-foreground:      #F5EFE4;
+  --popover:              #1F1913;
+  --popover-foreground:   #F5EFE4;
+  --primary:              #FBBF24;
+  --primary-foreground:   #0E0B08;
+  --secondary:            #261E17;
+  --secondary-foreground: #F5EFE4;
+  --muted:                #261E17;
+  --muted-foreground:     rgba(245, 239, 228, 0.6);
+  --accent-foreground:    #0E0B08;
   --destructive:          oklch(0.704 0.191 22.216);
-  --border:               oklch(0.18 0 0);
-  --input:                oklch(0.2 0.002 80);
-  --ring:                 oklch(0.65 0.22 264);
+  --border:               rgba(245, 239, 228, 0.08);
+  --input:                rgba(245, 239, 228, 0.10);
+  --ring:                 #FBBF24;
 
-  --sidebar:                    oklch(0.105 0.002 80);
-  --sidebar-foreground:         oklch(0.985 0.001 80);
-  --sidebar-primary:            oklch(0.65 0.22 264);
-  --sidebar-primary-foreground: oklch(0.07 0 0);
-  --sidebar-accent:             oklch(0.148 0.006 64);
-  --sidebar-accent-foreground:  oklch(0.985 0.001 80);
-  --sidebar-border:             oklch(0.18 0 0);
-  --sidebar-ring:               oklch(0.65 0.22 264);
+  --sidebar:                    #15110E;
+  --sidebar-foreground:         #F5EFE4;
+  --sidebar-primary:            #FBBF24;
+  --sidebar-primary-foreground: #0E0B08;
+  --sidebar-accent:             #1F1913;
+  --sidebar-accent-foreground:  #F5EFE4;
+  --sidebar-border:             rgba(245, 239, 228, 0.08);
+  --sidebar-ring:               #FBBF24;
 }
 
 /* ============================================================
@@ -253,15 +283,34 @@
   }
 
   html {
-    font-family: var(--font-inter-tight), system-ui, -apple-system, sans-serif;
+    font-family: var(--font-manrope), system-ui, -apple-system, sans-serif;
     @apply antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-feature-settings: "ss01", "ss02";
   }
 
   body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
     @apply min-h-screen;
+    position: relative;
+  }
+
+  /* Offiview grain — tactile noise layer, fixed, beneath content.
+     Multiply on Paper, Overlay on Espresso (dark). Main must be z-index: 2. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.5;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .dark body::before {
+    mix-blend-mode: overlay;
+    opacity: 0.35;
   }
 
   /* Tabular numbers everywhere for clocks, dates, counts */
@@ -269,9 +318,18 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Display font utility */
+  /* Display (serif) font utility — Fraunces */
   .font-display {
-    font-family: var(--font-sora), system-ui, sans-serif;
+    font-family: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+    font-optical-sizing: auto;
+  }
+
+  .font-serif-italic {
+    font-family: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+    font-style: italic;
+    font-weight: 300;
+    font-variation-settings: "opsz" 32, "SOFT" 80;
+    letter-spacing: -0.02em;
   }
 
   /* Focus ring — solid ring, soft accent glow, and gentle scale bounce.

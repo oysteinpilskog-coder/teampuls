@@ -8,21 +8,21 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: {
-    default: 'TeamPulse',
-    template: '%s · TeamPulse',
+    default: 'Offiview',
+    template: '%s · Offiview',
   },
-  description: 'Den vakreste og enkleste måten å vite hvor teamet ditt er.',
-  keywords: ['team', 'location', 'status', 'dashboard', 'remote work'],
+  description: 'Dagen, lagt på bordet. Hele teamet som ett klart landskap.',
+  keywords: ['team', 'location', 'status', 'dashboard', 'remote work', 'office'],
   openGraph: {
-    title: 'TeamPulse',
-    description: 'Den vakreste og enkleste måten å vite hvor teamet ditt er.',
+    title: 'Offiview',
+    description: 'Dagen, lagt på bordet. Hele teamet som ett klart landskap.',
     type: 'website',
     locale: 'nb_NO',
   },
   twitter: {
     card: 'summary',
-    title: 'TeamPulse',
-    description: 'Den vakreste og enkleste måten å vite hvor teamet ditt er.',
+    title: 'Offiview',
+    description: 'Dagen, lagt på bordet. Hele teamet som ett klart landskap.',
   },
   robots: {
     index: false,
@@ -48,12 +48,16 @@ export default async function RootLayout({
       </head>
       <body className="min-h-screen flex flex-col" suppressHydrationWarning>
         <Providers initialStatusColors={initialStatusColors}>
-          {/* Ambient aurora backdrop — fixed, non-interactive */}
+          {/* Ambient aurora — restrained Ember-tinted backdrop, sits below grain */}
           <div className="ambient-aurora" aria-hidden />
-          <ConditionalHeader />
-          <main className="flex-1 relative">
-            {children}
-          </main>
+          {/* Offiview grain is applied via body::before (z-index: 1, fixed).
+              Header and main sit at z-index: 2 so grain reads beneath content. */}
+          <div className="relative z-[2] flex-1 flex flex-col">
+            <ConditionalHeader />
+            <main className="flex-1 relative">
+              {children}
+            </main>
+          </div>
         </Providers>
       </body>
     </html>
