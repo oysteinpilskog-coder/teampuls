@@ -313,6 +313,7 @@ export function YearWheel({ orgId }: YearWheelProps) {
   const [view, setView] = useState<ViewMode>('disk')
   const { events } = useEvents(orgId, year)
   const [orgLogo, setOrgLogo] = useState<string | null>(null)
+  const [orgName, setOrgName] = useState<string | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<OrgEvent | null>(null)
   const [showEditor, setShowEditor] = useState(false)
   const [editingEvent, setEditingEvent] = useState<OrgEvent | null>(null)
@@ -354,10 +355,13 @@ export function YearWheel({ orgId }: YearWheelProps) {
     const supabase = createClient()
     supabase
       .from('organizations')
-      .select('logo_url')
+      .select('logo_url, name')
       .eq('id', orgId)
       .maybeSingle()
-      .then(({ data }) => setOrgLogo(data?.logo_url ?? null))
+      .then(({ data }) => {
+        setOrgLogo(data?.logo_url ?? null)
+        setOrgName(data?.name ?? null)
+      })
   }, [orgId])
 
   const onEditorClose = () => {
@@ -373,19 +377,78 @@ export function YearWheel({ orgId }: YearWheelProps) {
   }
 
   const showDiskChrome = view === 'disk' && !isFullscreen
+  const hours   = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const currentWeekNum = getISOWeek(today)
 
   return (
     <div
       ref={containerRef}
       className={
         isFullscreen
-          ? 'relative h-screen w-screen flex flex-col items-center justify-center gap-0 overflow-hidden'
+          ? 'relative h-screen w-screen flex flex-col overflow-hidden'
           : 'relative w-full flex flex-col items-center gap-5'
       }
       style={isFullscreen ? { background: 'var(--bg-primary)' } : undefined}
     >
       {!isFullscreen && (
         <Toolbar view={view} onViewChange={setView} onCreate={() => openEditor(null)} />
+      )}
+
+      {/* Fullscreen header: org name, year, live clock */}
+      {isFullscreen && view === 'disk' && (
+        <header className="flex items-center justify-between px-10 pt-8 pb-2 flex-shrink-0">
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...spring.gentle, delay: 0.1 }}
+          >
+            {orgName && (
+              <p
+                className="text-[12px] font-semibold tracking-[0.28em] uppercase"
+                style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+              >
+                {orgName}
+              </p>
+            )}
+            <p
+              className="text-[32px] font-semibold tracking-tight leading-none mt-1"
+              style={{
+                fontFamily: 'var(--font-sora)',
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.015em',
+              }}
+            >
+              Årshjulet · {year}
+            </p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...spring.gentle, delay: 0.18 }}
+            className="flex items-baseline gap-4"
+          >
+            <span
+              className="text-[11px] font-semibold tracking-[0.24em] uppercase tabular-nums"
+              style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+            >
+              UKE {String(currentWeekNum).padStart(2, '0')}
+            </span>
+            <span
+              className="tabular-nums"
+              style={{
+                fontSize: '56px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-sora)',
+                letterSpacing: '-0.04em',
+                color: 'var(--text-primary)',
+                lineHeight: 1,
+              }}
+            >
+              {hours}:{minutes}
+            </span>
+          </motion.div>
+        </header>
       )}
 
       <AnimatePresence mode="wait">
@@ -396,17 +459,56 @@ export function YearWheel({ orgId }: YearWheelProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3 }}
-            className={isFullscreen ? 'w-full h-full flex items-center justify-center px-8' : 'w-full flex justify-center'}
+            className={
+              isFullscreen
+                ? 'flex-1 min-h-0 w-full flex items-stretch gap-6 px-10 pb-10'
+                : 'w-full flex justify-center'
+            }
           >
-            <DiskView
-              year={year}
-              today={today}
-              events={events}
-              orgLogo={orgLogo}
-              selectedEvent={selectedEvent}
-              onSelectEvent={openEditor}
-              hideAgenda={isFullscreen}
-            />
+            {isFullscreen ? (
+              <>
+                {/* Wheel card (fills remaining width, aspect-square by height) */}
+                <div
+                  className="flex-1 relative rounded-3xl flex items-center justify-center overflow-hidden"
+                  style={{
+                    background:
+                      'linear-gradient(155deg, color-mix(in oklab, var(--bg-elevated) 50%, transparent) 0%, color-mix(in oklab, var(--bg-elevated) 18%, transparent) 100%)',
+                    border: '1px solid var(--border-subtle)',
+                    boxShadow: 'inset 0 1px 0 color-mix(in oklab, white 6%, transparent)',
+                  }}
+                >
+                  {/* Inner padding wrapper: stops bloom/today-pin glow from clipping
+                      on the viewport edge and gives the circle breathing room. */}
+                  <div className="relative h-full w-full flex items-center justify-center p-6">
+                    <DiskView
+                      year={year}
+                      today={today}
+                      events={events}
+                      orgLogo={orgLogo}
+                      selectedEvent={selectedEvent}
+                      onSelectEvent={openEditor}
+                      hideAgenda
+                    />
+                  </div>
+                </div>
+
+                {/* Agenda rail — premium sidebar with today + upcoming events.
+                    No-op onSelect: the editor modal is intentionally disabled in
+                    fullscreen so the wheel stays the hero. */}
+                <aside className="w-[380px] flex-shrink-0">
+                  <Agenda events={events} today={today} onSelect={() => {}} />
+                </aside>
+              </>
+            ) : (
+              <DiskView
+                year={year}
+                today={today}
+                events={events}
+                orgLogo={orgLogo}
+                selectedEvent={selectedEvent}
+                onSelectEvent={openEditor}
+              />
+            )}
           </motion.div>
         )}
 
@@ -1898,6 +2000,9 @@ function AgendaRow({
   const CATEGORY_LABELS_L = categoryLabelsT(t)
   const color = event.color ?? CATEGORY_COLORS[event.category]
   const start = new Date(event.start_date + 'T12:00:00')
+  const end   = new Date(event.end_date   + 'T12:00:00')
+  const multiDay = event.start_date !== event.end_date
+  const crossesMonth = start.getMonth() !== end.getMonth()
 
   return (
     <motion.li
@@ -1905,24 +2010,38 @@ function AgendaRow({
       onClick={() => onSelect(event)}
       className="flex items-start gap-3 px-2 py-2 -mx-2 rounded-xl cursor-pointer transition-colors hover:bg-[var(--bg-subtle)]"
     >
-      <div className="flex flex-col items-center justify-center w-8 flex-shrink-0 pt-0.5">
+      {/* Date block: day · month · weekday stacked. Compact, tabular, premium. */}
+      <div className="flex flex-col items-center justify-center w-10 flex-shrink-0 pt-0.5 gap-0.5">
         <span
-          className="text-[16px] font-semibold tabular-nums leading-none"
+          className="text-[17px] font-semibold tabular-nums leading-none"
           style={{
             color: 'var(--text-primary)',
             fontFamily: 'var(--font-sora)',
             letterSpacing: '-0.02em',
           }}
         >
-          {start.getDate()}
+          {multiDay && !crossesMonth
+            ? `${start.getDate()}–${end.getDate()}`
+            : start.getDate()}
         </span>
         <span
-          className="text-[9px] uppercase tracking-wider mt-0.5"
+          className="text-[9px] uppercase font-semibold"
+          style={{
+            color: color,
+            fontFamily: 'var(--font-body)',
+            letterSpacing: '0.14em',
+          }}
+        >
+          {MONTH_NAMES[start.getMonth()]}
+          {crossesMonth && `–${MONTH_NAMES[end.getMonth()]}`}
+        </span>
+        <span
+          className="text-[9px] uppercase mt-0.5"
           style={{
             color: 'var(--text-tertiary)',
             fontFamily: 'var(--font-body)',
             fontWeight: 600,
-            letterSpacing: '0.12em',
+            letterSpacing: '0.14em',
           }}
         >
           {weekdayAbbrT(start, t)}
