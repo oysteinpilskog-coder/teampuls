@@ -36,6 +36,7 @@ export function WorkspaceSwitcher() {
   const { workspaces, active, switchTo, isSwitching } = useWorkspace()
   const t = useT()
   const [open, setOpen] = useState(false)
+  const [hoveredSlug, setHoveredSlug] = useState<string | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -147,6 +148,13 @@ export function WorkspaceSwitcher() {
                 const isActive = w.slug === active.slug
                 const wAccent = safeHex(w.accent_color)
                 const shortcut = i < 9 ? `⌘${i + 1}` : null
+                const tint = wAccent ?? 'var(--accent-color)'
+                const isHovered = hoveredSlug === w.slug
+                const rowBackground = isActive
+                  ? `linear-gradient(135deg, color-mix(in oklab, ${tint} 28%, transparent), color-mix(in oklab, ${tint} 18%, transparent))`
+                  : isHovered
+                    ? 'color-mix(in oklab, var(--bg-subtle) 70%, transparent)'
+                    : 'transparent'
                 return (
                   <li key={w.org_id}>
                     <button
@@ -157,20 +165,16 @@ export function WorkspaceSwitcher() {
                         setOpen(false)
                         void switchTo(w.slug)
                       }}
-                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-colors"
+                      onMouseEnter={() => setHoveredSlug(w.slug)}
+                      onMouseLeave={() => setHoveredSlug((s) => (s === w.slug ? null : s))}
+                      onFocus={() => setHoveredSlug(w.slug)}
+                      onBlur={() => setHoveredSlug((s) => (s === w.slug ? null : s))}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-[background,box-shadow] duration-150"
                       style={{
-                        background: isActive
-                          ? `color-mix(in oklab, ${wAccent ?? 'var(--accent-color)'} 12%, transparent)`
-                          : 'transparent',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.background =
-                            'color-mix(in oklab, var(--bg-subtle) 70%, transparent)'
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive) e.currentTarget.style.background = 'transparent'
+                        background: rowBackground,
+                        boxShadow: isActive
+                          ? `inset 0 0 0 1px color-mix(in oklab, ${tint} 55%, transparent), 0 1px 0 color-mix(in oklab, ${tint} 18%, transparent)`
+                          : 'none',
                       }}
                     >
                       <WorkspaceBadge workspace={w} size="md" />
