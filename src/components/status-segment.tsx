@@ -44,6 +44,11 @@ interface StatusSegmentProps {
   /** Fired on mousedown inside a left/right resize handle. When set, the bar exposes
    * 8-px hit zones on each edge that take priority over the per-day buttons. */
   onSegmentResizeStart?: (edge: 'left' | 'right') => void
+  /** Right-aligned mono label (e.g. "20.–24.") shown after the location/note label. */
+  dateRangeLabel?: string
+  /** Suppress the built-in today indicators (dot + single-day ring). Use when the
+   *  parent renders a card-level today chord across the full column. */
+  hideToday?: boolean
 }
 
 // Status color palettes live in `@/lib/status-colors/context` — `useStatusColors()`.
@@ -63,6 +68,8 @@ export function StatusSegment({
   highlight,
   editingBy,
   onSegmentResizeStart,
+  dateRangeLabel,
+  hideToday,
 }: StatusSegmentProps) {
   const palettes = useStatusColors()
   const t = useT()
@@ -121,22 +128,36 @@ export function StatusSegment({
         />
       )}
 
-      {/* Content — icon + label, tight spacing for slim bar.
+      {/* Content — icon + label left, optional date range mono right.
           Text is tinted to the category (lighter pastel) instead of fighting
           white-on-saturated-color. Reads clean against the translucent tile. */}
       {status && (
-        <div className="absolute inset-0 flex items-center gap-1.5 px-2.5 pointer-events-none z-10">
-          <StatusIcon status={status} size={11} color={tint} />
-          {label && (
+        <div className="absolute inset-0 flex items-center gap-2 px-2.5 pointer-events-none z-10">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <StatusIcon status={status} size={11} color={tint} />
+            {label && (
+              <span
+                className="text-[11px] leading-none truncate"
+                style={{
+                  color: tint,
+                  fontWeight: 500,
+                  letterSpacing: '-0.005em',
+                }}
+              >
+                {label}
+              </span>
+            )}
+          </div>
+          {dateRangeLabel && (
             <span
-              className="text-[11px] leading-none truncate"
+              className="lg-mono text-[10px] leading-none whitespace-nowrap"
               style={{
                 color: tint,
-                fontWeight: 500,
-                letterSpacing: '-0.005em',
+                opacity: 0.65,
+                letterSpacing: '0.04em',
               }}
             >
-              {label}
+              {dateRangeLabel}
             </span>
           )}
         </div>
@@ -199,7 +220,7 @@ export function StatusSegment({
       </div>
 
       {/* Today dot for multi-day segment — violet accent, matches nav "nå" dot */}
-      {!singleDay && todayIdx !== -1 && (
+      {!hideToday && !singleDay && todayIdx !== -1 && (
         <motion.div
           className="absolute pointer-events-none rounded-full z-30"
           style={{
@@ -266,7 +287,7 @@ export function StatusSegment({
       )}
 
       {/* Single-day today accent — violet ring on filled bars. */}
-      {singleDayIsToday && status && (
+      {!hideToday && singleDayIsToday && status && (
         <motion.div
           aria-hidden
           className="absolute inset-0 rounded-[7px] pointer-events-none z-30"

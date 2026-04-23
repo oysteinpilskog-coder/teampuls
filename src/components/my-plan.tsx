@@ -77,6 +77,35 @@ function entriesMergeable(a: Entry | null, b: Entry | null): boolean {
   )
 }
 
+function formatDateRange(dates: Date[]): string {
+  if (dates.length === 0) return ''
+  if (dates.length === 1) return `${dates[0].getDate()}.`
+  return `${dates[0].getDate()}.–${dates[dates.length - 1].getDate()}.`
+}
+
+interface MonthGroup {
+  monthIdx: number
+  year: number
+  label: string
+  weeks: WeekBlock[]
+}
+
+function groupWeeksByMonth(weeks: WeekBlock[], monthsLongCap: string[]): MonthGroup[] {
+  const groups: MonthGroup[] = []
+  weeks.forEach((wk) => {
+    const mid = wk.days[2]
+    const monthIdx = mid.getMonth()
+    const year = mid.getFullYear()
+    const last = groups[groups.length - 1]
+    if (last && last.monthIdx === monthIdx && last.year === year) {
+      last.weeks.push(wk)
+    } else {
+      groups.push({ monthIdx, year, label: monthsLongCap[monthIdx], weeks: [wk] })
+    }
+  })
+  return groups
+}
+
 function buildWeekSegments(weekDays: Date[], entryByDate: Map<string, Entry>, t: Dictionary): RowSegment[] {
   const segments: RowSegment[] = []
   let i = 0
@@ -142,6 +171,16 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
   const [dirY, setDirY] = useState<'next' | 'prev'>('next')
 
   const weeks = useMemo(() => buildYearWeeks(year, t), [year, t])
+  const monthGroups = useMemo(() => groupWeeksByMonth(weeks, t.dates.monthsLongCap), [weeks, t])
+  const todayWeekdayIdx = useMemo(() => {
+    const day = new Date().getDay() // 0=Sun, 1=Mon … 5=Fri, 6=Sat
+    return day >= 1 && day <= 5 ? day - 1 : -1
+  }, [])
+  const todayIsWeekday = todayWeekdayIdx !== -1
+  const weekdayLabels = useMemo(
+    () => t.dates.weekdaysShort.slice(1, 6), // Man, Tir, Ons, Tor, Fre
+    [t],
+  )
   const rangeStart = toDateString(weeks[0].start)
   const rangeEnd = toDateString(addDays(weeks[weeks.length - 1].start, 4))
 
@@ -599,7 +638,60 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
           structure is still visible underneath and clickable. */}
       {!loading && totalEntries === 0 && <MyPlanEmpty year={year} />}
 
-      {/* Weeks */}
+      {/* Sticky weekday header — Man Tir Ons Tor Fre, today gets an Nå capsule.
+          Sits just below the app-header (h-16) and fades content scrolling under it. */}
+      <div
+        className="sticky z-20 -mx-1 px-1 pt-3 pb-3"
+        style={{
+          top: 64,
+          background:
+            'linear-gradient(180deg, var(--lg-bg) 0%, var(--lg-bg) 72%, transparent 100%)',
+        }}
+      >
+        <div
+          className="grid gap-2 px-4 py-2 rounded-2xl"
+          style={{
+            gridTemplateColumns: '128px repeat(5, 1fr)',
+            background: 'rgba(31, 25, 19, 0.65)',
+            backdropFilter: 'blur(18px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(18px) saturate(160%)',
+            border: '1px solid var(--lg-divider)',
+          }}
+        >
+          <div />
+          {weekdayLabels.map((lbl, i) => {
+            const isToday = i === todayWeekdayIdx
+            return (
+              <div key={i} className="flex items-center justify-center gap-1.5 py-0.5">
+                {isToday && (
+                  <span
+                    className="lg-mono px-1.5 py-[2px] rounded-full text-[9px] font-medium uppercase"
+                    style={{
+                      background: 'rgba(139, 92, 246, 0.14)',
+                      color: 'var(--lg-accent)',
+                      border: '1px solid rgba(139, 92, 246, 0.28)',
+                      letterSpacing: '0.22em',
+                    }}
+                  >
+                    Nå
+                  </span>
+                )}
+                <span
+                  className="lg-mono text-[10.5px] font-medium uppercase"
+                  style={{
+                    color: isToday ? 'var(--lg-accent)' : 'var(--lg-text-3)',
+                    letterSpacing: '0.22em',
+                  }}
+                >
+                  {lbl}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Weeks — grouped by month, each group gets a serif header */}
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={year}
@@ -607,182 +699,269 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: dirY === 'next' ? -32 : 32, opacity: 0 }}
           transition={spring.snappy}
-          className="space-y-3"
+          className="flex flex-col gap-10"
         >
-          {weeks.map((wk, wkIdx) => {
-            const segments = buildWeekSegments(wk.days, entryByDate, t)
-            const hasEntries = segments.some((s) => s.entry !== null)
-            const highlights = dayHighlightsForWeek(wkIdx, wk.days.length)
-
-            // Map segment index → array of highlight flags for that segment's days.
-            let cursor = 0
-            const segmentHighlights: boolean[][] = segments.map((seg) => {
-              const slice = highlights.slice(cursor, cursor + seg.days.length)
-              cursor += seg.days.length
-              return slice
-            })
-
+          {monthGroups.map((group, groupIdx) => {
+            const groupHasCurrentWeek = group.weeks.some((w) => w.isCurrentWeek)
             return (
-              <motion.div
-                key={`${wk.year}-${wk.weekNumber}`}
-                ref={wk.isCurrentWeek ? currentWeekRef : undefined}
-                initial={{ y: 6, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ duration: 0.2, delay: Math.min(wkIdx, 18) * 0.015, ease: [0.4, 0, 0.2, 1] }}
-                className="relative rounded-2xl overflow-hidden"
-                style={{
-                  background: wk.isCurrentWeek
-                    ? 'rgba(22, 22, 27, 0.55)'
-                    : 'var(--lg-surface-1)',
-                  backdropFilter: wk.isCurrentWeek
-                    ? 'blur(20px) saturate(180%)'
-                    : undefined,
-                  WebkitBackdropFilter: wk.isCurrentWeek
-                    ? 'blur(20px) saturate(180%)'
-                    : undefined,
-                  border: `1px solid ${wk.isCurrentWeek ? 'rgba(139, 92, 246, 0.28)' : 'var(--lg-divider)'}`,
-                  boxShadow: wk.isCurrentWeek
-                    ? '0 0 0 3px rgba(139, 92, 246, 0.10), 0 0 24px -6px var(--lg-accent-glow)'
-                    : 'none',
-                  opacity: !hasEntries && !wk.isCurrentWeek ? 0.5 : 1,
-                }}
-              >
-                <div
-                  className="grid items-stretch gap-2 px-4 py-3"
-                  style={{
-                    gridTemplateColumns: '128px repeat(5, 1fr)',
-                    userSelect: 'none',
-                  }}
-                >
-                  {/* Week label column */}
-                  <div className="flex flex-col justify-center pr-2">
-                    <div className="flex items-baseline gap-2">
-                      <span
-                        className="lg-mono text-[10px] font-medium uppercase"
-                        style={{
-                          color: wk.isCurrentWeek
-                            ? 'var(--lg-accent)'
-                            : 'var(--lg-text-3)',
-                          letterSpacing: '0.2em',
-                        }}
-                      >
-                        {t.matrix.weekLabel}
-                      </span>
-                      <span
-                        className="lg-mono text-[22px] leading-none"
-                        style={{
-                          color: wk.isCurrentWeek
-                            ? 'var(--lg-accent)'
-                            : 'var(--lg-text-1)',
-                          textShadow: wk.isCurrentWeek
-                            ? '0 0 18px var(--lg-accent-glow)'
-                            : undefined,
-                          fontWeight: 500,
-                        }}
-                      >
-                        {wk.weekNumber}
-                      </span>
-                    </div>
-                    <div
-                      className="lg-serif mt-0.5 capitalize"
+              <section key={`${group.year}-${group.monthIdx}`} className="flex flex-col">
+                <header className="flex items-baseline gap-3 mb-4 px-1">
+                  <h2
+                    className="lg-serif"
+                    style={{ color: 'var(--lg-text-1)', fontSize: 32, lineHeight: 1 }}
+                  >
+                    {group.label}
+                  </h2>
+                  <span
+                    className="lg-mono text-[11px] uppercase"
+                    style={{
+                      color: 'var(--lg-text-3)',
+                      letterSpacing: '0.22em',
+                    }}
+                  >
+                    {group.year}
+                  </span>
+                  {groupHasCurrentWeek && (
+                    <span
+                      className="lg-mono ml-auto px-2 py-0.5 rounded-full text-[9.5px] font-medium uppercase"
                       style={{
-                        color: wk.isCurrentWeek
-                          ? 'var(--lg-text-2)'
-                          : 'var(--lg-text-3)',
-                        fontSize: 14,
+                        background: 'rgba(139, 92, 246, 0.14)',
+                        color: 'var(--lg-accent)',
+                        border: '1px solid rgba(139, 92, 246, 0.28)',
+                        letterSpacing: '0.22em',
                       }}
                     >
-                      {wk.monthLabel}
-                    </div>
-                  </div>
+                      Nå
+                    </span>
+                  )}
+                </header>
 
-                  {/* Segments — multi-day blocks like oversikt/Outlook */}
-                  {(() => {
-                    let cursor2 = 0
-                    const segmentStarts: number[] = segments.map((seg) => {
-                      const start = cursor2
-                      cursor2 += seg.days.length
-                      return start
-                    })
-                    const src = sourceSegmentFor(wkIdx)
-                    return segments.map((seg, segIdx) => {
-                      const isDragSource =
-                        src !== null &&
-                        segmentStarts[segIdx] === src.start &&
-                        seg.days.length === src.span
-                      return (
-                        <StatusSegment
-                          key={`${wkIdx}-${segIdx}-${seg.days[0].date}`}
-                          status={seg.entry?.status ?? null}
-                          location={seg.entry?.location_label ?? null}
-                          note={seg.entry?.note ?? null}
-                          days={seg.days}
-                          onSelectDay={() => {
-                            /* replaced by drag mousedown/mouseup flow */
-                          }}
-                          onDayMouseDown={(dayIdx) => {
-                            const absoluteIdx = wk.days.findIndex(
-                              (d) => toDateString(d) === seg.days[dayIdx].date
-                            )
-                            if (absoluteIdx >= 0) handleDayMouseDown(wkIdx, absoluteIdx)
-                          }}
-                          onDayMouseEnter={(dayIdx) => {
-                            const absoluteIdx = wk.days.findIndex(
-                              (d) => toDateString(d) === seg.days[dayIdx].date
-                            )
-                            if (absoluteIdx >= 0) handleDayMouseEnter(wkIdx, absoluteIdx)
-                          }}
-                          dayHighlight={segmentHighlights[segIdx]}
-                          muted={isDragSource}
-                          onSegmentResizeStart={
-                            seg.entry
-                              ? (edge) =>
-                                  handleSegmentResizeStart(
-                                    wkIdx,
-                                    segmentStarts[segIdx],
-                                    seg.days.length,
-                                    edge,
-                                    seg.entry!
-                                  )
-                              : undefined
-                          }
-                        />
-                      )
-                    })
-                  })()}
+                <div className="flex flex-col gap-2.5">
+                  {group.weeks.map((wk) => {
+                    const wkIdx = weeks.indexOf(wk)
+                    const segments = buildWeekSegments(wk.days, entryByDate, t)
+                    const hasEntries = segments.some((s) => s.entry !== null)
+                    const highlights = dayHighlightsForWeek(wkIdx, wk.days.length)
 
-                  {/* Drag ghost — shown for move OR resize while the user drags a bar in this week */}
-                  {(() => {
-                    const ghost = ghostRangeFor(wkIdx)
-                    if (!ghost) return null
-                    const { start: targetStart, span, entry } = ghost
-                    const palette = palettes[entry.status]
-                    const tone = palette.icon
-                    const leftCalc = `calc(152px + ${targetStart} * ((100% - 200px) / 5 + 8px))`
-                    const widthCalc = `calc(${span} * ((100% - 200px) / 5) + ${(span - 1) * 8}px)`
+                    let cursor = 0
+                    const segmentHighlights: boolean[][] = segments.map((seg) => {
+                      const slice = highlights.slice(cursor, cursor + seg.days.length)
+                      cursor += seg.days.length
+                      return slice
+                    })
+
                     return (
-                      <div
-                        aria-hidden
+                      <motion.div
+                        key={`${wk.year}-${wk.weekNumber}`}
+                        ref={wk.isCurrentWeek ? currentWeekRef : undefined}
+                        initial={{ y: 6, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ duration: 0.2, delay: Math.min(wkIdx, 18) * 0.015, ease: [0.4, 0, 0.2, 1] }}
+                        className="group relative rounded-2xl overflow-hidden"
                         style={{
-                          position: 'absolute',
-                          top: 14,
-                          height: 32,
-                          left: leftCalc,
-                          width: widthCalc,
-                          borderRadius: 8,
-                          background: `linear-gradient(180deg, ${tone}33 0%, ${tone}22 100%)`,
-                          boxShadow: `inset 3px 0 0 ${tone}, inset 0 0 0 1px ${tone}55, 0 0 24px -4px ${tone}88`,
-                          opacity: 0.95,
-                          pointerEvents: 'none',
-                          zIndex: 25,
-                          transition:
-                            'left 120ms cubic-bezier(0.2, 0.8, 0.2, 1), width 120ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+                          background: wk.isCurrentWeek
+                            ? 'linear-gradient(180deg, rgba(139, 92, 246, 0.07) 0%, rgba(139, 92, 246, 0.02) 100%), var(--lg-surface-1)'
+                            : 'var(--lg-surface-1)',
+                          border: `1px solid ${wk.isCurrentWeek ? 'rgba(139, 92, 246, 0.22)' : 'var(--lg-divider)'}`,
+                          boxShadow: wk.isCurrentWeek
+                            ? 'inset 0 0 0 1px rgba(139, 92, 246, 0.05)'
+                            : 'none',
                         }}
-                      />
+                      >
+                        {/* Today chord — vertical accent line through today's column, current week only */}
+                        {wk.isCurrentWeek && todayIsWeekday && (
+                          <div
+                            aria-hidden
+                            className="absolute pointer-events-none z-[4]"
+                            style={{
+                              top: 0,
+                              bottom: 0,
+                              left: `calc(152px + ${todayWeekdayIdx} * ((100% - 200px) / 5 + 8px) + ((100% - 200px) / 5) / 2 - 0.5px)`,
+                              width: 1,
+                              background:
+                                'linear-gradient(180deg, rgba(139, 92, 246, 0) 0%, rgba(139, 92, 246, 0.45) 22%, rgba(139, 92, 246, 0.45) 78%, rgba(139, 92, 246, 0) 100%)',
+                              boxShadow: '0 0 10px rgba(139, 92, 246, 0.35)',
+                            }}
+                          />
+                        )}
+
+                        {/* Empty-week dashed baseline + hover hint */}
+                        {!hasEntries && (
+                          <>
+                            <div
+                              aria-hidden
+                              className="absolute pointer-events-none z-[2]"
+                              style={{
+                                left: 'calc(16px + 128px + 8px)',
+                                right: 16,
+                                top: '50%',
+                                borderTop: '1px dashed var(--lg-divider)',
+                              }}
+                            />
+                            <div
+                              aria-hidden
+                              className="absolute pointer-events-none z-[3] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex justify-center"
+                              style={{
+                                left: 'calc(16px + 128px + 8px)',
+                                right: 16,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                              }}
+                            >
+                              <span
+                                className="lg-mono uppercase"
+                                style={{
+                                  fontSize: 9.5,
+                                  letterSpacing: '0.22em',
+                                  color: 'var(--lg-text-3)',
+                                  background: 'var(--lg-surface-1)',
+                                  padding: '4px 10px',
+                                  borderRadius: 999,
+                                  border: '1px solid var(--lg-divider)',
+                                }}
+                              >
+                                Klikk for å planlegge
+                              </span>
+                            </div>
+                          </>
+                        )}
+
+                        <div
+                          className="grid items-center gap-2 px-4 py-3.5"
+                          style={{
+                            gridTemplateColumns: '128px repeat(5, 1fr)',
+                            userSelect: 'none',
+                          }}
+                        >
+                          {/* Week label column */}
+                          <div className="flex flex-col justify-center pr-2">
+                            <div className="flex items-baseline gap-2">
+                              <span
+                                className="lg-mono text-[10px] font-medium uppercase"
+                                style={{
+                                  color: wk.isCurrentWeek
+                                    ? 'var(--lg-accent)'
+                                    : 'var(--lg-text-3)',
+                                  letterSpacing: '0.22em',
+                                }}
+                              >
+                                {t.matrix.weekLabel}
+                              </span>
+                              <span
+                                className="lg-mono text-[22px] leading-none"
+                                style={{
+                                  color: wk.isCurrentWeek
+                                    ? 'var(--lg-accent)'
+                                    : 'var(--lg-text-1)',
+                                  textShadow: wk.isCurrentWeek
+                                    ? '0 0 14px var(--lg-accent-glow)'
+                                    : undefined,
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {wk.weekNumber}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Segments — multi-day blocks like oversikt/Outlook */}
+                          {(() => {
+                            let cursor2 = 0
+                            const segmentStarts: number[] = segments.map((seg) => {
+                              const start = cursor2
+                              cursor2 += seg.days.length
+                              return start
+                            })
+                            const src = sourceSegmentFor(wkIdx)
+                            return segments.map((seg, segIdx) => {
+                              const isDragSource =
+                                src !== null &&
+                                segmentStarts[segIdx] === src.start &&
+                                seg.days.length === src.span
+                              const rangeLabel =
+                                seg.entry && seg.dates.length > 1
+                                  ? formatDateRange(seg.dates)
+                                  : undefined
+                              return (
+                                <StatusSegment
+                                  key={`${wkIdx}-${segIdx}-${seg.days[0].date}`}
+                                  status={seg.entry?.status ?? null}
+                                  location={seg.entry?.location_label ?? null}
+                                  note={seg.entry?.note ?? null}
+                                  days={seg.days}
+                                  onSelectDay={() => {
+                                    /* replaced by drag mousedown/mouseup flow */
+                                  }}
+                                  onDayMouseDown={(dayIdx) => {
+                                    const absoluteIdx = wk.days.findIndex(
+                                      (d) => toDateString(d) === seg.days[dayIdx].date
+                                    )
+                                    if (absoluteIdx >= 0) handleDayMouseDown(wkIdx, absoluteIdx)
+                                  }}
+                                  onDayMouseEnter={(dayIdx) => {
+                                    const absoluteIdx = wk.days.findIndex(
+                                      (d) => toDateString(d) === seg.days[dayIdx].date
+                                    )
+                                    if (absoluteIdx >= 0) handleDayMouseEnter(wkIdx, absoluteIdx)
+                                  }}
+                                  dayHighlight={segmentHighlights[segIdx]}
+                                  muted={isDragSource}
+                                  dateRangeLabel={rangeLabel}
+                                  hideToday={wk.isCurrentWeek}
+                                  onSegmentResizeStart={
+                                    seg.entry
+                                      ? (edge) =>
+                                          handleSegmentResizeStart(
+                                            wkIdx,
+                                            segmentStarts[segIdx],
+                                            seg.days.length,
+                                            edge,
+                                            seg.entry!
+                                          )
+                                      : undefined
+                                  }
+                                />
+                              )
+                            })
+                          })()}
+
+                          {/* Drag ghost — shown for move OR resize while the user drags a bar in this week */}
+                          {(() => {
+                            const ghost = ghostRangeFor(wkIdx)
+                            if (!ghost) return null
+                            const { start: targetStart, span, entry } = ghost
+                            const palette = palettes[entry.status]
+                            const tone = palette.icon
+                            const leftCalc = `calc(152px + ${targetStart} * ((100% - 200px) / 5 + 8px))`
+                            const widthCalc = `calc(${span} * ((100% - 200px) / 5) + ${(span - 1) * 8}px)`
+                            return (
+                              <div
+                                aria-hidden
+                                style={{
+                                  position: 'absolute',
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  height: 32,
+                                  left: leftCalc,
+                                  width: widthCalc,
+                                  borderRadius: 8,
+                                  background: `linear-gradient(180deg, ${tone}33 0%, ${tone}22 100%)`,
+                                  boxShadow: `inset 3px 0 0 ${tone}, inset 0 0 0 1px ${tone}55, 0 0 24px -4px ${tone}88`,
+                                  opacity: 0.95,
+                                  pointerEvents: 'none',
+                                  zIndex: 25,
+                                  transition:
+                                    'left 120ms cubic-bezier(0.2, 0.8, 0.2, 1), width 120ms cubic-bezier(0.2, 0.8, 0.2, 1)',
+                                }}
+                              />
+                            )
+                          })()}
+                        </div>
+                      </motion.div>
                     )
-                  })()}
+                  })}
                 </div>
-              </motion.div>
+              </section>
             )
           })}
         </motion.div>
