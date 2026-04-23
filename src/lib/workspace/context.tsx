@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useMemo, useCallback, useState, useTransition } from 'react'
+import { createContext, useContext, useEffect, useMemo, useCallback, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useT } from '@/lib/i18n/context'
@@ -37,6 +37,16 @@ export function WorkspaceProvider({
     () => initialWorkspaces.find((w) => w.slug === activeSlug) ?? initialWorkspaces[0] ?? null,
     [initialWorkspaces, activeSlug],
   )
+
+  // Once the server round-trip + refresh has landed and the cookie-backed
+  // active slug matches our optimistic target, drop the optimistic state so
+  // `isSwitching` returns to false. Without this, the pill stays dimmed and
+  // re-runs its opacity transition on every subsequent render.
+  useEffect(() => {
+    if (optimisticSlug !== null && initialActiveSlug === optimisticSlug) {
+      setOptimisticSlug(null)
+    }
+  }, [initialActiveSlug, optimisticSlug])
 
   const switchTo = useCallback(
     async (slug: string) => {
