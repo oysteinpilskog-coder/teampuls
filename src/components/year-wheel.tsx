@@ -470,7 +470,7 @@ export function YearWheel({ orgId }: YearWheelProps) {
           transition={{ ...spring.gentle, delay: 0.3 }}
           whileHover={{ scale: 1.04, y: -1 }}
           whileTap={{ scale: 0.96 }}
-          className="fixed bottom-6 left-6 z-40 flex items-center justify-center w-11 h-11 rounded-full"
+          className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-11 h-11 rounded-full"
           style={{
             background: 'color-mix(in oklab, var(--bg-elevated) 82%, transparent)',
             backdropFilter: 'blur(22px) saturate(180%)',
