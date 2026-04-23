@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Offiview — Brand System v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..900,0..100;1,9..144,300..900,0..100&family=Manrope:wght@200..800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Light surfaces */
+    --paper: #F5EFE4;
+    --paper-soft: #EDE5D1;
+    --stone: #E0D8C8;
+    --stone-soft: #F0EADF;
+
+    /* Darks - warm, not cold */
+    --ink: #0E0B08;
+    --espresso: #15110E;
+    --dusk: #1F1913;
+    --mist: #8A7F70;
+
+    /* Ember family */
+    --ember: #B45309;
+    --ember-soft: #D97706;
+    --ember-deep: #78350F;
+    --ember-glow: #FBBF24;
+
+    /* Nordlys - the WOW accent */
+    --nordlys-a: #00F5A0;
+    --nordlys-b: #00D9F5;
+    --nordlys-c: #7C3AED;
+
+    /* Glass */
+    --glass-warm: rgba(14, 11, 8, 0.72);
+  }
+
+  *, *::before, *::after {
+    margin: 0; padding: 0; box-sizing: border-box;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Manrope', system-ui, sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "ss02";
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Grain texture - this is the tactile layer */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.5;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  main { position: relative; z-index: 2; }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+  section { padding: 140px 0; border-bottom: 1px solid var(--stone); position: relative; }
+  section:last-of-type { border-bottom: none; }
+
+  .serif { font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto; }
+
+  /* ============ HERO ============ */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Nordlys gradient orb behind hero - the drama */
+  .hero::before {
+    content: "";
+    position: absolute;
+    right: -20%;
+    top: -10%;
+    width: 90%;
+    height: 110%;
+    background:
+      radial-gradient(ellipse 60% 50% at 30% 40%, rgba(0, 245, 160, 0.18) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 60% at 50% 60%, rgba(0, 217, 245, 0.14) 0%, transparent 55%),
+      radial-gradient(ellipse 50% 40% at 70% 50%, rgba(124, 58, 237, 0.10) 0%, transparent 55%);
+    filter: blur(40px);
+    pointer-events: none;
+    animation: driftA 24s ease-in-out infinite;
+  }
+
+  .hero::after {
+    content: "";
+    position: absolute;
+    left: -15%;
+    bottom: -20%;
+    width: 60%;
+    height: 80%;
+    background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(180, 83, 9, 0.12) 0%, transparent 60%);
+    filter: blur(60px);
+    pointer-events: none;
+    animation: driftB 32s ease-in-out infinite;
+  }
+
+  @keyframes driftA {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-4%, 2%) scale(1.05); }
+  }
+
+  @keyframes driftB {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(3%, -3%) scale(0.95); }
+  }
+
+  .hero-inner {
+    position: relative;
+    z-index: 2;
+    padding: 80px 0;
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--mist);
+    margin-bottom: 40px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .eyebrow::before {
+    content: "";
+    width: 32px;
+    height: 1px;
+    background: var(--ember);
+  }
+
+  h1.display {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: clamp(64px, 11vw, 168px);
+    line-height: 0.92;
+    letter-spacing: -0.045em;
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+    margin-bottom: 48px;
+    max-width: 1100px;
+  }
+
+  h1.display em {
+    font-style: italic;
+    font-weight: 300;
+    background: linear-gradient(120deg, var(--ember) 0%, var(--ember-soft) 40%, var(--ember-glow) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .lede {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-variation-settings: "opsz" 32, "SOFT" 60;
+    font-size: clamp(20px, 2.2vw, 26px);
+    line-height: 1.45;
+    max-width: 680px;
+    color: var(--dusk);
+  }
+
+  .lede em { font-style: italic; color: var(--ember); }
+
+  .hero-foot {
+    position: absolute;
+    bottom: 40px;
+    left: 32px;
+    right: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    z-index: 3;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--mist);
+  }
+
+  /* ============ SECTION HEADERS ============ */
+  .sec-num {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 14px;
+    color: var(--ember);
+    margin-bottom: 16px;
+    font-variation-settings: "opsz" 9;
+  }
+
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: clamp(40px, 6vw, 80px);
+    letter-spacing: -0.028em;
+    line-height: 1;
+    margin-bottom: 32px;
+    max-width: 960px;
+    font-variation-settings: "opsz" 144, "SOFT" 80;
+  }
+
+  h2 em {
+    font-style: italic;
+    color: var(--ember);
+    font-weight: 300;
+  }
+
+  .h2-sub {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: clamp(18px, 2vw, 22px);
+    line-height: 1.5;
+    max-width: 620px;
+    color: var(--dusk);
+    margin-bottom: 72px;
+    font-variation-settings: "opsz" 16;
+  }
+
+  h3 {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    color: var(--ink);
+  }
+
+  /* ============ LOGO SHOWCASE ============ */
+  .logo-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .logo-card {
+    background: var(--paper-soft);
+    border: 1px solid var(--stone);
+    padding: 96px 64px 32px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.4s;
+  }
+
+  .logo-card:hover { border-color: var(--ink); }
+
+  .logo-card.dark {
+    background: var(--espresso);
+    color: var(--paper);
+    border-color: var(--dusk);
+  }
+
+  .logo-card.dark::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 30%, rgba(180, 83, 9, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 70%, rgba(0, 245, 160, 0.04) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .logo-card.ember {
+    background: var(--ember);
+    color: var(--paper);
+    border-color: var(--ember);
+  }
+
+  .logo-card.nordlys {
+    background: var(--espresso);
+    color: var(--paper);
+    border-color: var(--dusk);
+    position: relative;
+  }
+
+  .logo-card.nordlys::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 30% 40%, rgba(0, 245, 160, 0.22) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 60% at 70% 60%, rgba(0, 217, 245, 0.16) 0%, transparent 55%),
+      radial-gradient(ellipse 50% 40% at 50% 30%, rgba(124, 58, 237, 0.10) 0%, transparent 55%);
+    pointer-events: none;
+  }
+
+  .logo-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* The wordmark - Offiview with O as symbol */
+  .wordmark {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 300;
+    font-size: 96px;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .wordmark .o-symbol {
+    width: 0.88em;
+    height: 0.88em;
+    border: 2.5px solid currentColor;
+    border-radius: 50%;
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  .wordmark .o-symbol::after {
+    content: "";
+    position: absolute;
+    left: 15%;
+    top: 62%;
+    transform: translateY(-50%);
+    width: 70%;
+    height: 2.5px;
+    background: currentColor;
+    border-radius: 2px;
+  }
+
+  .logo-card.nordlys .o-symbol::after {
+    background: linear-gradient(90deg, var(--nordlys-a), var(--nordlys-b));
+    box-shadow: 0 0 12px rgba(0, 245, 160, 0.6);
+  }
+
+  .wordmark-sm { font-size: 48px; }
+  .wordmark-xs { font-size: 24px; }
+
+  .logo-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--mist);
+    position: relative;
+    z-index: 2;
+  }
+
+  .logo-card.dark .logo-meta,
+  .logo-card.ember .logo-meta,
+  .logo-card.nordlys .logo-meta {
+    border-color: rgba(245, 239, 228, 0.15);
+    color: rgba(245, 239, 228, 0.55);
+  }
+
+  /* Animated logo hero demo */
+  .logo-animate {
+    width: 200px;
+    height: 200px;
+    border: 4px solid currentColor;
+    border-radius: 50%;
+    position: relative;
+    animation: logoEnter 1.8s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+  }
+
+  .logo-animate::after {
+    content: "";
+    position: absolute;
+    left: 15%;
+    top: 62%;
+    transform: translateY(-50%) scaleX(0);
+    transform-origin: left center;
+    width: 70%;
+    height: 4px;
+    background: currentColor;
+    animation: horizonRise 1.6s cubic-bezier(0.2, 0.8, 0.3, 1) 0.8s forwards;
+  }
+
+  .logo-card.nordlys .logo-animate::after {
+    background: linear-gradient(90deg, var(--nordlys-a), var(--nordlys-b));
+    box-shadow: 0 0 24px rgba(0, 245, 160, 0.5);
+  }
+
+  @keyframes logoEnter {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes horizonRise {
+    to { transform: translateY(-50%) scaleX(1); }
+  }
+
+  /* ============ COLOR ============ */
+  .color-wrap {
+    background: var(--ink);
+    padding: 2px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2px;
+    overflow: hidden;
+  }
+
+  .swatch {
+    aspect-ratio: 4/5;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: transform 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .swatch:hover { transform: scale(0.985); }
+
+  .swatch-meta {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    opacity: 0.6;
+    font-weight: 500;
+  }
+
+  .swatch-name {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    font-weight: 400;
+    letter-spacing: -0.025em;
+    font-variation-settings: "opsz" 72;
+  }
+
+  .swatch-hex {
+    font-family: 'Manrope', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    margin-top: 6px;
+    opacity: 0.7;
+  }
+
+  .sw-ink { background: var(--ink); color: var(--paper); }
+  .sw-espresso { background: var(--espresso); color: var(--paper); }
+  .sw-paper { background: var(--paper); color: var(--ink); }
+  .sw-stone { background: var(--stone); color: var(--ink); }
+  .sw-ember { background: var(--ember); color: var(--paper); }
+  .sw-ember-soft { background: var(--ember-soft); color: var(--ink); }
+  .sw-ember-deep { background: var(--ember-deep); color: var(--paper); }
+  .sw-ember-glow { background: var(--ember-glow); color: var(--ink); }
+  .sw-mist { background: var(--mist); color: var(--paper); }
+  .sw-dusk { background: var(--dusk); color: var(--paper); }
+
+  .sw-nordlys {
+    background:
+      linear-gradient(135deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%);
+    color: var(--ink);
+    position: relative;
+  }
+
+  .sw-nordlys::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent 60%);
+  }
+
+  .sw-nordlys .swatch-name,
+  .sw-nordlys .swatch-meta,
+  .sw-nordlys .swatch-hex { position: relative; z-index: 1; }
+
+  /* Color philosophy box */
+  .color-philosophy {
+    margin-top: 48px;
+    padding: 48px;
+    background: var(--stone-soft);
+    border: 1px solid var(--stone);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 48px;
+  }
+
+  .cp-block h4 {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 20px;
+    color: var(--ember);
+    margin-bottom: 12px;
+    font-variation-settings: "opsz" 16;
+  }
+
+  .cp-block p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--dusk);
+  }
+
+  /* ============ TYPOGRAPHY ============ */
+  .type-specimen {
+    padding: 72px 0;
+    border-top: 1px solid var(--stone);
+  }
+  .type-specimen:first-of-type { border-top: none; padding-top: 0; }
+
+  .type-monster {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: clamp(100px, 18vw, 280px);
+    line-height: 0.85;
+    letter-spacing: -0.06em;
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+    color: var(--ink);
+    margin-bottom: 32px;
+  }
+
+  .type-monster em {
+    font-style: italic;
+    color: var(--ember);
+    display: inline-block;
+    transform: translateY(0.03em);
+  }
+
+  .type-body-big {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-variation-settings: "opsz" 32, "SOFT" 80;
+    font-size: clamp(28px, 3.5vw, 44px);
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    max-width: 840px;
+    margin-bottom: 32px;
+  }
+
+  .type-body-big em { font-style: italic; color: var(--ember); }
+
+  .type-paragraph {
+    font-family: 'Manrope', sans-serif;
+    font-size: 17px;
+    line-height: 1.65;
+    max-width: 620px;
+    color: var(--dusk);
+  }
+
+  .type-specs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 32px;
+    margin-top: 36px;
+    padding-top: 28px;
+    border-top: 1px solid var(--stone);
+  }
+
+  .type-spec {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--mist);
+    line-height: 1.8;
+  }
+
+  .type-spec strong {
+    color: var(--ink);
+    font-weight: 600;
+    display: block;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+
+  /* ============ DASHBOARD DARK MODE ============ */
+  .dashboard-preview {
+    background: var(--espresso);
+    border-radius: 20px;
+    overflow: hidden;
+    padding: 48px;
+    position: relative;
+    color: var(--paper);
+    min-height: 480px;
+  }
+
+  .dashboard-preview::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 15% 30%, rgba(0, 245, 160, 0.12) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 40% at 85% 70%, rgba(180, 83, 9, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .dashboard-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 48px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .dashboard-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .dashboard-brand .o-symbol {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--paper);
+    border-radius: 50%;
+    position: relative;
+  }
+
+  .dashboard-brand .o-symbol::after {
+    content: "";
+    position: absolute;
+    left: 15%;
+    top: 62%;
+    transform: translateY(-50%);
+    width: 70%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--nordlys-a), var(--nordlys-b));
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(0, 245, 160, 0.5);
+  }
+
+  .dashboard-brand-name {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 400;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+  }
+
+  .dashboard-time {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 14px;
+    color: rgba(245, 239, 228, 0.55);
+    font-variation-settings: "opsz" 14;
+  }
+
+  .dashboard-hero {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: clamp(48px, 6vw, 88px);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin-bottom: 16px;
+    font-variation-settings: "opsz" 144, "SOFT" 80;
+    position: relative;
+    z-index: 1;
+  }
+
+  .dashboard-hero em {
+    font-style: italic;
+    background: linear-gradient(120deg, var(--nordlys-a), var(--nordlys-b));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .dashboard-sub {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 20px;
+    color: rgba(245, 239, 228, 0.6);
+    margin-bottom: 64px;
+    max-width: 560px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .dashboard-card {
+    background: rgba(245, 239, 228, 0.04);
+    border: 1px solid rgba(245, 239, 228, 0.08);
+    border-radius: 12px;
+    padding: 24px;
+    backdrop-filter: blur(20px);
+  }
+
+  .dashboard-card-label {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(245, 239, 228, 0.45);
+    margin-bottom: 12px;
+  }
+
+  .dashboard-card-value {
+    font-family: 'Fraunces', serif;
+    font-weight: 400;
+    font-size: 40px;
+    letter-spacing: -0.025em;
+    line-height: 1;
+  }
+
+  .dashboard-card-value em {
+    font-style: italic;
+    color: var(--ember-glow);
+  }
+
+  .dashboard-card-value .accent {
+    background: linear-gradient(120deg, var(--nordlys-a), var(--nordlys-b));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .dashboard-card-sub {
+    font-size: 13px;
+    color: rgba(245, 239, 228, 0.6);
+    margin-top: 8px;
+  }
+
+  /* ============ SEASONAL VARIANTS ============ */
+  .seasons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .season {
+    aspect-ratio: 3/4;
+    border-radius: 12px;
+    overflow: hidden;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+  }
+
+  .season-winter {
+    background: linear-gradient(180deg, #0A0A0F 0%, #15110E 100%);
+    color: var(--paper);
+  }
+
+  .season-winter::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 100% 50% at 50% 30%, rgba(0, 245, 160, 0.25) 0%, transparent 60%);
+  }
+
+  .season-spring {
+    background: linear-gradient(180deg, #F5EFE4 0%, #EDE5D1 100%);
+    color: var(--ink);
+  }
+
+  .season-spring::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 40% at 30% 70%, rgba(0, 217, 245, 0.15) 0%, transparent 60%);
+  }
+
+  .season-summer {
+    background: linear-gradient(180deg, #F5EFE4 0%, #FBBF24 180%);
+    color: var(--ink);
+  }
+
+  .season-summer::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 100% 60% at 80% 80%, rgba(180, 83, 9, 0.2) 0%, transparent 60%);
+  }
+
+  .season-autumn {
+    background: linear-gradient(180deg, #B45309 0%, #78350F 100%);
+    color: var(--paper);
+  }
+
+  .season-autumn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 50% at 50% 30%, rgba(251, 191, 36, 0.2) 0%, transparent 60%);
+  }
+
+  .season-label {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 14px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .season-headline {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: clamp(22px, 2.4vw, 32px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    position: relative;
+    z-index: 1;
+    font-variation-settings: "opsz" 72, "SOFT" 90;
+  }
+
+  /* ============ VOICE ============ */
+  .voice-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+  }
+
+  .voice-col h4 {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .voice-col.do h4 { color: var(--ember); }
+  .voice-col.do h4::before { content: "— "; }
+  .voice-col.dont h4 { color: var(--mist); }
+  .voice-col.dont h4::before { content: "× "; }
+
+  .voice-col ul {
+    list-style: none;
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: 22px;
+    line-height: 1.45;
+    font-variation-settings: "opsz" 24, "SOFT" 80;
+  }
+
+  .voice-col ul li {
+    padding: 20px 0;
+    border-top: 1px solid var(--stone);
+  }
+
+  .voice-col ul li:first-child { border-top: none; padding-top: 0; }
+  .voice-col.dont ul { color: var(--mist); text-decoration: line-through; text-decoration-color: rgba(138, 127, 112, 0.3); }
+
+  /* ============ TAGLINE GALLERY ============ */
+  .tagline-gallery {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2px;
+    background: var(--stone);
+    border: 1px solid var(--stone);
+  }
+
+  .tagline-card {
+    background: var(--paper-soft);
+    padding: 72px 56px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tagline-card.dark {
+    background: var(--espresso);
+    color: var(--paper);
+  }
+
+  .tagline-card.dark::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 50%, rgba(0, 245, 160, 0.08) 0%, transparent 60%);
+  }
+
+  .tagline-card.ember {
+    background: var(--ember);
+    color: var(--paper);
+  }
+
+  .tagline-body {
+    font-family: 'Fraunces', serif;
+    font-weight: 300;
+    font-size: clamp(32px, 4vw, 56px);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+    position: relative;
+    z-index: 1;
+    margin-bottom: 16px;
+  }
+
+  .tagline-body em {
+    font-style: italic;
+    color: var(--ember);
+  }
+
+  .tagline-card.ember .tagline-body em,
+  .tagline-card.dark .tagline-body em {
+    color: inherit;
+    opacity: 0.75;
+  }
+
+  .tagline-card.dark .tagline-body em {
+    background: linear-gradient(120deg, var(--nordlys-a), var(--nordlys-b));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    opacity: 1;
+  }
+
+  .tagline-meta {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0.55;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ============ MOTION ============ */
+  .motion-block {
+    background: var(--espresso);
+    color: var(--paper);
+    padding: 96px 64px;
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 48px;
+  }
+
+  .motion-block::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(0, 245, 160, 0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .motion-canvas {
+    width: 240px;
+    height: 240px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .motion-canvas .ring {
+    width: 100%;
+    height: 100%;
+    border: 5px solid var(--paper);
+    border-radius: 50%;
+    position: relative;
+    animation: ringEnter 2.2s cubic-bezier(0.2, 0.8, 0.3, 1) infinite;
+  }
+
+  .motion-canvas .ring::after {
+    content: "";
+    position: absolute;
+    left: 15%;
+    top: 62%;
+    width: 70%;
+    height: 5px;
+    background: linear-gradient(90deg, var(--nordlys-a), var(--nordlys-b));
+    box-shadow: 0 0 20px rgba(0, 245, 160, 0.6);
+    border-radius: 4px;
+    transform: translateY(-50%) scaleX(0);
+    transform-origin: left center;
+    animation: horizonCycle 2.2s cubic-bezier(0.2, 0.8, 0.3, 1) infinite;
+  }
+
+  @keyframes ringEnter {
+    0% { opacity: 0; transform: scale(0.85); }
+    25%, 75% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.05); }
+  }
+
+  @keyframes horizonCycle {
+    0%, 15% { transform: translateY(-50%) scaleX(0); opacity: 0; }
+    35%, 75% { transform: translateY(-50%) scaleX(1); opacity: 1; }
+    100% { transform: translateY(-50%) scaleX(1); opacity: 0; }
+  }
+
+  .motion-caption {
+    text-align: center;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 22px;
+    line-height: 1.4;
+    max-width: 480px;
+    position: relative;
+    z-index: 1;
+    font-variation-settings: "opsz" 18;
+  }
+
+  .motion-caption em {
+    color: var(--ember-glow);
+  }
+
+  /* ============ FAVICON GRID ============ */
+  .favicon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 32px;
+    align-items: end;
+    background: var(--paper-soft);
+    padding: 64px;
+    border: 1px solid var(--stone);
+  }
+
+  .favicon-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .favicon-frame {
+    background: var(--paper);
+    border: 1px solid var(--stone);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .favicon-frame.dark { background: var(--espresso); }
+  .favicon-frame.ember { background: var(--ember); border-color: var(--ember); }
+  .favicon-frame.nordlys {
+    background: var(--espresso);
+    position: relative;
+    overflow: hidden;
+  }
+  .favicon-frame.nordlys::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(0, 245, 160, 0.18), transparent 70%);
+  }
+
+  .fav-16 { width: 16px; height: 16px; padding: 2px; }
+  .fav-32 { width: 32px; height: 32px; padding: 4px; }
+  .fav-64 { width: 64px; height: 64px; padding: 8px; }
+  .fav-128 { width: 128px; height: 128px; padding: 16px; }
+  .fav-180 { width: 180px; height: 180px; padding: 26px; border-radius: 22%; }
+
+  .fav-mono {
+    width: 100%;
+    height: 100%;
+    border: 2.5px solid currentColor;
+    border-radius: 50%;
+    position: relative;
+    color: var(--ink);
+  }
+
+  .dark .fav-mono { color: var(--paper); }
+  .ember .fav-mono { color: var(--paper); }
+  .nordlys .fav-mono { color: var(--paper); position: relative; z-index: 1; }
+
+  .fav-mono::after {
+    content: "";
+    position: absolute;
+    left: 15%;
+    top: 62%;
+    transform: translateY(-50%);
+    width: 70%;
+    height: 2.5px;
+    background: currentColor;
+    border-radius: 2px;
+  }
+
+  .nordlys .fav-mono::after {
+    background: linear-gradient(90deg, var(--nordlys-a), var(--nordlys-b));
+    box-shadow: 0 0 6px rgba(0, 245, 160, 0.7);
+  }
+
+  .fav-16 .fav-mono,
+  .fav-32 .fav-mono { border-width: 1.5px; }
+  .fav-16 .fav-mono::after,
+  .fav-32 .fav-mono::after { height: 1.5px; }
+
+  .fav-caption {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--mist);
+  }
+
+  /* ============ FOOTER ============ */
+  footer {
+    padding: 96px 0 80px;
+    text-align: center;
+  }
+
+  footer .mark {
+    width: 48px;
+    height: 48px;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    position: relative;
+    display: inline-block;
+    margin-bottom: 32px;
+  }
+
+  footer .mark::after {
+    content: "";
+    position: absolute;
+    left: 15%;
+    top: 62%;
+    transform: translateY(-50%);
+    width: 70%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--ember), var(--ember-glow));
+    border-radius: 2px;
+  }
+
+  footer .brand {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 24px;
+    color: var(--dusk);
+    margin-bottom: 8px;
+    font-variation-settings: "opsz" 24;
+  }
+
+  footer .meta {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--mist);
+    line-height: 2;
+  }
+
+  footer .credits {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 14px;
+    color: var(--mist);
+    max-width: 480px;
+    margin: 32px auto 0;
+    line-height: 1.6;
+  }
+
+  /* ============ TOC NAV ============ */
+  .toc {
+    position: fixed;
+    right: 40px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    line-height: 2.2;
+    text-align: right;
+    color: var(--mist);
+    z-index: 10;
+    mix-blend-mode: difference;
+  }
+
+  .toc a {
+    display: block;
+    color: var(--paper);
+    opacity: 0.5;
+    text-decoration: none;
+    transition: opacity 0.2s;
+    padding: 2px 0;
+  }
+
+  .toc a:hover { opacity: 1; }
+
+  @media (max-width: 1200px) { .toc { display: none; } }
+
+  @media (max-width: 820px) {
+    section { padding: 80px 0; }
+    .wrap { padding: 0 24px; }
+    .logo-card { padding: 64px 32px 24px; }
+    .wordmark { font-size: 56px; }
+    .color-philosophy { grid-template-columns: 1fr; gap: 32px; padding: 32px; }
+    .voice-grid { grid-template-columns: 1fr; gap: 40px; }
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .dashboard-preview { padding: 32px; }
+    .seasons { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<nav class="toc">
+  <a href="#hero">01 Identitet</a>
+  <a href="#idea">02 Idé</a>
+  <a href="#logo">03 Logo</a>
+  <a href="#color">04 Farge</a>
+  <a href="#type">05 Typografi</a>
+  <a href="#dashboard">06 Dashboard</a>
+  <a href="#seasons">07 Årstid</a>
+  <a href="#motion">08 Bevegelse</a>
+  <a href="#taglines">09 Stemme</a>
+  <a href="#favicon">10 Merket</a>
+</nav>
+
+<main>
+
+  <!-- ========= HERO ========= -->
+  <section class="hero wrap" id="hero">
+    <div class="hero-inner">
+      <div class="eyebrow">Brand System · v3 · Apple-nivå</div>
+      <h1 class="display">Dagen,<br>lagt på <em>bordet</em>.</h1>
+      <p class="lede">Offiview er ikke et <em>SaaS-verktøy</em>. Det er et stille øyeblikk — der hele firmaet trer frem som <em>ett klart landskap</em>. Merket vårt er ikke laget for å bli lagt merke til. Det er laget for å la deg se resten.</p>
+    </div>
+    <div class="hero-foot">
+      <span>Offiview — Visual Identity</span>
+      <span>Oslo · 2026</span>
+    </div>
+  </section>
+
+  <!-- ========= THE IDEA ========= -->
+  <section class="wrap" id="idea">
+    <div class="sec-num">02 · Idé</div>
+    <h2>Ett merke. <em>Én idé.</em><br>Sirkelen, og <em>horisonten</em> som deler den.</h2>
+    <p class="h2-sub">Sirkelen er helheten — hele synsfeltet, hele teamet, hele uken. Horisonten er <em>det ene</em> du ser tydelig akkurat nå. Det er forholdet mellom overblikk og oppmerksomhet. Mellom <em>alt</em> og <em>det som betyr noe</em>. Det er produktet, destillert til en strek.</p>
+  </section>
+
+  <!-- ========= LOGO ========= -->
+  <section class="wrap" id="logo">
+    <div class="sec-num">03 · Logo</div>
+    <h2>Fire <em>stemninger</em>. Ett merke.</h2>
+    <p class="h2-sub">Logoen endrer overflate men ikke identitet. Den lever i papir, blekk, glød — og i det nordlige lyset som er reservert for <em>kun ett</em> øyeblikk per skjerm.</p>
+
+    <div class="logo-grid">
+
+      <!-- Primary light -->
+      <div class="logo-card">
+        <div class="logo-display">
+          <div class="wordmark">
+            <span class="o-symbol"></span>
+            <span>ffiview</span>
+          </div>
+        </div>
+        <div class="logo-meta">
+          <span>Primary · Paper · Ink</span>
+          <span>Default</span>
+        </div>
+      </div>
+
+      <!-- Primary dark -->
+      <div class="logo-card dark">
+        <div class="logo-display">
+          <div class="wordmark">
+            <span class="o-symbol"></span>
+            <span>ffiview</span>
+          </div>
+        </div>
+        <div class="logo-meta">
+          <span>Secondary · Espresso · Paper</span>
+          <span>Dashboard</span>
+        </div>
+      </div>
+
+      <!-- Ember -->
+      <div class="logo-card ember">
+        <div class="logo-display">
+          <div class="wordmark">
+            <span class="o-symbol"></span>
+            <span>ffiview</span>
+          </div>
+        </div>
+        <div class="logo-meta">
+          <span>Accent · Ember</span>
+          <span>Campaign</span>
+        </div>
+      </div>
+
+      <!-- Nordlys - the WOW moment -->
+      <div class="logo-card nordlys">
+        <div class="logo-display">
+          <div class="wordmark">
+            <span class="o-symbol"></span>
+            <span>ffiview</span>
+          </div>
+        </div>
+        <div class="logo-meta">
+          <span>Signature · Nordlys</span>
+          <span>Én gang per flate</span>
+        </div>
+      </div>
+
+      <!-- Animated hero demonstration -->
+      <div class="logo-card nordlys">
+        <div class="logo-display" style="min-height: 280px;">
+          <div class="logo-animate"></div>
+        </div>
+        <div class="logo-meta">
+          <span>Motion · Horisonten stiger</span>
+          <span>1.8s · Ease out</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========= COLOR ========= -->
+  <section class="wrap" id="color">
+    <div class="sec-num">04 · Farge</div>
+    <h2>Elleve toner. <em>Ikke én</em> for mye.</h2>
+    <p class="h2-sub">Paletten er delt i <em>tre slekter</em>. Jord for hverdag. Glød for handling. Nordlys for drama — kun der det virkelig betyr noe. Hvis du ser Nordlys to ganger på samme skjerm, har du brukt det galt.</p>
+
+    <div class="color-wrap">
+      <div class="swatch sw-paper">
+        <div class="swatch-meta">Canvas</div>
+        <div>
+          <div class="swatch-name">Paper</div>
+          <div class="swatch-hex">#F5EFE4</div>
+        </div>
+      </div>
+      <div class="swatch sw-stone">
+        <div class="swatch-meta">Support</div>
+        <div>
+          <div class="swatch-name">Stone</div>
+          <div class="swatch-hex">#E0D8C8</div>
+        </div>
+      </div>
+      <div class="swatch sw-ink">
+        <div class="swatch-meta">Primary</div>
+        <div>
+          <div class="swatch-name">Ink</div>
+          <div class="swatch-hex">#0E0B08</div>
+        </div>
+      </div>
+      <div class="swatch sw-espresso">
+        <div class="swatch-meta">Surface</div>
+        <div>
+          <div class="swatch-name">Espresso</div>
+          <div class="swatch-hex">#15110E</div>
+        </div>
+      </div>
+      <div class="swatch sw-mist">
+        <div class="swatch-meta">Muted</div>
+        <div>
+          <div class="swatch-name">Mist</div>
+          <div class="swatch-hex">#8A7F70</div>
+        </div>
+      </div>
+      <div class="swatch sw-ember">
+        <div class="swatch-meta">Accent · Primary</div>
+        <div>
+          <div class="swatch-name">Ember</div>
+          <div class="swatch-hex">#B45309</div>
+        </div>
+      </div>
+      <div class="swatch sw-ember-soft">
+        <div class="swatch-meta">Accent · Soft</div>
+        <div>
+          <div class="swatch-name">Ember Soft</div>
+          <div class="swatch-hex">#D97706</div>
+        </div>
+      </div>
+      <div class="swatch sw-ember-glow">
+        <div class="swatch-meta">Accent · Glow</div>
+        <div>
+          <div class="swatch-name">Amber</div>
+          <div class="swatch-hex">#FBBF24</div>
+        </div>
+      </div>
+      <div class="swatch sw-ember-deep">
+        <div class="swatch-meta">Accent · Deep</div>
+        <div>
+          <div class="swatch-name">Ember Deep</div>
+          <div class="swatch-hex">#78350F</div>
+        </div>
+      </div>
+      <div class="swatch sw-nordlys">
+        <div class="swatch-meta">Signature</div>
+        <div>
+          <div class="swatch-name">Nordlys</div>
+          <div class="swatch-hex">#00F5A0 → #00D9F5 → #7C3AED</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="color-philosophy">
+      <div class="cp-block">
+        <h4>Jord</h4>
+        <p>Paper, Stone, Ink, Espresso, Mist. Dette er hverdagen. 95% av alle flater skal hvile her, i en av disse fem tonene. Ikke lysere, ikke kaldere.</p>
+      </div>
+      <div class="cp-block">
+        <h4>Glød</h4>
+        <p>Ember-familien er produktets varme — den du vender deg til når noe skal merkes. Primærhandlinger. Lenker. Viktige tall. Brukes med intensjon, ikke som dekor.</p>
+      </div>
+      <div class="cp-block">
+        <h4>Nordlys</h4>
+        <p>Reservert for <em>det ene</em> signaturmomentet. Heroen. App-ikonet i mørke. Kampanjebildet. Når brukeren ser Nordlys, skal det føles som å se noe sjeldent.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========= TYPOGRAPHY ========= -->
+  <section class="wrap" id="type">
+    <div class="sec-num">05 · Typografi</div>
+    <h2>Én serif. Én sans. <em>Én italic</em> som bærer karakter.</h2>
+    <p class="h2-sub">Fraunces med variabel optical sizing og softness setter stemningen — og spesielt <em>italic</em>-varianten bærer hele merkevarens personlighet. Manrope holder løpende tekst og UI nøktern og lett å lese.</p>
+
+    <div class="type-specimen">
+      <div class="type-monster">Aa <em>Ää</em></div>
+      <div class="type-body-big">En serif er ikke bare <em>bokstaver</em>. Det er <em>en tone</em>. Og Fraunces — med sin optiske skalering og myke kurver — snakker som et godt morgenmøte: rolig, presis, med <em>én ting</em> å si.</div>
+      <div class="type-paragraph">Fraunces brukes for overskrifter, sitater og signaturøyeblikk. Italic-varianten er reservert for Ember — som en setning kan ha ett nøkkelord i kursiv, kan merkevaren ha ett ord i glød per komposisjon.</div>
+      <div class="type-specs">
+        <div class="type-spec"><strong>Fraunces</strong>Display · Serif</div>
+        <div class="type-spec"><strong>opsz 9 → 144</strong>Variable optical sizing</div>
+        <div class="type-spec"><strong>SOFT 0 → 100</strong>Softness axis</div>
+        <div class="type-spec"><strong>300 · 400 · 500 · Italic</strong>Weight + Italic</div>
+      </div>
+    </div>
+
+    <div class="type-specimen">
+      <div style="font-family: 'Manrope', sans-serif; font-weight: 300; font-size: clamp(80px, 12vw, 200px); line-height: 1; letter-spacing: -0.04em; margin-bottom: 32px;">Aa 123</div>
+      <div style="font-family: 'Manrope', sans-serif; font-size: 22px; line-height: 1.55; max-width: 720px; margin-bottom: 16px; color: var(--dusk);">Manrope bærer hverdagen: ukeplanen, statusraden, innstillingene, tallene i dashboardet. Den skal være der uten å kreve noe. Tabulære siffer aktivert i tall som stiller opp i kolonner.</div>
+      <div class="type-specs">
+        <div class="type-spec"><strong>Manrope</strong>Body · Sans-serif</div>
+        <div class="type-spec"><strong>200 → 800</strong>Variable weight</div>
+        <div class="type-spec"><strong>tabular-nums</strong>For dashboardtall</div>
+        <div class="type-spec"><strong>400 · 500 · 600</strong>Primærvekter</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========= DASHBOARD DARK MODE ========= -->
+  <section class="wrap" id="dashboard">
+    <div class="sec-num">06 · Dashboard</div>
+    <h2>Mørk modus <em>med hjerte</em>.</h2>
+    <p class="h2-sub">TV-skjermen i resepsjonen lever i mørket — men det er ikke en <em>kald</em> SaaS-bakgrunn. Det er varm espresso, med glød i kantene og nordlys for signaturtallene. Mørk modus skal føles som et kontor etter arbeidstid, ikke som en serverrom.</p>
+
+    <div class="dashboard-preview">
+      <div class="dashboard-head">
+        <div class="dashboard-brand">
+          <span class="o-symbol"></span>
+          <span class="dashboard-brand-name">Offiview</span>
+        </div>
+        <div class="dashboard-time">Torsdag · 14:32 · Oslo</div>
+      </div>
+
+      <div class="dashboard-hero">Elleve <em>av femten</em><br>er her i dag.</div>
+      <div class="dashboard-sub">Fire er i Stockholm, én på hjemmekontor, én på kundebesøk i Vilnius.</div>
+
+      <div class="dashboard-grid">
+        <div class="dashboard-card">
+          <div class="dashboard-card-label">På kontoret</div>
+          <div class="dashboard-card-value">11</div>
+          <div class="dashboard-card-sub">Oslo · Hovedkontoret</div>
+        </div>
+        <div class="dashboard-card">
+          <div class="dashboard-card-label">Reisende</div>
+          <div class="dashboard-card-value"><em>4</em></div>
+          <div class="dashboard-card-sub">Stockholm · Vilnius</div>
+        </div>
+        <div class="dashboard-card">
+          <div class="dashboard-card-label">Neste samling</div>
+          <div class="dashboard-card-value"><span class="accent">12.</span></div>
+          <div class="dashboard-card-sub">Mai · alle til stede</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========= SEASONAL ========= -->
+  <section class="wrap" id="seasons">
+    <div class="sec-num">07 · Årstider</div>
+    <h2>Merkevaren <em>flyter</em> gjennom året.</h2>
+    <p class="h2-sub">TV-dashboardet er ikke det samme i februar som i juli. Årstidene endrer himmelen i Oslo — og de bør endre tonen i rommet. Logoen forblir den samme. Bakgrunnen puster.</p>
+
+    <div class="seasons">
+      <div class="season season-winter">
+        <div class="season-label">Vinter · Des–Feb</div>
+        <div class="season-headline">Polarnatt. <em>Nordlys</em> står sterkere.</div>
+      </div>
+      <div class="season season-spring">
+        <div class="season-label">Vår · Mar–Mai</div>
+        <div class="season-headline">Det første <em>lyset</em> tilbake.</div>
+      </div>
+      <div class="season season-summer">
+        <div class="season-label">Sommer · Jun–Aug</div>
+        <div class="season-headline">Midnattssol. <em>Alt</em> er varmt.</div>
+      </div>
+      <div class="season season-autumn">
+        <div class="season-label">Høst · Sep–Nov</div>
+        <div class="season-headline">Gløden <em>før</em> mørket.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========= MOTION ========= -->
+  <section class="wrap" id="motion">
+    <div class="sec-num">08 · Bevegelse</div>
+    <h2><em>Horisonten</em> stiger.</h2>
+    <p class="h2-sub">Logoens signaturanimasjon: ringen fader inn, så tegner <em>horisonten</em> seg fra venstre mot høyre — som en soloppgang. Aldri tilbake. Aldri i loop. Én gang, per applikasjonsstart.</p>
+
+    <div class="motion-block">
+      <div class="motion-canvas">
+        <div class="ring"></div>
+      </div>
+      <div class="motion-caption">
+        1.8 sekunder totalt. <em>Ring</em> (0→0.8s), <em>horisont</em> (0.8→1.6s). Spring, ikke tween. Respekterer <em>prefers-reduced-motion</em>.
+      </div>
+    </div>
+  </section>
+
+  <!-- ========= TAGLINES / VOICE ========= -->
+  <section class="wrap" id="taglines">
+    <div class="sec-num">09 · Stemme</div>
+    <h2>Vi skriver på <em>norsk</em>. Ikke på LinkedIn.</h2>
+    <p class="h2-sub">Setningene skal smake av papir, ikke PowerPoint. Korte, presise, med plass til pause. En god linje til Offiview kan stå alene på en plakat og fortsatt bety noe.</p>
+
+    <div class="tagline-gallery">
+      <div class="tagline-card">
+        <div class="tagline-body">Dagen, lagt på <em>bordet</em>.</div>
+        <div class="tagline-meta">Primary · Kampanje</div>
+      </div>
+      <div class="tagline-card dark">
+        <div class="tagline-body">Hvem er <em>her</em>. Hvem er <em>der</em>. Ferdig.</div>
+        <div class="tagline-meta">Product · Functional</div>
+      </div>
+      <div class="tagline-card ember">
+        <div class="tagline-body">Ro i det <em>åpne landskapet</em>.</div>
+        <div class="tagline-meta">Brand · Emotional</div>
+      </div>
+      <div class="tagline-card">
+        <div class="tagline-body">Et felles <em>blikk</em>. En enklere uke.</div>
+        <div class="tagline-meta">B2B · Sales</div>
+      </div>
+      <div class="tagline-card dark">
+        <div class="tagline-body">Kalenderen er <em>tilbake</em>. Endelig.</div>
+        <div class="tagline-meta">Launch</div>
+      </div>
+    </div>
+
+    <div class="voice-grid" style="margin-top: 96px;">
+      <div class="voice-col do">
+        <h4>Vi skriver slik</h4>
+        <ul>
+          <li>Dagen, lagt på bordet.</li>
+          <li>Johan er i Oslo i dag.</li>
+          <li>Fikk ikke lagret. Prøv igjen.</li>
+          <li>Alle samlet. Torsdag 12. mai.</li>
+          <li>Én ting av gangen. Tydelig.</li>
+        </ul>
+      </div>
+      <div class="voice-col dont">
+        <h4>Vi skriver ikke slik</h4>
+        <ul>
+          <li>Ta kontroll over teamkalenderen din!</li>
+          <li>Brukeren Johan er registrert med lokasjon Oslo.</li>
+          <li>Oops! Noe gikk galt 😅</li>
+          <li>🎉 Alle er samlet — la oss feire!</li>
+          <li>AI-drevet oversikt for det moderne teamet.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========= FAVICON / APP ICON ========= -->
+  <section class="wrap" id="favicon">
+    <div class="sec-num">10 · Merket i bruk</div>
+    <h2>Fra <em>180 til 16 piksler</em>.</h2>
+    <p class="h2-sub">Symbolet holder karakter ned til 16 piksler fordi det består av to elementer: en sirkel og en strek. Ingen andre detaljer å miste. Stroke-vekten justeres optisk for hver størrelse.</p>
+
+    <div class="favicon-grid">
+      <div class="favicon-item">
+        <div class="favicon-frame fav-180"><div class="fav-mono"></div></div>
+        <div class="fav-caption">180 · Paper</div>
+      </div>
+      <div class="favicon-item">
+        <div class="favicon-frame dark fav-180"><div class="fav-mono"></div></div>
+        <div class="fav-caption">180 · Espresso</div>
+      </div>
+      <div class="favicon-item">
+        <div class="favicon-frame nordlys fav-180"><div class="fav-mono"></div></div>
+        <div class="fav-caption">180 · Nordlys</div>
+      </div>
+      <div class="favicon-item">
+        <div class="favicon-frame fav-128"><div class="fav-mono"></div></div>
+        <div class="fav-caption">128</div>
+      </div>
+      <div class="favicon-item">
+        <div class="favicon-frame fav-64"><div class="fav-mono"></div></div>
+        <div class="fav-caption">64</div>
+      </div>
+      <div class="favicon-item">
+        <div class="favicon-frame fav-32"><div class="fav-mono"></div></div>
+        <div class="fav-caption">32</div>
+      </div>
+      <div class="favicon-item">
+        <div class="favicon-frame fav-16"><div class="fav-mono"></div></div>
+        <div class="fav-caption">16</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========= FOOTER ========= -->
+  <footer>
+    <div class="wrap">
+      <div class="mark"></div>
+      <div class="brand">Offiview</div>
+      <div class="meta">Brand System v3 · Oslo · April 2026</div>
+      <div class="credits">Bygget for CalWin AS, konstruert for SaaS. <em>Merket er et levende dokument</em> — alt skal testes mot det som betyr noe: om det tåler å henge på veggen i resepsjonen i seks måneder uten å kjede noen.</div>
+    </div>
+  </footer>
+
+</main>
+
+</body>
+</html>
