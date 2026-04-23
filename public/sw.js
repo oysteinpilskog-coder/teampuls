@@ -14,7 +14,7 @@
  * activate so we never serve stale JS after a release.
  */
 
-const CACHE_VERSION = 'v1'
+const CACHE_VERSION = 'v2'
 const PAGES_CACHE = `teampulse-pages-${CACHE_VERSION}`
 const STATIC_CACHE = `teampulse-static-${CACHE_VERSION}`
 const OFFLINE_URL = '/offline'
