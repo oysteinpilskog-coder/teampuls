@@ -311,7 +311,7 @@ export function YearWheel({ orgId }: YearWheelProps) {
   const today = now
 
   const [view, setView] = useState<ViewMode>('disk')
-  const { events } = useEvents(orgId, year)
+  const { events, refetch: refetchEvents } = useEvents(orgId, year)
   const [orgLogo, setOrgLogo] = useState<string | null>(null)
   const [orgName, setOrgName] = useState<string | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<OrgEvent | null>(null)
@@ -556,6 +556,7 @@ export function YearWheel({ orgId }: YearWheelProps) {
           onClose={onEditorClose}
           orgId={orgId}
           event={editingEvent}
+          onMutated={refetchEvents}
         />
       )}
 
@@ -1693,7 +1694,7 @@ export function DiskView({
                   </tspan>
                 </text>
                 <text
-                  x={CX} y={CY + 82}
+                  x={CX} y={CY + 78}
                   textAnchor="middle"
                   dominantBaseline="central"
                   fontSize={10.5}
@@ -1710,10 +1711,10 @@ export function DiskView({
                 {orgLogo && (
                   <image
                     href={orgLogo}
-                    x={CX - 54} y={CY + 82}
-                    width={108} height={40}
+                    x={CX - 44} y={CY + 100}
+                    width={88} height={32}
                     preserveAspectRatio="xMidYMid meet"
-                    opacity={0.9}
+                    opacity={0.85}
                   />
                 )}
               </motion.g>

@@ -33,9 +33,13 @@ interface EventEditorProps {
   onClose: () => void
   orgId: string
   event?: OrgEvent | null   // null = create new
+  /** Called after a successful insert/update/delete so the parent can refetch.
+   *  Safety net for the (rare) case where Supabase Realtime drops an event —
+   *  notably DELETE with REPLICA IDENTITY DEFAULT. */
+  onMutated?: () => void
 }
 
-export function EventEditor({ open, onClose, orgId, event }: EventEditorProps) {
+export function EventEditor({ open, onClose, orgId, event, onMutated }: EventEditorProps) {
   const t = useT()
   const isEdit = !!event
 
@@ -96,6 +100,7 @@ export function EventEditor({ open, onClose, orgId, event }: EventEditorProps) {
       return
     }
     toast.success(isEdit ? t.eventEditor.toastUpdated : t.eventEditor.toastAdded)
+    onMutated?.()
     onClose()
   }
 
@@ -111,6 +116,7 @@ export function EventEditor({ open, onClose, orgId, event }: EventEditorProps) {
       return
     }
     toast.success(t.eventEditor.toastDeleted)
+    onMutated?.()
     onClose()
   }
 
