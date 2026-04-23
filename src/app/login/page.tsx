@@ -3,13 +3,14 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { OffiviewWordmark } from '@/components/brand/offiview-wordmark'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const t = useT()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -25,7 +26,7 @@ export default function LoginPage() {
     })
 
     if (error) {
-      setError(no.auth.error)
+      setError(t.auth.error)
     } else {
       setSent(true)
     }
@@ -36,10 +37,13 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         {/* Logo / Wordmark */}
-        <div className="mb-12 flex flex-col items-center text-center" style={{ color: 'var(--text-primary)' }}>
-          <OffiviewWordmark size={36} variant="ink" title="Offiview" />
+        <div
+          className="mb-12 flex flex-col items-center text-center"
+          style={{ color: 'var(--text-primary)' }}
+        >
+          <OffiviewWordmark size={36} variant="ink" title={t.app.name} />
           <p
-            className="mt-5 text-[18px] font-serif-italic"
+            className="mt-5 text-[18px]"
             style={{
               fontFamily: 'var(--font-fraunces), Georgia, serif',
               fontStyle: 'italic',
@@ -49,7 +53,7 @@ export default function LoginPage() {
               letterSpacing: '-0.015em',
             }}
           >
-            {no.app.tagline}
+            {t.app.tagline}
           </p>
         </div>
 
@@ -66,7 +70,7 @@ export default function LoginPage() {
                 </svg>
               </div>
               <p className="text-[15px] font-medium text-[var(--text-primary)]">
-                {no.auth.magicLinkSent}
+                {t.auth.magicLinkSent}
               </p>
               <p className="mt-1 text-[13px] text-[var(--text-tertiary)]">{email}</p>
             </div>
@@ -77,14 +81,14 @@ export default function LoginPage() {
                   htmlFor="email"
                   className="block text-[13px] font-medium text-[var(--text-secondary)] mb-2"
                 >
-                  {no.auth.emailLabel}
+                  {t.auth.emailLabel}
                 </label>
                 <input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={no.auth.emailPlaceholder}
+                  placeholder={t.auth.emailPlaceholder}
                   required
                   autoFocus
                   className="w-full h-12 px-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] transition-all focus:outline-none focus:border-[var(--accent-color)] focus:ring-2 focus:ring-[var(--accent-color)]/20"
@@ -100,11 +104,13 @@ export default function LoginPage() {
                 disabled={loading || !email}
                 className="w-full h-12 rounded-xl text-[15px] font-medium text-white transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
-                  background: loading ? '#3385FF' : 'var(--accent-color)',
+                  background: loading
+                    ? 'color-mix(in oklab, var(--accent-color) 70%, transparent)'
+                    : 'var(--accent-color)',
                   boxShadow: loading ? 'none' : 'var(--shadow-accent)',
                 }}
               >
-                {loading ? no.auth.sending : no.auth.magicLinkButton}
+                {loading ? t.auth.sending : t.auth.magicLinkButton}
               </button>
             </form>
           )}

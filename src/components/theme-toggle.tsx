@@ -3,10 +3,12 @@
 import { useTheme } from 'next-themes'
 import { Moon, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useT } from '@/lib/i18n/context'
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const t = useT()
 
   useEffect(() => {
     setMounted(true)
@@ -20,7 +22,7 @@ export function ThemeToggle() {
     <button
       onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
       className="flex items-center justify-center w-9 h-9 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2"
-      aria-label={resolvedTheme === 'dark' ? 'Bytt til lys modus' : 'Bytt til mørk modus'}
+      aria-label={resolvedTheme === 'dark' ? t.theme.switchToLight : t.theme.switchToDark}
     >
       {resolvedTheme === 'dark' ? (
         <Sun className="w-5 h-5" strokeWidth={1.5} />

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Sparkles, RefreshCw, ArrowUpRight } from 'lucide-react'
 import { spring } from '@/lib/motion'
 import { useHaptic } from '@/hooks/use-haptic'
+import { useT } from '@/lib/i18n/context'
 
 interface SuggestedDay {
   date: string
@@ -23,6 +24,7 @@ interface ApiResponse {
 }
 
 export function DaysTogether() {
+  const t = useT()
   const [data, setData] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -68,20 +70,15 @@ export function DaysTogether() {
     <section id="days-together" className="relative scroll-mt-24">
       <div className="flex items-end justify-between gap-4 mb-5 flex-wrap">
         <div>
-          <div
-            className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.25em] mb-1.5"
-            style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-          >
-            <Sparkles className="w-3 h-3" style={{ color: 'var(--accent-color)' }} />
+          <div className="inline-flex items-center gap-2 lg-eyebrow mb-1.5">
+            <Sparkles className="w-3 h-3" style={{ color: 'var(--lg-accent)' }} />
             AI-anbefalt · neste 2 uker
           </div>
           <h2
-            className="font-bold leading-none"
+            className="lg-serif leading-none"
             style={{
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-sora)',
-              fontSize: 'clamp(24px, 3vw, 34px)',
-              letterSpacing: '-0.035em',
+              color: 'var(--lg-text-1)',
+              fontSize: 'clamp(28px, 3.4vw, 40px)',
             }}
           >
             Samlingsdager
@@ -91,16 +88,15 @@ export function DaysTogether() {
           type="button"
           onClick={() => { haptic('light'); load() }}
           disabled={refreshing}
-          aria-label="Oppdater forslag"
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl text-[12px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] disabled:opacity-60"
+          aria-label={t.daysTogether.refresh}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-medium focus:outline-none disabled:opacity-60"
           style={{
-            background: 'color-mix(in oklab, var(--bg-elevated) 70%, transparent)',
-            backdropFilter: 'blur(14px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(14px) saturate(180%)',
-            border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
-            color: 'var(--text-secondary)',
+            background: 'rgba(22, 22, 27, 0.5)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid var(--lg-divider)',
+            color: 'var(--lg-text-2)',
             fontFamily: 'var(--font-body)',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
           }}
         >
           <RefreshCw
@@ -147,26 +143,25 @@ function SuggestionCard({ day, index }: { day: SuggestedDay; index: number }) {
       transition={{ ...spring.gentle, delay: 0.05 + index * 0.06 }}
       className="relative rounded-2xl p-5 overflow-hidden"
       style={{
-        background: isTop
-          ? 'linear-gradient(170deg, color-mix(in oklab, var(--accent-color) 14%, var(--bg-elevated)) 0%, var(--bg-elevated) 70%)'
-          : 'color-mix(in oklab, var(--bg-elevated) 92%, transparent)',
-        backdropFilter: 'blur(22px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(22px) saturate(180%)',
+        background: isTop ? 'rgba(22, 22, 27, 0.55)' : 'var(--lg-surface-1)',
+        backdropFilter: isTop ? 'blur(20px) saturate(180%)' : undefined,
+        WebkitBackdropFilter: isTop ? 'blur(20px) saturate(180%)' : undefined,
         border: isTop
-          ? '1px solid color-mix(in oklab, var(--accent-color) 35%, transparent)'
-          : '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+          ? '1px solid rgba(139, 92, 246, 0.35)'
+          : '1px solid var(--lg-divider)',
         boxShadow: isTop
-          ? '0 24px 48px -16px color-mix(in oklab, var(--accent-color) 32%, transparent), 0 8px 16px -12px rgba(10,20,40,0.14), inset 0 1px 0 rgba(255,255,255,0.5)'
-          : '0 10px 24px -16px rgba(10,20,40,0.14), 0 1px 2px rgba(10,20,40,0.04), inset 0 1px 0 rgba(255,255,255,0.45)',
+          ? '0 0 0 3px rgba(139, 92, 246, 0.10), 0 0 28px -6px var(--lg-accent-glow)'
+          : 'none',
       }}
     >
       {isTop && (
         <div
-          className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-[0.12em]"
+          className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full lg-mono text-[9.5px] font-medium uppercase"
           style={{
-            background: 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 70%, black))',
+            background: 'var(--lg-accent)',
             color: '#ffffff',
-            boxShadow: '0 4px 10px color-mix(in oklab, var(--accent-color) 35%, transparent)',
+            letterSpacing: '0.16em',
+            boxShadow: '0 0 12px var(--lg-accent-glow)',
           }}
         >
           <Sparkles className="w-2.5 h-2.5" />
@@ -174,19 +169,14 @@ function SuggestionCard({ day, index }: { day: SuggestedDay; index: number }) {
         </div>
       )}
 
-      <div
-        className="text-[10px] font-bold uppercase tracking-[0.22em] mb-1"
-        style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-      >
+      <div className="lg-eyebrow mb-1">
         {new Date(day.date).toLocaleDateString('nb-NO', { weekday: 'short' }).replace('.', '')}
       </div>
       <div
-        className="font-bold leading-none mb-3"
+        className="lg-serif leading-none mb-3"
         style={{
-          fontFamily: 'var(--font-sora)',
-          color: 'var(--text-primary)',
-          fontSize: 'clamp(22px, 2.6vw, 28px)',
-          letterSpacing: '-0.03em',
+          color: 'var(--lg-text-1)',
+          fontSize: 'clamp(24px, 2.8vw, 30px)',
         }}
       >
         {day.label}
@@ -195,35 +185,29 @@ function SuggestionCard({ day, index }: { day: SuggestedDay; index: number }) {
       {/* Score bar */}
       <div className="mb-3">
         <div className="flex items-center justify-between mb-1.5">
+          <span className="lg-eyebrow">Score</span>
           <span
-            className="text-[10px] font-semibold uppercase tracking-[0.16em]"
-            style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-          >
-            Score
-          </span>
-          <span
-            className="text-[13px] font-bold tabular-nums"
+            className="lg-mono text-[13px]"
             style={{
-              color: isTop ? 'var(--accent-color)' : 'var(--text-primary)',
-              fontFamily: 'var(--font-sora)',
-              letterSpacing: '-0.02em',
+              color: isTop ? 'var(--lg-accent)' : 'var(--lg-text-1)',
+              fontWeight: 500,
             }}
           >
             {day.score}
           </span>
         </div>
         <div
-          className="relative h-1.5 rounded-full overflow-hidden"
-          style={{ background: 'color-mix(in oklab, var(--bg-subtle) 80%, transparent)' }}
+          className="relative h-1 rounded-full overflow-hidden"
+          style={{ background: 'var(--lg-divider)' }}
         >
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${day.score}%` }}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.15 + index * 0.06 }}
+            transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1], delay: 0.1 + index * 0.05 }}
             className="h-full rounded-full"
             style={{
-              background: 'linear-gradient(90deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 70%, #8b3fe6))',
-              boxShadow: '0 0 10px color-mix(in oklab, var(--accent-color) 45%, transparent)',
+              background: 'var(--lg-accent)',
+              boxShadow: '0 0 8px var(--lg-accent-glow)',
             }}
           />
         </div>
@@ -232,7 +216,7 @@ function SuggestionCard({ day, index }: { day: SuggestedDay; index: number }) {
       {/* Reason */}
       <p
         className="text-[13px] leading-relaxed"
-        style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)', letterSpacing: '-0.005em' }}
+        style={{ color: 'var(--lg-text-2)', fontFamily: 'var(--font-body)' }}
       >
         {day.reason}
       </p>
@@ -254,24 +238,24 @@ function SuggestionCard({ day, index }: { day: SuggestedDay; index: number }) {
 function CountChip({ label, value, tone }: { label: string; value: number; tone: 'accent' | 'muted' | 'warn' }) {
   const colors = {
     accent: {
-      bg: 'color-mix(in oklab, var(--accent-color) 14%, transparent)',
-      ring: 'color-mix(in oklab, var(--accent-color) 25%, transparent)',
-      fg: 'var(--accent-color)',
+      bg: 'rgba(139, 92, 246, 0.12)',
+      ring: 'rgba(139, 92, 246, 0.28)',
+      fg: 'var(--lg-accent)',
     },
     muted: {
-      bg: 'color-mix(in oklab, var(--text-tertiary) 14%, transparent)',
-      ring: 'color-mix(in oklab, var(--text-tertiary) 22%, transparent)',
-      fg: 'var(--text-secondary)',
+      bg: 'var(--lg-surface-2)',
+      ring: 'var(--lg-divider)',
+      fg: 'var(--lg-text-2)',
     },
     warn: {
-      bg: 'color-mix(in oklab, #F59E0B 14%, transparent)',
-      ring: 'color-mix(in oklab, #F59E0B 22%, transparent)',
-      fg: '#B45309',
+      bg: 'rgba(251, 191, 36, 0.12)',
+      ring: 'rgba(251, 191, 36, 0.28)',
+      fg: '#FBBF24',
     },
   }[tone]
   return (
     <span
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium"
       style={{
         background: colors.bg,
         color: colors.fg,
@@ -279,8 +263,8 @@ function CountChip({ label, value, tone }: { label: string; value: number; tone:
         fontFamily: 'var(--font-body)',
       }}
     >
-      <span className="tabular-nums">{value}</span>
-      <span style={{ color: 'var(--text-tertiary)' }}>{label}</span>
+      <span className="lg-mono">{value}</span>
+      <span style={{ color: 'var(--lg-text-3)' }}>{label}</span>
     </span>
   )
 }
@@ -290,8 +274,8 @@ function SuggestionSkeleton({ index }: { index: number }) {
     <div
       className="rounded-2xl p-5"
       style={{
-        background: 'color-mix(in oklab, var(--bg-elevated) 88%, transparent)',
-        border: '1px solid color-mix(in oklab, var(--border-subtle) 45%, transparent)',
+        background: 'var(--lg-surface-1)',
+        border: '1px solid var(--lg-divider)',
         minHeight: 190,
       }}
     >
@@ -320,37 +304,34 @@ function EmptySignal() {
     <div
       className="rounded-2xl p-8 text-center"
       style={{
-        background: 'color-mix(in oklab, var(--bg-elevated) 92%, transparent)',
-        backdropFilter: 'blur(14px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(14px) saturate(180%)',
-        border: '1px solid color-mix(in oklab, var(--border-subtle) 55%, transparent)',
+        background: 'var(--lg-surface-1)',
+        border: '1px solid var(--lg-divider)',
       }}
     >
-      <div className="inline-flex items-center justify-center mx-auto mb-3 w-10 h-10 rounded-full"
+      <div
+        className="inline-flex items-center justify-center mx-auto mb-3 w-10 h-10 rounded-full"
         style={{
-          background: 'color-mix(in oklab, var(--accent-color) 12%, transparent)',
-          color: 'var(--accent-color)',
+          background: 'rgba(139, 92, 246, 0.12)',
+          color: 'var(--lg-accent)',
         }}
       >
         <Sparkles className="w-4 h-4" />
       </div>
       <h3
-        className="font-bold mb-1"
+        className="lg-serif mb-1"
         style={{
-          fontFamily: 'var(--font-sora)',
-          color: 'var(--text-primary)',
-          fontSize: 17,
-          letterSpacing: '-0.02em',
+          color: 'var(--lg-text-1)',
+          fontSize: 22,
         }}
       >
         Ikke nok signal ennå
       </h3>
       <p
-        className="text-[13.5px] max-w-sm mx-auto"
-        style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
+        className="text-[13px] max-w-sm mx-auto"
+        style={{ color: 'var(--lg-text-2)', fontFamily: 'var(--font-body)' }}
       >
         Legg inn et par planlagte kontordager så finner jeg beste samlingsmuligheter.
-        Prøv <span className="inline-flex items-center gap-1" style={{ color: 'var(--accent-color)' }}>
+        Prøv <span className="inline-flex items-center gap-1" style={{ color: 'var(--lg-accent)' }}>
           Åpne <ArrowUpRight className="w-3.5 h-3.5" />
         </span> for å skrive en statusoppdatering.
       </p>

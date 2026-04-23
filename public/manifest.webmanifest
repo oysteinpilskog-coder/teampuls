@@ -1,0 +1,47 @@
+{
+  "name": "Offiview",
+  "short_name": "Offiview",
+  "description": "Dagen, lagt på bordet. Hele teamet som ett klart landskap.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#15110E",
+  "theme_color": "#15110E",
+  "lang": "nb-NO",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Oversikt",
+      "short_name": "Oversikt",
+      "url": "/?source=shortcut",
+      "description": "Se hvor teamet er akkurat nå"
+    },
+    {
+      "name": "Min plan",
+      "short_name": "Min plan",
+      "url": "/min-plan?source=shortcut",
+      "description": "Min personlige plan"
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/dashboard?source=shortcut",
+      "description": "Fullskjerm dashboard"
+    }
+  ]
+}

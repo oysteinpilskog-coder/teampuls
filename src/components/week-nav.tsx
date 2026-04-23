@@ -5,14 +5,13 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
-  MONTH_LONG_NB,
   getMonthForWeek,
   getISOWeekForMonth,
   getTodayWeekAndYear,
   getWeekDays,
   getDayLabel,
 } from '@/lib/dates'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
 import { useHaptic } from '@/hooks/use-haptic'
 
@@ -27,10 +26,11 @@ interface WeekNavProps {
 }
 
 export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, onJumpTo }: WeekNavProps) {
+  const t = useT()
   const { month: currentMonth, year: currentCalYear } = getMonthForWeek(week, year)
   const weekDays = getWeekDays(week, year)
-  const first = getDayLabel(weekDays[0])
-  const last = getDayLabel(weekDays[weekDays.length - 1])
+  const first = getDayLabel(weekDays[0], t)
+  const last = getDayLabel(weekDays[weekDays.length - 1], t)
   const haptic = useHaptic()
   const rangeLabel =
     first.month === last.month
@@ -47,31 +47,29 @@ export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, on
         transition={spring.gentle}
       >
         <div className="flex items-center gap-2 mb-1.5">
-          <span
-            className="text-[10px] font-bold uppercase tracking-[0.25em]"
-            style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-          >
-            {no.matrix.weekLabel} {week}
+          <span className="lg-eyebrow">
+            {t.matrix.weekLabel} {week}
             <span className="mx-2 opacity-50">·</span>
             {rangeLabel}
           </span>
           {isCurrentWeek && (
             <motion.span
               layoutId="current-week-dot"
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full"
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full"
               style={{
-                background: 'color-mix(in oklab, var(--accent-color) 14%, transparent)',
-                color: 'var(--accent-color)',
+                background: 'rgba(139, 92, 246, 0.12)',
+                color: 'var(--lg-accent)',
+                border: '1px solid rgba(139, 92, 246, 0.28)',
                 fontFamily: 'var(--font-body)',
               }}
             >
               <motion.span
                 className="w-1 h-1 rounded-full"
-                style={{ background: 'var(--accent-color)' }}
+                style={{ background: 'var(--lg-accent)', boxShadow: '0 0 6px var(--lg-accent-glow)' }}
                 animate={{ opacity: [0.5, 1, 0.5] }}
                 transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
               />
-              <span className="text-[9px] font-bold uppercase tracking-[0.18em]">Nå</span>
+              <span className="lg-mono text-[9px] font-medium uppercase" style={{ letterSpacing: '0.2em' }}>Nå</span>
             </motion.span>
           )}
         </div>
@@ -85,59 +83,48 @@ export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, on
 
       {/* Right — nav cluster (glass pill containing prev, today, next) */}
       <div
-        className="flex items-center gap-1 rounded-2xl p-1"
+        className="flex items-center gap-0.5 rounded-full p-1"
         style={{
-          background: 'color-mix(in oklab, var(--bg-elevated) 72%, transparent)',
-          backdropFilter: 'blur(18px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(18px) saturate(180%)',
-          border: '1px solid color-mix(in oklab, var(--border-subtle) 55%, transparent)',
-          boxShadow:
-            '0 1px 2px rgba(15,23,42,0.04), 0 10px 24px -16px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,0.5)',
+          background: 'rgba(22, 22, 27, 0.5)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          border: '1px solid var(--lg-divider)',
         }}
       >
-        <motion.button
+        <button
           onClick={() => { haptic('light'); onPrev() }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.94 }}
-          transition={spring.snappy}
-          className="flex items-center justify-center w-9 h-9 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-          aria-label={no.matrix.prevWeek}
+          className="flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-150 focus:outline-none"
+          style={{ color: 'var(--lg-text-2)' }}
+          aria-label={t.matrix.prevWeek}
         >
-          <ChevronLeft className="w-4 h-4" strokeWidth={2} />
-        </motion.button>
+          <ChevronLeft className="w-4 h-4" strokeWidth={1.75} />
+        </button>
 
         <motion.button
           onClick={() => { haptic('medium'); onToday() }}
           disabled={isCurrentWeek}
-          whileHover={isCurrentWeek ? undefined : { scale: 1.03 }}
-          whileTap={isCurrentWeek ? undefined : { scale: 0.97 }}
           transition={spring.snappy}
-          className="px-3 h-9 rounded-xl text-[12px] font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] disabled:cursor-default"
+          className="px-3 h-8 rounded-full text-[11.5px] font-medium transition-[box-shadow,background,color] duration-150 focus:outline-none disabled:cursor-default"
           style={{
-            color: isCurrentWeek ? 'var(--text-tertiary)' : '#ffffff',
-            background: isCurrentWeek
-              ? 'transparent'
-              : 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 70%, black))',
+            color: isCurrentWeek ? 'var(--lg-text-3)' : '#ffffff',
+            background: isCurrentWeek ? 'transparent' : 'var(--lg-accent)',
             boxShadow: isCurrentWeek
               ? 'none'
-              : '0 4px 12px color-mix(in oklab, var(--accent-color) 35%, transparent), inset 0 1px 0 rgba(255,255,255,0.25)',
+              : '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 20px var(--lg-accent-glow)',
             fontFamily: 'var(--font-body)',
-            letterSpacing: '-0.005em',
           }}
         >
-          {no.matrix.thisWeek}
+          {t.matrix.thisWeek}
         </motion.button>
 
-        <motion.button
+        <button
           onClick={() => { haptic('light'); onNext() }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.94 }}
-          transition={spring.snappy}
-          className="flex items-center justify-center w-9 h-9 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-          aria-label={no.matrix.nextWeek}
+          className="flex items-center justify-center w-8 h-8 rounded-full transition-colors duration-150 focus:outline-none"
+          style={{ color: 'var(--lg-text-2)' }}
+          aria-label={t.matrix.nextWeek}
         >
-          <ChevronRight className="w-4 h-4" strokeWidth={2} />
-        </motion.button>
+          <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
+        </button>
       </div>
     </div>
   )
@@ -154,6 +141,7 @@ interface MonthPickerTriggerProps {
 }
 
 function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerProps) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [viewYear, setViewYear] = useState(year)
 
@@ -175,38 +163,35 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
       }}
     >
       <PopoverTrigger
-        className="group inline-flex items-baseline gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] rounded-lg -mx-1 px-1"
-        aria-label="Velg måned"
+        className="group inline-flex items-baseline gap-3 focus:outline-none rounded-lg -mx-1 px-1"
+        aria-label={t.matrix.selectMonth}
       >
         <span
-          className="font-bold leading-[0.95]"
+          className="lg-serif leading-[0.95]"
           style={{
-            fontFamily: 'var(--font-sora)',
-            fontSize: 'clamp(36px, 5vw, 52px)',
-            letterSpacing: '-0.045em',
-            color: 'var(--text-primary)',
+            fontSize: 'clamp(40px, 5.2vw, 60px)',
+            color: 'var(--lg-text-1)',
             textTransform: 'capitalize',
           }}
         >
-          {MONTH_LONG_NB[month]}
+          {t.dates.monthsLong[month]}
         </span>
         <span
-          className="font-semibold tabular-nums leading-[0.95]"
+          className="lg-mono leading-[0.95]"
           style={{
-            fontFamily: 'var(--font-sora)',
-            fontSize: 'clamp(28px, 3.6vw, 40px)',
-            letterSpacing: '-0.035em',
-            color: 'var(--text-tertiary)',
+            fontSize: 'clamp(18px, 2.2vw, 22px)',
+            color: 'var(--lg-text-3)',
+            fontWeight: 400,
           }}
         >
           {year}
         </span>
         <motion.span
           aria-hidden
-          className="inline-flex items-center justify-center w-5 h-5 rounded-full self-center ml-0.5 opacity-50 group-hover:opacity-100"
+          className="inline-flex items-center justify-center w-5 h-5 rounded-full self-center ml-0.5 opacity-50 group-hover:opacity-100 transition-opacity duration-150"
           style={{
-            background: 'var(--bg-subtle)',
-            color: 'var(--text-secondary)',
+            background: 'var(--lg-surface-2)',
+            color: 'var(--lg-text-2)',
           }}
           animate={{ rotate: open ? 180 : 0 }}
           transition={spring.snappy}
@@ -225,7 +210,7 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
             whileTap={{ scale: 0.94 }}
             transition={spring.snappy}
             className="flex items-center justify-center w-7 h-7 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-            aria-label="Forrige år"
+            aria-label={t.matrix.prevYear}
           >
             <ChevronLeft className="w-4 h-4" strokeWidth={1.75} />
           </motion.button>
@@ -241,7 +226,7 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
             whileTap={{ scale: 0.94 }}
             transition={spring.snappy}
             className="flex items-center justify-center w-7 h-7 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
-            aria-label="Neste år"
+            aria-label={t.matrix.nextYear}
           >
             <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
           </motion.button>
@@ -255,27 +240,26 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
               <motion.button
                 key={monthIdx}
                 onClick={() => selectMonth(monthIdx)}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.96 }}
+                whileTap={{ scale: 0.97 }}
                 transition={spring.snappy}
-                className="h-10 rounded-lg text-[13px] font-medium capitalize focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] transition-colors"
+                className="h-10 rounded-lg text-[13px] font-medium capitalize focus:outline-none transition-colors duration-150"
                 style={{
                   fontFamily: 'var(--font-body)',
-                  color: isSelected ? '#fff' : 'var(--text-primary)',
+                  color: isSelected ? '#fff' : 'var(--lg-text-1)',
                   background: isSelected
-                    ? 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 70%, black))'
+                    ? 'var(--lg-accent)'
                     : isThisMonth
-                      ? 'color-mix(in oklab, var(--accent-color) 12%, transparent)'
+                      ? 'rgba(139, 92, 246, 0.1)'
                       : 'transparent',
                   boxShadow: isSelected
-                    ? '0 4px 12px color-mix(in oklab, var(--accent-color) 35%, transparent)'
+                    ? '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 20px var(--lg-accent-glow)'
                     : undefined,
                   border: isThisMonth && !isSelected
-                    ? '1px solid color-mix(in oklab, var(--accent-color) 40%, transparent)'
+                    ? '1px solid rgba(139, 92, 246, 0.35)'
                     : '1px solid transparent',
                 }}
               >
-                {MONTH_LONG_NB[monthIdx].slice(0, 3)}
+                {t.dates.monthsLong[monthIdx].slice(0, 3)}
               </motion.button>
             )
           })}
@@ -297,7 +281,7 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
             fontFamily: 'var(--font-body)',
           }}
         >
-          Hopp til i dag
+          {t.hotkeys.k.today}
         </motion.button>
       </PopoverContent>
     </Popover>

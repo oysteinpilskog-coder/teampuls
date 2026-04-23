@@ -1,4 +1,4 @@
-import { Fraunces, Manrope, JetBrains_Mono } from 'next/font/google'
+import { Fraunces, Manrope } from 'next/font/google'
 
 // Fraunces — display serif with optical sizing and softness.
 // Italic is critical (Ember-words). opsz 9..144, SOFT 0..100.
@@ -19,13 +19,12 @@ export const fontBody = Manrope({
   weight: 'variable',
 })
 
-// Fraunces alias for serif slot (components read --font-serif for italic display).
+// Fraunces alias for the serif slot. Components that read var(--font-serif)
+// (italic display) resolve here.
 export const fontSerif = fontDisplay
 
-// JetBrains Mono — tabular numerals, precise timekeeping, dashboard metrics.
-export const fontMono = JetBrains_Mono({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-mono',
-  weight: 'variable',
-})
+/**
+ * Mono is delivered via the system stack (SF Mono on Apple, Consolas/Menlo
+ * elsewhere) — see the .lg-mono utility in globals.css. The --font-mono var
+ * is aliased in globals.css for backward compat.
+ */

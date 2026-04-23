@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { resolveActiveMember } from '@/lib/supabase/session'
 import { parseTeamUpdate } from '@/lib/ai/parse-update'
 import { applyUpdates } from '@/lib/ai/apply-updates'
+import { getServerDict } from '@/lib/i18n/server'
 
 export async function POST(req: NextRequest) {
+  const dict = await getServerDict()
   try {
     // Auth-bound client: used ONLY to verify the caller's identity.
     // All subsequent org-scoped reads/writes use the admin client so RLS
@@ -17,39 +20,14 @@ export async function POST(req: NextRequest) {
 
     const admin = createAdminClient()
 
-    // Resolve sender's member row.
-    // Primary: by user_id (set once auth/callback links it).
-    // Fallback: by email — handles users whose member row was created
-    // after their last login, or whose link never fired. We backfill
-    // user_id so the next request takes the fast path.
-    let { data: member } = await admin
-      .from('members')
-      .select('id, org_id, email, display_name')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .maybeSingle()
-
-    if (!member && user.email) {
-      const { data: byEmail } = await admin
-        .from('members')
-        .select('id, org_id, email, display_name')
-        .ilike('email', user.email)
-        .eq('is_active', true)
-        .maybeSingle()
-
-      if (byEmail) {
-        await admin
-          .from('members')
-          .update({ user_id: user.id })
-          .eq('id', byEmail.id)
-          .is('user_id', null)
-        member = byEmail
-      }
-    }
+    // Resolve sender's member row — scoped to the active workspace
+    // when the user belongs to multiple (`tp_active_workspace`
+    // cookie), with an email-based fallback for first login.
+    const member = await resolveActiveMember(admin, user.id, user.email)
 
     if (!member) {
       return NextResponse.json(
-        { error: 'Din bruker er ikke koblet til et medlem. Kontakt en admin.' },
+        { error: dict.aiInput.notLinked },
         { status: 403 }
       )
     }
@@ -84,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     if (!allMembers?.length) {
       return NextResponse.json(
-        { error: 'Fant ingen aktive medlemmer i organisasjonen din.' },
+        { error: dict.aiInput.noActiveMembers },
         { status: 500 }
       )
     }
@@ -118,7 +96,7 @@ export async function POST(req: NextRequest) {
     if (result.confidence < 0.7 || (result.clarification && result.updates.length === 0)) {
       return NextResponse.json({
         success: false,
-        clarification: result.clarification ?? 'Jeg forstod ikke helt. Kan du formulere deg annerledes?',
+        clarification: result.clarification ?? dict.aiInput.clarificationFallback,
         updates: [],
       })
     }
@@ -136,7 +114,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('[ai/parse] Error:', err)
     return NextResponse.json(
-      { error: 'Noe gikk galt. Prøv igjen.' },
+      { error: dict.common.error },
       { status: 500 }
     )
   }

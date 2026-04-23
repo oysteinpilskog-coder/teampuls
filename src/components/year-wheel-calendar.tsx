@@ -87,60 +87,39 @@ function MiniMonth({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: month * 0.035 }}
-      whileHover={{ y: -2 }}
+      transition={{ duration: 0.25, delay: month * 0.025, ease: [0.4, 0, 0.2, 1] }}
       className="relative rounded-2xl p-5 flex flex-col overflow-hidden"
       style={{
-        background: isCurrentMonth
-          ? 'color-mix(in oklab, var(--bg-elevated) 90%, transparent)'
-          : 'color-mix(in oklab, var(--bg-elevated) 78%, transparent)',
-        backdropFilter: 'blur(22px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(22px) saturate(180%)',
+        background: isCurrentMonth ? 'rgba(22, 22, 27, 0.55)' : 'var(--lg-surface-1)',
+        backdropFilter: isCurrentMonth ? 'blur(20px) saturate(180%)' : undefined,
+        WebkitBackdropFilter: isCurrentMonth ? 'blur(20px) saturate(180%)' : undefined,
         border: `1px solid ${isCurrentMonth
-          ? 'color-mix(in oklab, var(--accent-color) 40%, transparent)'
-          : 'color-mix(in oklab, var(--border-subtle) 70%, transparent)'}`,
+          ? 'rgba(139, 92, 246, 0.28)'
+          : 'var(--lg-divider)'}`,
         boxShadow: isCurrentMonth
-          ? '0 14px 32px -14px color-mix(in oklab, var(--accent-color) 40%, transparent), 0 4px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.5)'
-          : '0 8px 20px -12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.5)',
+          ? '0 0 0 3px rgba(139, 92, 246, 0.10), 0 0 24px -6px var(--lg-accent-glow)'
+          : 'none',
       }}
     >
-      {/* Accent glow on current month */}
-      {isCurrentMonth && (
-        <div
-          aria-hidden
-          className="absolute pointer-events-none"
-          style={{
-            top: '-30%',
-            left: '-20%',
-            width: '80%',
-            height: '60%',
-            background: 'radial-gradient(circle, color-mix(in oklab, var(--accent-color) 28%, transparent), transparent 65%)',
-            filter: 'blur(18px)',
-          }}
-        />
-      )}
-
       <header className="relative flex items-baseline justify-between mb-4">
         <h3
-          className="text-[17px] font-semibold"
+          className="lg-serif capitalize"
           style={{
-            color: isCurrentMonth ? 'var(--accent-color)' : 'var(--text-primary)',
-            fontFamily: 'var(--font-sora)',
-            letterSpacing: '-0.02em',
+            color: isCurrentMonth ? 'var(--lg-accent)' : 'var(--lg-text-1)',
+            fontSize: 22,
           }}
         >
           {MONTH_FULL[month]}
         </h3>
         {monthEventCount > 0 && (
           <span
-            className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md tabular-nums"
+            className="lg-mono text-[10px] px-1.5 py-0.5 rounded-md"
             style={{
-              color: 'var(--text-tertiary)',
-              background: 'color-mix(in oklab, var(--bg-subtle) 80%, transparent)',
-              fontFamily: 'var(--font-body)',
-              letterSpacing: '0.04em',
+              color: 'var(--lg-text-3)',
+              background: 'var(--lg-surface-2)',
+              border: '1px solid var(--lg-divider)',
             }}
           >
             {monthEventCount}
@@ -153,10 +132,9 @@ function MiniMonth({
         {WEEKDAY_INITIALS.map((wd, i) => (
           <div
             key={i}
-            className="text-[10px] font-bold text-center uppercase py-1"
+            className="lg-mono text-[10px] font-medium text-center uppercase py-1"
             style={{
-              color: i >= 5 ? 'var(--text-tertiary)' : 'var(--text-secondary)',
-              fontFamily: 'var(--font-body)',
+              color: i >= 5 ? 'var(--lg-text-3)' : 'var(--lg-text-2)',
               letterSpacing: '0.14em',
             }}
           >
@@ -214,33 +192,30 @@ function DayCell({
       className="relative aspect-square flex flex-col items-center justify-start pt-1.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] disabled:cursor-default"
       style={{ cursor: primaryEvent ? 'pointer' : 'default' }}
     >
-      {/* Today disk — Apple Calendar style solid accent */}
+      {/* Today disk — violet with soft ring */}
       {isToday && (
         <motion.span
           aria-hidden
           layoutId={undefined}
           className="absolute top-0.5 rounded-full"
           style={{
-            width: 26,
-            height: 26,
-            background: 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 55%, #6B2ECB))',
-            boxShadow: '0 4px 12px -2px color-mix(in oklab, var(--accent-color) 45%, transparent), inset 0 1px 0 rgba(255,255,255,0.3)',
+            width: 24,
+            height: 24,
+            background: 'var(--lg-accent)',
+            boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 16px var(--lg-accent-glow)',
           }}
         />
       )}
       <span
-        className="relative text-[12.5px] tabular-nums leading-none z-10"
+        className="lg-mono relative text-[12px] leading-none z-10"
         style={{
           color: isToday
             ? '#ffffff'
             : isWeekend
-              ? 'var(--text-tertiary)'
-              : 'var(--text-primary)',
-          fontFamily: 'var(--font-sora)',
-          fontWeight: isToday ? 700 : 500,
-          letterSpacing: '-0.01em',
+              ? 'var(--lg-text-3)'
+              : 'var(--lg-text-1)',
+          fontWeight: isToday ? 500 : 400,
           marginTop: isToday ? 3 : 0,
-          textShadow: isToday ? '0 1px 2px rgba(0,0,0,0.2)' : undefined,
         }}
       >
         {day}

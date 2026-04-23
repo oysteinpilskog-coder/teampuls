@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Member, MemberRole } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { MemberAvatar } from '@/components/member-avatar'
+import { useT } from '@/lib/i18n/context'
 
 interface MembersClientProps {
   orgId: string
@@ -31,11 +32,6 @@ const EMPTY_FORM: MemberFormState = {
   role: 'member',
 }
 
-const ROLE_LABELS: Record<MemberRole, string> = {
-  admin: 'Admin',
-  member: 'Medlem',
-}
-
 export function MembersClient({ orgId, currentMemberId, initialMembers }: MembersClientProps) {
   const [members, setMembers] = useState<Member[]>(initialMembers)
   const [modalMode, setModalMode] = useState<'closed' | 'add' | 'edit'>('closed')
@@ -44,6 +40,12 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const t = useT()
+
+  const ROLE_LABELS: Record<MemberRole, string> = {
+    admin: t.settings.members.roleAdmin,
+    member: t.settings.members.roleMember,
+  }
 
   function openAdd() {
     setForm(EMPTY_FORM)
@@ -88,11 +90,11 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
         .eq('id', editTarget.id)
       setSaving(false)
       if (error) {
-        toast.error(describeSaveError(error))
+        toast.error(describeSaveError(error, t.settings.members.errorEmailTaken))
         return
       }
       setMembers(prev => prev.map(m => m.id === editTarget.id ? { ...m, ...baseFields } : m))
-      toast.success('Endringer lagret')
+      toast.success(t.settings.members.toastSaved)
     } else {
       const { data, error } = await supabase
         .from('members')
@@ -101,11 +103,11 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
         .single()
       setSaving(false)
       if (error) {
-        toast.error(describeSaveError(error))
+        toast.error(describeSaveError(error, t.settings.members.errorEmailTaken))
         return
       }
       setMembers(prev => [...prev, data].sort((a, b) => a.display_name.localeCompare(b.display_name)))
-      toast.success(`${baseFields.display_name} er lagt til`)
+      toast.success(`${baseFields.display_name} ${t.settings.members.toastAddedSuffix}`)
     }
     closeModal()
   }
@@ -113,22 +115,22 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
   async function confirmDelete() {
     if (!deleteTarget || deleting) return
     if (deleteTarget.id === currentMemberId) {
-      toast.error('Du kan ikke slette din egen konto.')
+      toast.error(t.settings.members.errorCannotDeleteSelf)
       return
     }
     setDeleting(true)
     const supabase = createClient()
     const { error } = await supabase.from('members').delete().eq('id', deleteTarget.id)
     setDeleting(false)
-    if (error) { toast.error('Kunne ikke slette medlem.'); return }
+    if (error) { toast.error(t.settings.members.errorDeleteMember); return }
     setMembers(prev => prev.filter(x => x.id !== deleteTarget.id))
-    toast.success(`${deleteTarget.display_name} er slettet`)
+    toast.success(`${deleteTarget.display_name} ${t.settings.members.toastDeletedSuffix}`)
     setDeleteTarget(null)
   }
 
   async function toggleActive(m: Member) {
     if (m.id === currentMemberId) {
-      toast.error('Du kan ikke deaktivere din egen konto.')
+      toast.error(t.settings.members.errorCannotDeactivateSelf)
       return
     }
     const supabase = createClient()
@@ -136,9 +138,9 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
       .from('members')
       .update({ is_active: !m.is_active })
       .eq('id', m.id)
-    if (error) { toast.error('Noe gikk galt.'); return }
+    if (error) { toast.error(t.common.errorShort); return }
     setMembers(prev => prev.map(x => x.id === m.id ? { ...x, is_active: !x.is_active } : x))
-    toast.success(m.is_active ? `${m.display_name} deaktivert` : `${m.display_name} aktivert`)
+    toast.success(m.is_active ? `${m.display_name} ${t.settings.members.toastDeactivatedSuffix}` : `${m.display_name} ${t.settings.members.toastActivatedSuffix}`)
   }
 
   const active = members.filter(m => m.is_active)
@@ -153,7 +155,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
             className="text-[24px] font-semibold"
             style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
           >
-            Teammedlemmer
+            {t.settings.members.title}
           </h1>
           <p className="text-[14px] mt-0.5" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
             {active.length} aktive · {inactive.length} inaktive
@@ -166,7 +168,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
           style={{ backgroundColor: 'var(--accent-color)', fontFamily: 'var(--font-body)' }}
         >
           <Plus className="w-4 h-4" strokeWidth={2} />
-          Legg til
+          {t.common.add}
         </motion.button>
       </div>
 
@@ -177,7 +179,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
       >
         {active.length === 0 ? (
           <div className="p-8 text-center" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
-            Ingen aktive medlemmer
+            {t.settings.members.empty}
           </div>
         ) : (
           active.map((m, i) => (
@@ -186,6 +188,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
               member={m}
               isSelf={m.id === currentMemberId}
               isLast={i === active.length - 1}
+              roleLabel={ROLE_LABELS[m.role]}
               onEdit={() => openEdit(m)}
               onToggle={() => toggleActive(m)}
               onDelete={() => setDeleteTarget(m)}
@@ -213,6 +216,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                 member={m}
                 isSelf={false}
                 isLast={i === inactive.length - 1}
+                roleLabel={ROLE_LABELS[m.role]}
                 onEdit={() => openEdit(m)}
                 onToggle={() => toggleActive(m)}
                 onDelete={() => setDeleteTarget(m)}
@@ -250,7 +254,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                   className="text-[20px] font-semibold"
                   style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
                 >
-                  {modalMode === 'add' ? 'Legg til medlem' : 'Rediger medlem'}
+                  {modalMode === 'add' ? t.settings.members.modalAddTitle : t.settings.members.modalEditTitle}
                 </h2>
                 <button onClick={closeModal} style={{ color: 'var(--text-tertiary)' }}>
                   <X className="w-5 h-5" strokeWidth={1.5} />
@@ -259,7 +263,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
 
               {/* Identity group */}
               <div className="flex flex-col gap-4">
-                <Field label="Navn" hint="Fornavnet som vises i teamet">
+                <Field label={t.common.name} hint="Fornavnet som vises i teamet">
                   <input
                     type="text"
                     value={form.display_name}
@@ -299,7 +303,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                   />
                 </Field>
 
-                <Field label="E-post">
+                <Field label={t.settings.members.emailLabel}>
                   <input
                     type="email"
                     value={form.email}
@@ -373,7 +377,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                   className="px-4 py-2 rounded-xl text-[13px] font-medium"
                   style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-subtle)', fontFamily: 'var(--font-body)' }}
                 >
-                  Avbryt
+                  {t.common.cancel}
                 </button>
                 <motion.button
                   onClick={handleSave}
@@ -382,7 +386,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                   className="px-5 py-2 rounded-xl text-[13px] font-semibold text-white disabled:opacity-40"
                   style={{ backgroundColor: 'var(--accent-color)', fontFamily: 'var(--font-body)' }}
                 >
-                  {saving ? '...' : modalMode === 'add' ? 'Legg til' : 'Lagre'}
+                  {saving ? '...' : modalMode === 'add' ? t.common.add : t.common.save}
                 </motion.button>
               </div>
             </motion.div>
@@ -444,7 +448,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                   className="px-4 py-2 rounded-xl text-[13px] font-medium disabled:opacity-40"
                   style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-subtle)', fontFamily: 'var(--font-body)' }}
                 >
-                  Avbryt
+                  {t.common.cancel}
                 </button>
                 <motion.button
                   onClick={confirmDelete}
@@ -483,11 +487,11 @@ function deriveInitials(displayName: string, fullName: string): string {
 
 type SupabaseError = { code?: string; message?: string }
 
-function describeSaveError(error: SupabaseError): string {
+function describeSaveError(error: SupabaseError, emailTakenMessage: string): string {
   if (error.code === '23505') {
     return error.message?.includes('initials')
       ? 'Initialene er allerede i bruk i teamet.'
-      : 'E-posten er allerede i bruk.'
+      : emailTakenMessage
   }
   if (error.code === '42501' || error.message?.toLowerCase().includes('row-level security')) {
     return 'Du må være admin for å endre medlemmer.'
@@ -520,6 +524,7 @@ function MemberRow({
   member,
   isSelf,
   isLast,
+  roleLabel,
   onEdit,
   onToggle,
   onDelete,
@@ -527,6 +532,7 @@ function MemberRow({
   member: Member
   isSelf: boolean
   isLast: boolean
+  roleLabel: string
   onEdit: () => void
   onToggle: () => void
   onDelete: () => void
@@ -579,7 +585,7 @@ function MemberRow({
               fontFamily: 'var(--font-body)',
             }}
           >
-            {member.role === 'admin' ? 'Admin' : 'Medlem'}
+            {roleLabel}
           </span>
         </div>
         <p className="text-[12px] truncate" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>

@@ -7,10 +7,24 @@ import type { Entry } from '@/lib/supabase/types'
 /**
  * Fetches entries for the given org + date strings, and subscribes to
  * Supabase Realtime to keep the data live.
+ *
+ * Optional `initial` lets the caller seed the hook with server-rendered
+ * data. If provided AND the initial dateStrings match, the hook skips the
+ * first client fetch entirely, avoiding the empty-to-populated flash on
+ * cold loads.
  */
-export function useEntries(orgId: string, dateStrings: string[]) {
-  const [entries, setEntries] = useState<Entry[]>([])
-  const [loading, setLoading] = useState(true)
+export function useEntries(
+  orgId: string,
+  dateStrings: string[],
+  opts: { initial?: Entry[] } = {},
+) {
+  const [entries, setEntries] = useState<Entry[]>(opts.initial ?? [])
+  const [loading, setLoading] = useState(opts.initial === undefined)
+
+  // Record the dateStrings fingerprint of the initial data so we only skip
+  // the first fetch when it's actually applicable. Subsequent week
+  // navigations reset this and always go through the network.
+  const initialKey = useRef<string | null>(opts.initial ? dateStrings.join(',') : null)
 
   // Keep a ref to the current date strings so the realtime callback
   // can check relevance without a stale closure.
@@ -33,8 +47,16 @@ export function useEntries(orgId: string, dateStrings: string[]) {
   }, [orgId, dateStrings.join(',')])
 
   useEffect(() => {
+    const currentKey = dateStrings.join(',')
+    if (initialKey.current && initialKey.current === currentKey) {
+      // SSR data matches the current window — keep it, skip this fetch.
+      initialKey.current = null
+      setLoading(false)
+      return
+    }
     setLoading(true)
     fetchEntries()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchEntries])
 
   // Refetch on explicit broadcast — AIInput emits this after a successful

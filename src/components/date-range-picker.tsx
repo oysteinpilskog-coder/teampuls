@@ -8,10 +8,10 @@ import {
   isAfter, isBefore, isSameDay, parseISO, startOfISOWeek, startOfMonth,
   getISOWeek,
 } from 'date-fns'
-import { MONTH_LONG_NB, toDateString, WEEKDAY_LONG_NB } from '@/lib/dates'
+import { toDateString } from '@/lib/dates'
 import { spring } from '@/lib/motion'
-
-const WEEKDAY_SHORT_NB = ['Ma', 'Ti', 'On', 'To', 'Fr', 'Lø', 'Sø']
+import { useT } from '@/lib/i18n/context'
+import type { Dictionary } from '@/lib/i18n/types'
 
 type DragMode =
   | { kind: 'idle' }
@@ -33,6 +33,15 @@ export function DateRangePicker({
   onChange,
   accentColor = 'var(--accent-color)',
 }: DateRangePickerProps) {
+  const t = useT()
+  // Monday-first weekday initials for the two-letter column header.
+  // t.dates.weekdaysShort is Sunday-first; reorder to Mon…Sun and trim to 2 chars.
+  const ws = t.dates.weekdaysShort
+  const WEEKDAY_SHORT = [ws[1], ws[2], ws[3], ws[4], ws[5], ws[6], ws[0]].map(s => s.slice(0, 2))
+  // Capitalized long month names (Januar, …).
+  const MONTH_LONG = t.dates.monthsLongCap
+  // Long weekday names (Sunday-first, as JS getDay()).
+  const WEEKDAY_LONG = t.dates.weekdaysLong
   const start = startDate ? parseISO(startDate) : null
   const end = endDate ? parseISO(endDate) : null
 
@@ -117,18 +126,18 @@ export function DateRangePicker({
   }
 
   const rangeLabel = useMemo(() => {
-    if (!start || !end) return 'Velg datoer'
+    if (!start || !end) return t.dateRangePicker.pickDates
     const sameDay = isSameDay(start, end)
     const fmt = (d: Date) =>
-      `${d.getDate()}. ${MONTH_LONG_NB[d.getMonth()].slice(0, 3)}`
+      `${d.getDate()}. ${MONTH_LONG[d.getMonth()].slice(0, 3)}`
     const sameYear = start.getFullYear() === end.getFullYear()
     if (sameDay) {
-      return `${WEEKDAY_LONG_NB[start.getDay()]} ${fmt(start)} ${start.getFullYear()}`
+      return `${WEEKDAY_LONG[start.getDay()]} ${fmt(start)} ${start.getFullYear()}`
     }
     const days = differenceInDays(end, start) + 1
     const endText = sameYear ? fmt(end) : `${fmt(end)} ${end.getFullYear()}`
     return `${fmt(start)} – ${endText} · ${days} dager`
-  }, [start, end])
+  }, [start, end, t, MONTH_LONG, WEEKDAY_LONG])
 
   const isDragging = drag.kind !== 'idle'
 
@@ -154,7 +163,7 @@ export function DateRangePicker({
           style={{ color: 'var(--text-secondary)', backgroundColor: 'transparent' }}
           onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-subtle)')}
           onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-          aria-label="Forrige måned"
+          aria-label={t.dateRangePicker.prevMonth}
         >
           <ChevronLeft className="w-4 h-4" strokeWidth={1.75} />
         </motion.button>
@@ -176,7 +185,7 @@ export function DateRangePicker({
           style={{ color: 'var(--text-secondary)', backgroundColor: 'transparent' }}
           onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-subtle)')}
           onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
-          aria-label="Neste måned"
+          aria-label={t.dateRangePicker.nextMonth}
         >
           <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
         </motion.button>
@@ -194,6 +203,7 @@ export function DateRangePicker({
             dragKind={drag.kind}
             accentColor={accentColor}
             onPointerDown={handlePointerDown}
+            t={t}
           />
         ))}
       </div>
@@ -203,7 +213,7 @@ export function DateRangePicker({
         className="mt-3 text-[11px] text-center"
         style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
       >
-        Klikk og dra for å velge · Dra kantene for å endre · Dra midten for å flytte
+        {t.dateRangePicker.helpText}
       </p>
     </div>
   )
@@ -217,11 +227,15 @@ interface MonthViewProps {
   dragKind: DragMode['kind']
   accentColor: string
   onPointerDown: (e: React.PointerEvent<HTMLButtonElement>, date: Date) => void
+  t: Dictionary
 }
 
 function MonthView({
-  month, start, end, isDragging, dragKind, accentColor, onPointerDown,
+  month, start, end, isDragging, dragKind, accentColor, onPointerDown, t,
 }: MonthViewProps) {
+  const ws = t.dates.weekdaysShort
+  const WEEKDAY_SHORT = [ws[1], ws[2], ws[3], ws[4], ws[5], ws[6], ws[0]].map(s => s.slice(0, 2))
+  const MONTH_LONG = t.dates.monthsLongCap
   const firstCell = startOfISOWeek(startOfMonth(month))
   const lastCell = endOfISOWeek(endOfMonth(month))
   const totalCells = differenceInDays(lastCell, firstCell) + 1
@@ -241,13 +255,13 @@ function MonthView({
         className="text-center text-[12px] font-semibold uppercase tracking-widest mb-2"
         style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-sora)' }}
       >
-        {MONTH_LONG_NB[month.getMonth()]} {month.getFullYear()}
+        {MONTH_LONG[month.getMonth()]} {month.getFullYear()}
       </div>
 
       {/* Weekday row */}
       <div className="grid grid-cols-[24px_repeat(7,minmax(0,1fr))] mb-1">
         <div />
-        {WEEKDAY_SHORT_NB.map(d => (
+        {WEEKDAY_SHORT.map(d => (
           <div
             key={d}
             className="text-center text-[10px] font-semibold uppercase tracking-wider py-1"

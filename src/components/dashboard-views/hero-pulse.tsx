@@ -4,6 +4,8 @@ import { motion } from 'framer-motion'
 import { useStatusColors } from '@/lib/status-colors/context'
 import type { Entry, EntryStatus, Member } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
+import { useT } from '@/lib/i18n/context'
+import type { Dictionary } from '@/lib/i18n/types'
 import { AnimatedCount } from './animated-count'
 
 interface HeroPulseProps {
@@ -12,19 +14,10 @@ interface HeroPulseProps {
 }
 
 const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
-const STATUS_LABELS: Record<EntryStatus, string> = {
-  office: 'Kontor',
-  remote: 'Hjemme',
-  customer: 'Hos kunde',
-  travel: 'Reise',
-  vacation: 'Ferie',
-  sick: 'Syk',
-  off: 'Fri',
-}
 
-function insightFor(registered: number, total: number, todayEntries: Entry[]) {
-  if (total === 0) return { title: 'Offiview klar', subtitle: 'Legg til medlemmer for å se pulsen.' }
-  if (registered === 0) return { title: 'Ingen registreringer ennå', subtitle: 'Hvor er teamet i dag?' }
+function insightFor(registered: number, total: number, todayEntries: Entry[], t: Dictionary) {
+  if (total === 0) return { title: t.pulse.ready, subtitle: t.pulse.readyHint }
+  if (registered === 0) return { title: t.pulse.noRegistrationsToday, subtitle: t.pulse.noRegistrationsSubtitle }
 
   const onPositive = todayEntries.filter(e =>
     ['office', 'remote', 'customer', 'travel'].includes(e.status)
@@ -32,23 +25,33 @@ function insightFor(registered: number, total: number, todayEntries: Entry[]) {
   const away = todayEntries.filter(e => ['vacation', 'sick', 'off'].includes(e.status)).length
 
   if (registered === total && away === 0) {
-    return { title: 'Hele teamet er på jobb', subtitle: 'Alle er registrert og aktive i dag.' }
+    return { title: t.pulse.fullTeam, subtitle: t.pulse.fullTeamHint }
   }
   if (registered === total && away > 0) {
     return {
-      title: `${onPositive} aktive · ${away} borte`,
-      subtitle: 'Alle er registrert for i dag.',
+      title: t.pulse.mixedFull.replace('{active}', String(onPositive)).replace('{away}', String(away)),
+      subtitle: t.pulse.mixedFullHint,
     }
   }
   const missing = total - registered
   return {
-    title: `${onPositive} aktive i dag`,
-    subtitle: `${missing} ${missing === 1 ? 'mangler' : 'mangler'} registrering.`,
+    title: t.pulse.activeToday.replace('{active}', String(onPositive)),
+    subtitle: t.pulse.missingRegistration.replace('{n}', String(missing)),
   }
 }
 
 export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
   const STATUS_COLORS = useStatusColors()
+  const t = useT()
+  const STATUS_LABELS: Record<EntryStatus, string> = {
+    office: t.status.office,
+    remote: t.pulse.atHomeShort,
+    customer: t.status.customer,
+    travel: t.status.travel,
+    vacation: t.status.vacation,
+    sick: t.status.sick,
+    off: t.status.off,
+  }
   const total = members.length
   const registered = todayEntries.length
   const pct = total > 0 ? Math.round((registered / total) * 100) : 0
@@ -62,7 +65,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
   const locMap = new Map<string, number>()
   todayEntries.forEach(e => {
     if (!['office', 'customer', 'travel', 'remote'].includes(e.status)) return
-    const key = (e.location_label?.trim() || (e.status === 'remote' ? 'Hjemme' : '')).trim()
+    const key = (e.location_label?.trim() || (e.status === 'remote' ? t.pulse.atHomeShort : '')).trim()
     if (!key) return
     locMap.set(key, (locMap.get(key) ?? 0) + 1)
   })
@@ -72,7 +75,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
 
   const ringCirc = 2 * Math.PI * 54
   const ringDash = ringCirc * (pct / 100)
-  const insight = insightFor(registered, total, todayEntries)
+  const insight = insightFor(registered, total, todayEntries, t)
 
   return (
     <motion.div
@@ -155,7 +158,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
               className="text-[10px] font-semibold tracking-[0.22em] uppercase mt-1"
               style={{ color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-body)' }}
             >
-              registrert
+              {t.pulse.registered}
             </span>
           </div>
         </div>
@@ -166,7 +169,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
             className="text-[11px] font-semibold tracking-[0.22em] uppercase"
             style={{ color: 'rgba(127,178,255,0.85)', fontFamily: 'var(--font-body)' }}
           >
-            I dag · {pct}%
+            {t.pulse.today} · {pct}%
           </span>
           <span
             className="text-[26px] font-semibold leading-tight tracking-tight"
@@ -199,7 +202,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
           className="text-[11px] font-semibold tracking-[0.22em] uppercase"
           style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
         >
-          Fordeling
+          {t.today.breakdown}
         </span>
 
         {/* Stacked bar */}
@@ -229,7 +232,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
               className="text-[13px]"
               style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-body)' }}
             >
-              Ingen registreringer for dagen.
+              {t.pulse.noRegistrationsBoard}
             </span>
           ) : (
             counts.map(({ status, count }) => (
@@ -274,7 +277,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
             className="text-[11px] font-semibold tracking-[0.22em] uppercase"
             style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
           >
-            Hvor
+            {t.pulse.where}
           </span>
           <div className="flex flex-col gap-1.5">
             {locations.map(([loc, count], i) => (

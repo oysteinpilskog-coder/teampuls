@@ -7,9 +7,10 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useStatusColors } from '@/lib/status-colors/context'
+import { usePresenceCtx } from '@/lib/presence/context'
 import type { EntryStatus } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 import { useTheme } from 'next-themes'
 import { DateRangePicker } from '@/components/date-range-picker'
 import { addDays, differenceInDays, parseISO } from 'date-fns'
@@ -66,6 +67,16 @@ export function CellEditor({
   useEffect(() => setMounted(true), [])
   const isDark = mounted && resolvedTheme === 'dark'
   const STATUS_COLORS = useStatusColors()
+  const t = useT()
+  const { setEditing } = usePresenceCtx()
+
+  // Broadcast "editing this cell" to other sessions while the dialog is open
+  // so they can see a presence badge in the grid. Clear on close.
+  useEffect(() => {
+    if (!open || !memberId || !date) return
+    setEditing({ kind: 'cell', member_id: memberId, date })
+    return () => setEditing(null)
+  }, [open, memberId, date, setEditing])
 
   const [status, setStatus] = useState<EntryStatus | null>(initialStatus)
   const [location, setLocation] = useState(initialLocation ?? '')
@@ -143,8 +154,8 @@ export function CellEditor({
       location_label: locLabel,
       note: noteLabel,
     })
-    const suffix = dates.length > 1 ? ` · ${dates.length} dager` : ''
-    toast.success(`${no.aiInput.success} — ${memberName}${suffix}`)
+    const suffix = dates.length > 1 ? ` · ${dates.length} ${t.editor.days}` : ''
+    toast.success(`${t.aiInput.success} — ${memberName}${suffix}`)
     onClose()
 
     const supabase = createClient()
@@ -162,7 +173,7 @@ export function CellEditor({
       .upsert(rows, { onConflict: 'org_id,member_id,date' })
     setSaving(false)
     if (error) {
-      toast.error(no.aiInput.error)
+      toast.error(t.aiInput.error)
     }
     // onMutated still fires on success *and* failure so the host refetches
     // the server's truth — this corrects the optimistic paint if the write
@@ -234,7 +245,7 @@ export function CellEditor({
       .in('date', dates)
     setSaving(false)
     if (error) {
-      toast.error(no.aiInput.error)
+      toast.error(t.aiInput.error)
     }
     await onMutated?.()
   }
@@ -283,7 +294,7 @@ export function CellEditor({
                   const e = parseISO(rangeEnd)
                   const n = differenceInDays(e, s) + 1
                   const fmt = (d: Date) => `${d.getDate()}. ${MONTH_LONG_NB[d.getMonth()].slice(0, 3)}`
-                  return `${fmt(s)} – ${fmt(e)} · ${n} dager`
+                  return `${fmt(s)} – ${fmt(e)} · ${n} ${t.editor.days}`
                 })()}
               </p>
               <h2
@@ -300,7 +311,7 @@ export function CellEditor({
                 className="text-[11px] font-semibold uppercase tracking-widest"
                 style={{ color: 'var(--text-tertiary)' }}
               >
-                Periode
+                {t.editor.period}
               </label>
               <div
                 className="rounded-xl p-3"
@@ -323,7 +334,7 @@ export function CellEditor({
                 className="text-[11px] font-semibold uppercase tracking-widest"
                 style={{ color: 'var(--text-tertiary)' }}
               >
-                Status
+                {t.editor.status}
               </span>
               <div className="flex gap-1.5">
                 {ALL_STATUSES.map(s => {
@@ -344,8 +355,8 @@ export function CellEditor({
                         backgroundColor: bg,
                         boxShadow: isSelected ? 'var(--shadow-sm)' : undefined,
                       }}
-                      title={no.status[s]}
-                      aria-label={no.status[s]}
+                      title={t.status[s]}
+                      aria-label={t.status[s]}
                       aria-pressed={isSelected}
                     >
                       <StatusIcon
@@ -376,7 +387,7 @@ export function CellEditor({
                         : 'var(--text-secondary)',
                     }}
                   >
-                    {no.status[status]}
+                    {t.status[status]}
                   </motion.p>
                 )}
               </AnimatePresence>
@@ -388,14 +399,14 @@ export function CellEditor({
                 className="text-[11px] font-semibold uppercase tracking-widest"
                 style={{ color: 'var(--text-tertiary)' }}
               >
-                {no.editor.location}
+                {t.editor.location}
               </label>
               <input
                 ref={locationInputRef}
                 type="text"
                 value={location}
                 onChange={e => setLocation(e.target.value)}
-                placeholder={no.editor.locationPlaceholder}
+                placeholder={t.editor.locationPlaceholder}
                 list="location-suggestions"
                 autoComplete="off"
                 className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none transition-all"
@@ -421,13 +432,13 @@ export function CellEditor({
                 className="text-[11px] font-semibold uppercase tracking-widest"
                 style={{ color: 'var(--text-tertiary)' }}
               >
-                {no.editor.note}
+                {t.editor.note}
               </label>
               <input
                 type="text"
                 value={note}
                 onChange={e => setNote(e.target.value)}
-                placeholder={no.editor.notePlaceholder}
+                placeholder={t.editor.notePlaceholder}
                 autoComplete="off"
                 className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none transition-all"
                 style={{
@@ -458,7 +469,7 @@ export function CellEditor({
                     fontFamily: 'var(--font-body)',
                   }}
                 >
-                  {no.editor.delete}
+                  {t.editor.delete}
                 </motion.button>
               )}
 
@@ -478,7 +489,7 @@ export function CellEditor({
                   fontFamily: 'var(--font-body)',
                 }}
               >
-                {no.editor.cancel}
+                {t.editor.cancel}
               </motion.button>
 
               {/* Save */}
@@ -494,7 +505,7 @@ export function CellEditor({
                   fontFamily: 'var(--font-body)',
                 }}
               >
-                {saving ? '...' : no.editor.save}
+                {saving ? '...' : t.editor.save}
               </motion.button>
             </div>
 
@@ -503,7 +514,7 @@ export function CellEditor({
               className="text-[11px] text-center -mt-2"
               style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
             >
-              Enter lagre · Esc avbryt
+              {t.editor.keyboardHint}
             </p>
           </motion.div>
           </div>

@@ -5,13 +5,13 @@ import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { Copy, Check, Upload, Trash2, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { Organization, EntryStatus } from '@/lib/supabase/types'
+import type { Organization, EntryStatus, PresenceAssumption } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { DEFAULT_HEX_COLORS, mergeHexColors, type HexColors } from '@/lib/status-colors/defaults'
 import { derivePalette } from '@/lib/status-colors/derive'
 import { useStatusColorsController } from '@/lib/status-colors/context'
 import { StatusIcon } from '@/components/icons/status-icons'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 
 const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
 
@@ -31,11 +31,15 @@ const TIMEZONES = [
 ]
 
 export function OrgClient({ org: initialOrg }: OrgClientProps) {
+  const t = useT()
   const [org, setOrg] = useState(initialOrg)
   const [name, setName] = useState(initialOrg.name)
   const [timezone, setTimezone] = useState(initialOrg.timezone)
   const [logoUrl, setLogoUrl] = useState(initialOrg.logo_url ?? '')
   const [primaryColor, setPrimaryColor] = useState(initialOrg.primary_color ?? '#0066FF')
+  const [presenceAssumption, setPresenceAssumption] = useState<PresenceAssumption>(
+    initialOrg.default_presence_assumption ?? 'none'
+  )
   const [statusColors, setStatusColors] = useState<HexColors>(() =>
     mergeHexColors(initialOrg.status_colors)
   )
@@ -52,6 +56,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     name !== org.name ||
     timezone !== org.timezone ||
     primaryColor !== (org.primary_color ?? '#0066FF') ||
+    presenceAssumption !== (org.default_presence_assumption ?? 'none') ||
     statusColorsDirty
 
   async function handleLogoFile(file: File) {
@@ -150,11 +155,19 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
         timezone,
         primary_color: primaryColor,
         status_colors: status_colors_payload,
+        default_presence_assumption: presenceAssumption,
       })
       .eq('id', org.id)
     setSaving(false)
-    if (error) { toast.error('Noe gikk galt. Prøv igjen.'); return }
-    setOrg(o => ({ ...o, name: name.trim(), timezone, primary_color: primaryColor, status_colors: status_colors_payload }))
+    if (error) { toast.error(t.common.error); return }
+    setOrg(o => ({
+      ...o,
+      name: name.trim(),
+      timezone,
+      primary_color: primaryColor,
+      status_colors: status_colors_payload,
+      default_presence_assumption: presenceAssumption,
+    }))
     // Push fresh colors through the context so the rest of the app updates immediately.
     statusColorsCtx?.setHex(statusColors)
     toast.success('Innstillinger lagret')
@@ -357,6 +370,14 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
           </div>
         </SettingsField>
 
+        {/* Presence assumption */}
+        <SettingsField
+          label="Tomme dager"
+          description="Hva skal vises når et medlem ikke har lagt inn status? Antatte dager vises alltid med dempet stil og stiplet kant, så de er lett å skille fra registrerte."
+        >
+          <PresenceAssumptionPicker value={presenceAssumption} onChange={setPresenceAssumption} />
+        </SettingsField>
+
         {/* Status colors */}
         <SettingsField
           label="Statusfarger"
@@ -436,6 +457,98 @@ function SettingsField({
   )
 }
 
+const PRESENCE_OPTIONS: Array<{
+  value: PresenceAssumption
+  label: string
+  hint: string
+}> = [
+  {
+    value: 'none',
+    label: 'Ingen antagelse',
+    hint: 'La tomme celler være tomme. Mest ærlig — anbefalt.',
+  },
+  {
+    value: 'office',
+    label: 'Antatt kontor',
+    hint: 'Vis alle uten registrering som "på kontoret".',
+  },
+  {
+    value: 'remote',
+    label: 'Antatt hjemmekontor',
+    hint: 'Vis alle uten registrering som "hjemmekontor".',
+  },
+  {
+    value: 'per_member',
+    label: 'Per medlem',
+    hint: 'Bruk hvert medlems egen standardstatus (fallback: kontor).',
+  },
+]
+
+function PresenceAssumptionPicker({
+  value,
+  onChange,
+}: {
+  value: PresenceAssumption
+  onChange: (v: PresenceAssumption) => void
+}) {
+  return (
+    <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="Antatt standard">
+      {PRESENCE_OPTIONS.map((opt) => {
+        const active = value === opt.value
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(opt.value)}
+            className="flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-[background,border-color] duration-150"
+            style={{
+              background: active ? 'rgba(139, 92, 246, 0.10)' : 'var(--lg-surface-2, var(--bg-subtle))',
+              border: `1px solid ${active ? 'rgba(139, 92, 246, 0.45)' : 'var(--lg-divider, var(--border-subtle))'}`,
+              fontFamily: 'var(--font-body)',
+            }}
+          >
+            <span
+              aria-hidden
+              className="mt-1 inline-flex items-center justify-center rounded-full shrink-0"
+              style={{
+                width: 14,
+                height: 14,
+                background: active ? 'var(--lg-accent)' : 'transparent',
+                boxShadow: active
+                  ? '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 10px var(--lg-accent-glow)'
+                  : `inset 0 0 0 1.5px var(--lg-divider, var(--border-subtle))`,
+              }}
+            >
+              {active && (
+                <span
+                  className="rounded-full"
+                  style={{ width: 5, height: 5, background: '#ffffff' }}
+                />
+              )}
+            </span>
+            <span className="flex flex-col gap-0.5 min-w-0">
+              <span
+                className="text-[13px] font-medium"
+                style={{ color: 'var(--lg-text-1, var(--text-primary))' }}
+              >
+                {opt.label}
+              </span>
+              <span
+                className="text-[12px]"
+                style={{ color: 'var(--lg-text-3, var(--text-tertiary))' }}
+              >
+                {opt.hint}
+              </span>
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function StatusColorRow({
   status,
   hex,
@@ -448,7 +561,8 @@ function StatusColorRow({
   const palette = derivePalette(hex)
   const [g0, g1] = palette.gradient.light
   const gradient = `linear-gradient(180deg, ${g0} 0%, ${g1} 100%)`
-  const label = no.status[status]
+  const t = useT()
+  const label = t.status[status]
 
   return (
     <div className="flex items-center gap-3">

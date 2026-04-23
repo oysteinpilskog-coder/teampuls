@@ -17,7 +17,7 @@ import {
   getDayLabel,
   formatDateLabelLong,
 } from '@/lib/dates'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
 import type { Entry, EntryStatus, Member } from '@/lib/supabase/types'
 
@@ -28,6 +28,7 @@ interface PresenceHeatmapProps {
 }
 
 export function PresenceHeatmap({ orgId, weeks = 6 }: PresenceHeatmapProps) {
+  const t = useT()
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
@@ -123,25 +124,20 @@ export function PresenceHeatmap({ orgId, weeks = 6 }: PresenceHeatmapProps) {
       <Header weeks={weeks} totals={totals} palettes={palettes} />
 
       <div
-        className="relative rounded-3xl overflow-hidden"
+        className="relative rounded-2xl overflow-hidden"
         style={{
-          background:
-            'linear-gradient(180deg, color-mix(in oklab, var(--bg-elevated) 92%, transparent) 0%, color-mix(in oklab, var(--bg-elevated) 82%, transparent) 100%)',
-          backdropFilter: 'blur(24px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(160%)',
-          border: '1px solid color-mix(in oklab, var(--border-subtle) 70%, transparent)',
-          boxShadow:
-            '0 24px 48px -24px rgba(15,23,42,0.18), 0 10px 24px -16px rgba(15,23,42,0.10), 0 1px 2px rgba(15,23,42,0.04), inset 0 1px 0 rgba(255,255,255,0.45)',
+          background: 'var(--lg-surface-1)',
+          border: '1px solid var(--lg-divider)',
         }}
       >
         {/* Day header */}
         <div
-          className="grid gap-[3px] px-5 py-3 text-[9px] font-bold uppercase tracking-[0.14em]"
+          className="lg-mono grid gap-[3px] px-5 py-3 text-[9px] font-medium uppercase"
           style={{
             gridTemplateColumns: `160px repeat(${allDays.length}, minmax(0, 1fr))`,
-            color: 'var(--text-tertiary)',
-            fontFamily: 'var(--font-body)',
-            borderBottom: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+            color: 'var(--lg-text-3)',
+            letterSpacing: '0.18em',
+            borderBottom: '1px solid var(--lg-divider-soft)',
           }}
         >
           <div className="flex items-end gap-2">
@@ -169,7 +165,7 @@ export function PresenceHeatmap({ orgId, weeks = 6 }: PresenceHeatmapProps) {
                   </span>
                 )}
                 <span style={{ opacity: isToday(d) ? 1 : 0.5 }}>
-                  {getDayLabel(d).weekday.charAt(0)}
+                  {getDayLabel(d, t).weekday.charAt(0)}
                 </span>
               </div>
             )
@@ -201,8 +197,8 @@ export function PresenceHeatmap({ orgId, weeks = 6 }: PresenceHeatmapProps) {
                       size="xs"
                     />
                     <span
-                      className="text-[12px] font-semibold truncate"
-                      style={{ color: 'var(--text-primary)', letterSpacing: '-0.005em' }}
+                      className="text-[12px] font-medium truncate"
+                      style={{ color: 'var(--lg-text-1)' }}
                     >
                       {member.display_name.split(' ')[0]}
                     </span>
@@ -243,23 +239,19 @@ function Header({
   totals: Partial<Record<EntryStatus, number>>
   palettes: ReturnType<typeof useStatusColors>
 }) {
+  const t = useT()
   const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
   return (
     <div className="flex items-end justify-between gap-4 mb-5 flex-wrap">
       <div>
-        <div
-          className="text-[10px] font-bold uppercase tracking-[0.25em] mb-1.5"
-          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-        >
+        <div className="lg-eyebrow mb-1.5">
           Historikk · {weeks} uker
         </div>
         <h2
-          className="font-bold leading-none"
+          className="lg-serif leading-none"
           style={{
-            color: 'var(--text-primary)',
-            fontFamily: 'var(--font-sora)',
-            fontSize: 'clamp(24px, 3vw, 34px)',
-            letterSpacing: '-0.035em',
+            color: 'var(--lg-text-1)',
+            fontSize: 'clamp(28px, 3.4vw, 40px)',
           }}
         >
           Tilstedeværelse
@@ -274,11 +266,11 @@ function Header({
           return (
             <span
               key={s}
-              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-semibold"
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-medium"
               style={{
-                background: `color-mix(in oklab, ${pal.icon} 12%, transparent)`,
-                color: 'var(--text-primary)',
-                border: `1px solid color-mix(in oklab, ${pal.icon} 22%, transparent)`,
+                background: 'var(--lg-surface-2)',
+                color: 'var(--lg-text-1)',
+                border: '1px solid var(--lg-divider)',
                 fontFamily: 'var(--font-body)',
               }}
             >
@@ -286,8 +278,8 @@ function Header({
                 className="w-1.5 h-1.5 rounded-full"
                 style={{ background: pal.icon }}
               />
-              <span className="tabular-nums">{count}</span>
-              <span style={{ color: 'var(--text-secondary)' }}>{no.status[s].toLowerCase()}</span>
+              <span className="lg-mono">{count}</span>
+              <span style={{ color: 'var(--lg-text-2)' }}>{t.status[s].toLowerCase()}</span>
             </span>
           )
         })}
@@ -313,6 +305,7 @@ function HeatCell({
   memberName: string
   separator: boolean
 }) {
+  const t = useT()
   const today = isToday(date)
   const pal = entry ? palettes[entry.status] : null
   const [g0, g1] = pal ? (isDark ? pal.gradient.dark : pal.gradient.light) : ['', '']
@@ -320,15 +313,15 @@ function HeatCell({
   // Empty cell: subtle checker look (no entry registered).
   const empty = !entry
   const title = entry
-    ? `${memberName} · ${formatDateLabelLong(date)} · ${no.status[entry.status]}${entry.location_label ? ` · ${entry.location_label}` : ''}`
-    : `${memberName} · ${formatDateLabelLong(date)} · Ingen oppføring`
+    ? `${memberName} · ${formatDateLabelLong(date, t)} · ${t.status[entry.status]}${entry.location_label ? ` · ${entry.location_label}` : ''}`
+    : `${memberName} · ${formatDateLabelLong(date, t)} · ${t.presenceHeatmap.noEntry}`
 
   return (
     <div
       className="relative"
       style={{
         borderLeft: separator
-          ? '1px solid color-mix(in oklab, var(--border-subtle) 80%, transparent)'
+          ? '1px solid var(--lg-divider-soft)'
           : undefined,
         paddingLeft: separator ? 2 : undefined,
       }}
@@ -339,11 +332,11 @@ function HeatCell({
         className="h-6 rounded-[5px] relative"
         style={{
           background: empty
-            ? 'color-mix(in oklab, var(--bg-subtle) 75%, transparent)'
+            ? 'var(--lg-surface-2)'
             : `linear-gradient(180deg, ${g0} 0%, ${g1} 100%)`,
           boxShadow: empty
-            ? 'inset 0 0 0 1px color-mix(in oklab, var(--border-subtle) 60%, transparent)'
-            : `inset 0 1px 0 rgba(255,255,255,0.30), 0 1px 2px color-mix(in oklab, ${pal?.glow ?? g1} 30%, transparent)`,
+            ? 'inset 0 0 0 1px var(--lg-divider)'
+            : `inset 0 1px 0 rgba(255,255,255,0.18), 0 0 8px -2px ${pal?.glow ?? g1}66`,
           transition: 'transform 160ms ease, box-shadow 180ms ease',
           cursor: entry ? 'pointer' : 'default',
         }}
@@ -354,8 +347,7 @@ function HeatCell({
             aria-hidden
             className="absolute inset-0 rounded-[5px] pointer-events-none"
             style={{
-              boxShadow:
-                'inset 0 0 0 1.5px color-mix(in oklab, var(--accent-color) 70%, transparent)',
+              boxShadow: 'inset 0 0 0 1.5px rgba(139, 92, 246, 0.7)',
             }}
           />
         )}

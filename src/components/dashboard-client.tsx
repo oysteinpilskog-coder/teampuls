@@ -13,6 +13,7 @@ import { AuroraBackground } from '@/components/dashboard-views/aurora-background
 import { getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
 import type { Entry, Member, Office, Organization, Customer } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
+import { useT } from '@/lib/i18n/context'
 
 interface DashboardClientProps {
   orgId: string
@@ -20,12 +21,6 @@ interface DashboardClientProps {
 
 type ViewKey = 'A' | 'B' | 'C' | 'D'
 const VIEWS: ViewKey[] = ['A', 'B', 'C', 'D']
-const VIEW_LABELS: Record<ViewKey, string> = {
-  A: 'Nå',
-  B: 'Uken',
-  C: 'Kontorer',
-  D: 'Kunder',
-}
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 
@@ -43,6 +38,14 @@ function dedupeByMember(rows: Entry[], members: Member[]): Entry[] {
 }
 
 export function DashboardClient({ orgId }: DashboardClientProps) {
+  const t = useT()
+  // Moved inside the component so view labels track the active locale.
+  const VIEW_LABELS: Record<ViewKey, string> = {
+    A: t.dashboard.views.now,
+    B: t.dashboard.views.week,
+    C: t.dashboard.views.offices,
+    D: t.dashboard.views.customers,
+  }
   const searchParams = useSearchParams()
   const intervalSec = Number(searchParams.get('interval') ?? 15)
 
@@ -218,7 +221,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
           className="text-[12px] transition-colors hover:opacity-80 tabular-nums uppercase tracking-[0.22em] font-semibold"
           style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
         >
-          ← Tilbake
+          {t.dashboard.back}
         </a>
 
         {/* Centre: segmented view switcher */}
@@ -249,7 +252,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
                   minWidth: 82,
                   zIndex: 1,
                 }}
-                aria-label={`Visning ${VIEW_LABELS[v]}`}
+                aria-label={`${t.dashboard.viewAriaPrefix} ${VIEW_LABELS[v]}`}
                 aria-pressed={active}
               >
                 {active && (
@@ -278,12 +281,12 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
             className="hidden md:block text-[11px] tracking-[0.14em] uppercase"
             style={{ color: 'rgba(255,255,255,0.32)', fontFamily: 'var(--font-body)' }}
           >
-            ← → bytt · F fullskjerm
+            {t.dashboard.hint}
           </p>
           <button
             onClick={toggleFullscreen}
             className="flex items-center justify-center w-9 h-9 rounded-full transition-all hover:bg-white/5"
-            aria-label="Fullskjerm"
+            aria-label={t.dashboard.fullscreen}
             style={{
               border: '1px solid rgba(255,255,255,0.08)',
               background: 'rgba(20,22,28,0.55)',

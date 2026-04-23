@@ -10,6 +10,7 @@ import { spring } from '@/lib/motion'
 import type { Member, Entry, Customer } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
 import { useResolvedLocations } from '@/hooks/use-resolved-locations'
+import { useT } from '@/lib/i18n/context'
 import { useMemo } from 'react'
 
 interface CustomerMapViewProps {
@@ -44,6 +45,7 @@ export function CustomerMapView({
   time,
 }: CustomerMapViewProps) {
   const STATUS_COLORS = useStatusColors()
+  const t = useT()
   const hours = pad(time.getHours())
   const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)
@@ -177,7 +179,7 @@ export function CustomerMapView({
               backgroundClip: 'text',
             }}
           >
-            Hos kunde
+            {t.dashboard.customer.title}
           </p>
           <div className="mt-2 flex items-center gap-2">
             <span
@@ -195,13 +197,13 @@ export function CustomerMapView({
                 animate={{ opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
                 transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
               />
-              Live · Uke {weekNum}
+              {t.today.live} · {t.matrix.weekLabel} {weekNum}
             </span>
             <span
               className="text-[12px]"
               style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
             >
-              {visitorsToday} ute hos kunde nå · {visitorsWeek.size} denne uken
+              {t.dashboard.customer.todayWeekCount.replace('{today}', String(visitorsToday)).replace('{week}', String(visitorsWeek.size))}
             </span>
           </div>
         </motion.div>
@@ -390,7 +392,7 @@ export function CustomerMapView({
                 fontFamily="var(--font-body)"
                 fill="rgba(255,255,255,0.4)"
               >
-                Ingen kundebesøk denne uken.
+                {t.dashboard.noCustomerVisits}
               </text>
             )}
           </EuropeMapCanvas>
@@ -430,7 +432,7 @@ export function CustomerMapView({
                 className="text-[14px]"
                 style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-body)' }}
               >
-                Ingen registreringer.
+                {t.dashboard.noRegistrations}
               </p>
             ) : (
               <div className="flex flex-col gap-2.5">

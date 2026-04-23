@@ -5,16 +5,19 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================
-   TEAMSPULSE DESIGN TOKENS
+   OFFIVIEW DESIGN TOKENS
    ============================================================ */
 
 @theme inline {
-  /* Fonts — Offiview: Fraunces (display serif) + Manrope (UI body) */
+  /* Fonts — Fraunces (display serif) + Manrope (UI body) */
   --font-display: var(--font-fraunces);
   --font-body:    var(--font-manrope);
   --font-sans:    var(--font-manrope);
-  /* Legacy aliases — keep so existing components that read --font-sora /
-     --font-inter-tight / --font-serif directly still resolve to the new faces. */
+
+  /* Legacy aliases — keep so components that reference the old variable
+     names (--font-sora, --font-inter-tight, --font-serif) still resolve
+     to the new faces without mass rewrite. --font-mono falls back to the
+     system mono stack via .lg-mono. */
   --font-sora:         var(--font-fraunces);
   --font-inter-tight:  var(--font-manrope);
   --font-serif:        var(--font-fraunces);
@@ -59,11 +62,11 @@
 }
 
 /* ============================================================
-   LIGHT MODE
+   LIGHT MODE — Offiview Paper / Ink / Ember
    ============================================================ */
 
 :root {
-  /* === Offiview Brand — Jord (Earth) === */
+  /* === Jord (Earth) === */
   --paper:       #F5EFE4;
   --paper-soft:  #EDE5D1;
   --stone:       #E0D8C8;
@@ -84,17 +87,15 @@
   --nordlys-b:   #00D9F5;
   --nordlys-c:   #7C3AED;
 
-  /* Legacy backgrounds — mapped to Paper family */
+  /* Legacy bg/text mapped to Paper/Ink family */
   --bg-primary:    var(--paper);
   --bg-elevated:   var(--paper-soft);
   --bg-subtle:     var(--stone-soft);
 
-  /* Text — warm ink, never cold grey */
   --text-primary:   var(--ink);
   --text-secondary: var(--dusk);
   --text-tertiary:  var(--mist);
 
-  /* Borders — Stone hairlines */
   --border-subtle: var(--stone);
   --border-strong: #C8BFAE;
 
@@ -102,13 +103,13 @@
   --accent-color: var(--ember);
   --accent-glow:  rgba(180, 83, 9, 0.22);
 
-  /* Ambient aurora — restrained, Ember-tinted */
+  /* Ambient aurora — restrained Ember-tint */
   --aurora-a: rgba(180, 83, 9, 0.12);
   --aurora-b: rgba(251, 191, 36, 0.10);
   --aurora-opacity: 0.9;
   --aurora-blur: 90px;
 
-  /* Glass / gloss layering — liquid-glass material (Paper-tinted) */
+  /* Glass / gloss layering (Paper-tinted) */
   --glass-tint: var(--paper-soft);
   --glass-tint-strength: 72%;
   --glass-blur: 28px;
@@ -123,22 +124,22 @@
     0 14px 30px -14px rgba(14, 11, 8, 0.12),
     0 1px 2px rgba(14, 11, 8, 0.06);
 
-  /* Shadows (used via inline styles or custom classes) */
+  /* Shadows — warm ink, never cold grey */
   --shadow-sm:
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 0 0 1px rgba(0, 0, 0, 0.02);
+    0 1px 2px rgba(14, 11, 8, 0.06),
+    0 0 0 1px rgba(14, 11, 8, 0.03);
   --shadow-md:
-    0 4px 8px rgba(0, 0, 0, 0.04),
-    0 2px 4px rgba(0, 0, 0, 0.02),
-    0 0 0 1px rgba(0, 0, 0, 0.03);
+    0 4px 8px rgba(14, 11, 8, 0.06),
+    0 2px 4px rgba(14, 11, 8, 0.04),
+    0 0 0 1px rgba(14, 11, 8, 0.04);
   --shadow-lg:
-    0 12px 24px rgba(0, 0, 0, 0.06),
-    0 4px 8px rgba(0, 0, 0, 0.04),
-    0 0 0 1px rgba(0, 0, 0, 0.03);
+    0 12px 24px rgba(14, 11, 8, 0.09),
+    0 4px 8px rgba(14, 11, 8, 0.06),
+    0 0 0 1px rgba(14, 11, 8, 0.04);
   --shadow-xl:
-    0 24px 48px rgba(0, 0, 0, 0.08),
-    0 8px 16px rgba(0, 0, 0, 0.04),
-    0 0 0 1px rgba(0, 0, 0, 0.04);
+    0 24px 48px rgba(14, 11, 8, 0.12),
+    0 8px 16px rgba(14, 11, 8, 0.06),
+    0 0 0 1px rgba(14, 11, 8, 0.05);
   --shadow-accent:
     0 8px 24px color-mix(in oklab, var(--accent-color) 22%, transparent),
     0 2px 4px color-mix(in oklab, var(--accent-color) 12%, transparent);
@@ -163,7 +164,7 @@
   --ring:                 #B45309;
   --radius:               0.875rem;
 
-  /* Sidebar — also Paper-based */
+  /* Sidebar — Paper-based */
   --sidebar:                    #F5EFE4;
   --sidebar-foreground:         #0E0B08;
   --sidebar-primary:            #B45309;
@@ -175,11 +176,12 @@
 }
 
 /* ============================================================
-   DARK MODE
+   DARK MODE — warm Espresso, not cold grey
+   "Office after hours, not server room"
    ============================================================ */
 
 .dark {
-  /* === Dashboard dark: warm Espresso, not cold grey === */
+  /* Bg stack */
   --bg-primary:    #15110E;  /* espresso */
   --bg-elevated:   #1F1913;  /* dusk */
   --bg-subtle:     #0E0B08;  /* ink */
@@ -192,16 +194,14 @@
   --lg-divider:     rgba(245, 239, 228, 0.08);
   --lg-divider-soft:rgba(245, 239, 228, 0.04);
 
-  /* Text — Paper on Espresso */
   --lg-text-1:     #F5EFE4;
   --lg-text-2:     rgba(245, 239, 228, 0.6);
   --lg-text-3:     rgba(245, 239, 228, 0.38);
 
-  --text-primary:   #F5EFE4;  /* paper */
+  --text-primary:   #F5EFE4;
   --text-secondary: rgba(245, 239, 228, 0.6);
   --text-tertiary:  rgba(245, 239, 228, 0.38);
 
-  /* Borders — low-opacity paper */
   --border-subtle: rgba(245, 239, 228, 0.08);
   --border-strong: rgba(245, 239, 228, 0.16);
 
@@ -229,20 +229,20 @@
 
   /* Shadows (deeper in dark mode) */
   --shadow-sm:
-    0 1px 2px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(245, 239, 228, 0.04);
   --shadow-md:
-    0 4px 8px rgba(0, 0, 0, 0.4),
+    0 4px 8px rgba(0, 0, 0, 0.45),
     0 2px 4px rgba(0, 0, 0, 0.2),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
+    0 0 0 1px rgba(245, 239, 228, 0.04);
   --shadow-lg:
-    0 12px 24px rgba(0, 0, 0, 0.5),
+    0 12px 24px rgba(0, 0, 0, 0.55),
     0 4px 8px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
+    0 0 0 1px rgba(245, 239, 228, 0.05);
   --shadow-xl:
-    0 24px 48px rgba(0, 0, 0, 0.6),
+    0 24px 48px rgba(0, 0, 0, 0.65),
     0 8px 16px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.06);
+    0 0 0 1px rgba(245, 239, 228, 0.06);
 
   /* shadcn semantic tokens — Espresso/Paper with Ember-glow ring */
   --background:           #15110E;
@@ -285,7 +285,10 @@
   html {
     font-family: var(--font-manrope), system-ui, -apple-system, sans-serif;
     @apply antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "ss01", "ss02";
+    letter-spacing: -0.011em;
   }
 
   body {
@@ -295,8 +298,9 @@
     position: relative;
   }
 
-  /* Offiview grain — tactile noise layer, fixed, beneath content.
-     Multiply on Paper, Overlay on Espresso (dark). Main must be z-index: 2. */
+  /* Offiview grain — tactile fraktal-noise layer, fixed, beneath content.
+     Multiply on Paper (darkens subtly), overlay on Espresso (whispers).
+     Requires main to sit at z-index: 2 — set in layout.tsx. */
   body::before {
     content: "";
     position: fixed;
@@ -324,6 +328,7 @@
     font-optical-sizing: auto;
   }
 
+  /* Italic Ember-words — Fraunces italic with opsz 32, SOFT 80 */
   .font-serif-italic {
     font-family: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
     font-style: italic;
@@ -332,8 +337,7 @@
     letter-spacing: -0.02em;
   }
 
-  /* Focus ring — solid ring, soft accent glow, and gentle scale bounce.
-     Matches the accent color and never clips against rounded corners. */
+  /* Focus ring — solid Ember ring, soft accent glow, gentle bounce */
   :focus-visible {
     outline: 2px solid var(--accent-color);
     outline-offset: 3px;
@@ -344,7 +348,6 @@
     transition: box-shadow 180ms ease, outline-offset 180ms ease;
   }
 
-  /* Never show the ring on non-keyboard focus (mouse clicks, programmatic) */
   :focus:not(:focus-visible) {
     outline: none;
     box-shadow: none;
@@ -363,12 +366,12 @@
     -webkit-backdrop-filter: blur(22px) saturate(180%);
     border: 1px solid color-mix(in oklab, var(--border-subtle) 55%, transparent);
     box-shadow:
-      0 24px 48px -16px rgba(10, 20, 40, 0.22),
-      0 10px 20px -12px rgba(10, 20, 40, 0.14),
-      0 1px 2px rgba(10, 20, 40, 0.04),
+      0 24px 48px -16px rgba(14, 11, 8, 0.22),
+      0 10px 20px -12px rgba(14, 11, 8, 0.14),
+      0 1px 2px rgba(14, 11, 8, 0.04),
       inset 0 1px 0 rgba(255, 255, 255, 0.55);
     color: var(--text-primary);
-    font-family: var(--font-inter-tight), system-ui, sans-serif;
+    font-family: var(--font-manrope), system-ui, sans-serif;
     font-size: 13.5px;
     letter-spacing: -0.005em;
     line-height: 1.4;
@@ -393,43 +396,34 @@
     box-shadow:
       0 0 0 1px color-mix(in oklab, #10B981 35%, transparent),
       0 20px 40px -12px color-mix(in oklab, #10B981 35%, transparent),
-      0 10px 18px -12px rgba(10, 20, 40, 0.14),
+      0 10px 18px -12px rgba(14, 11, 8, 0.14),
       inset 0 1px 0 rgba(255, 255, 255, 0.55);
   }
-  .tp-toast-success .tp-toast-icon {
-    color: #10B981;
-  }
+  .tp-toast-success .tp-toast-icon { color: #10B981; }
   .tp-toast-error {
     box-shadow:
       0 0 0 1px color-mix(in oklab, #EF4444 35%, transparent),
       0 20px 40px -12px color-mix(in oklab, #EF4444 35%, transparent),
-      0 10px 18px -12px rgba(10, 20, 40, 0.14),
+      0 10px 18px -12px rgba(14, 11, 8, 0.14),
       inset 0 1px 0 rgba(255, 255, 255, 0.55);
   }
-  .tp-toast-error .tp-toast-icon {
-    color: #EF4444;
-  }
+  .tp-toast-error .tp-toast-icon { color: #EF4444; }
   .tp-toast-info {
     box-shadow:
       0 0 0 1px color-mix(in oklab, var(--accent-color) 35%, transparent),
       0 20px 40px -12px color-mix(in oklab, var(--accent-color) 35%, transparent),
       inset 0 1px 0 rgba(255, 255, 255, 0.55);
   }
-  .tp-toast-info .tp-toast-icon {
-    color: var(--accent-color);
-  }
+  .tp-toast-info .tp-toast-icon { color: var(--accent-color); }
   .tp-toast-warning {
     box-shadow:
       0 0 0 1px color-mix(in oklab, #F59E0B 35%, transparent),
       0 20px 40px -12px color-mix(in oklab, #F59E0B 35%, transparent),
       inset 0 1px 0 rgba(255, 255, 255, 0.55);
   }
-  .tp-toast-warning .tp-toast-icon {
-    color: #F59E0B;
-  }
+  .tp-toast-warning .tp-toast-icon { color: #F59E0B; }
 
-  /* Premium skeleton shimmer — a diagonal band sweeps across a muted base.
-     Use with inline width/height/border-radius to match the real content. */
+  /* Premium skeleton shimmer */
   .tp-shimmer {
     display: inline-block;
     position: relative;
@@ -571,7 +565,6 @@
   border: 1px solid color-mix(in oklab, white 8%, transparent);
 }
 
-/* Optional gloss sheen overlay — activated per theme via --glass-sheen-opacity */
 .glass::before {
   content: '';
   position: absolute;
@@ -583,8 +576,10 @@
   mix-blend-mode: screen;
 }
 
-/* Utility: premium film grain — put on a parent; ::after overlays the surface.
-   Use inside elements that are position:relative and overflow:hidden. */
+/* Utility: premium film grain — scoped overlay on a positioned parent.
+   Use inside elements that are position:relative and overflow:hidden.
+   The global body::before grain is the canonical Offiview texture;
+   this .grain utility exists for isolated surfaces like dashboard cards. */
 .grain::after {
   content: '';
   position: absolute;
@@ -600,9 +595,10 @@
    PREMIUM THEME VARIANTS
    Each theme layers on top of light/dark by overriding tokens.
    Applied via [data-theme="<id>"] on <html>.
+   These are PRESERVED from pre-Offiview builds so workspace theming
+   keeps working. Default (no data-theme) is pure Offiview brand.
    ============================================================ */
 
-/* --- Obsidian: polished carbon with a gilded aurora --- */
 :root[data-theme="obsidian"] {
   --accent-color: #D4AF37;
   --accent-glow: rgba(212,175,55,0.32);
@@ -622,7 +618,6 @@
   --glass-sheen-opacity: 0.22;
 }
 
-/* --- Aurora: vivid dancing nordlys --- */
 :root[data-theme="aurora"] {
   --accent-color: #8B5CF6;
   --accent-glow: rgba(139,92,246,0.35);
@@ -641,7 +636,6 @@
   --glass-sheen-opacity: 0.18;
 }
 
-/* --- Crystal: frosted ice, more blur, extra glass --- */
 :root[data-theme="crystal"] {
   --accent-color: #0891B2;
   --accent-glow: rgba(8,145,178,0.28);
@@ -662,7 +656,6 @@
   --glass-sheen-opacity: 0.28;
 }
 
-/* --- Ember: warm amber copper glow --- */
 :root[data-theme="ember"] {
   --accent-color: #EA580C;
   --accent-glow: rgba(234,88,12,0.32);
@@ -680,7 +673,6 @@
   --glass-sheen-opacity: 0.14;
 }
 
-/* --- Sakura: cherry blossom --- */
 :root[data-theme="sakura"] {
   --accent-color: #DB2777;
   --accent-glow: rgba(219,39,119,0.28);
@@ -698,7 +690,6 @@
   --glass-sheen-opacity: 0.18;
 }
 
-/* --- Forest: deep green, matte --- */
 :root[data-theme="forest"] {
   --accent-color: #047857;
   --accent-glow: rgba(4,120,87,0.28);
@@ -717,7 +708,6 @@
   --glass-sheen-opacity: 0.08;
 }
 
-/* --- Monaco: monochrome with electric blue --- */
 :root[data-theme="monaco"] {
   --accent-color: #1D4ED8;
   --accent-glow: rgba(29,78,216,0.3);
@@ -737,7 +727,6 @@
   --glass-sheen-opacity: 0.08;
 }
 
-/* --- Champagne: liquid gold --- */
 :root[data-theme="champagne"] {
   --accent-color: #B8860B;
   --accent-glow: rgba(184,134,11,0.3);
@@ -771,12 +760,12 @@
 }
 
 /* ============================================================
-   DARK LIQUID GLASS — 2026 MAKEOVER TOKENS & UTILITIES
-   Scoped to .dark so the existing light palette is untouched.
+   LIQUID GLASS UTILITIES (dashboard bento, etc.)
    ============================================================ */
 
 :root {
-  /* Violet accent — reserved for "now / aktiv / primær handling" */
+  /* "Now / aktiv" accent — Nordlys violet, but use sparingly.
+     For Offiview-brand surfaces prefer --accent-color (Ember). */
   --lg-accent:       #8B5CF6;
   --lg-accent-soft:  rgba(139, 92, 246, 0.15);
   --lg-accent-glow:  rgba(139, 92, 246, 0.35);
@@ -789,7 +778,6 @@
   --lg-cat-focus:      #6366F1;
 }
 
-/* Primary liquid-glass panel — use kirurgisk, ikke overalt */
 .lg-panel {
   position: relative;
   background: rgba(22, 22, 27, 0.5);
@@ -799,7 +787,6 @@
   border-radius: 12px;
 }
 
-/* Flat surface card — quiet, no glass. Prefer this for dashboard bento. */
 .lg-surface {
   background: var(--lg-surface-1);
   border: 1px solid var(--lg-divider);
@@ -812,15 +799,9 @@
   border-radius: 12px;
 }
 
-/* Subtle hairline — "nesten usynlig" divider */
-.lg-divider {
-  border-color: var(--lg-divider);
-}
-.lg-divider-soft {
-  border-color: var(--lg-divider-soft);
-}
+.lg-divider { border-color: var(--lg-divider); }
+.lg-divider-soft { border-color: var(--lg-divider-soft); }
 
-/* Active / "now" treatment — violet glow + soft ring */
 .lg-active {
   background: var(--lg-accent);
   box-shadow:
@@ -828,7 +809,6 @@
     0 0 20px var(--lg-accent-glow);
 }
 
-/* Ambient background glow — fixed, 8% opacity, violet + teal diagonal */
 .lg-aurora {
   position: fixed;
   inset: 0;
@@ -864,22 +844,24 @@
   .lg-aurora::after { animation: none; }
 }
 
-/* Typography utilities */
+/* Typography utilities — Fraunces serif + system mono */
 .lg-serif {
-  font-family: var(--font-serif), "Iowan Old Style", Georgia, serif;
+  font-family: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
   font-style: italic;
   letter-spacing: -0.03em;
-  font-weight: 400;
+  font-weight: 300;
+  font-variation-settings: "opsz" 32, "SOFT" 80;
 }
 .lg-mono {
-  font-family: var(--font-mono), "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  /* System mono — Apple's SF Mono on Mac/iOS, sensible fallbacks elsewhere */
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 /* Small-caps meta label — used for section labels like "FORDELING" */
 .lg-eyebrow {
-  font-family: var(--font-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 10.5px;
   font-weight: 500;
   letter-spacing: 0.18em;

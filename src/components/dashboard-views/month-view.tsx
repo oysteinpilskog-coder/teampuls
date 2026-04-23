@@ -7,6 +7,7 @@ import { MemberAvatar } from '@/components/member-avatar'
 import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
 import { getDayLabel, getISOWeek } from '@/lib/dates'
 import { spring } from '@/lib/motion'
+import { useT } from '@/lib/i18n/context'
 import { AnimatedCount } from './animated-count'
 
 interface MonthViewProps {
@@ -21,18 +22,18 @@ function pad(n: number) { return String(n).padStart(2, '0') }
 
 const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
 
-const STATUS_LABELS: Record<EntryStatus, string> = {
-  office: 'Kontor',
-  remote: 'Hjemme',
-  customer: 'Hos kunde',
-  travel: 'Reise',
-  vacation: 'Ferie',
-  sick: 'Syk',
-  off: 'Fri',
-}
-
 export function MonthView({ members, weekDays, entries, orgName, time }: MonthViewProps) {
   const STATUS_COLORS = useStatusColors()
+  const t = useT()
+  const STATUS_LABELS: Record<EntryStatus, string> = {
+    office: t.status.office,
+    remote: t.pulse.atHomeShort,
+    customer: t.status.customer,
+    travel: t.status.travel,
+    vacation: t.status.vacation,
+    sick: t.status.sick,
+    off: t.status.off,
+  }
   const hours   = pad(time.getHours())
   const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)
@@ -301,7 +302,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                 className="text-[14px]"
                 style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-body)' }}
               >
-                Ingen registreringer ennå.
+                {t.dashboard.noMonthEntries}
               </p>
             ) : (
               <div className="flex flex-col gap-2.5">

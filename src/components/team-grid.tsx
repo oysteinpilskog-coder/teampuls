@@ -11,10 +11,12 @@ import {
   toDateString,
   isToday,
   getTodayWeekAndYear,
+  formatDateLabelLong,
 } from '@/lib/dates'
 import { WeekNav } from '@/components/week-nav'
 import { StatusSegment, type SegmentDay } from '@/components/status-segment'
 import { useStatusColors } from '@/lib/status-colors/context'
+import { usePresenceCtx } from '@/lib/presence/context'
 import { toast } from 'sonner'
 import { useTheme } from 'next-themes'
 import { MemberAvatar } from '@/components/member-avatar'
@@ -23,17 +25,22 @@ import { TodayPulse } from '@/components/today-pulse'
 import { CellEditor } from '@/components/cell-editor'
 import { spring } from '@/lib/motion'
 import { useEntries } from '@/hooks/use-entries'
-import { no } from '@/lib/i18n/no'
-import type { Entry, EntryStatus } from '@/lib/supabase/types'
+import { useT } from '@/lib/i18n/context'
+import type { Dictionary } from '@/lib/i18n/types'
+import type { Entry, EntryStatus, PresenceAssumption } from '@/lib/supabase/types'
+import { inferStatus } from '@/lib/presence'
 
 interface RowSegment {
   days: SegmentDay[]
   dates: Date[]
+  /** Set when the segment comes from a real registered entry. */
   entry: Entry | null
+  /** Set when the segment is inferred from the org / member default. Mutually
+   *  exclusive with `entry` — a segment is either real or assumed, never both. */
+  assumedStatus: EntryStatus | null
 }
 
 function entriesMergeable(a: Entry | null, b: Entry | null): boolean {
-  // Never merge empty days — each empty slot stays clickable on its own.
   if (a === null || b === null) return false
   return (
     a.status === b.status &&
@@ -42,46 +49,57 @@ function entriesMergeable(a: Entry | null, b: Entry | null): boolean {
   )
 }
 
+function segmentsMergeable(
+  aEntry: Entry | null,
+  aAssumed: EntryStatus | null,
+  bEntry: Entry | null,
+  bAssumed: EntryStatus | null,
+): boolean {
+  if (aEntry && bEntry) return entriesMergeable(aEntry, bEntry)
+  // Both assumed (entries absent) → merge when they share the same inferred
+  // status. Mixed (one real, one assumed) → never merge.
+  if (!aEntry && !bEntry) return aAssumed !== null && aAssumed === bAssumed
+  return false
+}
+
 function buildRowSegments(
   weekDays: Date[],
   memberId: string,
-  entryMap: Map<string, Entry>
+  entryMap: Map<string, Entry>,
+  t: Dictionary,
+  memberDefaultStatus: EntryStatus | null,
+  assumption: PresenceAssumption,
 ): RowSegment[] {
   const segments: RowSegment[] = []
   let i = 0
+  // Local wrapper — avoids recomputing the assumption on every iteration.
+  const inferred = (entry: Entry | null) =>
+    entry ? null : inferStatus({ default_status: memberDefaultStatus }, assumption)
+
   while (i < weekDays.length) {
     const startEntry = entryMap.get(`${memberId}_${toDateString(weekDays[i])}`) ?? null
+    const startAssumed = inferred(startEntry)
     let j = i + 1
     while (j < weekDays.length) {
       const nextEntry = entryMap.get(`${memberId}_${toDateString(weekDays[j])}`) ?? null
-      if (!entriesMergeable(startEntry, nextEntry)) break
+      const nextAssumed = inferred(nextEntry)
+      if (!segmentsMergeable(startEntry, startAssumed, nextEntry, nextAssumed)) break
       j++
     }
     const dates = weekDays.slice(i, j)
     segments.push({
       dates,
       entry: startEntry,
+      assumedStatus: startEntry ? null : startAssumed,
       days: dates.map((date) => ({
         date: toDateString(date),
-        dateLabel: formatDateLabel(date),
+        dateLabel: formatDateLabelLong(date, t),
         isToday: isToday(date),
       })),
     })
     i = j
   }
   return segments
-}
-
-const WEEKDAY_FULL: Record<number, string> = {
-  0: 'Søndag', 1: 'Mandag', 2: 'Tirsdag', 3: 'Onsdag',
-  4: 'Torsdag', 5: 'Fredag', 6: 'Lørdag',
-}
-const MONTH_FULL: Record<number, string> = {
-  0: 'januar', 1: 'februar', 2: 'mars', 3: 'april', 4: 'mai', 5: 'juni',
-  6: 'juli', 7: 'august', 8: 'september', 9: 'oktober', 10: 'november', 11: 'desember',
-}
-function formatDateLabel(date: Date): string {
-  return `${WEEKDAY_FULL[date.getDay()]} ${date.getDate()}. ${MONTH_FULL[date.getMonth()]}`
 }
 
 interface SelectedCell {
@@ -120,6 +138,14 @@ interface ResizeDrag {
 
 interface TeamGridProps {
   orgId: string
+  /** Optional — server-rendered member list for instant hydration. */
+  initialMembers?: Member[]
+  /** Optional — server-rendered entries for the current visible week. */
+  initialEntries?: Entry[]
+  /** Optional — the ISO week these initialEntries belong to. Must match for the seed to kick in. */
+  initialWeek?: number
+  /** Optional — the ISO year these initialEntries belong to. Must match for the seed to kick in. */
+  initialYear?: number
 }
 
 // Skeleton row for loading state
@@ -166,15 +192,23 @@ function SkeletonRow({ index = 0 }: { index?: number }) {
   )
 }
 
-export function TeamGrid({ orgId }: TeamGridProps) {
+export function TeamGrid({
+  orgId,
+  initialMembers,
+  initialEntries,
+  initialWeek,
+  initialYear,
+}: TeamGridProps) {
+  const t = useT()
   const { week: todayWeek, year: todayYear } = getTodayWeekAndYear()
-  const [week, setWeek] = useState(todayWeek)
-  const [year, setYear] = useState(todayYear)
+  const [week, setWeek] = useState(initialWeek ?? todayWeek)
+  const [year, setYear] = useState(initialYear ?? todayYear)
   const [slideDir, setSlideDir] = useState<'next' | 'prev'>('next')
 
-  const [members, setMembers] = useState<Member[]>([])
+  const [members, setMembers] = useState<Member[]>(initialMembers ?? [])
   const [offices, setOffices] = useState<Office[]>([])
-  const [membersLoading, setMembersLoading] = useState(true)
+  const [presenceAssumption, setPresenceAssumption] = useState<PresenceAssumption>('none')
+  const [membersLoading, setMembersLoading] = useState(!initialMembers)
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null)
 
   const [dragStart, setDragStart] = useState<DragPoint | null>(null)
@@ -186,6 +220,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
   const palettes = useStatusColors()
+  const { editorsOf } = usePresenceCtx()
 
   const weekDays = useMemo(() => getWeekDays(week, year), [week, year])
   const dateStrings = useMemo(() => weekDays.map(toDateString), [weekDays])
@@ -194,7 +229,15 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   // Realtime entries hook — handles fetch + live subscription. We also keep
   // `refetch` so drag mutations can force an immediate reload instead of
   // waiting for the realtime round-trip (which can lag or drop silently).
-  const { entries, loading: entriesLoading, refetch, applyOptimistic } = useEntries(orgId, dateStrings)
+  // Only hand the SSR entries to useEntries when the initial week matches
+  // what the page rendered on the server. Navigating to a different week
+  // before the hook has a chance to fetch should still trigger a fetch.
+  const ssrEntriesMatchWeek = initialWeek === week && initialYear === year
+  const { entries, loading: entriesLoading, refetch, applyOptimistic } = useEntries(
+    orgId,
+    dateStrings,
+    ssrEntriesMatchWeek ? { initial: initialEntries } : {},
+  )
   const loading = membersLoading || entriesLoading
 
   // Build entry lookup: member_id + date → Entry
@@ -204,19 +247,71 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     return map
   }, [entries])
 
-  // Only show members that have at least one entry in the visible week.
+  // AI-query highlights: set of `${memberId}_${date}` keys for cells the
+  // last query wanted to surface. Cleared after 14 seconds, on user click,
+  // on week change, or when a new highlight request arrives.
+  const [highlightKeys, setHighlightKeys] = useState<Set<string>>(() => new Set())
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    type Detail = { cells: Array<{ memberId: string; date: string }> }
+    const handler = (e: Event) => {
+      const d = (e as CustomEvent<Detail>).detail
+      if (!d?.cells?.length) return
+      const next = new Set(d.cells.map((c) => `${c.memberId}_${c.date}`))
+      setHighlightKeys(next)
+      if (highlightTimer.current) clearTimeout(highlightTimer.current)
+      highlightTimer.current = setTimeout(() => setHighlightKeys(new Set()), 14_000)
+      // If the first match is outside the visible week, jump the grid to it.
+      // Falls back silently when dynamic imports aren't available.
+      const anyMatch = d.cells.some((c) => dateStrings.includes(c.date))
+      if (!anyMatch && d.cells[0]) {
+        import('@/lib/dates').then(({ getISOWeek, getISOWeekYear }) => {
+          const target = new Date(d.cells[0].date)
+          setWeek(getISOWeek(target))
+          setYear(getISOWeekYear(target))
+        })
+      }
+    }
+    window.addEventListener('teampulse:ai-query:highlight', handler)
+    return () => {
+      window.removeEventListener('teampulse:ai-query:highlight', handler)
+      if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    }
+  }, [dateStrings])
+
+  // Clear highlights when the user navigates away from the matched week.
+  useEffect(() => {
+    if (highlightKeys.size === 0) return
+    const stillVisible = Array.from(highlightKeys).some((k) => {
+      const date = k.split('_').slice(1).join('_')
+      return dateStrings.includes(date)
+    })
+    if (!stillVisible) setHighlightKeys(new Set())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [week, year])
+
+  // Only show members that have at least one entry in the visible week —
+  // unless the org opted into an assumption, in which case every active
+  // member gets a row (their empty days render as assumed segments).
   const visibleMembers = useMemo(() => {
+    if (presenceAssumption !== 'none') return members
     const memberIdsWithEntries = new Set(entries.map((e) => e.member_id))
     return members.filter((m) => memberIdsWithEntries.has(m.id))
-  }, [members, entries])
+  }, [members, entries, presenceAssumption])
 
   // Fetch members once (they rarely change)
+  // On mount 1, honour the SSR-seeded members (no skeletons, no flash) and
+  // only fetch in the background to refresh. Mount 2+ behaves normally.
+  const firstFetchWithSSR = useRef(!!initialMembers)
   const fetchMembers = useCallback(async () => {
-    setMembersLoading(true)
+    if (!firstFetchWithSSR.current) {
+      setMembersLoading(true)
+    }
+    firstFetchWithSSR.current = false
     const supabase = createClient()
     // Fetch members and offices in parallel — the hover card needs the home
     // office's name + timezone to show each member's local time.
-    const [{ data: ms }, { data: os }] = await Promise.all([
+    const [{ data: ms }, { data: os }, { data: org }] = await Promise.all([
       supabase
         .from('members')
         .select('*')
@@ -228,9 +323,15 @@ export function TeamGrid({ orgId }: TeamGridProps) {
         .select('*')
         .eq('org_id', orgId)
         .order('sort_order'),
+      supabase
+        .from('organizations')
+        .select('default_presence_assumption')
+        .eq('id', orgId)
+        .maybeSingle(),
     ])
     setMembers(ms ?? [])
     setOffices(os ?? [])
+    setPresenceAssumption((org?.default_presence_assumption ?? 'none') as PresenceAssumption)
     setMembersLoading(false)
   }, [orgId])
 
@@ -312,7 +413,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
               memberName: member.display_name,
               date: toDateString(startDate),
               endDate: toDateString(endDate),
-              dateLabel: formatDateLabel(startDate),
+              dateLabel: formatDateLabelLong(startDate, t),
               status: rz.entry.status,
               location: rz.entry.location_label,
               note: rz.entry.note,
@@ -381,7 +482,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
               memberName: member.display_name,
               date: toDateString(startDate),
               endDate: toDateString(endDate),
-              dateLabel: formatDateLabel(startDate),
+              dateLabel: formatDateLabelLong(startDate, t),
               status: mv.entry.status,
               location: mv.entry.location_label,
               note: mv.entry.note,
@@ -455,7 +556,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
             memberName: member.display_name,
             date: startStr,
             endDate: endStr,
-            dateLabel: formatDateLabel(startDate),
+            dateLabel: formatDateLabelLong(startDate, t),
             status: entry?.status ?? null,
             location: entry?.location_label ?? null,
             note: entry?.note ?? null,
@@ -475,7 +576,8 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     const dateStr = toDateString(weekDays[dayIdx])
     const entry = entryMap.get(`${memberId}_${dateStr}`)
     if (entry) {
-      const segments = buildRowSegments(weekDays, memberId, entryMap)
+      const memberDefault = members.find((m) => m.id === memberId)?.default_status ?? null
+      const segments = buildRowSegments(weekDays, memberId, entryMap, t, memberDefault, presenceAssumption)
       let cursor = 0
       for (const seg of segments) {
         const n = seg.days.length
@@ -558,7 +660,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     // Debounce — rapid arrow-presses shouldn't fire a toast per step.
     if (toastTimer.current) clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => {
-      const summary = summariseWeek(entries, palettes)
+      const summary = summariseWeek(entries, palettes, t)
       toast.custom((id) => (
         <WeeklySummaryToast
           weekNumber={week}
@@ -626,18 +728,32 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     setYear(nextYear)
   }
 
-  // Today's entries for the Pulse widget
+  // Today's entries for the Pulse widget. When the org opts into an
+  // assumption, members without a real entry are included too — their row
+  // carries `assumed: true` so TodayPulse can render them at lower opacity.
   const todayStr = toDateString(new Date())
   const todayEntries = members
     .map((m) => {
       const entry = entryMap.get(`${m.id}_${todayStr}`)
-      if (!entry) return null
+      if (entry) {
+        return {
+          id: m.id,
+          display_name: m.display_name,
+          avatar_url: m.avatar_url,
+          status: entry.status,
+          location_label: entry.location_label,
+          assumed: false,
+        }
+      }
+      const assumed = inferStatus({ default_status: m.default_status }, presenceAssumption)
+      if (!assumed) return null
       return {
         id: m.id,
         display_name: m.display_name,
         avatar_url: m.avatar_url,
-        status: entry.status,
-        location_label: entry.location_label,
+        status: assumed,
+        location_label: null,
+        assumed: true,
       }
     })
     .filter(Boolean) as Array<{
@@ -646,6 +762,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
       avatar_url: string | null
       status: import('@/lib/supabase/types').EntryStatus
       location_label: string | null
+      assumed: boolean
     }>
 
   return (
@@ -661,26 +778,46 @@ export function TeamGrid({ orgId }: TeamGridProps) {
         onJumpTo={jumpTo}
       />
 
-      {/* Matrix */}
+      {/* Matrix — dark liquid glass panel */}
       <div
-        className="relative rounded-3xl overflow-hidden"
+        className="relative rounded-2xl overflow-hidden"
         style={{
-          background:
-            'linear-gradient(180deg, color-mix(in oklab, var(--bg-elevated) 92%, transparent) 0%, color-mix(in oklab, var(--bg-elevated) 82%, transparent) 100%)',
-          backdropFilter: 'blur(24px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(160%)',
-          border: '1px solid color-mix(in oklab, var(--border-subtle) 70%, transparent)',
-          boxShadow:
-            '0 24px 48px -24px rgba(15,23,42,0.18), 0 10px 24px -16px rgba(15,23,42,0.10), 0 1px 2px rgba(15,23,42,0.04), inset 0 1px 0 rgba(255,255,255,0.45)',
+          background: 'var(--lg-surface-1)',
+          border: '1px solid var(--lg-divider)',
         }}
       >
-        {/* Today column highlight — quiet vertical band, just enough to anchor the eye */}
+        {/* Vertical column dividers — hairlines between each day column,
+            from top of the matrix to the bottom. Gives the header real
+            calendar structure instead of floating day-chips. */}
+        {(() => {
+          const todayIdx = weekDays.findIndex(isToday)
+          return weekDays.map((_, i) => {
+            // Column starts at: 16 (px-4) + 136 (name col) + 8 (gap) + i * ((100% - 208px)/5 + 8px)
+            // We draw the left edge of each column (skip i=0 which would sit flush with the name-col).
+            const left = `calc(160px + ${i} * ((100% - 208px) / 5 + 8px) - 4px)`
+            const isTodayEdge = i === todayIdx || i === todayIdx + 1
+            return (
+              <div
+                key={`divider-${i}`}
+                aria-hidden
+                className="absolute top-0 bottom-0 w-px pointer-events-none z-0"
+                style={{
+                  left,
+                  background: isTodayEdge
+                    ? 'rgba(139, 92, 246, 0.22)'
+                    : 'var(--lg-divider-soft)',
+                  display: i === 0 ? 'none' : undefined,
+                }}
+              />
+            )
+          })
+        })()}
+
+        {/* Today column highlight — subtle violet light-shaft, brighter at top
+            (under the date disk), fading as it goes down through the rows. */}
         {(() => {
           const todayIdx = weekDays.findIndex(isToday)
           if (todayIdx === -1) return null
-          // Grid: px-4 padding (16) + 136px name col + 8px gap + 5 * 1fr with 8px gaps + px-4 padding.
-          // Available per day: (100% - 16*2 - 136 - 8*5) / 5 = (100% - 208px) / 5
-          // Left offset to col i: 16 + 136 + 8 + i * ((100% - 208px)/5 + 8px)
           const left = `calc(160px + ${todayIdx} * ((100% - 208px) / 5 + 8px))`
           const width = `calc((100% - 208px) / 5)`
           return (
@@ -693,9 +830,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                 left,
                 width,
                 background:
-                  'linear-gradient(180deg, color-mix(in oklab, var(--accent-color) 10%, transparent) 0%, color-mix(in oklab, var(--accent-color) 3%, transparent) 100%)',
-                borderLeft: '1px solid color-mix(in oklab, var(--accent-color) 18%, transparent)',
-                borderRight: '1px solid color-mix(in oklab, var(--accent-color) 18%, transparent)',
+                  'linear-gradient(180deg, rgba(139, 92, 246, 0.14) 0%, rgba(139, 92, 246, 0.06) 40%, rgba(139, 92, 246, 0.03) 100%)',
               }}
             />
           )
@@ -703,61 +838,68 @@ export function TeamGrid({ orgId }: TeamGridProps) {
 
         {/* Day header */}
         <div
-          className="relative grid gap-2 px-4 py-4 z-10"
+          className="relative grid gap-2 px-4 pt-5 pb-4 z-10"
           style={{
             gridTemplateColumns: '136px repeat(5, 1fr)',
-            borderBottom: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+            borderBottom: '1px solid var(--lg-divider-soft)',
           }}
         >
           <div /> {/* empty for name column */}
-          {weekDays.map((date) => {
+          {weekDays.map((date, i) => {
             const { weekday, day, month } = getDayLabel(date)
             const today = isToday(date)
+            // Show month only when it changes from the previous day (or on the
+            // first day of the week). For a typical Mon-Fri view within April,
+            // only Monday would render "Apr". Saves us from five identical
+            // "Apr" labels stacked under every day.
+            const prev = i > 0 ? getDayLabel(weekDays[i - 1]) : null
+            const showMonth = !prev || prev.month !== month
             return (
               <div
                 key={date.toISOString()}
-                className="text-center relative flex flex-col items-center gap-1"
+                className="text-center relative flex flex-col items-center gap-1.5"
               >
                 <div
-                  className="text-[10px] font-bold uppercase tracking-[0.2em]"
+                  className="lg-mono text-[10px] uppercase"
                   style={{
-                    color: today ? 'var(--accent-color)' : 'var(--text-tertiary)',
-                    fontFamily: 'var(--font-body)',
+                    color: today ? 'var(--lg-accent)' : 'var(--lg-text-3)',
+                    fontWeight: today ? 600 : 500,
+                    letterSpacing: '0.2em',
+                    textShadow: today ? '0 0 10px var(--lg-accent-glow)' : undefined,
                   }}
                 >
                   {weekday}
                 </div>
                 <div
-                  className="flex items-center justify-center tabular-nums leading-none"
+                  className="lg-mono flex items-center justify-center leading-none"
                   style={{
-                    fontFamily: 'var(--font-sora)',
-                    fontSize: '22px',
-                    fontWeight: 600,
-                    letterSpacing: '-0.035em',
-                    color: today ? '#ffffff' : 'var(--text-secondary)',
-                    width: 36,
-                    height: 36,
+                    fontSize: today ? 22 : 26,
+                    fontWeight: today ? 600 : 400,
+                    color: today ? '#ffffff' : 'var(--lg-text-1)',
+                    width: today ? 40 : 'auto',
+                    height: today ? 40 : 'auto',
                     borderRadius: 9999,
-                    background: today
-                      ? 'linear-gradient(135deg, var(--accent-color), color-mix(in oklab, var(--accent-color) 70%, black))'
-                      : 'transparent',
+                    background: today ? 'var(--lg-accent)' : 'transparent',
                     boxShadow: today
-                      ? '0 6px 14px -4px color-mix(in oklab, var(--accent-color) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.28)'
+                      ? '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 22px var(--lg-accent-glow)'
                       : 'none',
+                    letterSpacing: today ? '-0.02em' : '-0.02em',
                   }}
                 >
                   {day}
                 </div>
-                <div
-                  className="text-[10px] font-medium mt-0.5"
-                  style={{
-                    color: 'var(--text-tertiary)',
-                    fontFamily: 'var(--font-body)',
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  {month}
-                </div>
+                {showMonth && (
+                  <div
+                    className="lg-serif capitalize"
+                    style={{
+                      color: today ? 'var(--lg-accent)' : 'var(--lg-text-3)',
+                      fontSize: 12,
+                      opacity: today ? 0.9 : 0.65,
+                    }}
+                  >
+                    {month}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -795,6 +937,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                       const todayEntry = entries.find((e) => e.member_id === member.id && e.date === todayStr)
                       return (
                         <MemberHoverCard
+                          orgId={orgId}
                           memberId={member.id}
                           displayName={member.display_name}
                           fullName={member.full_name}
@@ -807,7 +950,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                           todayLocation={todayEntry?.location_label ?? null}
                           todayNote={todayEntry?.note ?? null}
                         >
-                          <div className="flex items-center gap-2 px-1 h-[36px]">
+                          <div className="flex items-center gap-2.5 px-1 h-[32px]">
                             <MemberAvatar
                               name={member.display_name}
                               initials={member.initials}
@@ -815,19 +958,15 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                               size="sm"
                             />
                             <span
-                              className="text-[13px] font-semibold truncate leading-tight"
-                              style={{ color: 'var(--text-primary)', letterSpacing: '-0.01em' }}
+                              className="text-[13px] truncate leading-tight"
+                              style={{
+                                color: 'var(--lg-text-1)',
+                                fontWeight: 500,
+                                letterSpacing: '-0.01em',
+                              }}
                             >
                               {member.display_name.split(' ')[0]}
                             </span>
-                            {member.initials && (
-                              <span
-                                className="text-[9px] font-semibold uppercase tracking-wider font-mono shrink-0"
-                                style={{ color: 'var(--text-tertiary)', letterSpacing: '0.08em' }}
-                              >
-                                {member.initials}
-                              </span>
-                            )}
                           </div>
                         </MemberHoverCard>
                       )
@@ -835,7 +974,14 @@ export function TeamGrid({ orgId }: TeamGridProps) {
 
                     {/* Day cells — merged into segments when consecutive days share status + location + note */}
                     {(() => {
-                      const segments = buildRowSegments(weekDays, member.id, entryMap)
+                      const segments = buildRowSegments(
+                        weekDays,
+                        member.id,
+                        entryMap,
+                        t,
+                        member.default_status ?? null,
+                        presenceAssumption,
+                      )
                       const highlights = dayHighlightsForMember(member.id)
                       let cursor = 0
                       const segmentHighlights: boolean[][] = segments.map((seg) => {
@@ -856,12 +1002,30 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                           src !== null &&
                           segmentStarts[segIdx] === src.start &&
                           seg.days.length === src.span
+                        const segHighlight = seg.days.some((d) =>
+                          highlightKeys.has(`${member.id}_${d.date}`),
+                        )
+                        // Who else is currently editing any day in this segment?
+                        const coEditor = (() => {
+                          for (const d of seg.days) {
+                            const list = editorsOf(member.id, d.date)
+                            if (list.length > 0) return list[0]
+                          }
+                          return null
+                        })()
                         return (
                           <StatusSegment
                             key={`${member.id}-${segIdx}-${seg.days[0].date}`}
-                            status={seg.entry?.status ?? null}
+                            status={seg.entry?.status ?? seg.assumedStatus ?? null}
                             location={seg.entry?.location_label ?? null}
                             note={seg.entry?.note ?? null}
+                            assumed={!seg.entry && seg.assumedStatus !== null}
+                            highlight={segHighlight}
+                            editingBy={coEditor ? {
+                              display_name: coEditor.display_name,
+                              avatar_url: coEditor.avatar_url,
+                              initials: coEditor.initials,
+                            } : null}
                             days={seg.days}
                             onSelectDay={() => {
                               /* replaced by drag mousedown/mouseup flow */
@@ -936,14 +1100,14 @@ export function TeamGrid({ orgId }: TeamGridProps) {
 
             {!loading && members.length === 0 && (
               <div className="py-16 text-center text-[var(--text-tertiary)] text-[15px]">
-                Ingen teammedlemmer ennå.{' '}
+                {t.matrix.noMembers}{' '}
                 <span className="text-[var(--accent-color)]">Legg til i Innstillinger →</span>
               </div>
             )}
 
             {!loading && members.length > 0 && visibleMembers.length === 0 && (
               <div className="py-16 text-center text-[var(--text-tertiary)] text-[15px]">
-                Ingen oppføringer denne uken.
+                {t.matrix.noEntriesWeek}
               </div>
             )}
           </motion.div>
@@ -1046,6 +1210,7 @@ interface WeekSummaryItem {
 function summariseWeek(
   entries: Entry[],
   palettes: ReturnType<typeof useStatusColors>,
+  t: Dictionary,
 ): WeekSummaryItem[] {
   // Count unique members per status within the visible week — one person
   // listed multiple times across days shouldn't inflate the number.
@@ -1055,7 +1220,7 @@ function summariseWeek(
     byStatus.get(e.status)!.add(e.member_id)
   }
   const order: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
-  const labels: Record<EntryStatus, string> = no.status
+  const labels: Record<EntryStatus, string> = t.status
   return order
     .map((status) => ({
       status,
@@ -1075,6 +1240,7 @@ function WeeklySummaryToast({
   summary: WeekSummaryItem[]
   onDismiss: () => void
 }) {
+  const t = useT()
   // Show top three statuses by count; the rest collapse into a "+N mer" chip.
   const sorted = [...summary].sort((a, b) => b.count - a.count)
   const top = sorted.slice(0, 3)
@@ -1083,56 +1249,52 @@ function WeeklySummaryToast({
     <div
       className="flex items-center gap-3 px-4 py-3 rounded-2xl"
       style={{
-        background: 'color-mix(in oklab, var(--bg-elevated) 92%, transparent)',
-        backdropFilter: 'blur(22px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(22px) saturate(180%)',
-        border: '1px solid color-mix(in oklab, var(--border-subtle) 55%, transparent)',
-        boxShadow:
-          '0 24px 48px -16px rgba(10,20,40,0.22), 0 10px 20px -12px rgba(10,20,40,0.14), inset 0 1px 0 rgba(255,255,255,0.55)',
-        color: 'var(--text-primary)',
-        fontFamily: 'var(--font-inter-tight)',
-        fontSize: 13.5,
-        letterSpacing: '-0.005em',
+        background: 'rgba(22, 22, 27, 0.5)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        border: '1px solid var(--lg-divider)',
+        color: 'var(--lg-text-1)',
+        fontFamily: 'var(--font-body)',
+        fontSize: 13,
         minWidth: 260,
       }}
     >
       <span
-        className="flex items-center justify-center rounded-lg shrink-0 font-bold tabular-nums"
+        className="lg-mono flex items-center justify-center rounded-lg shrink-0"
         style={{
-          width: 32,
-          height: 32,
-          background: 'color-mix(in oklab, var(--accent-color) 14%, transparent)',
-          color: 'var(--accent-color)',
-          fontFamily: 'var(--font-sora)',
-          letterSpacing: '-0.02em',
+          width: 30,
+          height: 30,
+          background: 'rgba(139, 92, 246, 0.12)',
+          color: 'var(--lg-accent)',
           fontSize: 13,
+          fontWeight: 500,
         }}
       >
         {weekNumber}
       </span>
       <div className="flex-1 min-w-0">
-        <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--text-tertiary)' }}>
-          {no.matrix.weekLabel} {weekNumber}
+        <div className="lg-eyebrow">
+          {t.matrix.weekLabel} {weekNumber}
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+        <div className="flex items-center gap-1.5 flex-wrap mt-1">
           {top.map((x) => (
             <span key={x.status} className="inline-flex items-center gap-1">
               <span
                 className="w-1.5 h-1.5 rounded-full"
                 style={{ background: x.tone }}
               />
-              <span className="tabular-nums font-semibold">{x.count}</span>
-              <span style={{ color: 'var(--text-secondary)' }}>{x.label.toLowerCase()}</span>
+              <span className="lg-mono font-medium">{x.count}</span>
+              <span style={{ color: 'var(--lg-text-2)' }}>{x.label.toLowerCase()}</span>
             </span>
           )).reduce<React.ReactNode[]>((acc, node, i) => {
-            if (i > 0) acc.push(<span key={`sep-${i}`} style={{ color: 'var(--text-tertiary)' }}>·</span>)
+            if (i > 0) acc.push(<span key={`sep-${i}`} style={{ color: 'var(--lg-text-3)' }}>·</span>)
             acc.push(node)
             return acc
           }, [])}
           {rest > 0 && (
             <>
-              <span style={{ color: 'var(--text-tertiary)' }}>·</span>
-              <span style={{ color: 'var(--text-tertiary)' }}>+{rest} andre</span>
+              <span style={{ color: 'var(--lg-text-3)' }}>·</span>
+              <span style={{ color: 'var(--lg-text-3)' }}>+{rest} andre</span>
             </>
           )}
         </div>

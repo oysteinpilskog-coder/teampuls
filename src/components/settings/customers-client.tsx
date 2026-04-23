@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { geocode } from '@/lib/geocode-client'
 import type { Customer } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
+import { useT } from '@/lib/i18n/context'
 
 interface CustomersClientProps {
   orgId: string
@@ -38,20 +39,6 @@ const EMPTY_FORM: CustomerFormState = {
   longitude: '',
 }
 
-const COUNTRY_OPTIONS = [
-  { code: 'NO', label: 'Norge' },
-  { code: 'SE', label: 'Sverige' },
-  { code: 'LT', label: 'Litauen' },
-  { code: 'GB', label: 'Storbritannia' },
-  { code: 'DE', label: 'Tyskland' },
-  { code: 'FR', label: 'Frankrike' },
-  { code: 'DK', label: 'Danmark' },
-  { code: 'FI', label: 'Finland' },
-  { code: 'PL', label: 'Polen' },
-  { code: 'NL', label: 'Nederland' },
-  { code: 'US', label: 'USA' },
-]
-
 type GeocodeStatus =
   | { state: 'idle' }
   | { state: 'working' }
@@ -76,6 +63,21 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [geo, setGeo] = useState<GeocodeStatus>({ state: 'idle' })
+  const t = useT()
+
+  const COUNTRY_OPTIONS = [
+    { code: 'NO', label: t.countries.NO },
+    { code: 'SE', label: t.countries.SE },
+    { code: 'LT', label: t.countries.LT },
+    { code: 'GB', label: t.countries.GB },
+    { code: 'DE', label: t.countries.DE },
+    { code: 'FR', label: t.countries.FR },
+    { code: 'DK', label: t.countries.DK },
+    { code: 'FI', label: t.countries.FI },
+    { code: 'PL', label: t.countries.PL },
+    { code: 'NL', label: t.countries.NL },
+    { code: 'US', label: t.countries.US },
+  ]
 
   function openAdd() {
     setForm(EMPTY_FORM)
@@ -119,12 +121,12 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
     const hasInput = [form.address, form.postal_code, form.city].some(v => v.trim())
     if (!hasInput) {
       setGeo({ state: 'error', message: 'Fyll inn by, postnummer eller adresse først' })
-      toast.error('Fyll inn by, postnummer eller adresse')
+      toast.error(t.settings.customers.errorNeedAddress)
       return null
     }
     if (!form.country_code) {
       setGeo({ state: 'error', message: 'Velg land før du søker' })
-      toast.error('Velg land først — ellers gjetter kartet feil by')
+      toast.error(t.settings.customers.errorNeedCountry)
       return null
     }
 
@@ -138,7 +140,7 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
       })
       if (!hit) {
         setGeo({ state: 'error', message: 'Fant ikke denne adressen' })
-        toast.error('Fant ikke adressen på kartet')
+        toast.error(t.settings.customers.errorNotFound)
         return null
       }
       if (hit.countryCode && hit.countryCode !== form.country_code) {
@@ -146,7 +148,7 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
           state: 'error',
           message: `Fant kun treff i ${hit.countryCode} — sjekk at by og land stemmer`,
         })
-        toast.error('Treffet lå i feil land — prøv igjen med mer spesifikk adresse')
+        toast.error(t.settings.customers.errorWrongCountry)
         return null
       }
       setForm(f => ({
@@ -160,7 +162,7 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
       return { lat: hit.lat, lng: hit.lng }
     } catch {
       setGeo({ state: 'error', message: 'Noe gikk galt' })
-      toast.error('Geokoding feilet')
+      toast.error(t.settings.customers.errorGeocode)
       return null
     }
   }
@@ -170,7 +172,7 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
     const hasAddressInput = [form.address, form.postal_code, form.city].some(v => v.trim())
     const hasManualCoords = form.latitude.trim() !== '' && form.longitude.trim() !== ''
     if (hasAddressInput && !hasManualCoords && !form.country_code) {
-      toast.error('Velg land før du lagrer — ellers gjetter kartet feil by')
+      toast.error(t.settings.customers.errorNeedCountrySave)
       return
     }
     setSaving(true)
@@ -201,20 +203,20 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
       const { error } = await supabase.from('customers').update(row).eq('id', editTarget.id)
       setSaving(false)
       if (error) {
-        toast.error(error.message.includes('duplicate') ? 'En kunde med dette navnet finnes allerede' : 'Noe gikk galt.')
+        toast.error(error.message.includes('duplicate') ? t.settings.customers.errorDuplicate : t.common.errorShort)
         return
       }
       setCustomers(prev => prev.map(c => c.id === editTarget.id ? { ...c, ...row } : c))
-      toast.success('Kunde oppdatert')
+      toast.success(t.settings.customers.toastUpdated)
     } else {
       const { data, error } = await supabase.from('customers').insert(row).select().single()
       setSaving(false)
       if (error) {
-        toast.error(error.message.includes('duplicate') ? 'En kunde med dette navnet finnes allerede' : 'Noe gikk galt.')
+        toast.error(error.message.includes('duplicate') ? t.settings.customers.errorDuplicate : t.common.errorShort)
         return
       }
       setCustomers(prev => [...prev, data])
-      toast.success(`${row.name} lagt til`)
+      toast.success(`${row.name} ${t.settings.customers.toastAddedSuffix}`)
     }
     closeModal()
   }
@@ -224,9 +226,9 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
     const supabase = createClient()
     const { error } = await supabase.from('customers').delete().eq('id', id)
     setDeleting(null)
-    if (error) { toast.error('Noe gikk galt.'); return }
+    if (error) { toast.error(t.common.errorShort); return }
     setCustomers(prev => prev.filter(c => c.id !== id))
-    toast.success('Kunde slettet')
+    toast.success(t.settings.customers.toastDeleted)
   }
 
   return (
@@ -237,10 +239,10 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
             className="text-[24px] font-semibold"
             style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
           >
-            Kunder
+            {t.settings.customers.title}
           </h1>
           <p className="text-[14px] mt-0.5" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
-            {customers.length} {customers.length === 1 ? 'kunde' : 'kunder'} · vises på kartet når noen registrerer besøk
+            {customers.length} {customers.length === 1 ? t.settings.customers.subtitleOne : t.settings.customers.subtitleMany} · {t.settings.customers.subtitleSuffix}
           </p>
         </div>
         <motion.button
@@ -250,7 +252,7 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
           style={{ backgroundColor: 'var(--accent-color)', fontFamily: 'var(--font-body)' }}
         >
           <Plus className="w-4 h-4" strokeWidth={2} />
-          Legg til
+          {t.common.add}
         </motion.button>
       </div>
 
@@ -266,10 +268,10 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
             <Briefcase className="w-6 h-6" strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
           </div>
           <p className="text-[15px] font-medium" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}>
-            Ingen kunder ennå
+            {t.settings.customers.empty}
           </p>
           <p className="text-[13px] max-w-sm" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
-            Legg inn kundene dere besøker. Da kan AI og kartet kjenne igjen navn som «Diplomat» og plassere markøren på riktig adresse.
+            {t.settings.customers.emptyHint}
           </p>
         </div>
       ) : (
@@ -361,16 +363,14 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
               style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)' }}
               onClick={closeModal}
             />
+            <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh] pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.94, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={spring.bouncy}
-              className="fixed z-50 w-[540px] max-w-[calc(100vw-24px)] rounded-2xl p-6 flex flex-col gap-4"
+              className="pointer-events-auto w-[540px] max-w-full max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl p-6 flex flex-col gap-4"
               style={{
-                top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-                maxHeight: 'calc(100vh - 24px)',
-                overflowY: 'auto',
                 backgroundColor: 'var(--bg-elevated)',
                 boxShadow: 'var(--shadow-xl)',
               }}
@@ -380,7 +380,7 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
                   className="text-[20px] font-semibold"
                   style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
                 >
-                  {modalMode === 'add' ? 'Ny kunde' : 'Rediger kunde'}
+                  {modalMode === 'add' ? t.settings.customers.modalAddTitle : t.settings.customers.modalEditTitle}
                 </h2>
                 <button onClick={closeModal} style={{ color: 'var(--text-tertiary)' }}>
                   <X className="w-5 h-5" strokeWidth={1.5} />
@@ -389,7 +389,7 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
 
               <div className="grid grid-cols-6 gap-3">
                 <div className="col-span-6">
-                  <CustomerField label="Navn" required>
+                  <CustomerField label={t.common.name} required>
                     <input
                       type="text"
                       value={form.name}
@@ -648,7 +648,7 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
                   className="px-4 py-2 rounded-xl text-[13px] font-medium"
                   style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-subtle)', fontFamily: 'var(--font-body)' }}
                 >
-                  Avbryt
+                  {t.common.cancel}
                 </button>
                 <motion.button
                   onClick={handleSave}
@@ -657,10 +657,11 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
                   className="px-5 py-2 rounded-xl text-[13px] font-semibold text-white disabled:opacity-40"
                   style={{ backgroundColor: 'var(--accent-color)', fontFamily: 'var(--font-body)' }}
                 >
-                  {saving ? '...' : modalMode === 'add' ? 'Legg til' : 'Lagre'}
+                  {saving ? '...' : modalMode === 'add' ? t.common.add : t.common.save}
                 </motion.button>
               </div>
             </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
