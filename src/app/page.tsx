@@ -7,6 +7,8 @@ import { DaysTogether } from '@/components/days-together'
 import { InactivityNudge } from '@/components/inactivity-nudge'
 import { getSessionMember } from '@/lib/supabase/session'
 import { getServerDict } from '@/lib/i18n/server'
+import { createClient } from '@/lib/supabase/server'
+import { getTodayWeekAndYear, getWeekDays, toDateString } from '@/lib/dates'
 
 export default async function HomePage() {
   const { user, member } = await getSessionMember()
@@ -45,12 +47,41 @@ export default async function HomePage() {
     )
   }
 
+  // Warm the grid with the current week's members + entries server-side.
+  // The client hook accepts these as its initial state and skips the first
+  // fetch, so the page hydrates into its populated state instead of flashing
+  // empty → data.
+  const supabase = await createClient()
+  const { week, year } = getTodayWeekAndYear()
+  const weekDays = getWeekDays(week, year)
+  const dateStrings = weekDays.map(toDateString)
+
+  const [membersRes, entriesRes] = await Promise.all([
+    supabase
+      .from('members')
+      .select('*')
+      .eq('org_id', member.org_id)
+      .eq('is_active', true)
+      .order('display_name'),
+    supabase
+      .from('entries')
+      .select('*')
+      .eq('org_id', member.org_id)
+      .in('date', dateStrings),
+  ])
+
   return (
     <div className="mx-auto max-w-7xl px-6 py-10 space-y-10">
       <div className="mx-auto max-w-3xl">
         <AIInput orgId={member.org_id} />
       </div>
-      <TeamGrid orgId={member.org_id} />
+      <TeamGrid
+        orgId={member.org_id}
+        initialMembers={membersRes.data ?? []}
+        initialEntries={entriesRes.data ?? []}
+        initialWeek={week}
+        initialYear={year}
+      />
       <DaysTogether />
       <PresenceHeatmap orgId={member.org_id} />
       <InactivityNudge orgId={member.org_id} memberId={member.id} />

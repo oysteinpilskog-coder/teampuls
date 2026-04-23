@@ -137,6 +137,14 @@ interface ResizeDrag {
 
 interface TeamGridProps {
   orgId: string
+  /** Optional — server-rendered member list for instant hydration. */
+  initialMembers?: Member[]
+  /** Optional — server-rendered entries for the current visible week. */
+  initialEntries?: Entry[]
+  /** Optional — the ISO week these initialEntries belong to. Must match for the seed to kick in. */
+  initialWeek?: number
+  /** Optional — the ISO year these initialEntries belong to. Must match for the seed to kick in. */
+  initialYear?: number
 }
 
 // Skeleton row for loading state
@@ -183,17 +191,23 @@ function SkeletonRow({ index = 0 }: { index?: number }) {
   )
 }
 
-export function TeamGrid({ orgId }: TeamGridProps) {
+export function TeamGrid({
+  orgId,
+  initialMembers,
+  initialEntries,
+  initialWeek,
+  initialYear,
+}: TeamGridProps) {
   const t = useT()
   const { week: todayWeek, year: todayYear } = getTodayWeekAndYear()
-  const [week, setWeek] = useState(todayWeek)
-  const [year, setYear] = useState(todayYear)
+  const [week, setWeek] = useState(initialWeek ?? todayWeek)
+  const [year, setYear] = useState(initialYear ?? todayYear)
   const [slideDir, setSlideDir] = useState<'next' | 'prev'>('next')
 
-  const [members, setMembers] = useState<Member[]>([])
+  const [members, setMembers] = useState<Member[]>(initialMembers ?? [])
   const [offices, setOffices] = useState<Office[]>([])
   const [presenceAssumption, setPresenceAssumption] = useState<PresenceAssumption>('none')
-  const [membersLoading, setMembersLoading] = useState(true)
+  const [membersLoading, setMembersLoading] = useState(!initialMembers)
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null)
 
   const [dragStart, setDragStart] = useState<DragPoint | null>(null)
@@ -213,7 +227,15 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   // Realtime entries hook — handles fetch + live subscription. We also keep
   // `refetch` so drag mutations can force an immediate reload instead of
   // waiting for the realtime round-trip (which can lag or drop silently).
-  const { entries, loading: entriesLoading, refetch, applyOptimistic } = useEntries(orgId, dateStrings)
+  // Only hand the SSR entries to useEntries when the initial week matches
+  // what the page rendered on the server. Navigating to a different week
+  // before the hook has a chance to fetch should still trigger a fetch.
+  const ssrEntriesMatchWeek = initialWeek === week && initialYear === year
+  const { entries, loading: entriesLoading, refetch, applyOptimistic } = useEntries(
+    orgId,
+    dateStrings,
+    ssrEntriesMatchWeek ? { initial: initialEntries } : {},
+  )
   const loading = membersLoading || entriesLoading
 
   // Build entry lookup: member_id + date → Entry
@@ -233,8 +255,14 @@ export function TeamGrid({ orgId }: TeamGridProps) {
   }, [members, entries, presenceAssumption])
 
   // Fetch members once (they rarely change)
+  // On mount 1, honour the SSR-seeded members (no skeletons, no flash) and
+  // only fetch in the background to refresh. Mount 2+ behaves normally.
+  const firstFetchWithSSR = useRef(!!initialMembers)
   const fetchMembers = useCallback(async () => {
-    setMembersLoading(true)
+    if (!firstFetchWithSSR.current) {
+      setMembersLoading(true)
+    }
+    firstFetchWithSSR.current = false
     const supabase = createClient()
     // Fetch members and offices in parallel — the hover card needs the home
     // office's name + timezone to show each member's local time.
@@ -864,6 +892,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                       const todayEntry = entries.find((e) => e.member_id === member.id && e.date === todayStr)
                       return (
                         <MemberHoverCard
+                          orgId={orgId}
                           memberId={member.id}
                           displayName={member.display_name}
                           fullName={member.full_name}
