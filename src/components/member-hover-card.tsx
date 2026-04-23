@@ -3,14 +3,36 @@
 import { Popover } from '@base-ui/react/popover'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { MemberAvatar } from '@/components/member-avatar'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
+import {
+  getISOWeek,
+  getISOWeekYear,
+  getLastISOWeek,
+  getWeekDays,
+  toDateString,
+} from '@/lib/dates'
 import type { EntryStatus } from '@/lib/supabase/types'
 
+/** Lazy-loaded signature: last 30 weekdays of this member's statuses. */
+interface SignatureDay {
+  date: string
+  status: EntryStatus | null
+}
+
+/** Module-level cache so re-opening the same card doesn't re-fetch. */
+const signatureCache = new Map<string, SignatureDay[]>()
+
+function signatureKey(orgId: string, memberId: string): string {
+  return `${orgId}:${memberId}`
+}
+
 interface MemberHoverCardProps {
+  orgId: string
   memberId: string
   displayName: string
   fullName?: string | null
@@ -36,6 +58,8 @@ interface MemberHoverCardProps {
  * between trigger and card.
  */
 export function MemberHoverCard({
+  orgId,
+  memberId,
   displayName,
   fullName,
   avatarUrl,
@@ -116,6 +140,8 @@ export function MemberHoverCard({
                   }}
                 >
                   <HoverCardBody
+                    orgId={orgId}
+                    memberId={memberId}
                     displayName={displayName}
                     fullName={fullName ?? null}
                     avatarUrl={avatarUrl}
@@ -140,6 +166,8 @@ export function MemberHoverCard({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function HoverCardBody({
+  orgId,
+  memberId,
   displayName,
   fullName,
   avatarUrl,
@@ -151,6 +179,8 @@ function HoverCardBody({
   todayLocation,
   todayNote,
 }: {
+  orgId: string
+  memberId: string
   displayName: string
   fullName: string | null
   avatarUrl: string | null
@@ -165,6 +195,57 @@ function HoverCardBody({
   const colors = useStatusColors()
   const t = useT()
   const [localTime, setLocalTime] = useState<string>('')
+  const [signature, setSignature] = useState<SignatureDay[] | null>(
+    signatureCache.get(signatureKey(orgId, memberId)) ?? null,
+  )
+  const [sigLoading, setSigLoading] = useState(signature === null)
+
+  // Fetch this member's last 30 weekdays of entries once per open. Module-
+  // level cache means the second open of the same card is instant.
+  useEffect(() => {
+    if (signature !== null) return
+    const key = signatureKey(orgId, memberId)
+    let cancelled = false
+    async function load() {
+      setSigLoading(true)
+      const today = new Date()
+      const curW = getISOWeek(today)
+      const curY = getISOWeekYear(today)
+      const pairs: Array<{ week: number; year: number }> = []
+      for (let i = 5; i >= 0; i--) {
+        let w = curW - i
+        let y = curY
+        while (w < 1) {
+          y -= 1
+          w += getLastISOWeek(y)
+        }
+        pairs.push({ week: w, year: y })
+      }
+      const days = pairs.flatMap(({ week, year }) => getWeekDays(week, year))
+      const dateStrings = days.map(toDateString)
+
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('entries')
+        .select('date, status')
+        .eq('org_id', orgId)
+        .eq('member_id', memberId)
+        .gte('date', dateStrings[0])
+        .lte('date', dateStrings[dateStrings.length - 1])
+
+      const byDate = new Map((data ?? []).map((e) => [e.date, e.status as EntryStatus]))
+      const sig: SignatureDay[] = dateStrings.map((d) => ({
+        date: d,
+        status: byDate.get(d) ?? null,
+      }))
+      if (cancelled) return
+      signatureCache.set(key, sig)
+      setSignature(sig)
+      setSigLoading(false)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [orgId, memberId, signature])
 
   useEffect(() => {
     if (!timezone) return
@@ -307,6 +388,30 @@ function HoverCardBody({
         )}
       </div>
 
+      {/* Signature — the last 30 weekdays as a tiny heatmap strip.
+          Gives a one-glance read of how this person typically splits
+          their time. Hidden during initial fetch when no cache yet. */}
+      {(signature || sigLoading) && (
+        <>
+          <div
+            className="my-3 h-px"
+            style={{ background: 'color-mix(in oklab, var(--border-subtle) 55%, transparent)' }}
+          />
+          <div className="flex items-center justify-between">
+            <Label>Signatur · 6 uker</Label>
+            {signature && (
+              <span
+                className="text-[10px] font-semibold tabular-nums"
+                style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+              >
+                {signature.filter((s) => s.status).length} / {signature.length} dager
+              </span>
+            )}
+          </div>
+          <Signature signature={signature} loading={sigLoading} colors={colors} />
+        </>
+      )}
+
       {/* Today status card */}
       {status && tone && (
         <>
@@ -367,6 +472,65 @@ function Label({ children }: { children: React.ReactNode }) {
       style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
     >
       {children}
+    </div>
+  )
+}
+
+function Signature({
+  signature,
+  loading,
+  colors,
+}: {
+  signature: SignatureDay[] | null
+  loading: boolean
+  colors: ReturnType<typeof useStatusColors>
+}) {
+  if (loading || !signature) {
+    return (
+      <div className="grid grid-cols-6 gap-[3px] mt-1">
+        {Array.from({ length: 30 }).map((_, i) => (
+          <span
+            key={i}
+            className="tp-shimmer"
+            style={{
+              height: 12,
+              borderRadius: 3,
+              animationDelay: `${i * 18}ms`,
+              opacity: 0.5,
+            }}
+          />
+        ))}
+      </div>
+    )
+  }
+  // Group into 6 columns of 5 weekdays each — reads left-to-right,
+  // oldest week first, matching the heatmap on the home page.
+  return (
+    <div className="flex gap-[5px] mt-1">
+      {Array.from({ length: 6 }).map((_, wi) => (
+        <div key={wi} className="flex-1 grid grid-cols-5 gap-[3px]">
+          {signature.slice(wi * 5, wi * 5 + 5).map((d) => {
+            const pal = d.status ? colors[d.status] : null
+            return (
+              <span
+                key={d.date}
+                title={`${d.date} — ${d.status ?? 'ingen'}`}
+                className="block"
+                style={{
+                  height: 12,
+                  borderRadius: 3,
+                  background: pal
+                    ? `linear-gradient(180deg, ${pal.icon} 0%, color-mix(in oklab, ${pal.icon} 82%, black) 100%)`
+                    : 'color-mix(in oklab, var(--bg-subtle) 75%, transparent)',
+                  boxShadow: pal
+                    ? `inset 0 1px 0 rgba(255,255,255,0.22), 0 1px 2px color-mix(in oklab, ${pal.glow} 30%, transparent)`
+                    : 'inset 0 0 0 1px color-mix(in oklab, var(--border-subtle) 55%, transparent)',
+                }}
+              />
+            )
+          })}
+        </div>
+      ))}
     </div>
   )
 }
