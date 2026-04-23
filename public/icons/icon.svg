@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Offiview PWA + browser favicon. Monochrome: cream ring + cream horizon
-       on espresso, with a subtle warm radial glow. Nordlys gradient lives on
-       the larger apple-touch-icon (180px) where the gradient has room to read;
-       at favicon sizes it collapsed into a cyan blob that fought the ring. -->
+  <!-- Offiview PWA + browser favicon. Canonical OffiviewMark geometry
+       (r=47, sw=6, horizon x=15→85 at y=62 in 100-unit space), scaled to 512
+       and rendered with Paper stroke on Espresso so the mark reads on any
+       browser chrome. Geometry matches the header mark on /oversikt exactly. -->
   <defs>
     <radialGradient id="glow" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="#00F5A0" stop-opacity="0.18"/>
@@ -12,7 +12,7 @@
   </defs>
   <rect width="512" height="512" rx="112" fill="#15110E"/>
   <rect width="512" height="512" rx="112" fill="url(#glow)"/>
-  <circle cx="256" cy="256" r="170" fill="none" stroke="#F5EFE4" stroke-width="44"/>
-  <line x1="108" y1="324" x2="404" y2="324"
-        stroke="#F5EFE4" stroke-width="44" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="240" fill="none" stroke="#F5EFE4" stroke-width="31"/>
+  <line x1="77" y1="317" x2="435" y2="317"
+        stroke="#F5EFE4" stroke-width="31" stroke-linecap="round"/>
 </svg>
