@@ -92,12 +92,16 @@ export default async function RootLayout({
 
   // Override the theme's --accent-color with the active workspace's tint so
   // every downstream consumer (focus rings, year-wheel, buttons, the
-  // switcher pill's outer ring, etc.) visually reflects the selected team.
+  // switcher pill's outer ring, breathing accent orb, etc.) visually
+  // reflects the selected team. Also retint --aurora-a so the ambient
+  // backdrop picks up the team color — keep --aurora-b as the theme's
+  // complementary tone so the aurora still reads as a gradient.
   const bodyStyle = accentColor
     ? ({
         ['--workspace-accent-color' as string]: accentColor,
         ['--accent-color' as string]: accentColor,
         ['--accent-glow' as string]: `color-mix(in oklab, ${accentColor} 35%, transparent)`,
+        ['--aurora-a' as string]: `color-mix(in oklab, ${accentColor} 32%, transparent)`,
       } as React.CSSProperties)
     : undefined
 

@@ -148,7 +148,7 @@ export function AuroraBackground({ entries }: AuroraBackgroundProps) {
           marginLeft: -260,
           marginTop: -260,
           background:
-            'radial-gradient(circle, rgba(0,102,255,0.38) 0%, rgba(0,102,255,0.08) 40%, rgba(0,102,255,0) 70%)',
+            'radial-gradient(circle, color-mix(in oklab, var(--accent-color) 38%, transparent) 0%, color-mix(in oklab, var(--accent-color) 8%, transparent) 40%, transparent 70%)',
           filter: 'blur(60px)',
           mixBlendMode: 'screen',
         }}

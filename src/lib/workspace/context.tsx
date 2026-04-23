@@ -58,11 +58,13 @@ export function WorkspaceProvider({
       body.style.removeProperty('--accent-color')
       body.style.removeProperty('--accent-glow')
       body.style.removeProperty('--workspace-accent-color')
+      body.style.removeProperty('--aurora-a')
       return
     }
     body.style.setProperty('--workspace-accent-color', hex)
     body.style.setProperty('--accent-color', hex)
     body.style.setProperty('--accent-glow', `color-mix(in oklab, ${hex} 35%, transparent)`)
+    body.style.setProperty('--aurora-a', `color-mix(in oklab, ${hex} 32%, transparent)`)
   }, [active?.accent_color])
 
   const switchTo = useCallback(
