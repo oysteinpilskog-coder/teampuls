@@ -4,6 +4,7 @@ import { AIInput } from '@/components/ai-input'
 import { EmptyState } from '@/components/empty-state'
 import { PresenceHeatmap } from '@/components/presence-heatmap'
 import { DaysTogether } from '@/components/days-together'
+import { TeamHealthCard } from '@/components/team-health-card'
 import { InactivityNudge } from '@/components/inactivity-nudge'
 import { getSessionMember } from '@/lib/supabase/session'
 import { getServerDict } from '@/lib/i18n/server'
@@ -83,6 +84,7 @@ export default async function HomePage() {
         initialYear={year}
       />
       <DaysTogether />
+      <TeamHealthCard orgId={member.org_id} />
       <PresenceHeatmap orgId={member.org_id} />
       <InactivityNudge orgId={member.org_id} memberId={member.id} />
     </div>
