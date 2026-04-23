@@ -23,6 +23,7 @@ import {
   Monitor,
   Sparkles,
   Building2,
+  MessageSquare,
 } from 'lucide-react'
 
 type CommandGroup = 'nav' | 'actions' | 'theme' | 'workspace'
@@ -75,6 +76,12 @@ export function CommandPalette() {
 
   // ⌘K / Ctrl+K opens the palette (works globally, even in inputs)
   useHotkeys('mod+k', () => setOpen((o) => !o), { allowInInputs: true })
+
+  // ⌘J opens the AI query modal directly — complements ⌘K for the "ask"
+  // surface, since palette is "do / navigate" and query is "wonder about".
+  useHotkeys('mod+j', () => {
+    window.dispatchEvent(new CustomEvent('teampulse:ai-query:open'))
+  }, { allowInInputs: true })
 
   // "/" focuses the AI status field on the home page (like Slack / Raycast)
   useHotkeys('/', () => {
@@ -494,6 +501,17 @@ function useCommands({
               el?.focus()
             })
           })
+        },
+      },
+      {
+        id: 'action-ai-query',
+        label: 'Still et spørsmål om teamet',
+        group: 'actions',
+        icon: <MessageSquare className="w-4 h-4" />,
+        shortcut: ['⌘', 'J'],
+        keywords: 'ai spørsmål oslo vilnius hvem hvor når ferie reise query',
+        run: () => {
+          window.dispatchEvent(new CustomEvent('teampulse:ai-query:open'))
         },
       },
       {

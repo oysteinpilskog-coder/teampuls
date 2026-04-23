@@ -30,6 +30,9 @@ interface StatusSegmentProps {
    *  real entry. Rendered at 40% opacity with a dashed rim so the viewer can
    *  still tell registered data from an assumption. */
   assumed?: boolean
+  /** Highlighted state — used by the AI-query feature to flag matching cells.
+   *  Renders a bright accent-colored outer ring + gentle pulse. */
+  highlight?: boolean
   /** Fired on mousedown inside a left/right resize handle. When set, the bar exposes
    * 8-px hit zones on each edge that take priority over the per-day buttons. */
   onSegmentResizeStart?: (edge: 'left' | 'right') => void
@@ -49,6 +52,7 @@ export function StatusSegment({
   dayHighlight,
   muted,
   assumed,
+  highlight,
   onSegmentResizeStart,
 }: StatusSegmentProps) {
   const palettes = useStatusColors()
@@ -201,6 +205,21 @@ export function StatusSegment({
           }}
           animate={{ scale: [1, 1.22, 1] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      )}
+
+      {/* AI-query highlight — bright accent ring + pulse. Sits above today
+          accent so matches always win the eye. */}
+      {highlight && (
+        <motion.div
+          aria-hidden
+          className="absolute inset-0 rounded-[7px] pointer-events-none z-40"
+          style={{
+            boxShadow:
+              'inset 0 0 0 2px var(--accent-color), 0 0 0 2px var(--accent-color), 0 0 18px var(--accent-glow)',
+          }}
+          animate={{ opacity: [0.75, 1, 0.75], scale: [1, 1.01, 1] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
         />
       )}
 
