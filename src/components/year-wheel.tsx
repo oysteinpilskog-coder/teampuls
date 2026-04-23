@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, useId, useMemo } from 'react'
+import { Fragment, useState, useEffect, useCallback, useRef, useId, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { getISOWeek, getWeekStart, getLastISOWeek } from '@/lib/dates'
@@ -103,6 +103,21 @@ function pieSlice(r: number, startDeg: number, endDeg: number): string {
   const o2 = polarPoint(r, endDeg)
   const large = (endDeg - startDeg) > 180 ? 1 : 0
   return `M${CX},${CY} L${f(o1.x)},${f(o1.y)} A${r},${r},0,${large},1,${f(o2.x)},${f(o2.y)} Z`
+}
+
+// A straight radial line at `midDeg` between two radii, usable as a textPath
+// target so an event label can read outward (or inward in the bottom half
+// so the glyphs stay upright for the viewer). This is the "Plandisc look":
+// short events no longer lose their label to the tangential arc being too
+// narrow — the radial width of the ring (~32 px) is always available.
+function radialLinePath(rInner: number, rOuter: number, deg: number): string {
+  // Top half (330°..30° roughly): read inner → outer so letters climb outward.
+  // Bottom half: read outer → inner so letters remain upright for the viewer.
+  const normalized = ((deg % 360) + 360) % 360
+  const flip = normalized > 90 && normalized < 270
+  const pFrom = polarPoint(flip ? rOuter : rInner, deg)
+  const pTo   = polarPoint(flip ? rInner : rOuter, deg)
+  return `M${f(pFrom.x)},${f(pFrom.y)} L${f(pTo.x)},${f(pTo.y)}`
 }
 
 // An arc path for textPath placement. Direction reverses in bottom half
@@ -833,6 +848,8 @@ export function DiskView({
     event: (id: string) => `ev-${id}-${uid}`,
     eventPath: (id: string) => `evp-${id}-${uid}`,
     eventPathM: (id: string) => `evpm-${id}-${uid}`,
+    eventRadial:  (id: string) => `evr-${id}-${uid}`,
+    eventRadialM: (id: string) => `evrm-${id}-${uid}`,
     dayPath: (d: number) => `dp-${d}-${uid}`,
     ringPath: (i: number) => `rp-${i}-${uid}`,
   }
@@ -1056,19 +1073,29 @@ export function DiskView({
               />
             ))}
 
-            {/* Year-mode: event label paths */}
+            {/* Year-mode: event label paths (tangential arc + radial line).
+                The radial path is the Plandisc-style label track that lets a
+                title read outward from the wheel centre even on very narrow
+                arcs where a tangential label wouldn't fit. */}
             {!focus && events.map(ev => {
               const startDeg = dateStringToDeg(ev.start_date, year)
               const endDeg   = dateStringToDeg(ev.end_date, year) + (360 / daysInYear(year))
               if (endDeg <= startDeg) return null
               const ri = ringIdxForCategory(ev.category)
+              const midDeg = (startDeg + endDeg) / 2
               return (
-                <path
-                  key={`evpath-${ev.id}`}
-                  id={ID.eventPath(ev.id)}
-                  d={labelArcPath(RING_BOUNDS[ri].mid, startDeg, endDeg)}
-                  fill="none"
-                />
+                <Fragment key={`evpath-${ev.id}`}>
+                  <path
+                    id={ID.eventPath(ev.id)}
+                    d={labelArcPath(RING_BOUNDS[ri].mid, startDeg, endDeg)}
+                    fill="none"
+                  />
+                  <path
+                    id={ID.eventRadial(ev.id)}
+                    d={radialLinePath(RING_BOUNDS[ri].inner + 4, RING_BOUNDS[ri].outer - 4, midDeg)}
+                    fill="none"
+                  />
+                </Fragment>
               )
             })}
 
@@ -1082,16 +1109,23 @@ export function DiskView({
               />
             ))}
 
-            {/* Month-mode: event label paths */}
+            {/* Month-mode: event label paths (tangential + radial) */}
             {focus && focus.events.map(({ ev, arc }) => {
               const ri = ringIdxForCategory(ev.category)
+              const midDeg = (arc.startDeg + arc.endDeg) / 2
               return (
-                <path
-                  key={`evpm-${ev.id}`}
-                  id={ID.eventPathM(ev.id)}
-                  d={labelArcPath(RING_BOUNDS[ri].mid, arc.startDeg, arc.endDeg)}
-                  fill="none"
-                />
+                <Fragment key={`evpm-${ev.id}`}>
+                  <path
+                    id={ID.eventPathM(ev.id)}
+                    d={labelArcPath(RING_BOUNDS[ri].mid, arc.startDeg, arc.endDeg)}
+                    fill="none"
+                  />
+                  <path
+                    id={ID.eventRadialM(ev.id)}
+                    d={radialLinePath(RING_BOUNDS[ri].inner + 4, RING_BOUNDS[ri].outer - 4, midDeg)}
+                    fill="none"
+                  />
+                </Fragment>
               )
             })}
 
@@ -1290,8 +1324,6 @@ export function DiskView({
                   const color = ev.color ?? CATEGORY_COLORS[ev.category]
                   const arcSpan = endDeg - startDeg
                   const isSelected = selectedEvent?.id === ev.id
-                  const arcLenPx = (arcSpan / 360) * 2 * Math.PI * bounds.mid
-                  const showLabel = arcSpan > 3.5
 
                   // Single-day (or ≤1.5°) events render as a visible pin. An
                   // arc that narrow is effectively invisible at wheel scale,
@@ -1301,6 +1333,20 @@ export function DiskView({
                   const pinCenter = polarPoint(bounds.mid, midDeg)
                   const pinR = isSelected ? 8 : 7
                   const path = annularArc(bounds.outer, bounds.inner, startDeg, endDeg, isPin ? 0 : 0.35)
+
+                  // Plandisc-style labels: text runs radially along the ring's
+                  // radial width so even 1-day events get a readable title.
+                  // Pins keep a compact label next to them; arcs >= 1.6° get a
+                  // full radial label centered on their midpoint.
+                  const radialWidthPx = bounds.outer - bounds.inner - 8
+                  const showRadialLabel = arcSpan >= 1.6
+                  const labelFontSize = arcSpan >= 3.5 ? 10 : 9
+                  // Each glyph ~0.55 × fontSize; we squeeze long titles into
+                  // the radial width, but cap squeeze at ~8 chars before we
+                  // accept overflow trimmed by the ring boundary clip.
+                  const charWidthPx = labelFontSize * 0.55
+                  const titleNaturalPx = ev.title.length * charWidthPx
+                  const useTextLength = titleNaturalPx > radialWidthPx
 
                   return (
                     <motion.g key={ev.id}
@@ -1348,9 +1394,9 @@ export function DiskView({
                           />
                         </>
                       )}
-                      {showLabel && (
+                      {showRadialLabel && !isPin && (
                         <text
-                          fontSize={ri === 0 ? 10 : 9.5}
+                          fontSize={labelFontSize}
                           fontWeight={600}
                           fill="white"
                           fillOpacity={0.96}
@@ -1358,15 +1404,15 @@ export function DiskView({
                             fontFamily: 'var(--font-body)',
                             userSelect: 'none',
                             pointerEvents: 'none',
-                            textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                            textShadow: '0 1px 2px rgba(0,0,0,0.45)',
                             letterSpacing: '0.01em',
                           }}
                         >
                           <textPath
-                            href={`#${ID.eventPath(ev.id)}`}
+                            href={`#${ID.eventRadial(ev.id)}`}
                             startOffset="50%"
                             textAnchor="middle"
-                            textLength={Math.min(ev.title.length * 6.2, arcLenPx - 8)}
+                            textLength={useTextLength ? radialWidthPx : undefined}
                             lengthAdjust="spacingAndGlyphs"
                           >
                             {ev.title}
