@@ -911,10 +911,15 @@ export function DiskView({
               )
             })}
 
-            <radialGradient id={ID.weekActive} cx={CX} cy={CY} r={R.weekOuter} gradientUnits="userSpaceOnUse">
-              <stop offset={R.weekInner / R.weekOuter} stopColor="var(--accent-color)" stopOpacity="0.85" />
-              <stop offset="1" stopColor="var(--accent-color)" stopOpacity="1" />
-            </radialGradient>
+            {/* Current-week ring — Nordlys gradient.
+                The wheel's "once per flate" signature moment. The current
+                week is literally "det ene du ser tydelig akkurat nå" — so
+                Nordlys makes the most brand-loaded beat available. */}
+            <linearGradient id={ID.weekActive} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#00F5A0" />
+              <stop offset="55%" stopColor="#00D9F5" />
+              <stop offset="100%" stopColor="#7C3AED" />
+            </linearGradient>
 
             <radialGradient id={ID.aurora} cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor="var(--accent-color)" stopOpacity="0.28" />
@@ -1103,7 +1108,7 @@ export function DiskView({
                       {isCurrent && (
                         <motion.path
                           d={annularArc(R.weekOuter + 6, R.weekInner - 6, w.start, w.end, 0.2)}
-                          fill="var(--accent-color)"
+                          fill="#00D9F5"
                           style={{ filter: `url(#${ID.bloom})` }}
                           initial={{ opacity: 0.3 }}
                           animate={{ opacity: [0.35, 0.7, 0.35] }}
@@ -1303,7 +1308,7 @@ export function DiskView({
                       {isCurrent && (
                         <motion.path
                           d={annularArc(R.weekOuter + 6, R.weekInner - 6, w.start, w.end, 0.2)}
-                          fill="var(--accent-color)"
+                          fill="#00D9F5"
                           style={{ filter: `url(#${ID.bloom})` }}
                           initial={{ opacity: 0.3 }}
                           animate={{ opacity: [0.35, 0.7, 0.35] }}

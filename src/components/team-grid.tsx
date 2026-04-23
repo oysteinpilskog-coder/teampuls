@@ -829,8 +829,11 @@ export function TeamGrid({
                 bottom: 0,
                 left,
                 width,
+                // Subtle Ember-tint column so the Nordlys day-orb reads as
+                // the only signature note; a violet column backdrop would
+                // muddy the gradient above.
                 background:
-                  'linear-gradient(180deg, rgba(139, 92, 246, 0.14) 0%, rgba(139, 92, 246, 0.06) 40%, rgba(139, 92, 246, 0.03) 100%)',
+                  'linear-gradient(180deg, rgba(251, 191, 36, 0.08) 0%, rgba(251, 191, 36, 0.035) 40%, rgba(251, 191, 36, 0.015) 100%)',
               }}
             />
           )
@@ -862,10 +865,12 @@ export function TeamGrid({
                 <div
                   className="lg-mono text-[10px] uppercase"
                   style={{
-                    color: today ? 'var(--lg-accent)' : 'var(--lg-text-3)',
+                    // Today's weekday gets Ember-glow warmth — the Nordlys
+                    // gradient is reserved for the day-number orb below.
+                    color: today ? 'var(--ember-glow, #FBBF24)' : 'var(--lg-text-3)',
                     fontWeight: today ? 600 : 500,
                     letterSpacing: '0.2em',
-                    textShadow: today ? '0 0 10px var(--lg-accent-glow)' : undefined,
+                    textShadow: today ? '0 0 10px rgba(251, 191, 36, 0.35)' : undefined,
                   }}
                 >
                   {weekday}
@@ -875,15 +880,20 @@ export function TeamGrid({
                   style={{
                     fontSize: today ? 22 : 26,
                     fontWeight: today ? 600 : 400,
-                    color: today ? '#ffffff' : 'var(--lg-text-1)',
+                    // Nordlys-signature: today's day number sits inside a
+                    // gradient orb — the "once per flate" signature moment
+                    // for /oversikt. Rest of the surface stays on Ember/Paper.
+                    color: today ? '#0E0B08' : 'var(--lg-text-1)',
                     width: today ? 40 : 'auto',
                     height: today ? 40 : 'auto',
                     borderRadius: 9999,
-                    background: today ? 'var(--lg-accent)' : 'transparent',
+                    background: today
+                      ? 'linear-gradient(135deg, #00F5A0 0%, #00D9F5 55%, #7C3AED 100%)'
+                      : 'transparent',
                     boxShadow: today
-                      ? '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 22px var(--lg-accent-glow)'
+                      ? '0 0 0 3px rgba(0, 245, 160, 0.18), 0 0 28px rgba(0, 217, 245, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
                       : 'none',
-                    letterSpacing: today ? '-0.02em' : '-0.02em',
+                    letterSpacing: '-0.02em',
                   }}
                 >
                   {day}
@@ -892,7 +902,7 @@ export function TeamGrid({
                   <div
                     className="lg-serif capitalize"
                     style={{
-                      color: today ? 'var(--lg-accent)' : 'var(--lg-text-3)',
+                      color: today ? 'var(--ember-glow, #FBBF24)' : 'var(--lg-text-3)',
                       fontSize: 12,
                       opacity: today ? 0.9 : 0.65,
                     }}

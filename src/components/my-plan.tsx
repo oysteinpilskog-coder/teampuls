@@ -759,16 +759,22 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
                         transition={{ duration: 0.2, delay: Math.min(wkIdx, 18) * 0.015, ease: [0.4, 0, 0.2, 1] }}
                         className="group relative rounded-2xl overflow-hidden"
                         style={{
+                          // Current-week row uses a warm Ember tint so the
+                          // Nordlys today-chord is the lone signature.
                           background: wk.isCurrentWeek
-                            ? 'linear-gradient(180deg, rgba(139, 92, 246, 0.07) 0%, rgba(139, 92, 246, 0.02) 100%), var(--lg-surface-1)'
+                            ? 'linear-gradient(180deg, rgba(251, 191, 36, 0.06) 0%, rgba(251, 191, 36, 0.015) 100%), var(--lg-surface-1)'
                             : 'var(--lg-surface-1)',
-                          border: `1px solid ${wk.isCurrentWeek ? 'rgba(139, 92, 246, 0.22)' : 'var(--lg-divider)'}`,
+                          border: `1px solid ${wk.isCurrentWeek ? 'rgba(251, 191, 36, 0.22)' : 'var(--lg-divider)'}`,
                           boxShadow: wk.isCurrentWeek
-                            ? 'inset 0 0 0 1px rgba(139, 92, 246, 0.05)'
+                            ? 'inset 0 0 0 1px rgba(251, 191, 36, 0.05)'
                             : 'none',
                         }}
                       >
-                        {/* Today chord — vertical accent line through today's column, current week only */}
+                        {/* Today chord — THE /min-plan Nordlys moment.
+                            A single vertical gradient line through today's
+                            column on the current week's row. "Horisonten
+                            gjort vertikal": the one-line signature that
+                            marks akkurat nå on this flate. */}
                         {wk.isCurrentWeek && todayIsWeekday && (
                           <div
                             aria-hidden
@@ -776,11 +782,12 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
                             style={{
                               top: 0,
                               bottom: 0,
-                              left: `calc(152px + ${todayWeekdayIdx} * ((100% - 200px) / 5 + 8px) + ((100% - 200px) / 5) / 2 - 0.5px)`,
-                              width: 1,
+                              left: `calc(152px + ${todayWeekdayIdx} * ((100% - 200px) / 5 + 8px) + ((100% - 200px) / 5) / 2 - 1px)`,
+                              width: 2,
                               background:
-                                'linear-gradient(180deg, rgba(139, 92, 246, 0) 0%, rgba(139, 92, 246, 0.45) 22%, rgba(139, 92, 246, 0.45) 78%, rgba(139, 92, 246, 0) 100%)',
-                              boxShadow: '0 0 10px rgba(139, 92, 246, 0.35)',
+                                'linear-gradient(180deg, rgba(0, 245, 160, 0) 0%, #00F5A0 20%, #00D9F5 50%, #7C3AED 80%, rgba(124, 58, 237, 0) 100%)',
+                              boxShadow:
+                                '0 0 12px rgba(0, 217, 245, 0.45), 0 0 24px rgba(0, 245, 160, 0.22)',
                             }}
                           />
                         )}
