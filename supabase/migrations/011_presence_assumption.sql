@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 010 — Presence-assumption defaults
+-- Migration 011 — Presence-assumption defaults
 --
 -- Premium UX question: when a member has no entry for a date, what
 -- do we render? Three honest options:
