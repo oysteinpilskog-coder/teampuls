@@ -30,6 +30,20 @@ export const ACTIVE_WORKSPACE_COOKIE = 'tp_active_workspace'
  * RSC render (layout + page + components) only hit Supabase once.
  */
 export const getSessionMember = cache(async () => {
+  try {
+    return await resolveSession()
+  } catch (err) {
+    console.error('[session] resolveSession threw:', err)
+    return {
+      user: null,
+      member: null,
+      workspaces: [] as WorkspaceSummary[],
+      activeWorkspace: null as WorkspaceSummary | null,
+    }
+  }
+})
+
+async function resolveSession() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -79,47 +93,105 @@ export const getSessionMember = cache(async () => {
   const pickOrg = (r: Row): OrgPart =>
     Array.isArray(r.organizations) ? r.organizations[0] : r.organizations
 
-  let { data: rawRows } = await supabase
-    .from('members')
-    .select(SELECT)
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-
-  let rows = (rawRows ?? []) as Row[]
+  // Try the joined query first; fall back to separate queries if
+  // the join fails (e.g. `!inner` + RLS quirks, or if the
+  // organizations table is in a shape Supabase can't resolve the
+  // FK for at runtime).
+  let rows: Row[] = []
+  try {
+    const { data, error } = await supabase
+      .from('members')
+      .select(SELECT)
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+    if (error) {
+      console.error('[session] members+org join failed:', error.message)
+    } else {
+      rows = (data ?? []) as Row[]
+    }
+  } catch (err) {
+    console.error('[session] members+org join threw:', err)
+  }
 
   // 2. First-login / unlinked fallback: find rows by email and
   //    backfill user_id. Uses the service-role client so RLS
   //    doesn't hide un-linked rows (they have user_id IS NULL,
-  //    which the caller's JWT can't see).
+  //    which the caller's JWT can't see). Silently no-ops if the
+  //    service-role key isn't configured in this environment.
   if (rows.length === 0 && user.email) {
-    const admin = createAdminClient()
-    const { data: byEmail } = await admin
-      .from('members')
-      .select(SELECT)
-      .ilike('email', user.email)
-      .eq('is_active', true)
-
-    const emailRows = (byEmail ?? []) as Row[]
-    if (emailRows.length > 0) {
-      const idsToLink = emailRows
-        .filter((r) => r.user_id == null)
-        .map((r) => r.id)
-      if (idsToLink.length > 0) {
-        await admin
+    try {
+      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const admin = createAdminClient()
+        const { data: byEmail } = await admin
           .from('members')
-          .update({ user_id: user.id })
-          .in('id', idsToLink)
+          .select(SELECT)
+          .ilike('email', user.email)
+          .eq('is_active', true)
+
+        const emailRows = (byEmail ?? []) as Row[]
+        if (emailRows.length > 0) {
+          const idsToLink = emailRows
+            .filter((r) => r.user_id == null)
+            .map((r) => r.id)
+          if (idsToLink.length > 0) {
+            await admin
+              .from('members')
+              .update({ user_id: user.id })
+              .in('id', idsToLink)
+          }
+          // Re-query through the user-scoped client so RLS continues
+          // to gate everything downstream; now that user_id is linked
+          // the original query should pick them up.
+          const { data: relinked } = await supabase
+            .from('members')
+            .select(SELECT)
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+          rows = (relinked ?? []) as Row[]
+        }
       }
-      // Re-query through the user-scoped client so RLS continues
-      // to gate everything downstream; now that user_id is linked
-      // the original query should pick them up.
-      const { data: relinked } = await supabase
+    } catch (err) {
+      console.error('[session] email-fallback failed:', err)
+    }
+  }
+
+  // 3. Last-resort fallback: fetch members (by user_id) and
+  //    organizations separately. This survives any RLS quirk with
+  //    the `!inner` join (a member with a readable org that the
+  //    join still can't resolve at runtime).
+  if (rows.length === 0) {
+    try {
+      const { data: memberRows } = await supabase
         .from('members')
-        .select(SELECT)
+        .select('id, org_id, display_name, role, avatar_url, user_id, email')
         .eq('user_id', user.id)
         .eq('is_active', true)
-      rawRows = relinked
-      rows = (relinked ?? []) as Row[]
+
+      const mems = (memberRows ?? []) as Array<{
+        id: string; org_id: string; display_name: string; role: MemberRole;
+        avatar_url: string | null; user_id: string | null; email: string
+      }>
+
+      if (mems.length > 0) {
+        const orgIds = Array.from(new Set(mems.map((m) => m.org_id)))
+        const { data: orgRows } = await supabase
+          .from('organizations')
+          .select('*')
+          .in('id', orgIds)
+        const orgsById = new Map<string, OrgPart>()
+        for (const o of (orgRows ?? []) as OrgPart[]) {
+          orgsById.set(o.id, o)
+        }
+        rows = mems
+          .map((m) => {
+            const o = orgsById.get(m.org_id)
+            if (!o) return null
+            return { ...m, organizations: o } as Row
+          })
+          .filter((r): r is Row => r !== null)
+      }
+    } catch (err) {
+      console.error('[session] split-query fallback failed:', err)
     }
   }
 
@@ -175,7 +247,7 @@ export const getSessionMember = cache(async () => {
   }
 
   return { user, member, workspaces, activeWorkspace }
-})
+}
 
 /**
  * Resolve the caller's active member row for an API route running
