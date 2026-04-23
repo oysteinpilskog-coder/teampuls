@@ -9,6 +9,7 @@ import { TodayView } from '@/components/dashboard-views/today-view'
 import { MonthView } from '@/components/dashboard-views/month-view'
 import { OfficeMapView } from '@/components/dashboard-views/office-map-view'
 import { CustomerMapView } from '@/components/dashboard-views/customer-map-view'
+import { WheelView } from '@/components/dashboard-views/wheel-view'
 import { AuroraBackground } from '@/components/dashboard-views/aurora-background'
 import { getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
 import type { Entry, Member, Office, Organization, Customer } from '@/lib/supabase/types'
@@ -19,8 +20,14 @@ interface DashboardClientProps {
   orgId: string
 }
 
-type ViewKey = 'A' | 'B' | 'C' | 'D'
-const VIEWS: ViewKey[] = ['A', 'B', 'C', 'D']
+type ViewKey = 'A' | 'B' | 'C' | 'D' | 'E'
+const VIEWS: ViewKey[] = ['A', 'B', 'C', 'D', 'E']
+
+// How long each view dwells. Wheel gets double the default so viewers can
+// actually trace the year; operational views stay snappy.
+const DWELL_MULTIPLIER: Record<ViewKey, number> = {
+  A: 1, B: 1, C: 1, D: 1, E: 2,
+}
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 
@@ -45,6 +52,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
     B: t.dashboard.views.week,
     C: t.dashboard.views.offices,
     D: t.dashboard.views.customers,
+    E: t.dashboard.views.wheel,
   }
   const searchParams = useSearchParams()
   const intervalSec = Number(searchParams.get('interval') ?? 15)
@@ -68,13 +76,15 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
     return () => clearInterval(id)
   }, [])
 
-  // Auto-rotate views
+  // Auto-rotate views. Each view can request a longer dwell via DWELL_MULTIPLIER
+  // (the wheel needs more time to read than the operational boards).
   useEffect(() => {
-    const id = setInterval(() => {
+    const multiplier = DWELL_MULTIPLIER[VIEWS[viewIdx]]
+    const id = setTimeout(() => {
       setViewIdx(i => (i + 1) % VIEWS.length)
-    }, intervalSec * 1000)
-    return () => clearInterval(id)
-  }, [intervalSec])
+    }, intervalSec * 1000 * multiplier)
+    return () => clearTimeout(id)
+  }, [intervalSec, viewIdx])
 
   // Fetch org + members + offices once
   const fetchData = useCallback(async () => {
@@ -205,6 +215,13 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
                 entries={entries}
                 todayEntries={dedupedTodayEntries}
                 customers={customers}
+                orgName={orgName}
+                time={time}
+              />
+            )}
+            {currentView === 'E' && (
+              <WheelView
+                orgId={orgId}
                 orgName={orgName}
                 time={time}
               />

@@ -317,6 +317,39 @@ export function YearWheel({ orgId }: YearWheelProps) {
   const [showEditor, setShowEditor] = useState(false)
   const [editingEvent, setEditingEvent] = useState<OrgEvent | null>(null)
 
+  // Fullscreen: only on the disk view — list/calendar read better at page scale
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen?.()
+    } else {
+      document.exitFullscreen?.()
+    }
+  }, [])
+
+  useEffect(() => {
+    function onFsChange() { setIsFullscreen(!!document.fullscreenElement) }
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
+
+  // "F" shortcut mirrors the dashboard's behaviour; only active on the disk view.
+  useEffect(() => {
+    if (view !== 'disk') return
+    function onKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault()
+        toggleFullscreen()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [view, toggleFullscreen])
+
   useEffect(() => {
     const supabase = createClient()
     supabase
@@ -339,9 +372,21 @@ export function YearWheel({ orgId }: YearWheelProps) {
     setShowEditor(true)
   }
 
+  const showDiskChrome = view === 'disk' && !isFullscreen
+
   return (
-    <div className="relative w-full flex flex-col items-center gap-5">
-      <Toolbar view={view} onViewChange={setView} onCreate={() => openEditor(null)} />
+    <div
+      ref={containerRef}
+      className={
+        isFullscreen
+          ? 'relative h-screen w-screen flex flex-col items-center justify-center gap-0 overflow-hidden'
+          : 'relative w-full flex flex-col items-center gap-5'
+      }
+      style={isFullscreen ? { background: 'var(--bg-primary)' } : undefined}
+    >
+      {!isFullscreen && (
+        <Toolbar view={view} onViewChange={setView} onCreate={() => openEditor(null)} />
+      )}
 
       <AnimatePresence mode="wait">
         {view === 'disk' && (
@@ -351,7 +396,7 @@ export function YearWheel({ orgId }: YearWheelProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3 }}
-            className="w-full flex justify-center"
+            className={isFullscreen ? 'w-full h-full flex items-center justify-center px-8' : 'w-full flex justify-center'}
           >
             <DiskView
               year={year}
@@ -360,11 +405,12 @@ export function YearWheel({ orgId }: YearWheelProps) {
               orgLogo={orgLogo}
               selectedEvent={selectedEvent}
               onSelectEvent={openEditor}
+              hideAgenda={isFullscreen}
             />
           </motion.div>
         )}
 
-        {view === 'list' && (
+        {view === 'list' && !isFullscreen && (
           <motion.div
             key="list"
             initial={{ opacity: 0, y: 10 }}
@@ -382,7 +428,7 @@ export function YearWheel({ orgId }: YearWheelProps) {
           </motion.div>
         )}
 
-        {view === 'calendar' && (
+        {view === 'calendar' && !isFullscreen && (
           <motion.div
             key="cal"
             initial={{ opacity: 0, y: 10 }}
@@ -401,13 +447,50 @@ export function YearWheel({ orgId }: YearWheelProps) {
         )}
       </AnimatePresence>
 
-      {/* Editor modal */}
-      <EventEditor
-        open={showEditor}
-        onClose={onEditorClose}
-        orgId={orgId}
-        event={editingEvent}
-      />
+      {/* Editor modal (never during fullscreen — the hero is the wheel itself) */}
+      {!isFullscreen && (
+        <EventEditor
+          open={showEditor}
+          onClose={onEditorClose}
+          orgId={orgId}
+          event={editingEvent}
+        />
+      )}
+
+      {/* Floating fullscreen button — only on the disk view. Bottom-left so it
+          never fights the Toolbar (top) or Agenda (right). */}
+      {(showDiskChrome || isFullscreen) && (
+        <motion.button
+          onClick={toggleFullscreen}
+          type="button"
+          aria-label={isFullscreen ? 'Avslutt fullskjerm (F)' : 'Fullskjerm (F)'}
+          title={isFullscreen ? 'Avslutt fullskjerm (F)' : 'Fullskjerm (F)'}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...spring.gentle, delay: 0.3 }}
+          whileHover={{ scale: 1.04, y: -1 }}
+          whileTap={{ scale: 0.96 }}
+          className="fixed bottom-6 left-6 z-40 flex items-center justify-center w-11 h-11 rounded-full"
+          style={{
+            background: 'color-mix(in oklab, var(--bg-elevated) 82%, transparent)',
+            backdropFilter: 'blur(22px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(22px) saturate(180%)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-md), inset 0 1px 0 color-mix(in oklab, white 14%, transparent)',
+            color: 'var(--text-primary)',
+          }}
+        >
+          {isFullscreen ? (
+            <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" aria-hidden>
+              <path d="M7 3H3v4M13 3h4v4M7 17H3v-4M13 17h4v-4" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 20 20" fill="none" className="w-4 h-4" aria-hidden>
+              <path d="M3 7V3h4M17 7V3h-4M3 13v4h4M17 13v4h-4" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </motion.button>
+      )}
     </div>
   )
 }
@@ -496,16 +579,30 @@ function Toolbar({
 
 // ─── Disk View: the wheel + agenda ─────────────────────────────
 
-interface DiskViewProps {
+export interface DiskViewProps {
   year: number
   today: Date
   events: OrgEvent[]
   orgLogo: string | null
   selectedEvent: OrgEvent | null
   onSelectEvent: (ev: OrgEvent | null) => void
+  /**
+   * TV/ambient mode: disables hover tooltips, month-focus click, and mouse
+   * parallax. Replaces pointer-driven motion with a slow autonomous drift so
+   * the wheel feels alive on a display nobody is touching.
+   */
+  tvMode?: boolean
+  /**
+   * Hides the Agenda side panel. Dashboard loop uses this so the wheel alone
+   * carries the view.
+   */
+  hideAgenda?: boolean
 }
 
-function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }: DiskViewProps) {
+export function DiskView({
+  year, today, events, orgLogo, selectedEvent, onSelectEvent,
+  tvMode = false, hideAgenda = false,
+}: DiskViewProps) {
   const t = useT()
   const MONTH_FULL_L = monthFullT(t)
   const CATEGORY_LABELS_L = categoryLabelsT(t)
@@ -532,7 +629,11 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
     [events, year],
   )
 
-  const [hover, setHover] = useState<HoverInfo | null>(null)
+  const [hover, setHoverState] = useState<HoverInfo | null>(null)
+  const setHover = useCallback((info: HoverInfo | null) => {
+    if (tvMode) return
+    setHoverState(info)
+  }, [tvMode])
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [focusedMonth, setFocusedMonth] = useState<number | null>(null)
   // Normalised pointer offset for aurora parallax: [-1..1] in both axes, 0 = no hover
@@ -540,6 +641,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
   const svgRef = useRef<SVGSVGElement>(null)
 
   function onMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+    if (tvMode) return
     const rect = svgRef.current?.getBoundingClientRect()
     if (!rect) return
     setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top })
@@ -549,14 +651,34 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
     setParallax({ x: nx, y: ny })
   }
   function onMouseLeaveWheel() {
-    setHover(null)
+    if (tvMode) return
+    setHoverState(null)
     setParallax({ x: 0, y: 0 })
   }
 
+  // TV/ambient drift: sweep parallax around the wheel in a slow Lissajous loop
+  // so the aurora blobs keep breathing even when no cursor is present.
+  useEffect(() => {
+    if (!tvMode) return
+    let frame = 0
+    const start = performance.now()
+    function tick(now: number) {
+      const t = (now - start) / 1000
+      setParallax({
+        x: Math.sin(t * 0.11) * 0.55,
+        y: Math.cos(t * 0.09) * 0.55,
+      })
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [tvMode])
+
   const enterFocus = useCallback((idx: number) => {
+    if (tvMode) return
     onSelectEvent(null)
     setFocusedMonth(idx)
-  }, [onSelectEvent])
+  }, [onSelectEvent, tvMode])
 
   const exitFocus = useCallback(() => setFocusedMonth(null), [])
 
@@ -613,9 +735,21 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
   }
 
   return (
-    <div className="relative w-full max-w-[1180px] flex items-start gap-5 xl:gap-7 justify-center flex-wrap xl:flex-nowrap">
+    <div
+      className={
+        hideAgenda
+          ? 'relative w-full flex items-center justify-center'
+          : 'relative w-full max-w-[1180px] flex items-start gap-5 xl:gap-7 justify-center flex-wrap xl:flex-nowrap'
+      }
+    >
       {/* Wheel container */}
-      <div className="relative w-full max-w-[820px] aspect-square flex-shrink-0">
+      <div
+        className={
+          hideAgenda
+            ? 'relative w-full max-w-[min(92vh,1100px)] aspect-square flex-shrink-0'
+            : 'relative w-full max-w-[820px] aspect-square flex-shrink-0'
+        }
+      >
         {/* Back chip — shown in month-focus mode */}
         <AnimatePresence>
           {focus !== null && (
@@ -1594,7 +1728,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
       </div>
 
       {/* Agenda side panel */}
-      <Agenda events={events} today={today} onSelect={onSelectEvent} />
+      {!hideAgenda && <Agenda events={events} today={today} onSelect={onSelectEvent} />}
     </div>
   )
 }
