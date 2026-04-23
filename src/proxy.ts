@@ -28,9 +28,15 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const pathname = request.nextUrl.pathname
-  const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/auth')
+  // /offline is the SW fallback shell — must render for unauthenticated
+  // clients too (it's what shows when there's no network at all, before
+  // Supabase can even attempt session recovery).
+  const isPublicRoute =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/auth') ||
+    pathname === '/offline'
 
-  if (!user && !isAuthRoute) {
+  if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

@@ -1497,50 +1497,68 @@ export function DiskView({
                   textAnchor="middle"
                   dominantBaseline="central"
                   fontSize={12}
-                  fontWeight={600}
+                  fontWeight={500}
                   fill="var(--text-tertiary)"
                   style={{
-                    fontFamily: 'var(--font-body)',
+                    fontFamily: 'var(--font-manrope), system-ui, sans-serif',
                     letterSpacing: '0.32em',
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
                   {year}
                 </text>
+                {/* The day — Fraunces 300 with opsz 144, SOFT 80.
+                    At 116px this is the type-monster; the soft axis rounds
+                    the terminals so the glyph reads as warm, not mechanical. */}
                 <text
-                  x={CX} y={CY - 26}
+                  x={CX} y={CY - 20}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={96}
-                  fontWeight={700}
+                  fontSize={116}
+                  fontWeight={300}
                   fill="var(--text-primary)"
                   style={{
-                    fontFamily: 'var(--font-sora)',
+                    fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+                    fontVariationSettings: '"opsz" 144, "SOFT" 80',
                     letterSpacing: '-0.045em',
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
                   {today.getDate()}
                 </text>
+                {/* Weekday + month — Fraunces italic, weekday in Ember */}
                 <text
-                  x={CX} y={CY + 38}
+                  x={CX} y={CY + 54}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={15}
-                  fontWeight={500}
-                  fill="var(--text-secondary)"
-                  style={{ fontFamily: 'var(--font-body)', letterSpacing: '-0.01em' }}
+                  fontSize={18}
+                  style={{
+                    fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+                    fontStyle: 'italic',
+                    fontVariationSettings: '"opsz" 24, "SOFT" 80',
+                    fontWeight: 300,
+                    letterSpacing: '-0.018em',
+                  }}
                 >
-                  {weekdayFullT(today, t)}, {MONTH_FULL_L[today.getMonth()].toLowerCase()}
+                  <tspan fill="var(--ember, var(--accent-color))">
+                    {weekdayFullT(today, t).toLowerCase()}
+                  </tspan>
+                  <tspan fill="var(--text-secondary)">
+                    {', '}{MONTH_FULL_L[today.getMonth()].toLowerCase()}
+                  </tspan>
                 </text>
                 <text
-                  x={CX} y={CY + 66}
+                  x={CX} y={CY + 82}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={11}
-                  fontWeight={700}
-                  fill="var(--accent-color)"
-                  style={{ fontFamily: 'var(--font-body)', letterSpacing: '0.22em' }}
+                  fontSize={10.5}
+                  fontWeight={500}
+                  fill="var(--text-tertiary)"
+                  style={{
+                    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace',
+                    letterSpacing: '0.22em',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
                 >
                   UKE {currentWeek} · {String(today.getHours()).padStart(2, '0')}:{String(today.getMinutes()).padStart(2, '0')}
                 </text>
@@ -1568,64 +1586,84 @@ export function DiskView({
                   textAnchor="middle"
                   dominantBaseline="central"
                   fontSize={12}
-                  fontWeight={600}
+                  fontWeight={500}
                   fill="var(--text-tertiary)"
                   style={{
-                    fontFamily: 'var(--font-body)',
+                    fontFamily: 'var(--font-manrope), system-ui, sans-serif',
                     letterSpacing: '0.32em',
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
                   {year}
                 </text>
+                {/* Month name — Fraunces italic as the month's spiritual signature */}
                 <text
                   x={CX} y={CY - 22}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={focus.month === 8 ? 54 : 64}
-                  fontWeight={700}
+                  fontSize={focus.month === 8 ? 64 : 76}
+                  fontWeight={300}
                   fill="var(--text-primary)"
                   style={{
-                    fontFamily: 'var(--font-sora)',
-                    letterSpacing: '-0.035em',
+                    fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+                    fontStyle: 'italic',
+                    fontVariationSettings: '"opsz" 144, "SOFT" 100',
+                    letterSpacing: '-0.04em',
+                    textTransform: 'capitalize',
                   }}
                 >
-                  {MONTH_FULL_L[focus.month].toUpperCase()}
+                  {MONTH_FULL_L[focus.month].toLowerCase()}
                 </text>
                 {focus.todayDeg !== null ? (
                   <>
                     <text
-                      x={CX} y={CY + 32}
+                      x={CX} y={CY + 36}
                       textAnchor="middle"
                       dominantBaseline="central"
-                      fontSize={14}
-                      fontWeight={500}
-                      fill="var(--text-secondary)"
-                      style={{ fontFamily: 'var(--font-body)', letterSpacing: '-0.01em' }}
+                      fontSize={16}
+                      style={{
+                        fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+                        fontStyle: 'italic',
+                        fontVariationSettings: '"opsz" 24, "SOFT" 80',
+                        fontWeight: 300,
+                        letterSpacing: '-0.015em',
+                      }}
                     >
-                      i dag · {today.getDate()}. {weekdayFullT(today, t)}
+                      <tspan fill="var(--text-tertiary)">i dag · </tspan>
+                      <tspan fill="var(--ember, var(--accent-color))">
+                        {today.getDate()}. {weekdayFullT(today, t).toLowerCase()}
+                      </tspan>
                     </text>
                     <text
-                      x={CX} y={CY + 58}
+                      x={CX} y={CY + 64}
                       textAnchor="middle"
                       dominantBaseline="central"
-                      fontSize={11}
-                      fontWeight={700}
-                      fill="var(--accent-color)"
-                      style={{ fontFamily: 'var(--font-body)', letterSpacing: '0.22em' }}
+                      fontSize={10.5}
+                      fontWeight={500}
+                      fill="var(--text-tertiary)"
+                      style={{
+                        fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace',
+                        letterSpacing: '0.22em',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
                     >
                       UKE {currentWeek}
                     </text>
                   </>
                 ) : (
                   <text
-                    x={CX} y={CY + 38}
+                    x={CX} y={CY + 42}
                     textAnchor="middle"
                     dominantBaseline="central"
-                    fontSize={13}
-                    fontWeight={500}
-                    fill="var(--text-tertiary)"
-                    style={{ fontFamily: 'var(--font-body)', letterSpacing: '-0.005em' }}
+                    fontSize={14}
+                    style={{
+                      fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+                      fontStyle: 'italic',
+                      fontVariationSettings: '"opsz" 18, "SOFT" 60',
+                      fontWeight: 300,
+                      letterSpacing: '-0.005em',
+                      fill: 'var(--text-tertiary)',
+                    }}
                   >
                     {focus.events.length === 0
                       ? t.wheel.noEvents
