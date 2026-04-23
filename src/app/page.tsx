@@ -87,7 +87,7 @@ export default async function HomePage() {
   ).size
 
   return (
-    <div className="mx-auto max-w-7xl px-6 pt-2 pb-10 space-y-10">
+    <div className="mx-auto max-w-7xl px-6 pt-2 pb-10 space-y-8">
       {/* Quiet Fraunces greeting — today's date as an italic Ember beat */}
       <TodayGreeting
         today={new Date()}
