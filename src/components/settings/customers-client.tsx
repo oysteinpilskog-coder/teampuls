@@ -363,16 +363,14 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
               style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)' }}
               onClick={closeModal}
             />
+            <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh] pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.94, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={spring.bouncy}
-              className="fixed z-50 w-[540px] max-w-[calc(100vw-24px)] rounded-2xl p-6 flex flex-col gap-4"
+              className="pointer-events-auto w-[540px] max-w-full max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl p-6 flex flex-col gap-4"
               style={{
-                top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-                maxHeight: 'calc(100vh - 24px)',
-                overflowY: 'auto',
                 backgroundColor: 'var(--bg-elevated)',
                 boxShadow: 'var(--shadow-xl)',
               }}
@@ -663,6 +661,7 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
                 </motion.button>
               </div>
             </motion.div>
+            </div>
           </>
         )}
       </AnimatePresence>
