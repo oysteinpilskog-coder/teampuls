@@ -6,6 +6,7 @@ import { PresenceHeatmap } from '@/components/presence-heatmap'
 import { DaysTogether } from '@/components/days-together'
 import { TeamHealthCard } from '@/components/team-health-card'
 import { InactivityNudge } from '@/components/inactivity-nudge'
+import { TodayGreeting } from '@/components/today-greeting'
 import { getSessionMember } from '@/lib/supabase/session'
 import { getServerDict } from '@/lib/i18n/server'
 import { createClient } from '@/lib/supabase/server'
@@ -57,7 +58,7 @@ export default async function HomePage() {
   const weekDays = getWeekDays(week, year)
   const dateStrings = weekDays.map(toDateString)
 
-  const [membersRes, entriesRes] = await Promise.all([
+  const [membersRes, entriesRes, dict] = await Promise.all([
     supabase
       .from('members')
       .select('*')
@@ -69,10 +70,34 @@ export default async function HomePage() {
       .select('*')
       .eq('org_id', member.org_id)
       .in('date', dateStrings),
+    getServerDict(),
   ])
 
+  // Compute today's presence summary server-side for the Fraunces greeting.
+  // Uses actual entries only (assumed-presence is a UI-level concept; we
+  // prefer truth-on-the-ground for the headline). Dedup by member so the
+  // same person across multiple entries counts once.
+  const todayStr = toDateString(new Date())
+  const todayEntries = (entriesRes.data ?? []).filter(e => e.date === todayStr)
+  const todayMemberIds = new Set(todayEntries.map(e => e.member_id))
+  const distinctLocations = new Set(
+    todayEntries
+      .map(e => (e.location_label ?? '').trim())
+      .filter(Boolean),
+  ).size
+
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10 space-y-10">
+    <div className="mx-auto max-w-7xl px-6 pt-2 pb-10 space-y-10">
+      {/* Quiet Fraunces greeting — today's date as an italic Ember beat */}
+      <TodayGreeting
+        today={new Date()}
+        week={week}
+        memberCount={membersRes.data?.length ?? 0}
+        registeredToday={todayMemberIds.size}
+        distinctLocations={distinctLocations}
+        dict={dict}
+      />
+
       <div className="mx-auto max-w-3xl">
         <AIInput orgId={member.org_id} />
       </div>

@@ -68,6 +68,10 @@ export function OffiviewWordmarkAnimated({
     return () => window.clearTimeout(settleTimer)
   }, [forcePlay, prefersReducedMotion])
 
+  const uid = React.useId()
+  const gradId = `offiview-anim-${uid}`
+  const glowId = `offiview-anim-glow-${uid}`
+
   // Settled state: render the plain static wordmark so SSR and post-animation
   // share identical markup (no layout jitter, no flash).
   if (phase === 'settled') {
@@ -80,13 +84,6 @@ export function OffiviewWordmarkAnimated({
       />
     )
   }
-
-  // Pre-animation (before effect runs) or rising — render the animated SVG.
-  // Geometry matches the static mark: viewBox 0 0 100 100, ring r=47,
-  // horizon from x=15 to x=85 at y=62, stroke-width 6.
-  const uid = React.useId()
-  const gradId = `offiview-anim-${uid}`
-  const glowId = `offiview-anim-glow-${uid}`
 
   // Text color follows currentColor so caller's CSS tone applies.
   const textColor =

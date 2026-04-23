@@ -92,19 +92,23 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
         >
           <p
             className="text-[13px] font-medium tracking-[0.22em] uppercase"
-            style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
+            style={{ color: 'rgba(245,239,228,0.45)', fontFamily: 'var(--font-manrope), system-ui, sans-serif' }}
           >
             {orgName}
           </p>
+          {/* Product name — Fraunces italic on Paper. Quiet, warm, restrained.
+              The clock is the Nordlys hero of this surface; the wordmark sits
+              on the ink/paper scale so there's room for a single signature. */}
           <p
-            className="text-[28px] font-semibold tracking-tight leading-none mt-1"
+            className="leading-none mt-1.5"
             style={{
-              fontFamily: 'var(--font-sora)',
-              background:
-                'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.7) 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
+              fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+              fontWeight: 300,
+              fontStyle: 'italic',
+              fontVariationSettings: '"opsz" 32, "SOFT" 80',
+              fontSize: 32,
+              letterSpacing: '-0.025em',
+              color: '#F5EFE4',
             }}
           >
             Offiview
@@ -143,39 +147,60 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...spring.gentle, delay: 0.12 }}
         >
+          {/* THE CLOCK — Nordlys signature moment.
+              Once per flate: this is the one place on the TV dashboard where
+              Nordlys appears. Everything else stays on Paper/Ember.
+              Fraunces 300 with opsz 144 + SOFT 80 gives the digits soft
+              terminals — warm and precise. Green→cyan→violet gradient
+              bakes the signature into the glyphs themselves. */}
           <div
             className="tabular-nums leading-none"
             style={{
-              fontSize: '96px',
-              fontWeight: 700,
-              fontFamily: 'var(--font-sora)',
-              letterSpacing: '-0.045em',
-              background:
-                'linear-gradient(180deg, #ffffff 0%, #ffffff 45%, #d4dbff 100%)',
+              fontSize: 108,
+              fontWeight: 300,
+              fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+              fontVariationSettings: '"opsz" 144, "SOFT" 80',
+              letterSpacing: '-0.04em',
+              backgroundImage:
+                'linear-gradient(120deg, #00F5A0 0%, #00D9F5 55%, #7C3AED 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
-              filter: 'drop-shadow(0 0 32px rgba(120,150,255,0.18))',
+              filter: 'drop-shadow(0 0 28px rgba(0,245,160,0.22))',
             }}
           >
             {hours}
             <span
+              aria-hidden
               style={{
-                opacity: 0.35,
+                opacity: 0.5,
                 animation: 'clockBlink 1.2s ease-in-out infinite',
-                WebkitTextFillColor: '#ffffff',
-                background: 'none',
+                WebkitTextFillColor: 'rgba(245,239,228,0.75)',
+                backgroundImage: 'none',
+                margin: '0 -0.04em',
               }}
             >
               :
             </span>
             {minutes}
           </div>
+          {/* Date subline — Fraunces italic, weekday in Ember-glow */}
           <div
-            className="flex items-center justify-end gap-3 mt-1"
-            style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-body)' }}
+            className="flex items-baseline justify-end gap-3 mt-2"
+            style={{
+              color: 'rgba(245,239,228,0.6)',
+              fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+              fontStyle: 'italic',
+              fontWeight: 300,
+              fontVariationSettings: '"opsz" 24, "SOFT" 80',
+            }}
           >
-            <span className="text-[17px] tracking-wide">{dateLabel}</span>
+            <span style={{ fontSize: 19, letterSpacing: '-0.015em' }}>
+              <span style={{ color: '#FBBF24' }}>
+                {WEEKDAY_FULL[time.getDay()].toLowerCase()}
+              </span>
+              <span>{' · '}{time.getDate()}. {MONTH_FULL[time.getMonth()]}</span>
+            </span>
           </div>
         </motion.div>
       </div>
