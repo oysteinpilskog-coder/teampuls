@@ -8,7 +8,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { WorkspaceSwitcher } from '@/components/workspace-switcher'
 import { PresenceIndicator } from '@/components/presence-indicator'
 import { openCommandPalette } from '@/components/command-palette'
-import { OffiviewWordmark } from '@/components/brand/offiview-wordmark'
+import { OffiviewWordmarkAnimated } from '@/components/brand/offiview-wordmark-animated'
 import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
 
@@ -90,7 +90,7 @@ export function AppHeader() {
               transition={spring.snappy}
               style={{ display: 'inline-flex' }}
             >
-              <OffiviewWordmark size={22} variant="ink" />
+              <OffiviewWordmarkAnimated size={22} variant="ink" />
             </motion.span>
           </Link>
 

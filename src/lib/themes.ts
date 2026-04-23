@@ -21,11 +21,11 @@ export interface ThemeMeta {
 export const THEMES: ThemeMeta[] = [
   {
     id: 'nordic',
-    name: 'Nordic',
-    tagline: 'Klassisk blå med varm solnedgang',
-    accent: '#0066FF',
-    previewGradient: 'linear-gradient(135deg, hsl(220,95%,68%) 0%, hsl(28,95%,62%) 100%)',
-    finish: 'Glass',
+    name: 'Offiview',
+    tagline: 'Papir, blekk og glød',
+    accent: '#B45309',
+    previewGradient: 'linear-gradient(135deg, #F5EFE4 0%, #E0D8C8 45%, #B45309 100%)',
+    finish: 'Satin',
   },
   {
     id: 'obsidian',
