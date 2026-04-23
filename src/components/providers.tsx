@@ -35,11 +35,11 @@ export function Providers({
     >
       <ThemeVariantProvider>
         <StatusColorsProvider initialColors={initialStatusColors}>
-          <WorkspaceProvider
-            initialWorkspaces={initialWorkspaces}
-            initialActiveSlug={initialActiveSlug}
-          >
-            <I18nProvider initialLocale={initialLocale}>
+          <I18nProvider initialLocale={initialLocale}>
+            <WorkspaceProvider
+              initialWorkspaces={initialWorkspaces}
+              initialActiveSlug={initialActiveSlug}
+            >
               {children}
               <CommandPalette />
               <KeyboardHelp />
@@ -63,8 +63,8 @@ export function Providers({
                   },
                 }}
               />
-            </I18nProvider>
-          </WorkspaceProvider>
+            </WorkspaceProvider>
+          </I18nProvider>
         </StatusColorsProvider>
       </ThemeVariantProvider>
     </ThemeProvider>
