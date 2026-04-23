@@ -107,7 +107,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
               backgroundClip: 'text',
             }}
           >
-            TeamPulse
+            Offiview
           </p>
           <div className="mt-2 flex items-center gap-2">
             <span

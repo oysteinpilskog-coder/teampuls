@@ -2,8 +2,8 @@ import type { Dictionary } from './types'
 
 export const sv: Dictionary = {
   app: {
-    name: 'TeamPulse',
-    tagline: 'Det vackraste och enklaste sättet att veta var ditt team är.',
+    name: 'Offiview',
+    tagline: 'Dagen, lagd på bordet.',
   },
   nav: {
     home: 'Översikt',
@@ -136,7 +136,7 @@ export const sv: Dictionary = {
     registered: 'registrerade',
     where: 'Var',
     today: 'Idag',
-    ready: 'TeamPulse redo',
+    ready: 'Offiview redo',
     readyHint: 'Lägg till medlemmar för att se pulsen.',
     fullTeam: 'Hela teamet är på jobb',
     fullTeamHint: 'Alla är registrerade och aktiva idag.',
@@ -431,7 +431,7 @@ export const sv: Dictionary = {
     },
     language: {
       title: 'Språk',
-      subtitle: 'Välj det språk du vill använda i TeamPulse',
+      subtitle: 'Välj det språk du vill använda i Offiview',
       current: 'Aktivt språk',
       changed: 'Språk ändrat',
     },

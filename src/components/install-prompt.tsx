@@ -90,7 +90,7 @@ export function InstallPrompt() {
                 className="text-[13.5px] font-semibold"
                 style={{ color: 'var(--text-primary)' }}
               >
-                Legg til TeamPulse på Hjem-skjermen
+                Legg til Offiview på Hjem-skjermen
               </div>
               <p
                 className="text-[12.5px] mt-0.5 leading-snug"

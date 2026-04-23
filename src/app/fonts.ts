@@ -1,30 +1,30 @@
-import { Sora, Inter_Tight, Instrument_Serif } from 'next/font/google'
+import { Fraunces, Manrope } from 'next/font/google'
 
-export const fontDisplay = Sora({
+// Fraunces — display serif with optical sizing and softness.
+// Italic is critical (Ember-words). opsz 9..144, SOFT 0..100.
+export const fontDisplay = Fraunces({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-sora',
-  weight: ['300', '400', '500', '600', '700', '800'],
-})
-
-export const fontBody = Inter_Tight({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-inter-tight',
-  weight: ['400', '500', '600', '700'],
-})
-
-// Instrument Serif (italic) for display headings in the dark liquid-glass surfaces.
-export const fontSerif = Instrument_Serif({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-serif',
-  weight: ['400'],
+  variable: '--font-fraunces',
+  axes: ['opsz', 'SOFT'],
   style: ['normal', 'italic'],
+  weight: 'variable',
 })
+
+// Manrope — UI body, variable 200..800.
+export const fontBody = Manrope({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-manrope',
+  weight: 'variable',
+})
+
+// Fraunces alias for the serif slot. Components that read var(--font-serif)
+// (italic display) resolve here.
+export const fontSerif = fontDisplay
 
 /**
- * Mono is delivered via the system stack (SF Mono on Apple, Consolas/Menlo elsewhere).
- * We keep the --font-mono variable for backwards compat but it's now empty —
- * the .lg-mono utility in globals.css resolves to the system mono stack directly.
+ * Mono is delivered via the system stack (SF Mono on Apple, Consolas/Menlo
+ * elsewhere) — see the .lg-mono utility in globals.css. The --font-mono var
+ * is aliased in globals.css for backward compat.
  */

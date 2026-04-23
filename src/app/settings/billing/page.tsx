@@ -32,7 +32,7 @@ export default async function BillingSettingsPage() {
 
   return (
     <BillingClient
-      orgName={org?.name ?? 'TeamPulse'}
+      orgName={org?.name ?? 'Offiview'}
       createdAt={org?.created_at ?? null}
       currentPlanId="free"
       seatsUsed={memberCount ?? 0}

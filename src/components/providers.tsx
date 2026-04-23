@@ -31,10 +31,13 @@ export function Providers({
   initialActiveSlug: string | null
 }) {
   return (
+    // Offiview: marketing/product default to light (Paper). Users can toggle
+    // via ThemeToggle; the /dashboard route force-locks dark via
+    // DashboardDarkLock regardless of this default.
     <ThemeProvider
       attribute="class"
-      defaultTheme="dark"
-      enableSystem={false}
+      defaultTheme="light"
+      enableSystem
       disableTransitionOnChange
     >
       <ThemeVariantProvider>

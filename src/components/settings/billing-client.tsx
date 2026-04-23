@@ -104,7 +104,7 @@ export function BillingClient({ orgName, createdAt, currentPlanId, seatsUsed }: 
     haptic('medium')
     if (id === 'enterprise') {
       // Deep-link to mail client — swap for a real contact form when ready.
-      window.location.href = `mailto:sales@teampuls.no?subject=TeamPulse%20Enterprise%20for%20${encodeURIComponent(orgName)}`
+      window.location.href = `mailto:sales@teampuls.no?subject=Offiview%20Enterprise%20for%20${encodeURIComponent(orgName)}`
       return
     }
     if (id === currentPlanId) {
@@ -192,7 +192,7 @@ export function BillingClient({ orgName, createdAt, currentPlanId, seatsUsed }: 
             className="relative mt-5 text-[11.5px] font-medium"
             style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
           >
-            {orgName} har brukt TeamPulse i {memberOfDays} dager.
+            {orgName} har brukt Offiview i {memberOfDays} dager.
           </div>
         )}
       </section>

@@ -1,7 +1,7 @@
 export const no = {
   app: {
-    name: 'TeamPulse',
-    tagline: 'Den vakreste og enkleste måten å vite hvor teamet ditt er.',
+    name: 'Offiview',
+    tagline: 'Dagen, lagt på bordet.',
   },
   nav: {
     home: 'Oversikt',
@@ -134,7 +134,7 @@ export const no = {
     registered: 'registrert',
     where: 'Hvor',
     today: 'I dag',
-    ready: 'TeamPulse klar',
+    ready: 'Offiview klar',
     readyHint: 'Legg til medlemmer for å se pulsen.',
     fullTeam: 'Hele teamet er på jobb',
     fullTeamHint: 'Alle er registrert og aktive i dag.',
@@ -429,7 +429,7 @@ export const no = {
     },
     language: {
       title: 'Språk',
-      subtitle: 'Velg språket du vil bruke i TeamPulse',
+      subtitle: 'Velg språket du vil bruke i Offiview',
       current: 'Aktivt språk',
       changed: 'Språk endret',
     },

@@ -8,6 +8,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { WorkspaceSwitcher } from '@/components/workspace-switcher'
 import { PresenceIndicator } from '@/components/presence-indicator'
 import { openCommandPalette } from '@/components/command-palette'
+import { OffiviewWordmark } from '@/components/brand/offiview-wordmark'
 import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
 
@@ -75,37 +76,22 @@ export function AppHeader() {
           }
         />
         <div className="mx-auto max-w-7xl px-6 h-16 flex items-center gap-6">
-          {/* Wordmark */}
+          {/* Offiview wordmark — circle + horizon mark + "ffiview" */}
           <Link
             href="/"
             onClick={(e) => handleNav('/', e)}
-            className="flex items-center gap-2 shrink-0 select-none group"
+            className="flex items-center shrink-0 select-none group outline-none"
+            aria-label="Offiview — til forsiden"
+            style={{ color: 'var(--text-primary)' }}
           >
-            {/* Mark — a gradient dot */}
             <motion.span
-              className="relative block w-[22px] h-[22px] rounded-full"
-              style={{
-                background: 'conic-gradient(from 220deg, hsl(220,90%,62%), hsl(280,75%,62%), hsl(35,95%,60%), hsl(220,90%,62%))',
-                boxShadow: '0 0 14px color-mix(in oklab, var(--accent-color) 55%, transparent)',
-              }}
-              whileHover={{ scale: 1.08, rotate: 20 }}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.97 }}
               transition={spring.snappy}
+              style={{ display: 'inline-flex' }}
             >
-              <span
-                className="absolute inset-[3px] rounded-full"
-                style={{ background: 'var(--bg-elevated)' }}
-              />
+              <OffiviewWordmark size={22} variant="ink" />
             </motion.span>
-            <span
-              className="text-[17px] font-semibold tracking-tight"
-              style={{
-                color: 'var(--text-primary)',
-                fontFamily: 'var(--font-sora)',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              TeamPulse
-            </span>
           </Link>
 
           {/* Nav with animated active pill */}

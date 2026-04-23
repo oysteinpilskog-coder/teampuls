@@ -21,8 +21,9 @@ export const viewport: Viewport = {
   // the SW-cached offline page keep using env(safe-area-inset-*) if needed.
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#FAFAF9' },
-    { media: '(prefers-color-scheme: dark)',  color: '#0A0A0B' },
+    // Light: Paper. Dark: Espresso.
+    { media: '(prefers-color-scheme: light)', color: '#F5EFE4' },
+    { media: '(prefers-color-scheme: dark)',  color: '#15110E' },
   ],
 }
 
@@ -35,7 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
       template: `%s · ${dict.app.name}`,
     },
     description: dict.app.tagline,
-    keywords: ['team', 'location', 'status', 'dashboard', 'remote work'],
+    keywords: ['team', 'location', 'status', 'dashboard', 'remote work', 'office'],
     openGraph: {
       title: dict.app.name,
       description: dict.app.tagline,
@@ -125,12 +126,16 @@ export default async function RootLayout({
           initialWorkspaces={session.workspaces}
           initialActiveSlug={activeWorkspace?.slug ?? null}
         >
-          {/* Ambient aurora backdrop — fixed, non-interactive */}
+          {/* Ambient aurora backdrop — restrained Ember-tint, sits below grain */}
           <div className="ambient-aurora" aria-hidden />
-          <ConditionalHeader />
-          <main className="flex-1 relative">
-            {children}
-          </main>
+          {/* Offiview grain is applied via body::before (z-index: 1, fixed).
+              Header and main sit at z-index: 2 so grain reads beneath content. */}
+          <div className="relative z-[2] flex-1 flex flex-col">
+            <ConditionalHeader />
+            <main className="flex-1 relative">
+              {children}
+            </main>
+          </div>
         </Providers>
       </body>
     </html>

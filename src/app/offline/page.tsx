@@ -54,7 +54,7 @@ export default function OfflinePage() {
             lineHeight: 1.55,
           }}
         >
-          Vi prøver igjen når du er tilbake på nett. TeamPulse holder siste visning
+          Vi prøver igjen når du er tilbake på nett. Offiview holder siste visning
           klar i bakgrunnen.
         </p>
       </div>

@@ -2,8 +2,8 @@ import type { Dictionary } from './types'
 
 export const en: Dictionary = {
   app: {
-    name: 'TeamPulse',
-    tagline: 'The most beautiful and simplest way to know where your team is.',
+    name: 'Offiview',
+    tagline: 'The day, laid on the table.',
   },
   nav: {
     home: 'Overview',
@@ -136,7 +136,7 @@ export const en: Dictionary = {
     registered: 'registered',
     where: 'Where',
     today: 'Today',
-    ready: 'TeamPulse ready',
+    ready: 'Offiview ready',
     readyHint: 'Add members to see the pulse.',
     fullTeam: 'The whole team is on',
     fullTeamHint: 'Everyone is registered and active today.',
@@ -431,7 +431,7 @@ export const en: Dictionary = {
     },
     language: {
       title: 'Language',
-      subtitle: 'Choose the language you want to use in TeamPulse',
+      subtitle: 'Choose the language you want to use in Offiview',
       current: 'Active language',
       changed: 'Language changed',
     },

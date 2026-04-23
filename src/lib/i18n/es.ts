@@ -2,8 +2,8 @@ import type { Dictionary } from './types'
 
 export const es: Dictionary = {
   app: {
-    name: 'TeamPulse',
-    tagline: 'La forma más bonita y sencilla de saber dónde está tu equipo.',
+    name: 'Offiview',
+    tagline: 'El día, puesto sobre la mesa.',
   },
   nav: {
     home: 'Resumen',
@@ -136,7 +136,7 @@ export const es: Dictionary = {
     registered: 'registrados',
     where: 'Dónde',
     today: 'Hoy',
-    ready: 'TeamPulse listo',
+    ready: 'Offiview listo',
     readyHint: 'Añade miembros para ver el pulso.',
     fullTeam: 'Todo el equipo al pie del cañón',
     fullTeamHint: 'Todos están registrados y activos hoy.',
@@ -431,7 +431,7 @@ export const es: Dictionary = {
     },
     language: {
       title: 'Idioma',
-      subtitle: 'Elige el idioma que quieres usar en TeamPulse',
+      subtitle: 'Elige el idioma que quieres usar en Offiview',
       current: 'Idioma activo',
       changed: 'Idioma cambiado',
     },

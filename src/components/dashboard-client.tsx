@@ -107,7 +107,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
         .eq('org_id', orgId)
         .order('name'),
     ])
-    setOrg(orgData ?? { name: 'TeamPulse', timezone: 'Europe/Oslo' })
+    setOrg(orgData ?? { name: 'Offiview', timezone: 'Europe/Oslo' })
     setMembers(membersData ?? [])
     setOffices(officesData ?? [])
     setCustomers(customersData ?? [])

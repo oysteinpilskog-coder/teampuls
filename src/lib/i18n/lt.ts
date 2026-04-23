@@ -2,8 +2,8 @@ import type { Dictionary } from './types'
 
 export const lt: Dictionary = {
   app: {
-    name: 'TeamPulse',
-    tagline: 'Gražiausias ir paprasčiausias būdas žinoti, kur yra tavo komanda.',
+    name: 'Offiview',
+    tagline: 'Diena, padėta ant stalo.',
   },
   nav: {
     home: 'Apžvalga',
@@ -136,7 +136,7 @@ export const lt: Dictionary = {
     registered: 'užsiregistravę',
     where: 'Kur',
     today: 'Šiandien',
-    ready: 'TeamPulse paruoštas',
+    ready: 'Offiview paruoštas',
     readyHint: 'Pridėk narių, kad pamatytum pulsą.',
     fullTeam: 'Visa komanda darbe',
     fullTeamHint: 'Visi užsiregistravę ir aktyvūs šiandien.',
@@ -431,7 +431,7 @@ export const lt: Dictionary = {
     },
     language: {
       title: 'Kalba',
-      subtitle: 'Pasirink kalbą, kurią nori naudoti TeamPulse',
+      subtitle: 'Pasirink kalbą, kurią nori naudoti Offiview',
       current: 'Aktyvi kalba',
       changed: 'Kalba pakeista',
     },
