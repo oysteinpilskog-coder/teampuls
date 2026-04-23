@@ -7,7 +7,6 @@ export const en: Dictionary = {
   },
   nav: {
     home: 'Overview',
-    today: 'Today',
     myPlan: 'My plan',
     wheel: 'Year wheel',
     dashboard: 'Dashboard',
@@ -44,6 +43,20 @@ export const en: Dictionary = {
     copy: 'Copy',
     copied: 'Copied',
     optional: 'Optional',
+  },
+  workspace: {
+    switcher: 'Workspace',
+    switchTo: 'Switch to',
+    current: 'Active',
+    searchPlaceholder: 'Search workspaces…',
+    switchFailed: "Couldn't switch workspace",
+    switched: 'Switched to',
+    regionEU: 'EU',
+    regionUK: 'UK',
+    regionUS: 'US',
+    regionAPAC: 'APAC',
+    shortcutHint: '⌘{n} for quick switch',
+    only: 'Only workspace',
   },
   today: {
     title: 'Today',
@@ -159,6 +172,7 @@ export const en: Dictionary = {
       nav: 'Go to',
       actions: 'Actions',
       theme: 'Appearance',
+      workspace: 'Workspaces',
     },
     cmd: {
       focusInput: 'Write status update',

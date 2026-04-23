@@ -3,21 +3,24 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTransition, useState, useEffect } from 'react'
-import { Users, Building2, MapPin, Briefcase, Palette } from 'lucide-react'
-
-const NAV_ITEMS = [
-  { href: '/settings/members', label: 'Medlemmer', icon: Users },
-  { href: '/settings/org', label: 'Organisasjon', icon: Building2 },
-  { href: '/settings/offices', label: 'Kontorer', icon: MapPin },
-  { href: '/settings/customers', label: 'Kunder', icon: Briefcase },
-  { href: '/settings/theme', label: 'Tema', icon: Palette },
-]
+import { Users, Building2, MapPin, Briefcase, Palette, Languages } from 'lucide-react'
+import { useT } from '@/lib/i18n/context'
 
 export function SettingsNav() {
   const pathname = usePathname()
   const router = useRouter()
   const [, startTransition] = useTransition()
   const [optimisticHref, setOptimisticHref] = useState<string | null>(null)
+  const t = useT()
+
+  const NAV_ITEMS = [
+    { href: '/settings/members', label: t.settings.nav.members, icon: Users },
+    { href: '/settings/org', label: t.settings.nav.org, icon: Building2 },
+    { href: '/settings/offices', label: t.settings.nav.offices, icon: MapPin },
+    { href: '/settings/customers', label: t.settings.nav.customers, icon: Briefcase },
+    { href: '/settings/theme', label: t.settings.nav.theme, icon: Palette },
+    { href: '/settings/language', label: t.settings.nav.language, icon: Languages },
+  ]
 
   useEffect(() => {
     if (optimisticHref && pathname.startsWith(optimisticHref)) setOptimisticHref(null)
@@ -39,7 +42,7 @@ export function SettingsNav() {
         className="text-[11px] font-semibold uppercase tracking-widest px-3 mb-3"
         style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
       >
-        Innstillinger
+        {t.settings.title}
       </p>
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
         const isActive = optimisticHref === href || (!optimisticHref && pathname.startsWith(href))

@@ -5,7 +5,6 @@ export const no = {
   },
   nav: {
     home: 'Oversikt',
-    today: 'I dag',
     myPlan: 'Min plan',
     wheel: 'Årshjul',
     dashboard: 'Dashboard',
@@ -61,6 +60,20 @@ export const no = {
     breakdown: 'Fordeling',
     showAll: 'Vis alle',
     hideAll: 'Skjul',
+  },
+  workspace: {
+    switcher: 'Arbeidsområde',
+    switchTo: 'Bytt til',
+    current: 'Aktivt',
+    searchPlaceholder: 'Søk arbeidsområder…',
+    switchFailed: 'Kunne ikke bytte arbeidsområde',
+    switched: 'Byttet til',
+    regionEU: 'EU',
+    regionUK: 'UK',
+    regionUS: 'US',
+    regionAPAC: 'APAC',
+    shortcutHint: '⌘{n} for rask bytte',
+    only: 'Eneste arbeidsområde',
   },
   status: {
     office: 'Kontor',
@@ -157,6 +170,7 @@ export const no = {
       nav: 'Gå til',
       actions: 'Handlinger',
       theme: 'Visning',
+      workspace: 'Arbeidsområder',
     },
     cmd: {
       focusInput: 'Skriv statusoppdatering',

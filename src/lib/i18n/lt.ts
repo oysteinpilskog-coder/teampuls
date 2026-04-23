@@ -7,7 +7,6 @@ export const lt: Dictionary = {
   },
   nav: {
     home: 'Apžvalga',
-    today: 'Šiandien',
     myPlan: 'Mano planas',
     wheel: 'Metų ratas',
     dashboard: 'Skydelis',
@@ -44,6 +43,20 @@ export const lt: Dictionary = {
     copy: 'Kopijuoti',
     copied: 'Nukopijuota',
     optional: 'Pasirinktinai',
+  },
+  workspace: {
+    switcher: 'Darbo sritis',
+    switchTo: 'Perjungti į',
+    current: 'Aktyvi',
+    searchPlaceholder: 'Ieškoti darbo sričių…',
+    switchFailed: 'Nepavyko pakeisti darbo srities',
+    switched: 'Perjungta į',
+    regionEU: 'ES',
+    regionUK: 'UK',
+    regionUS: 'US',
+    regionAPAC: 'APAC',
+    shortcutHint: '⌘{n} greitam perjungimui',
+    only: 'Vienintelė darbo sritis',
   },
   today: {
     title: 'Šiandien',
@@ -159,6 +172,7 @@ export const lt: Dictionary = {
       nav: 'Eiti į',
       actions: 'Veiksmai',
       theme: 'Išvaizda',
+      workspace: 'Darbo sritys',
     },
     cmd: {
       focusInput: 'Rašyti būsenos atnaujinimą',

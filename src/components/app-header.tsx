@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { useTransition, useState, useEffect } from 'react'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { WorkspaceSwitcher } from '@/components/workspace-switcher'
 import { openCommandPalette } from '@/components/command-palette'
 import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
@@ -16,9 +17,10 @@ export function AppHeader() {
   const [optimisticHref, setOptimisticHref] = useState<string | null>(null)
   const t = useT()
 
+  // `t.nav.today` was removed upstream (the /i-dag page was dropped since
+  // Oversikt already shows today), so we don't surface it here either.
   const navLinks = [
     { href: '/', label: t.nav.home },
-    { href: '/i-dag', label: t.nav.today },
     { href: '/min-plan', label: t.nav.myPlan },
     { href: '/wheel', label: t.nav.wheel },
     { href: '/dashboard', label: t.nav.dashboard },
@@ -144,6 +146,7 @@ export function AppHeader() {
 
           {/* Right side */}
           <div className="flex items-center gap-2 shrink-0">
+            <WorkspaceSwitcher />
             <motion.button
               type="button"
               onClick={() => openCommandPalette()}

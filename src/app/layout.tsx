@@ -11,6 +11,7 @@ import { en } from '@/lib/i18n/en'
 import { sv } from '@/lib/i18n/sv'
 import { es } from '@/lib/i18n/es'
 import { lt } from '@/lib/i18n/lt'
+import { getSessionMember } from '@/lib/supabase/session'
 import './globals.css'
 
 const DICT_FOR_METADATA = { no, en, sv, es, lt }
@@ -48,10 +49,22 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [initialStatusColors, initialLocale] = await Promise.all([
+  const [initialStatusColors, initialLocale, session] = await Promise.all([
     getOrgStatusColors(),
     getServerLocale(),
+    getSessionMember(),
   ])
+
+  const activeWorkspace = session.activeWorkspace
+  // Sanitize: only allow 3/4/6/8-digit hex so we can't inject
+  // arbitrary CSS via a malicious workspace accent_color value.
+  const accentColor = activeWorkspace?.accent_color?.match(/^#[0-9a-fA-F]{3,8}$/)
+    ? activeWorkspace.accent_color
+    : null
+
+  const bodyStyle = accentColor
+    ? ({ ['--workspace-accent-color' as string]: accentColor } as React.CSSProperties)
+    : undefined
 
   return (
     <html
@@ -62,8 +75,17 @@ export default async function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeVariantBootScript }} />
       </head>
-      <body className="min-h-screen flex flex-col" suppressHydrationWarning>
-        <Providers initialStatusColors={initialStatusColors} initialLocale={initialLocale}>
+      <body
+        className="min-h-screen flex flex-col"
+        style={bodyStyle}
+        suppressHydrationWarning
+      >
+        <Providers
+          initialStatusColors={initialStatusColors}
+          initialLocale={initialLocale}
+          initialWorkspaces={session.workspaces}
+          initialActiveSlug={activeWorkspace?.slug ?? null}
+        >
           {/* Ambient aurora backdrop — fixed, non-interactive */}
           <div className="ambient-aurora" aria-hidden />
           <ConditionalHeader />

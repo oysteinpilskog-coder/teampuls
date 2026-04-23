@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { resolveActiveMember } from '@/lib/supabase/session'
 import { suggestCoordinationDays } from '@/lib/ai/suggest-days'
 import { getServerDict } from '@/lib/i18n/server'
 import type { Entry } from '@/lib/supabase/types'
@@ -24,22 +25,9 @@ export async function GET() {
 
     const admin = createAdminClient()
 
-    // Resolve the caller's member row.
-    let { data: member } = await admin
-      .from('members')
-      .select('org_id, email')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .maybeSingle()
-    if (!member && user.email) {
-      const { data: byEmail } = await admin
-        .from('members')
-        .select('org_id, email')
-        .ilike('email', user.email)
-        .eq('is_active', true)
-        .maybeSingle()
-      member = byEmail ?? null
-    }
+    // Resolve the caller's member row — scoped to the active
+    // workspace when the user belongs to multiple.
+    const member = await resolveActiveMember(admin, user.id, user.email)
     if (!member) {
       return NextResponse.json({ error: dict.ai.notLinkedToOrg }, { status: 403 })
     }

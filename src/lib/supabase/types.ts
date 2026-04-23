@@ -6,20 +6,68 @@ export type EntryStatus = 'office' | 'remote' | 'customer' | 'travel' | 'vacatio
 export type MemberRole = 'admin' | 'member'
 export type EntrySource = 'manual' | 'ai_web' | 'ai_email'
 export type EventCategory = 'company' | 'trade_show' | 'training' | 'milestone' | 'holiday' | 'deadline' | 'other'
+export type WorkspaceRegion = 'eu' | 'uk' | 'us' | 'apac'
+/**
+ * How the UI should render days with no registered entry.
+ * - 'none'       : leave the cell empty — no assumption (default)
+ * - 'office'     : assume "office" for all members with no entry
+ * - 'remote'     : assume "remote" for all members with no entry
+ * - 'per_member' : use each member's own default_status
+ */
+export type PresenceAssumption = 'none' | 'office' | 'remote' | 'per_member'
+
+export interface Account {
+  id: string
+  name: string
+  slug: string
+  billing_email: string | null
+  plan: 'free' | 'pro' | 'enterprise' | string
+  created_at: string
+  updated_at: string
+}
 
 export interface Organization {
   id: string
+  account_id: string | null
   name: string
   slug: string
   inbound_email: string
   logo_url: string | null
   primary_color: string
+  /** Per-workspace brand accent (hex) — drives the header pill + glow. */
+  accent_color: string | null
+  /** Short 2–4 letter badge shown in the switcher pill, e.g. "UK", "NO". */
+  short_name: string | null
+  /** ISO 3166-1 alpha-2, drives a flag hint in the switcher. */
+  country_code: string | null
+  region: WorkspaceRegion
+  archived_at: string | null
   /** Per-org override of the 7 status colors. NULL/undefined = use DEFAULT_HEX_COLORS. */
   status_colors?: Partial<Record<EntryStatus, string>> | null
+  /** How the UI should render unregistered days — see PresenceAssumption. */
+  default_presence_assumption?: PresenceAssumption
   timezone: string
   week_start: number
   created_at: string
   updated_at: string
+}
+
+/**
+ * Slim workspace shape used by the switcher. Derived from
+ * `current_user_workspaces()` RPC — one row per membership the
+ * logged-in user has.
+ */
+export interface WorkspaceSummary {
+  org_id: string
+  account_id: string | null
+  name: string
+  slug: string
+  short_name: string | null
+  region: WorkspaceRegion
+  country_code: string | null
+  accent_color: string | null
+  logo_url: string | null
+  role: MemberRole
 }
 
 export interface Office {
@@ -65,6 +113,9 @@ export interface Member {
   avatar_url: string | null
   nicknames: string[]
   home_office_id: string | null
+  /** Member-level fallback used when org default_presence_assumption === 'per_member'.
+   *  Optional because legacy code paths select only a subset of columns. */
+  default_status?: EntryStatus | null
   role: MemberRole
   is_active: boolean
   created_at: string

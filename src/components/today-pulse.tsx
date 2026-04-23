@@ -16,6 +16,8 @@ interface MemberWithEntry {
   avatar_url: string | null
   status: EntryStatus
   location_label: string | null
+  /** true when this status was inferred from the org/member default, not logged. */
+  assumed?: boolean
 }
 
 interface TodayPulseProps {
@@ -271,6 +273,7 @@ interface PulseCardProps {
 
 function PulseCard({ status, label, members, index, tone, reduce }: PulseCardProps) {
   const count = useCountUp(members.length, reduce ? 0 : 600 + index * 80)
+  const assumedCount = members.filter((m) => m.assumed).length
 
   return (
     <motion.div
@@ -326,13 +329,25 @@ function PulseCard({ status, label, members, index, tone, reduce }: PulseCardPro
               {label}
             </span>
             <span
-              className="lg-mono shrink-0"
-              style={{
-                color: 'var(--lg-text-3)',
-                fontSize: 10.5,
-              }}
+              className="lg-mono shrink-0 flex items-center gap-1.5"
+              style={{ color: 'var(--lg-text-3)', fontSize: 10.5 }}
             >
-              {members.length === 1 ? 'person' : 'personer'}
+              <span>{members.length === 1 ? 'person' : 'personer'}</span>
+              {assumedCount > 0 && (
+                <span
+                  title={`${assumedCount} antatt — ikke registrert`}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full"
+                  style={{
+                    background: `color-mix(in oklab, ${tone} 12%, transparent)`,
+                    border: `1px dashed color-mix(in oklab, ${tone} 40%, transparent)`,
+                    color: `color-mix(in oklab, ${tone} 60%, white)`,
+                    fontSize: 9.5,
+                    letterSpacing: '0.08em',
+                  }}
+                >
+                  {assumedCount} antatt
+                </span>
+              )}
             </span>
           </div>
 

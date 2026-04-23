@@ -7,7 +7,6 @@ export const sv: Dictionary = {
   },
   nav: {
     home: 'Översikt',
-    today: 'Idag',
     myPlan: 'Min plan',
     wheel: 'Årshjul',
     dashboard: 'Dashboard',
@@ -44,6 +43,20 @@ export const sv: Dictionary = {
     copy: 'Kopiera',
     copied: 'Kopierat',
     optional: 'Valfritt',
+  },
+  workspace: {
+    switcher: 'Arbetsyta',
+    switchTo: 'Byt till',
+    current: 'Aktiv',
+    searchPlaceholder: 'Sök arbetsytor…',
+    switchFailed: 'Kunde inte byta arbetsyta',
+    switched: 'Bytte till',
+    regionEU: 'EU',
+    regionUK: 'UK',
+    regionUS: 'US',
+    regionAPAC: 'APAC',
+    shortcutHint: '⌘{n} för snabb växling',
+    only: 'Enda arbetsyta',
   },
   today: {
     title: 'Idag',
@@ -159,6 +172,7 @@ export const sv: Dictionary = {
       nav: 'Gå till',
       actions: 'Åtgärder',
       theme: 'Utseende',
+      workspace: 'Arbetsytor',
     },
     cmd: {
       focusInput: 'Skriv statusuppdatering',
