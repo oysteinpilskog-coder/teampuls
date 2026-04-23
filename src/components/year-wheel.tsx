@@ -738,15 +738,17 @@ export function DiskView({
     <div
       className={
         hideAgenda
-          ? 'relative w-full flex items-center justify-center'
+          ? 'relative h-full w-full flex items-center justify-center'
           : 'relative w-full max-w-[1180px] flex items-start gap-5 xl:gap-7 justify-center flex-wrap xl:flex-nowrap'
       }
     >
-      {/* Wheel container */}
+      {/* Wheel container. In hideAgenda mode the wheel is sized by the
+          container's height — this keeps the circle from clipping when the
+          parent is wider than it is tall (dashboard glass card). */}
       <div
         className={
           hideAgenda
-            ? 'relative w-full max-w-[min(92vh,1100px)] aspect-square flex-shrink-0'
+            ? 'relative h-full aspect-square max-w-full flex-shrink-0'
             : 'relative w-full max-w-[820px] aspect-square flex-shrink-0'
         }
       >

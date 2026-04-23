@@ -23,10 +23,10 @@ interface DashboardClientProps {
 type ViewKey = 'A' | 'B' | 'C' | 'D' | 'E'
 const VIEWS: ViewKey[] = ['A', 'B', 'C', 'D', 'E']
 
-// How long each view dwells. Wheel gets double the default so viewers can
-// actually trace the year; operational views stay snappy.
+// How long each view dwells. Wheel gets a small bump so the eye can land on
+// the ring it cares about; operational views stay at the default tempo.
 const DWELL_MULTIPLIER: Record<ViewKey, number> = {
-  A: 1, B: 1, C: 1, D: 1, E: 2,
+  A: 1, B: 1, C: 1, D: 1, E: 1.4,
 }
 
 function pad(n: number) { return String(n).padStart(2, '0') }
