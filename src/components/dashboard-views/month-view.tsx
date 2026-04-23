@@ -349,24 +349,35 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
             )}
           </motion.div>
 
-          {/* Borte denne uken */}
+          {/* Borte denne uken — chip-wrap so any roster size fits in-place
+              without scroll. */}
           <motion.div
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ ...spring.gentle, delay: 0.32 }}
-            className="flex-1 rounded-2xl p-5 flex flex-col gap-3 min-h-0"
+            className="flex-1 rounded-2xl p-5 flex flex-col gap-3 min-h-0 overflow-hidden"
             style={{
               background:
                 'linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
               border: '1px solid rgba(255,255,255,0.08)',
             }}
           >
-            <h3
-              className="text-[11px] font-semibold uppercase tracking-[0.22em]"
-              style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
-            >
-              Borte denne uken
-            </h3>
+            <div className="flex items-baseline justify-between gap-2">
+              <h3
+                className="text-[11px] font-semibold uppercase tracking-[0.22em]"
+                style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
+              >
+                Borte denne uken
+              </h3>
+              {onVacation.length > 0 && (
+                <span
+                  className="tabular-nums text-[11px] font-semibold"
+                  style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-sora)' }}
+                >
+                  {onVacation.length}
+                </span>
+              )}
+            </div>
             {onVacation.length === 0 ? (
               <p
                 className="text-[14px]"
@@ -375,19 +386,27 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                 Alle er på jobb.
               </p>
             ) : (
-              <div className="flex flex-col gap-3 overflow-hidden">
+              <div className="flex flex-wrap gap-1.5 content-start">
                 {onVacation.map((m, i) => (
                   <motion.div
                     key={m.id}
-                    initial={{ opacity: 0, x: 12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ ...spring.gentle, delay: 0.45 + i * 0.05 }}
-                    className="flex items-center gap-3"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ ...spring.gentle, delay: 0.45 + i * 0.03 }}
+                    className="flex items-center gap-1.5 pl-0.5 pr-2.5 py-0.5 rounded-full"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
                   >
-                    <MemberAvatar name={m.display_name} avatarUrl={m.avatar_url} size="md" />
+                    <MemberAvatar name={m.display_name} avatarUrl={m.avatar_url} size="sm" />
                     <span
-                      className="text-[15px] font-medium"
-                      style={{ color: 'rgba(255,255,255,0.8)', fontFamily: 'var(--font-body)' }}
+                      className="text-[12px] font-medium truncate"
+                      style={{
+                        color: 'rgba(255,255,255,0.78)',
+                        fontFamily: 'var(--font-body)',
+                        maxWidth: 110,
+                      }}
                     >
                       {m.display_name.split(' ')[0]}
                     </span>

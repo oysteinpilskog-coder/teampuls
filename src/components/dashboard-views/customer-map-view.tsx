@@ -409,7 +409,7 @@ export function CustomerMapView({
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ ...spring.gentle, delay: 0.28 }}
-          className="flex flex-col gap-5 min-h-0 overflow-y-auto"
+          className="flex flex-col gap-4 min-h-0 overflow-hidden"
         >
           <div
             className="rounded-2xl p-5 flex flex-col gap-3 flex-shrink-0"
@@ -435,8 +435,8 @@ export function CustomerMapView({
                 {t.dashboard.noRegistrations}
               </p>
             ) : (
-              <div className="flex flex-col gap-2.5">
-                {clusters.slice(0, 6).map((c, i) => {
+              <div className="flex flex-col gap-2">
+                {clusters.slice(0, 5).map((c, i) => {
                   const names = Array.from(c.memberIdsWeek)
                     .map(id => memberById.get(id)?.display_name.split(' ')[0] ?? '')
                     .filter(Boolean)

@@ -333,21 +333,21 @@ export function OfficeMapView({
         />
       </motion.div>
 
-      {/* ── Footer summary ────────────────────────────────────────── */}
+      {/* ── Footer summary — single row, truncates gracefully ─────── */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...spring.gentle, delay: 0.4 }}
-        className="flex items-center justify-between px-5 py-3 rounded-2xl flex-shrink-0"
+        className="flex items-center justify-between gap-4 px-5 py-3 rounded-2xl flex-shrink-0 overflow-hidden"
         style={{
           background:
             'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%)',
           border: '1px solid rgba(255,255,255,0.06)',
         }}
       >
-        <div className="flex items-center gap-6 flex-wrap">
-          {placed.map(p => (
-            <div key={p.id} className="flex items-center gap-2">
+        <div className="flex items-center gap-5 min-w-0 overflow-hidden">
+          {placed.slice(0, 8).map(p => (
+            <div key={p.id} className="flex items-center gap-2 flex-shrink-0">
               <span
                 className="w-2 h-2 rounded-full"
                 style={{
@@ -370,9 +370,17 @@ export function OfficeMapView({
               </span>
             </div>
           ))}
+          {placed.length > 8 && (
+            <span
+              className="text-[12px] tabular-nums flex-shrink-0"
+              style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-body)' }}
+            >
+              +{placed.length - 8}
+            </span>
+          )}
         </div>
         <span
-          className="text-[11px] tracking-[0.22em] uppercase"
+          className="text-[11px] tracking-[0.22em] uppercase flex-shrink-0"
           style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-body)' }}
         >
           {placed.length} kontorer · {members.length} ansatte
