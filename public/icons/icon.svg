@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Maskable PWA icon — the safe area is a 410×410 centre square so iOS's
+       circular mask and Android's rounded-square mask both land cleanly. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B0B0F"/>
+      <stop offset="1" stop-color="#1A1A20"/>
+    </linearGradient>
+    <linearGradient id="dot" x1="0.2" y1="0.2" x2="0.8" y2="0.8">
+      <stop offset="0" stop-color="#A780FF"/>
+      <stop offset="0.55" stop-color="#7B3CF0"/>
+      <stop offset="1" stop-color="#2F148E"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.3" cy="0.25" r="0.8">
+      <stop offset="0" stop-color="#A780FF" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#A780FF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="170" fill="url(#glow)" filter="url(#blur)"/>
+  <circle cx="256" cy="256" r="140" fill="url(#dot)"/>
+  <!-- Inner "hole" reminiscent of the header wordmark dot -->
+  <circle cx="256" cy="256" r="44" fill="#0B0B0F"/>
+  <!-- Tiny specular highlight — keeps the disc feeling three-dimensional -->
+  <ellipse cx="206" cy="200" rx="46" ry="26" fill="#ffffff" opacity="0.28"/>
+</svg>

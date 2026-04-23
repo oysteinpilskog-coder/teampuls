@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { fontDisplay, fontBody, fontSerif } from '@/app/fonts'
 import { Providers } from '@/components/providers'
 import { ConditionalHeader } from '@/components/app-header'
@@ -15,6 +15,16 @@ import { getSessionMember } from '@/lib/supabase/session'
 import './globals.css'
 
 const DICT_FOR_METADATA = { no, en, sv, es, lt }
+
+export const viewport: Viewport = {
+  // Fill the notch on iOS when launched from the home screen; also lets
+  // the SW-cached offline page keep using env(safe-area-inset-*) if needed.
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FAFAF9' },
+    { media: '(prefers-color-scheme: dark)',  color: '#0A0A0B' },
+  ],
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getServerLocale()
@@ -40,6 +50,24 @@ export async function generateMetadata(): Promise<Metadata> {
     robots: {
       index: false,
       follow: false,
+    },
+    manifest: '/manifest.webmanifest',
+    icons: {
+      icon: [
+        { url: '/icons/icon.svg', type: 'image/svg+xml' },
+      ],
+      apple: [
+        { url: '/icons/apple-touch-icon.svg', sizes: '180x180' },
+      ],
+      shortcut: ['/icons/icon.svg'],
+    },
+    appleWebApp: {
+      capable: true,
+      title: dict.app.name,
+      statusBarStyle: 'black-translucent',
+    },
+    formatDetection: {
+      telephone: false,
     },
   }
 }
