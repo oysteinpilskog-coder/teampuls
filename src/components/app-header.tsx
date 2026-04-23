@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { useTransition, useState, useEffect } from 'react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { WorkspaceSwitcher } from '@/components/workspace-switcher'
+import { PresenceIndicator } from '@/components/presence-indicator'
 import { openCommandPalette } from '@/components/command-palette'
 import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
@@ -146,6 +147,7 @@ export function AppHeader() {
 
           {/* Right side */}
           <div className="flex items-center gap-2 shrink-0">
+            <PresenceIndicator />
             <WorkspaceSwitcher />
             <motion.button
               type="button"

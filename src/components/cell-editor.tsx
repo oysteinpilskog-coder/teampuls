@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useStatusColors } from '@/lib/status-colors/context'
+import { usePresenceCtx } from '@/lib/presence/context'
 import type { EntryStatus } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
@@ -67,6 +68,15 @@ export function CellEditor({
   const isDark = mounted && resolvedTheme === 'dark'
   const STATUS_COLORS = useStatusColors()
   const t = useT()
+  const { setEditing } = usePresenceCtx()
+
+  // Broadcast "editing this cell" to other sessions while the dialog is open
+  // so they can see a presence badge in the grid. Clear on close.
+  useEffect(() => {
+    if (!open || !memberId || !date) return
+    setEditing({ kind: 'cell', member_id: memberId, date })
+    return () => setEditing(null)
+  }, [open, memberId, date, setEditing])
 
   const [status, setStatus] = useState<EntryStatus | null>(initialStatus)
   const [location, setLocation] = useState(initialLocation ?? '')

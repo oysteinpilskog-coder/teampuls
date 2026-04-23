@@ -16,6 +16,7 @@ import {
 import { WeekNav } from '@/components/week-nav'
 import { StatusSegment, type SegmentDay } from '@/components/status-segment'
 import { useStatusColors } from '@/lib/status-colors/context'
+import { usePresenceCtx } from '@/lib/presence/context'
 import { toast } from 'sonner'
 import { useTheme } from 'next-themes'
 import { MemberAvatar } from '@/components/member-avatar'
@@ -219,6 +220,7 @@ export function TeamGrid({
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
   const palettes = useStatusColors()
+  const { editorsOf } = usePresenceCtx()
 
   const weekDays = useMemo(() => getWeekDays(week, year), [week, year])
   const dateStrings = useMemo(() => weekDays.map(toDateString), [weekDays])
@@ -1003,6 +1005,14 @@ export function TeamGrid({
                         const segHighlight = seg.days.some((d) =>
                           highlightKeys.has(`${member.id}_${d.date}`),
                         )
+                        // Who else is currently editing any day in this segment?
+                        const coEditor = (() => {
+                          for (const d of seg.days) {
+                            const list = editorsOf(member.id, d.date)
+                            if (list.length > 0) return list[0]
+                          }
+                          return null
+                        })()
                         return (
                           <StatusSegment
                             key={`${member.id}-${segIdx}-${seg.days[0].date}`}
@@ -1011,6 +1021,11 @@ export function TeamGrid({
                             note={seg.entry?.note ?? null}
                             assumed={!seg.entry && seg.assumedStatus !== null}
                             highlight={segHighlight}
+                            editingBy={coEditor ? {
+                              display_name: coEditor.display_name,
+                              avatar_url: coEditor.avatar_url,
+                              initials: coEditor.initials,
+                            } : null}
                             days={seg.days}
                             onSelectDay={() => {
                               /* replaced by drag mousedown/mouseup flow */

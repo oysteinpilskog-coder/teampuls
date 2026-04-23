@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { StatusIcon } from '@/components/icons/status-icons'
+import { MemberAvatar } from '@/components/member-avatar'
 import type { EntryStatus } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
@@ -33,6 +34,13 @@ interface StatusSegmentProps {
   /** Highlighted state — used by the AI-query feature to flag matching cells.
    *  Renders a bright accent-colored outer ring + gentle pulse. */
   highlight?: boolean
+  /** Someone else is currently editing this cell via the presence channel.
+   *  Renders a small avatar + pulsing ring to signal shared focus. */
+  editingBy?: {
+    display_name: string
+    avatar_url: string | null
+    initials: string | null
+  } | null
   /** Fired on mousedown inside a left/right resize handle. When set, the bar exposes
    * 8-px hit zones on each edge that take priority over the per-day buttons. */
   onSegmentResizeStart?: (edge: 'left' | 'right') => void
@@ -53,6 +61,7 @@ export function StatusSegment({
   muted,
   assumed,
   highlight,
+  editingBy,
   onSegmentResizeStart,
 }: StatusSegmentProps) {
   const palettes = useStatusColors()
@@ -206,6 +215,39 @@ export function StatusSegment({
           animate={{ scale: [1, 1.22, 1] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
         />
+      )}
+
+      {/* Collaborative editing badge — floats on the right edge of the
+          segment when another session is editing one of these days. */}
+      {editingBy && (
+        <div
+          aria-label={`${editingBy.display_name} redigerer`}
+          title={`${editingBy.display_name} redigerer`}
+          className="absolute top-1/2 -translate-y-1/2 right-1.5 z-40 flex items-center pointer-events-none"
+        >
+          <motion.span
+            aria-hidden
+            className="absolute rounded-full"
+            style={{
+              inset: -3,
+              background: 'var(--accent-color)',
+              opacity: 0.35,
+            }}
+            animate={{ scale: [0.9, 1.25, 0.9], opacity: [0.25, 0.55, 0.25] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <span
+            className="relative rounded-full"
+            style={{ boxShadow: '0 0 0 2px var(--bg-elevated)' }}
+          >
+            <MemberAvatar
+              name={editingBy.display_name}
+              avatarUrl={editingBy.avatar_url}
+              initials={editingBy.initials ?? null}
+              size="xs"
+            />
+          </span>
+        </div>
       )}
 
       {/* AI-query highlight — bright accent ring + pulse. Sits above today

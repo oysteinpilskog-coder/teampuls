@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { ThemeVariantProvider } from '@/components/theme-variant-provider'
 import { StatusColorsProvider } from '@/lib/status-colors/context'
 import { WorkspaceProvider } from '@/lib/workspace/context'
+import { PresenceProvider } from '@/lib/presence/context'
 import { CommandPalette } from '@/components/command-palette'
 import { KeyboardHelp } from '@/components/keyboard-help'
 import { OnboardingHint } from '@/components/onboarding-hint'
@@ -41,30 +42,32 @@ export function Providers({
               initialWorkspaces={initialWorkspaces}
               initialActiveSlug={initialActiveSlug}
             >
-              {children}
-              <CommandPalette />
-              <KeyboardHelp />
-              <OnboardingHint />
-              <AIQueryModal />
-              <Toaster
-                position="top-right"
-                offset={80}
-                duration={3600}
-                toastOptions={{
-                  unstyled: true,
-                  classNames: {
-                    toast: 'tp-toast',
-                    title: 'tp-toast-title',
-                    description: 'tp-toast-desc',
-                    success: 'tp-toast-success',
-                    error: 'tp-toast-error',
-                    info: 'tp-toast-info',
-                    warning: 'tp-toast-warning',
-                    icon: 'tp-toast-icon',
-                    closeButton: 'tp-toast-close',
-                  },
-                }}
-              />
+              <PresenceProvider>
+                {children}
+                <CommandPalette />
+                <KeyboardHelp />
+                <OnboardingHint />
+                <AIQueryModal />
+                <Toaster
+                  position="top-right"
+                  offset={80}
+                  duration={3600}
+                  toastOptions={{
+                    unstyled: true,
+                    classNames: {
+                      toast: 'tp-toast',
+                      title: 'tp-toast-title',
+                      description: 'tp-toast-desc',
+                      success: 'tp-toast-success',
+                      error: 'tp-toast-error',
+                      info: 'tp-toast-info',
+                      warning: 'tp-toast-warning',
+                      icon: 'tp-toast-icon',
+                      closeButton: 'tp-toast-close',
+                    },
+                  }}
+                />
+              </PresenceProvider>
             </WorkspaceProvider>
           </I18nProvider>
         </StatusColorsProvider>
