@@ -544,7 +544,7 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
                             ? geo.message
                             : geo.state === 'working'
                               ? 'Slår opp koordinater …'
-                              : 'Fyll inn adresse/postnummer og la TeamPulse finne stedet.'}
+                              : 'Fyll inn adresse/postnummer og la Offiview finne stedet.'}
                       </p>
                       {form.latitude && form.longitude && (
                         <p

@@ -1,7 +1,7 @@
 export const no = {
   app: {
-    name: 'TeamPulse',
-    tagline: 'Den vakreste og enkleste måten å vite hvor teamet ditt er.',
+    name: 'Offiview',
+    tagline: 'Dagen, lagt på bordet.',
   },
   nav: {
     home: 'Oversikt',

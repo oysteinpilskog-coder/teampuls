@@ -23,7 +23,7 @@ const STATUS_LABELS: Record<EntryStatus, string> = {
 }
 
 function insightFor(registered: number, total: number, todayEntries: Entry[]) {
-  if (total === 0) return { title: 'TeamPulse klar', subtitle: 'Legg til medlemmer for å se pulsen.' }
+  if (total === 0) return { title: 'Offiview klar', subtitle: 'Legg til medlemmer for å se pulsen.' }
   if (registered === 0) return { title: 'Ingen registreringer ennå', subtitle: 'Hvor er teamet i dag?' }
 
   const onPositive = todayEntries.filter(e =>

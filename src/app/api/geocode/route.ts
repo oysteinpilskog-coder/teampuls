@@ -10,7 +10,7 @@ const CONTACT =
   process.env.GEOCODE_CONTACT_EMAIL ||
   process.env.NEXT_PUBLIC_APP_URL ||
   'localhost'
-const UA = `TeamPulse/1.0 (${CONTACT})`
+const UA = `Offiview/1.0 (${CONTACT})`
 
 export async function POST(req: NextRequest) {
   // Auth — only logged-in members can geocode.

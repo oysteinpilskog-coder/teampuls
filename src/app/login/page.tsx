@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { OffiviewWordmark } from '@/components/brand/offiview-wordmark'
 import { no } from '@/lib/i18n/no'
 
 export default function LoginPage() {
@@ -35,14 +36,19 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         {/* Logo / Wordmark */}
-        <div className="mb-12 text-center">
-          <h1
-            className="text-[32px] font-semibold tracking-tight text-[var(--text-primary)]"
-            style={{ fontFamily: 'var(--font-sora)', letterSpacing: '-0.02em' }}
+        <div className="mb-12 flex flex-col items-center text-center" style={{ color: 'var(--text-primary)' }}>
+          <OffiviewWordmark size={36} variant="ink" title="Offiview" />
+          <p
+            className="mt-5 text-[18px] font-serif-italic"
+            style={{
+              fontFamily: 'var(--font-fraunces), Georgia, serif',
+              fontStyle: 'italic',
+              fontWeight: 300,
+              fontVariationSettings: '"opsz" 24, "SOFT" 80',
+              color: 'var(--text-secondary)',
+              letterSpacing: '-0.015em',
+            }}
           >
-            TeamPulse
-          </h1>
-          <p className="mt-2 text-[15px] text-[var(--text-secondary)]">
             {no.app.tagline}
           </p>
         </div>
