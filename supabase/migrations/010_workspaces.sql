@@ -32,7 +32,8 @@
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 1. ACCOUNTS (billing / top-level tenant)
+-- 1a. ACCOUNTS table (policies deferred — they reference
+--     organizations.account_id which doesn't exist yet)
 -- ------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS accounts (
@@ -47,36 +48,17 @@ CREATE TABLE IF NOT EXISTS accounts (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- Drop-and-recreate the trigger so re-runs don't fail on a stale one.
+DROP TRIGGER IF EXISTS set_accounts_updated_at ON accounts;
 CREATE TRIGGER set_accounts_updated_at
   BEFORE UPDATE ON accounts
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- Everyone with a membership under the account can read the
--- account row; only admins of *any* workspace under it can write.
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY accounts_read ON accounts FOR SELECT
-  USING (
-    id IN (
-      SELECT o.account_id
-      FROM organizations o
-      WHERE o.id = ANY(current_user_org_ids())
-        AND o.account_id IS NOT NULL
-    )
-  );
-
-CREATE POLICY accounts_write ON accounts FOR UPDATE
-  USING (
-    id IN (
-      SELECT o.account_id
-      FROM organizations o
-      WHERE o.account_id IS NOT NULL
-        AND current_user_is_admin(o.id)
-    )
-  );
-
 -- ------------------------------------------------------------
--- 2. ORGANIZATIONS → workspace fields
+-- 2. ORGANIZATIONS → workspace fields (adds account_id before we
+--    create the accounts RLS policies that reference it)
 -- ------------------------------------------------------------
 
 ALTER TABLE organizations
@@ -89,6 +71,34 @@ ALTER TABLE organizations
   ADD COLUMN IF NOT EXISTS archived_at  timestamptz;
 
 CREATE INDEX IF NOT EXISTS idx_organizations_account_id ON organizations(account_id);
+
+-- ------------------------------------------------------------
+-- 1b. ACCOUNTS policies (now that organizations.account_id exists).
+--     Everyone with a membership under the account can read the
+--     account row; only admins of *any* workspace under it can write.
+-- ------------------------------------------------------------
+
+DROP POLICY IF EXISTS accounts_read ON accounts;
+CREATE POLICY accounts_read ON accounts FOR SELECT
+  USING (
+    id IN (
+      SELECT o.account_id
+      FROM organizations o
+      WHERE o.id = ANY(current_user_org_ids())
+        AND o.account_id IS NOT NULL
+    )
+  );
+
+DROP POLICY IF EXISTS accounts_write ON accounts;
+CREATE POLICY accounts_write ON accounts FOR UPDATE
+  USING (
+    id IN (
+      SELECT o.account_id
+      FROM organizations o
+      WHERE o.account_id IS NOT NULL
+        AND current_user_is_admin(o.id)
+    )
+  );
 
 -- ------------------------------------------------------------
 -- 3. MEMBERS → a user can now have N memberships
