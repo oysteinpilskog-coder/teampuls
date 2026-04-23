@@ -450,6 +450,19 @@
     100% { transform: translateX(100%); }
   }
 
+  /* Offiview wordmark — hover-triggered Ember pulse on the horizon.
+     600ms: the Ember gradient line fades in, peaks at 30%, then fades
+     back to 0. A quiet "you touched me" beat. Never Nordlys —
+     the signature stays rare. */
+  .offiview-shimmer-host:hover .offiview-shimmer-horizon {
+    animation: offiview-ember-pulse 600ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+  @keyframes offiview-ember-pulse {
+    0%   { opacity: 0; }
+    30%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
   /* Reduced motion */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {

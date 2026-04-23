@@ -73,7 +73,9 @@ export function OffiviewWordmarkAnimated({
   const glowId = `offiview-anim-glow-${uid}`
 
   // Settled state: render the plain static wordmark so SSR and post-animation
-  // share identical markup (no layout jitter, no flash).
+  // share identical markup (no layout jitter, no flash). Enable hoverShimmer
+  // so the settled logo rewards a mouseover with a 600ms Ember pulse —
+  // Glød-family only, so Nordlys stays rare and signature-worthy.
   if (phase === 'settled') {
     return (
       <OffiviewWordmark
@@ -81,6 +83,7 @@ export function OffiviewWordmarkAnimated({
         variant={variant}
         title={title}
         className={className}
+        hoverShimmer
       />
     )
   }
