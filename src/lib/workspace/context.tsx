@@ -48,6 +48,23 @@ export function WorkspaceProvider({
     }
   }, [initialActiveSlug, optimisticSlug])
 
+  // Push the active workspace's accent into --accent-color on <body> the
+  // moment we switch, so the page tint updates instantly instead of
+  // waiting for the RSC refresh to repaint server-rendered styles.
+  useEffect(() => {
+    const hex = active?.accent_color?.match(/^#[0-9a-fA-F]{3,8}$/)?.[0]
+    const body = document.body
+    if (!hex) {
+      body.style.removeProperty('--accent-color')
+      body.style.removeProperty('--accent-glow')
+      body.style.removeProperty('--workspace-accent-color')
+      return
+    }
+    body.style.setProperty('--workspace-accent-color', hex)
+    body.style.setProperty('--accent-color', hex)
+    body.style.setProperty('--accent-glow', `color-mix(in oklab, ${hex} 35%, transparent)`)
+  }, [active?.accent_color])
+
   const switchTo = useCallback(
     async (slug: string) => {
       if (!slug || slug === active?.slug) return
