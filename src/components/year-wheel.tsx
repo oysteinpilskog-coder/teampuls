@@ -1287,11 +1287,19 @@ export function DiskView({
                   const ri = ringIdxForCategory(ev.category)
                   const bounds = RING_BOUNDS[ri]
                   const color = ev.color ?? CATEGORY_COLORS[ev.category]
-                  const path = annularArc(bounds.outer, bounds.inner, startDeg, endDeg, 0.35)
                   const arcSpan = endDeg - startDeg
                   const isSelected = selectedEvent?.id === ev.id
                   const arcLenPx = (arcSpan / 360) * 2 * Math.PI * bounds.mid
                   const showLabel = arcSpan > 3.5
+
+                  // Single-day (or ≤1.5°) events render as a visible pin. An
+                  // arc that narrow is effectively invisible at wheel scale,
+                  // so we stack a circle marker on top with the event color.
+                  const isPin = arcSpan <= 1.6
+                  const midDeg = (startDeg + endDeg) / 2
+                  const pinCenter = polarPoint(bounds.mid, midDeg)
+                  const pinR = isSelected ? 8 : 7
+                  const path = annularArc(bounds.outer, bounds.inner, startDeg, endDeg, isPin ? 0 : 0.35)
 
                   return (
                     <motion.g key={ev.id}
@@ -1304,6 +1312,8 @@ export function DiskView({
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.4 + i * 0.03, ...spring.gentle }}
                     >
+                      {/* Underlying arc — kept even for pins so the color
+                          still reaches the ring edge where the event sits. */}
                       <path
                         d={path}
                         fill={`url(#${ID.event(ev.id)})`}
@@ -1311,6 +1321,32 @@ export function DiskView({
                         strokeWidth={isSelected ? 2 : 1}
                         style={isSelected ? { filter: `url(#${ID.glow})` } : undefined}
                       />
+                      {isPin && (
+                        <>
+                          {/* Soft halo */}
+                          <circle
+                            cx={f(pinCenter.x)} cy={f(pinCenter.y)}
+                            r={pinR + 3}
+                            fill={color}
+                            fillOpacity={0.22}
+                          />
+                          {/* Solid core with inner highlight */}
+                          <circle
+                            cx={f(pinCenter.x)} cy={f(pinCenter.y)}
+                            r={pinR}
+                            fill={color}
+                            stroke="rgba(255,255,255,0.85)"
+                            strokeWidth={1.2}
+                            style={isSelected ? { filter: `url(#${ID.bloom})` } : { filter: `url(#${ID.glow})` }}
+                          />
+                          <circle
+                            cx={f(pinCenter.x)} cy={f(pinCenter.y - 1.5)}
+                            r={pinR * 0.4}
+                            fill="white"
+                            fillOpacity={0.55}
+                          />
+                        </>
+                      )}
                       {showLabel && (
                         <text
                           fontSize={ri === 0 ? 10 : 9.5}

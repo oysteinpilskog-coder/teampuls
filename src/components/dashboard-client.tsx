@@ -59,6 +59,9 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
 
   const [time, setTime] = useState(new Date())
   const [viewIdx, setViewIdx] = useState(0)
+  // Wall-clock ms when the current view was entered. Used for the rotation
+  // progress hairline so we can prove the auto-rotate timer is alive.
+  const [viewStartedAt, setViewStartedAt] = useState(() => Date.now())
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [members, setMembers] = useState<Member[]>([])
   const [offices, setOffices] = useState<Office[]>([])
@@ -77,8 +80,11 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
   }, [])
 
   // Auto-rotate views. Each view can request a longer dwell via DWELL_MULTIPLIER
-  // (the wheel needs more time to read than the operational boards).
+  // (the wheel needs more time to read than the operational boards). We also
+  // stamp viewStartedAt so the progress hairline below the view switcher can
+  // show that the timer is alive.
   useEffect(() => {
+    setViewStartedAt(Date.now())
     const multiplier = DWELL_MULTIPLIER[VIEWS[viewIdx]]
     const id = setTimeout(() => {
       setViewIdx(i => (i + 1) % VIEWS.length)
@@ -228,6 +234,36 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
             )}
           </motion.div>
         </AnimatePresence>
+      </div>
+
+      {/* ── Rotation progress hairline ──
+          A thin accent line across the bottom edge that fills over each
+          view's dwell. It's both a visual heartbeat and — crucially —
+          proof that the auto-rotate timer is actually firing. */}
+      <div className="relative h-[2px] w-full overflow-hidden">
+        {(() => {
+          const multiplier = DWELL_MULTIPLIER[VIEWS[viewIdx]]
+          const dwellMs = Math.max(1, intervalSec * 1000 * multiplier)
+          const elapsed = time.getTime() - viewStartedAt
+          const pct = Math.max(0, Math.min(1, elapsed / dwellMs))
+          return (
+            <>
+              <div
+                className="absolute inset-0"
+                style={{ background: 'rgba(255,255,255,0.05)' }}
+              />
+              <div
+                className="absolute left-0 top-0 h-full transition-[width] duration-[950ms] ease-linear"
+                style={{
+                  width: `${pct * 100}%`,
+                  background:
+                    'linear-gradient(90deg, color-mix(in oklab, var(--accent-color) 60%, transparent) 0%, color-mix(in oklab, var(--accent-color) 95%, transparent) 100%)',
+                  boxShadow: '0 0 18px color-mix(in oklab, var(--accent-color) 55%, transparent)',
+                }}
+              />
+            </>
+          )
+        })()}
       </div>
 
       {/* ── Floating control bar (iOS-style segmented glass pill) ── */}
