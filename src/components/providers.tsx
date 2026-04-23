@@ -10,6 +10,8 @@ import { CommandPalette } from '@/components/command-palette'
 import { KeyboardHelp } from '@/components/keyboard-help'
 import { OnboardingHint } from '@/components/onboarding-hint'
 import { AIQueryModal } from '@/components/ai-query-modal'
+import { ServiceWorkerRegister } from '@/components/service-worker-register'
+import { InstallPrompt } from '@/components/install-prompt'
 import { I18nProvider } from '@/lib/i18n/context'
 import type { Locale } from '@/lib/i18n/types'
 import type { HexColors } from '@/lib/status-colors/defaults'
@@ -48,6 +50,8 @@ export function Providers({
                 <KeyboardHelp />
                 <OnboardingHint />
                 <AIQueryModal />
+                <InstallPrompt />
+                <ServiceWorkerRegister />
                 <Toaster
                   position="top-right"
                   offset={80}
