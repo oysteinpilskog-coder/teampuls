@@ -8,10 +8,14 @@ import { spring } from '@/lib/motion'
 import { CATEGORY_COLORS, EventEditor } from '@/components/event-editor'
 import { useEvents } from '@/hooks/use-events'
 import type { OrgEvent } from '@/lib/supabase/types'
+import { useT } from '@/lib/i18n/context'
+import type { Dictionary } from '@/lib/i18n/types'
 import {
-  MONTH_NAMES, MONTH_FULL, MONTH_DAYS_COMMON,
-  CATEGORY_LABELS, RINGS, ringIdxForCategory,
-  isLeapYear, daysInYear, weekdayAbbr, weekdayFull, getWeekdayIdx,
+  MONTH_NAMES, MONTH_DAYS_COMMON,
+  RINGS, ringIdxForCategory,
+  isLeapYear, daysInYear, getWeekdayIdx,
+  monthFullT, categoryLabelsT, ringNamesT,
+  weekdayAbbrT, weekdayFullT,
   type ViewMode,
 } from './year-wheel-shared'
 import { ListView } from './year-wheel-list'
@@ -502,6 +506,10 @@ interface DiskViewProps {
 }
 
 function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }: DiskViewProps) {
+  const t = useT()
+  const MONTH_FULL_L = monthFullT(t)
+  const CATEGORY_LABELS_L = categoryLabelsT(t)
+  const RING_NAMES_L = ringNamesT(t)
   const uid = useId().replace(/:/g, '')
 
   const todayDeg = (dayOfYear(today) / daysInYear(year)) * 360
@@ -907,7 +915,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
                   return (
                     <motion.g key={m.name}
                       onClick={() => enterFocus(m.idx)}
-                      onMouseEnter={() => setHover({ type: 'month', label: MONTH_FULL[m.idx], sublabel: 'Klikk for å fokusere' })}
+                      onMouseEnter={() => setHover({ type: 'month', label: MONTH_FULL_L[m.idx], sublabel: 'Klikk for å fokusere' })}
                       onMouseLeave={() => setHover(null)}
                       whileHover={{ scale: 1.018 }}
                       style={{ cursor: 'pointer', transformOrigin: `${CX}px ${CY}px` }}
@@ -936,7 +944,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
                         }}
                       >
                         <textPath href={`#${ID.monthPath(m.idx)}`} startOffset="50%" textAnchor="middle">
-                          {MONTH_FULL[m.idx].toUpperCase()}
+                          {MONTH_FULL_L[m.idx].toUpperCase()}
                         </textPath>
                       </text>
                     </motion.g>
@@ -1045,7 +1053,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
                   return (
                     <motion.g key={ev.id}
                       onClick={(e) => { e.stopPropagation(); onSelectEvent(ev) }}
-                      onMouseEnter={() => setHover({ type: 'event', label: ev.title, sublabel: CATEGORY_LABELS[ev.category] })}
+                      onMouseEnter={() => setHover({ type: 'event', label: ev.title, sublabel: CATEGORY_LABELS_L[ev.category] })}
                       onMouseLeave={() => setHover(null)}
                       style={{ cursor: 'pointer', transformOrigin: `${CX}px ${CY}px` }}
                       whileHover={{ scale: 1.018 }}
@@ -1106,7 +1114,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
                     <motion.g key={`d-${d.day}`}
                       onMouseEnter={() => setHover({
                         type: 'month',
-                        label: `${d.day}. ${MONTH_FULL[focus.month].toLowerCase()}`,
+                        label: `${d.day}. ${MONTH_FULL_L[focus.month].toLowerCase()}`,
                         sublabel: `${year}`,
                       })}
                       onMouseLeave={() => setHover(null)}
@@ -1211,7 +1219,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
                       onMouseEnter={() => setHover({
                         type: 'event',
                         label: ev.title + (arc.continuesBefore || arc.continuesAfter ? ' (↔ fortsetter)' : ''),
-                        sublabel: CATEGORY_LABELS[ev.category],
+                        sublabel: CATEGORY_LABELS_L[ev.category],
                       })}
                       onMouseLeave={() => setHover(null)}
                       style={{ cursor: 'pointer', transformOrigin: `${CX}px ${CY}px` }}
@@ -1301,7 +1309,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
                 }}
               >
                 <textPath href={`#${ID.ringPath(ri)}`} startOffset="50%" textAnchor="middle">
-                  {ring.name.toUpperCase()}
+                  {RING_NAMES_L[ri].toUpperCase()}
                 </textPath>
               </text>
             )
@@ -1389,7 +1397,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
                   fill="var(--text-secondary)"
                   style={{ fontFamily: 'var(--font-body)', letterSpacing: '-0.01em' }}
                 >
-                  {weekdayFull(today)}, {MONTH_FULL[today.getMonth()].toLowerCase()}
+                  {weekdayFullT(today, t)}, {MONTH_FULL_L[today.getMonth()].toLowerCase()}
                 </text>
                 <text
                   x={CX} y={CY + 66}
@@ -1448,7 +1456,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
                     letterSpacing: '-0.035em',
                   }}
                 >
-                  {MONTH_FULL[focus.month].toUpperCase()}
+                  {MONTH_FULL_L[focus.month].toUpperCase()}
                 </text>
                 {focus.todayDeg !== null ? (
                   <>
@@ -1461,7 +1469,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
                       fill="var(--text-secondary)"
                       style={{ fontFamily: 'var(--font-body)', letterSpacing: '-0.01em' }}
                     >
-                      i dag · {today.getDate()}. {weekdayFull(today)}
+                      i dag · {today.getDate()}. {weekdayFullT(today, t)}
                     </text>
                     <text
                       x={CX} y={CY + 58}
@@ -1486,7 +1494,7 @@ function DiskView({ year, today, events, orgLogo, selectedEvent, onSelectEvent }
                     style={{ fontFamily: 'var(--font-body)', letterSpacing: '-0.005em' }}
                   >
                     {focus.events.length === 0
-                      ? 'Ingen hendelser'
+                      ? t.wheel.noEvents
                       : `${focus.events.length} ${focus.events.length === 1 ? 'hendelse' : 'hendelser'}`}
                   </text>
                 )}
@@ -1600,6 +1608,7 @@ function Agenda({
   today: Date
   onSelect: (ev: OrgEvent) => void
 }) {
+  const t = useT()
   const todayYmd = today.toISOString().slice(0, 10)
 
   const { todayEvents, futureEvents } = useMemo(() => {
@@ -1620,8 +1629,8 @@ function Agenda({
     >
       <AgendaSection
         title="I dag"
-        meta={formatAgendaMeta(today)}
-        empty="Ingen hendelser i dag."
+        meta={formatAgendaMeta(today, t)}
+        empty={t.wheel.noEventsToday}
       >
         {todayEvents.map(ev => (
           <AgendaRow key={ev.id} event={ev} onSelect={onSelect} />
@@ -1630,7 +1639,7 @@ function Agenda({
 
       <AgendaSection
         title="Kommende"
-        empty="Ingen kommende hendelser."
+        empty={t.wheel.noUpcoming}
       >
         {futureEvents.map(ev => (
           <AgendaRow key={ev.id} event={ev} onSelect={onSelect} />
@@ -1640,9 +1649,9 @@ function Agenda({
   )
 }
 
-function formatAgendaMeta(d: Date): string {
+function formatAgendaMeta(d: Date, t: Dictionary): string {
   const day = d.getDate()
-  const wd = weekdayAbbr(d)
+  const wd = weekdayAbbrT(d, t)
   return `${day}. ${wd}.`
 }
 
@@ -1706,6 +1715,8 @@ function AgendaRow({
   event: OrgEvent
   onSelect: (ev: OrgEvent) => void
 }) {
+  const t = useT()
+  const CATEGORY_LABELS_L = categoryLabelsT(t)
   const color = event.color ?? CATEGORY_COLORS[event.category]
   const start = new Date(event.start_date + 'T12:00:00')
 
@@ -1735,7 +1746,7 @@ function AgendaRow({
             letterSpacing: '0.12em',
           }}
         >
-          {weekdayAbbr(start)}
+          {weekdayAbbrT(start, t)}
         </span>
       </div>
 
@@ -1764,7 +1775,7 @@ function AgendaRow({
             fontFamily: 'var(--font-body)',
           }}
         >
-          {CATEGORY_LABELS[event.category]}
+          {CATEGORY_LABELS_L[event.category]}
         </span>
       </div>
     </motion.li>

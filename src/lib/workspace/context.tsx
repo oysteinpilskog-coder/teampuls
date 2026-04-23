@@ -3,7 +3,7 @@
 import { createContext, useContext, useMemo, useCallback, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 import type { WorkspaceSummary } from '@/lib/supabase/types'
 
 interface WorkspaceContextValue {
@@ -26,6 +26,7 @@ export function WorkspaceProvider({
   children: React.ReactNode
 }) {
   const router = useRouter()
+  const t = useT()
   const [isPending, startTransition] = useTransition()
   // Track optimistic target so the pill updates instantly without
   // waiting for the server round-trip + RSC re-render.
@@ -52,10 +53,10 @@ export function WorkspaceProvider({
         })
         if (!res.ok) {
           setOptimisticSlug(null)
-          toast.error(no.workspace.switchFailed)
+          toast.error(t.workspace.switchFailed)
           return
         }
-        toast.success(`${no.workspace.switched} ${target.name}`)
+        toast.success(`${t.workspace.switched} ${target.name}`)
         // Force the RSC tree to re-render so server components
         // pick up the new cookie and re-scope their queries.
         startTransition(() => {
@@ -63,7 +64,7 @@ export function WorkspaceProvider({
         })
       } catch {
         setOptimisticSlug(null)
-        toast.error(no.workspace.switchFailed)
+        toast.error(t.workspace.switchFailed)
       }
     },
     [active?.slug, initialWorkspaces, router],

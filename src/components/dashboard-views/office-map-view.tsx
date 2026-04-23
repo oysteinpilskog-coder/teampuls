@@ -8,6 +8,7 @@ import { useStatusColors } from '@/lib/status-colors/context'
 import { spring } from '@/lib/motion'
 import type { Member, Entry, Office } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
+import { useT } from '@/lib/i18n/context'
 
 interface OfficeMapViewProps {
   members: Member[]
@@ -37,6 +38,7 @@ export function OfficeMapView({
   time,
 }: OfficeMapViewProps) {
   const STATUS_COLORS = useStatusColors()
+  const t = useT()
   const hours = pad(time.getHours())
   const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)
@@ -318,7 +320,7 @@ export function OfficeMapView({
               fontFamily="var(--font-body)"
               fill="rgba(255,255,255,0.4)"
             >
-              Ingen kontorer med koordinater ennå.
+              {t.dashboard.noOfficesWithCoords}
             </text>
           )}
         </EuropeMapCanvas>

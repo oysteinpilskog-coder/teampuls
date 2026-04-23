@@ -4,11 +4,10 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
 import { useHaptic } from '@/hooks/use-haptic'
 
-const PLACEHOLDERS = no.aiInput.placeholder
 const ROTATE_INTERVAL = 3500
 
 // Inline ghost-completions: short patterns the AI is likely to accept.
@@ -42,6 +41,8 @@ export function AIInput({ orgId }: AIInputProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const rotateRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const haptic = useHaptic()
+  const t = useT()
+  const PLACEHOLDERS = t.aiInput.placeholder
 
   // Fetch just the display names for ghost-completion. Cheap and cached by
   // Supabase; we only need the string list so the payload is tiny.
@@ -113,7 +114,7 @@ export function AIInput({ orgId }: AIInputProps) {
         setState('error')
         setValue(text) // restore so the user can fix and retry
         haptic('error')
-        toast.error(data.error ?? no.aiInput.error)
+        toast.error(data.error ?? t.aiInput.error)
         setTimeout(() => setState('idle'), 2000)
         return
       }
@@ -132,15 +133,15 @@ export function AIInput({ orgId }: AIInputProps) {
       // alongside Supabase realtime, which can lag or drop reconnected events.
       window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
       const names = data.updates?.map(u => u.member_name).join(', ')
-      toast.success(names ? `${no.aiInput.success} — ${names}` : no.aiInput.success)
+      toast.success(names ? `${t.aiInput.success} — ${names}` : t.aiInput.success)
       setTimeout(() => setState('idle'), 1500)
     } catch {
       setState('error')
       setValue(text) // restore on network failure
-      toast.error(no.aiInput.error)
+      toast.error(t.aiInput.error)
       setTimeout(() => setState('idle'), 2000)
     }
-  }, [value, state])
+  }, [value, state, t])
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     // Tab or Right-arrow at end of value accepts the ghost completion.
@@ -310,7 +311,7 @@ export function AIInput({ orgId }: AIInputProps) {
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               disabled={isLoading}
-              placeholder={focused ? no.aiInput.label : ''}
+              placeholder={focused ? t.aiInput.label : ''}
               className="relative w-full bg-transparent outline-none disabled:opacity-50"
               style={{
                 fontSize: '15px',
@@ -363,7 +364,7 @@ export function AIInput({ orgId }: AIInputProps) {
                     background: 'var(--lg-accent)',
                     boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 18px var(--lg-accent-glow)',
                   }}
-                  title="Send (Enter)"
+                  title={t.aiInput.sendTitle}
                 >
                   <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
                     <path

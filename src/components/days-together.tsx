@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Sparkles, RefreshCw, ArrowUpRight } from 'lucide-react'
 import { spring } from '@/lib/motion'
 import { useHaptic } from '@/hooks/use-haptic'
+import { useT } from '@/lib/i18n/context'
 
 interface SuggestedDay {
   date: string
@@ -23,6 +24,7 @@ interface ApiResponse {
 }
 
 export function DaysTogether() {
+  const t = useT()
   const [data, setData] = useState<ApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -86,7 +88,7 @@ export function DaysTogether() {
           type="button"
           onClick={() => { haptic('light'); load() }}
           disabled={refreshing}
-          aria-label="Oppdater forslag"
+          aria-label={t.daysTogether.refresh}
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-medium focus:outline-none disabled:opacity-60"
           style={{
             background: 'rgba(22, 22, 27, 0.5)',

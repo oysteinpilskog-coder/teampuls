@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { spring } from '@/lib/motion'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 import { useHotkeys } from '@/hooks/use-hotkeys'
 import { useWorkspace } from '@/lib/workspace/context'
 import {
@@ -59,6 +59,7 @@ export function CommandPalette() {
   const listRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const { resolvedTheme, setTheme } = useTheme()
+  const t = useT()
 
   // Listen for programmatic open events
   useEffect(() => {
@@ -110,6 +111,7 @@ export function CommandPalette() {
     setTheme,
     close: () => setOpen(false),
     workspace,
+    t,
   })
 
   const filtered = useMemo(() => filterCommands(commands, query), [commands, query])
@@ -154,7 +156,7 @@ export function CommandPalette() {
   }
 
   // Group for rendering
-  const grouped = useMemo(() => groupByHeading(filtered), [filtered])
+  const grouped = useMemo(() => groupByHeading(filtered, t), [filtered, t])
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -197,7 +199,7 @@ export function CommandPalette() {
               }
             >
               {/* Accessible title — visually hidden */}
-              <Dialog.Title className="sr-only">Kommandopalett</Dialog.Title>
+              <Dialog.Title className="sr-only">{t.palette.title}</Dialog.Title>
 
               {/* Input row */}
               <div
@@ -221,7 +223,7 @@ export function CommandPalette() {
                     setActiveIdx(0)
                   }}
                   onKeyDown={onInputKey}
-                  placeholder={no.palette.placeholder}
+                  placeholder={t.palette.placeholder}
                   className="flex-1 bg-transparent outline-none"
                   style={{
                     fontSize: 16,
@@ -232,7 +234,7 @@ export function CommandPalette() {
                   }}
                   autoComplete="off"
                   spellCheck={false}
-                  aria-label={no.palette.placeholder}
+                  aria-label={t.palette.placeholder}
                 />
                 <Kbd>esc</Kbd>
               </div>
@@ -241,7 +243,7 @@ export function CommandPalette() {
               <div
                 ref={listRef}
                 role="listbox"
-                aria-label={no.palette.placeholder}
+                aria-label={t.palette.placeholder}
                 className="overflow-y-auto py-2"
                 style={{ maxHeight: 'min(60vh, 480px)' }}
               >
@@ -254,7 +256,7 @@ export function CommandPalette() {
                       fontSize: 14,
                     }}
                   >
-                    {no.palette.empty}
+                    {t.palette.empty}
                   </div>
                 ) : (
                   grouped.map((section) => (
@@ -299,15 +301,15 @@ export function CommandPalette() {
                 <span className="flex items-center gap-1.5">
                   <Kbd>↑</Kbd>
                   <Kbd>↓</Kbd>
-                  {no.palette.kbd.nav}
+                  {t.palette.kbd.nav}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Kbd>↵</Kbd>
-                  {no.palette.kbd.select}
+                  {t.palette.kbd.select}
                 </span>
                 <span className="ml-auto flex items-center gap-1.5">
                   <Kbd>?</Kbd>
-                  {no.hotkeys.k.help}
+                  {t.hotkeys.k.help}
                 </span>
               </div>
             </Dialog.Popup>
@@ -401,12 +403,14 @@ function useCommands({
   setTheme,
   close,
   workspace,
+  t,
 }: {
   router: ReturnType<typeof useRouter>
   resolvedTheme: string | undefined
   setTheme: (t: string) => void
   close: () => void
   workspace: ReturnType<typeof useWorkspace>
+  t: ReturnType<typeof useT>
 }): Command[] {
   return useMemo<Command[]>(() => {
     const nav = (href: string) => () => {
@@ -419,7 +423,7 @@ function useCommands({
       .filter((w) => w.slug !== workspace.active?.slug)
       .map((w, i) => ({
         id: `workspace-${w.slug}`,
-        label: `${no.workspace.switchTo} ${w.name}`,
+        label: `${t.workspace.switchTo} ${w.name}`,
         group: 'workspace' as CommandGroup,
         icon: <Building2 className="w-4 h-4" />,
         shortcut: i < 9 ? [`⌘${workspace.workspaces.findIndex((x) => x.slug === w.slug) + 1}`] : undefined,
@@ -433,7 +437,7 @@ function useCommands({
       // NAVIGATION
       {
         id: 'nav-home',
-        label: no.nav.home,
+        label: t.nav.home,
         group: 'nav',
         icon: <Home className="w-4 h-4" />,
         keywords: 'oversikt hjem team kalender uke',
@@ -441,7 +445,7 @@ function useCommands({
       },
       {
         id: 'nav-myplan',
-        label: no.nav.myPlan,
+        label: t.nav.myPlan,
         group: 'nav',
         icon: <CircleUser className="w-4 h-4" />,
         keywords: 'min plan meg',
@@ -449,7 +453,7 @@ function useCommands({
       },
       {
         id: 'nav-wheel',
-        label: no.nav.wheel,
+        label: t.nav.wheel,
         group: 'nav',
         icon: <Calendar className="w-4 h-4" />,
         keywords: 'årshjul år hjul plandisc events begivenheter',
@@ -457,7 +461,7 @@ function useCommands({
       },
       {
         id: 'nav-dashboard',
-        label: no.nav.dashboard,
+        label: t.nav.dashboard,
         group: 'nav',
         icon: <LayoutGrid className="w-4 h-4" />,
         keywords: 'dashboard skjerm live karusell kart',
@@ -465,7 +469,7 @@ function useCommands({
       },
       {
         id: 'nav-settings',
-        label: no.nav.settings,
+        label: t.nav.settings,
         group: 'nav',
         icon: <Settings className="w-4 h-4" />,
         keywords: 'innstillinger konfig medlemmer kontor tema',
@@ -475,7 +479,7 @@ function useCommands({
       // ACTIONS
       {
         id: 'action-focus-input',
-        label: no.palette.cmd.focusInput,
+        label: t.palette.cmd.focusInput,
         group: 'actions',
         icon: <PenSquare className="w-4 h-4" />,
         shortcut: ['/'],
@@ -494,7 +498,7 @@ function useCommands({
       },
       {
         id: 'action-suggest-days',
-        label: 'Foreslå samlingsdager',
+        label: t.palette.cmd.suggestDays,
         group: 'actions',
         icon: <Sparkles className="w-4 h-4" />,
         keywords: 'ai samlingsdager koordinere kontor sammen ukentlig møte',
@@ -510,7 +514,7 @@ function useCommands({
       },
       {
         id: 'action-help',
-        label: no.palette.cmd.help,
+        label: t.palette.cmd.help,
         group: 'actions',
         icon: <Keyboard className="w-4 h-4" />,
         shortcut: ['?'],
@@ -523,7 +527,7 @@ function useCommands({
       // THEME
       {
         id: 'theme-toggle',
-        label: isDark ? no.palette.cmd.themeLight : no.palette.cmd.themeDark,
+        label: isDark ? t.palette.cmd.themeLight : t.palette.cmd.themeDark,
         group: 'theme',
         icon: isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />,
         keywords: 'tema mørkt lyst dark light',
@@ -531,7 +535,7 @@ function useCommands({
       },
       {
         id: 'theme-system',
-        label: no.palette.cmd.themeSystem,
+        label: t.palette.cmd.themeSystem,
         group: 'theme',
         icon: <Monitor className="w-4 h-4" />,
         keywords: 'system auto',
@@ -541,7 +545,7 @@ function useCommands({
       ...workspaceCommands,
     ]
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, resolvedTheme, workspace.active?.slug, workspace.workspaces])
+  }, [router, resolvedTheme, t, workspace.active?.slug, workspace.workspaces])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -566,13 +570,13 @@ function filterCommands(commands: Command[], query: string): Command[] {
   return scored.map((x) => x.cmd)
 }
 
-function groupByHeading(cmds: Command[]): Array<{ group: CommandGroup; label: string; items: Command[] }> {
+function groupByHeading(cmds: Command[], t: ReturnType<typeof useT>): Array<{ group: CommandGroup; label: string; items: Command[] }> {
   const order: CommandGroup[] = ['workspace', 'nav', 'actions', 'theme']
   const labels: Record<CommandGroup, string> = {
-    nav: no.palette.group.nav,
-    actions: no.palette.group.actions,
-    theme: no.palette.group.theme,
-    workspace: no.palette.group.workspace,
+    nav: t.palette.group.nav,
+    actions: t.palette.group.actions,
+    theme: t.palette.group.theme,
+    workspace: t.palette.group.workspace,
   }
   return order
     .map((group) => ({ group, label: labels[group], items: cmds.filter((c) => c.group === group) }))

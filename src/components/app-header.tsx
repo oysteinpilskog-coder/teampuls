@@ -7,22 +7,25 @@ import { useTransition, useState, useEffect } from 'react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { WorkspaceSwitcher } from '@/components/workspace-switcher'
 import { openCommandPalette } from '@/components/command-palette'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
-
-const navLinks = [
-  { href: '/', label: no.nav.home },
-  { href: '/min-plan', label: no.nav.myPlan },
-  { href: '/wheel', label: no.nav.wheel },
-  { href: '/dashboard', label: no.nav.dashboard },
-  { href: '/settings', label: no.nav.settings },
-]
 
 export function AppHeader() {
   const pathname = usePathname()
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [optimisticHref, setOptimisticHref] = useState<string | null>(null)
+  const t = useT()
+
+  // `t.nav.today` was removed upstream (the /i-dag page was dropped since
+  // Oversikt already shows today), so we don't surface it here either.
+  const navLinks = [
+    { href: '/', label: t.nav.home },
+    { href: '/min-plan', label: t.nav.myPlan },
+    { href: '/wheel', label: t.nav.wheel },
+    { href: '/dashboard', label: t.nav.dashboard },
+    { href: '/settings', label: t.nav.settings },
+  ]
 
   // Drop optimistic target once the URL actually matches it
   useEffect(() => {
@@ -107,7 +110,7 @@ export function AppHeader() {
           {/* Nav with animated active pill */}
           <nav
             className="relative flex items-center gap-0.5 flex-1"
-            aria-label="Hovednavigasjon"
+            aria-label={t.nav.mainNavAria}
           >
             {navLinks.map(({ href, label }) => {
               const isActive = activeHref === href
@@ -150,7 +153,7 @@ export function AppHeader() {
               whileHover={{ y: -1 }}
               whileTap={{ scale: 0.97 }}
               transition={spring.snappy}
-              aria-label="Åpne kommandopaletten"
+              aria-label={t.nav.openPalette}
               className="group hidden sm:flex items-center gap-2 pl-3 pr-2 h-8 rounded-xl text-[12px] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
               style={{
                 color: 'var(--text-secondary)',
@@ -168,7 +171,7 @@ export function AppHeader() {
                   fill="currentColor"
                 />
               </svg>
-              <span className="hidden md:inline">Søk</span>
+              <span className="hidden md:inline">{t.nav.search}</span>
               <span
                 className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded-md text-[10px] font-semibold"
                 style={{

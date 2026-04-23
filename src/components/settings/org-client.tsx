@@ -11,7 +11,7 @@ import { DEFAULT_HEX_COLORS, mergeHexColors, type HexColors } from '@/lib/status
 import { derivePalette } from '@/lib/status-colors/derive'
 import { useStatusColorsController } from '@/lib/status-colors/context'
 import { StatusIcon } from '@/components/icons/status-icons'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 
 const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
 
@@ -31,6 +31,7 @@ const TIMEZONES = [
 ]
 
 export function OrgClient({ org: initialOrg }: OrgClientProps) {
+  const t = useT()
   const [org, setOrg] = useState(initialOrg)
   const [name, setName] = useState(initialOrg.name)
   const [timezone, setTimezone] = useState(initialOrg.timezone)
@@ -158,7 +159,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       })
       .eq('id', org.id)
     setSaving(false)
-    if (error) { toast.error('Noe gikk galt. Prøv igjen.'); return }
+    if (error) { toast.error(t.common.error); return }
     setOrg(o => ({
       ...o,
       name: name.trim(),
@@ -560,7 +561,8 @@ function StatusColorRow({
   const palette = derivePalette(hex)
   const [g0, g1] = palette.gradient.light
   const gradient = `linear-gradient(180deg, ${g0} 0%, ${g1} 100%)`
-  const label = no.status[status]
+  const t = useT()
+  const label = t.status[status]
 
   return (
     <div className="flex items-center gap-3">

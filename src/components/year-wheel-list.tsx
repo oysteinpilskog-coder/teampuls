@@ -3,11 +3,12 @@
 import { motion } from 'framer-motion'
 import { CATEGORY_COLORS } from '@/components/event-editor'
 import type { OrgEvent } from '@/lib/supabase/types'
+import { useT } from '@/lib/i18n/context'
 import {
-  MONTH_FULL,
-  CATEGORY_LABELS,
-  formatDateRangeNO,
-  weekdayAbbr,
+  monthFullT,
+  categoryLabelsT,
+  formatDateRangeT,
+  weekdayAbbrT,
 } from './year-wheel-shared'
 
 interface ListViewProps {
@@ -18,7 +19,9 @@ interface ListViewProps {
 }
 
 export function ListView({ year, today, events, onSelect }: ListViewProps) {
+  const t = useT()
   const todayYmd = today.toISOString().slice(0, 10)
+  const MONTH_FULL_L = monthFullT(t)
 
   // Group by month of start_date. Sorted events by start.
   const sorted = [...events].sort((a, b) => a.start_date.localeCompare(b.start_date))
@@ -35,7 +38,7 @@ export function ListView({ year, today, events, onSelect }: ListViewProps) {
     return (
       <div className="w-full max-w-[680px] mx-auto py-16 flex flex-col items-center gap-3 text-center">
         <p className="text-[15px]" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}>
-          Ingen hendelser registrert for {year} ennå.
+          {t.wheel.noEventsForYear.replace('{year}', String(year))}
         </p>
       </div>
     )
@@ -59,7 +62,7 @@ export function ListView({ year, today, events, onSelect }: ListViewProps) {
                 fontSize: 36,
               }}
             >
-              {MONTH_FULL[m]}
+              {MONTH_FULL_L[m]}
             </h2>
             <span
               className="lg-mono"
@@ -77,7 +80,7 @@ export function ListView({ year, today, events, onSelect }: ListViewProps) {
                   letterSpacing: '0.2em',
                 }}
               >
-                Nå
+                {t.dashboard.views.now}
               </span>
             )}
           </header>
@@ -110,8 +113,10 @@ function EventRow({
   onSelect: () => void
   delay: number
 }) {
+  const t = useT()
   const color = event.color ?? CATEGORY_COLORS[event.category]
   const start = new Date(event.start_date + 'T12:00:00')
+  const CATEGORY_LABELS_L = categoryLabelsT(t)
 
   return (
     <motion.li
@@ -147,7 +152,7 @@ function EventRow({
             letterSpacing: '0.18em',
           }}
         >
-          {weekdayAbbr(start)}
+          {weekdayAbbrT(start, t)}
         </span>
       </div>
 
@@ -163,13 +168,13 @@ function EventRow({
             }}
           >
             <span className="w-1 h-1 rounded-full" style={{ backgroundColor: color }} />
-            {CATEGORY_LABELS[event.category]}
+            {CATEGORY_LABELS_L[event.category]}
           </span>
           <span
             className="lg-mono text-[11.5px]"
             style={{ color: 'var(--lg-text-3)' }}
           >
-            {formatDateRangeNO(event.start_date, event.end_date)}
+            {formatDateRangeT(event.start_date, event.end_date, t)}
           </span>
         </div>
         <h3

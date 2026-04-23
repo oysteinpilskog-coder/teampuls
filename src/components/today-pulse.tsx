@@ -4,7 +4,8 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { StatusIcon } from '@/components/icons/status-icons'
 import type { EntryStatus } from '@/lib/supabase/types'
 import { AvatarStack } from '@/components/member-avatar'
-import { no } from '@/lib/i18n/no'
+import { useI18n, useT } from '@/lib/i18n/context'
+import { LOCALE_META } from '@/lib/i18n/types'
 import { useState, useEffect, useRef } from 'react'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { formatDateLabelLong } from '@/lib/dates'
@@ -23,16 +24,6 @@ interface TodayPulseProps {
   entries: MemberWithEntry[]
 }
 
-const GROUPS: Array<{ status: EntryStatus; label: string }> = [
-  { status: 'office',   label: no.status.office },
-  { status: 'remote',   label: no.status.remote },
-  { status: 'customer', label: no.status.customer },
-  { status: 'travel',   label: no.status.travel },
-  { status: 'vacation', label: no.status.vacation },
-  { status: 'sick',     label: no.status.sick },
-  { status: 'off',      label: no.status.off },
-]
-
 // Bento-layout: size cards based on importance (member count).
 // Total 12 column grid — columns adapt to how many groups are visible.
 const COL_CLASSES: Record<number, string> = {
@@ -46,10 +37,21 @@ const COL_CLASSES: Record<number, string> = {
 }
 
 export function TodayPulse({ entries }: TodayPulseProps) {
+  const t = useT()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
   const STATUS_COLORS = useStatusColors()
   const reduce = !!useReducedMotion()
+
+  const GROUPS: Array<{ status: EntryStatus; label: string }> = [
+    { status: 'office',   label: t.status.office },
+    { status: 'remote',   label: t.status.remote },
+    { status: 'customer', label: t.status.customer },
+    { status: 'travel',   label: t.status.travel },
+    { status: 'vacation', label: t.status.vacation },
+    { status: 'sick',     label: t.status.sick },
+    { status: 'off',      label: t.status.off },
+  ]
 
   const visibleGroups = GROUPS
     .map((g) => ({ ...g, members: entries.filter((e) => e.status === g.status) }))
@@ -186,18 +188,20 @@ function PulseHeader({
   totalToday: number
   reduce: boolean
 }) {
+  const t = useT()
+  const { locale } = useI18n()
   const [now, setNow] = useState<Date | null>(null)
   useEffect(() => {
     if (!mounted) return
     setNow(new Date())
-    const t = setInterval(() => setNow(new Date()), 20_000)
-    return () => clearInterval(t)
+    const tick = setInterval(() => setNow(new Date()), 20_000)
+    return () => clearInterval(tick)
   }, [mounted])
 
   const time = now
-    ? new Intl.DateTimeFormat('nb-NO', { hour: '2-digit', minute: '2-digit' }).format(now)
+    ? new Intl.DateTimeFormat(LOCALE_META[locale].intl, { hour: '2-digit', minute: '2-digit' }).format(now)
     : ''
-  const dateLabel = now ? formatDateLabelLong(now) : ''
+  const dateLabel = now ? formatDateLabelLong(now, t) : ''
 
   return (
     <div className="relative mb-6 md:mb-8">

@@ -17,7 +17,7 @@ import {
   getDayLabel,
   formatDateLabelLong,
 } from '@/lib/dates'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
 import type { Entry, EntryStatus, Member } from '@/lib/supabase/types'
 
@@ -28,6 +28,7 @@ interface PresenceHeatmapProps {
 }
 
 export function PresenceHeatmap({ orgId, weeks = 6 }: PresenceHeatmapProps) {
+  const t = useT()
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
@@ -164,7 +165,7 @@ export function PresenceHeatmap({ orgId, weeks = 6 }: PresenceHeatmapProps) {
                   </span>
                 )}
                 <span style={{ opacity: isToday(d) ? 1 : 0.5 }}>
-                  {getDayLabel(d).weekday.charAt(0)}
+                  {getDayLabel(d, t).weekday.charAt(0)}
                 </span>
               </div>
             )
@@ -238,6 +239,7 @@ function Header({
   totals: Partial<Record<EntryStatus, number>>
   palettes: ReturnType<typeof useStatusColors>
 }) {
+  const t = useT()
   const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
   return (
     <div className="flex items-end justify-between gap-4 mb-5 flex-wrap">
@@ -277,7 +279,7 @@ function Header({
                 style={{ background: pal.icon }}
               />
               <span className="lg-mono">{count}</span>
-              <span style={{ color: 'var(--lg-text-2)' }}>{no.status[s].toLowerCase()}</span>
+              <span style={{ color: 'var(--lg-text-2)' }}>{t.status[s].toLowerCase()}</span>
             </span>
           )
         })}
@@ -303,6 +305,7 @@ function HeatCell({
   memberName: string
   separator: boolean
 }) {
+  const t = useT()
   const today = isToday(date)
   const pal = entry ? palettes[entry.status] : null
   const [g0, g1] = pal ? (isDark ? pal.gradient.dark : pal.gradient.light) : ['', '']
@@ -310,8 +313,8 @@ function HeatCell({
   // Empty cell: subtle checker look (no entry registered).
   const empty = !entry
   const title = entry
-    ? `${memberName} · ${formatDateLabelLong(date)} · ${no.status[entry.status]}${entry.location_label ? ` · ${entry.location_label}` : ''}`
-    : `${memberName} · ${formatDateLabelLong(date)} · Ingen oppføring`
+    ? `${memberName} · ${formatDateLabelLong(date, t)} · ${t.status[entry.status]}${entry.location_label ? ` · ${entry.location_label}` : ''}`
+    : `${memberName} · ${formatDateLabelLong(date, t)} · ${t.presenceHeatmap.noEntry}`
 
   return (
     <div

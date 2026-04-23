@@ -6,6 +6,7 @@ import { PresenceHeatmap } from '@/components/presence-heatmap'
 import { DaysTogether } from '@/components/days-together'
 import { InactivityNudge } from '@/components/inactivity-nudge'
 import { getSessionMember } from '@/lib/supabase/session'
+import { getServerDict } from '@/lib/i18n/server'
 
 export default async function HomePage() {
   const { user, member } = await getSessionMember()
@@ -14,6 +15,7 @@ export default async function HomePage() {
 
   // Authenticated but not yet linked to a member record
   if (!member) {
+    const t = await getServerDict()
     return (
       <div className="mx-auto max-w-7xl px-6 py-20">
         <EmptyState
@@ -27,15 +29,15 @@ export default async function HomePage() {
               <path d="M18.5 4.25v3.5M16.75 6h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           }
-          title="Konto ikke koblet"
+          title={t.auth.accountNotLinkedTitle}
           description={
             <>
-              E-posten <strong style={{ color: 'var(--text-primary)' }}>{user.email}</strong> er ikke lagt til som teammedlem ennå.
-              Be en admin om å opprette brukeren din, eller kjør{' '}
+              {t.auth.accountNotLinkedEmailLabel}{' '}
+              <strong style={{ color: 'var(--text-primary)' }}>{user.email}</strong> {t.auth.accountNotLinkedDescription}{' '}
               <code className="px-1.5 py-0.5 rounded bg-[var(--bg-subtle)] text-[var(--text-secondary)] text-[12px]">
                 002_seed_demo.sql
               </code>{' '}
-              i Supabase SQL Editor.
+              {t.auth.accountNotLinkedSuffix}
             </>
           }
         />

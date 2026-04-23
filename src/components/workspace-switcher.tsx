@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { useWorkspace } from '@/lib/workspace/context'
+import { useT } from '@/lib/i18n/context'
+import type { Dictionary } from '@/lib/i18n/types'
 import { spring } from '@/lib/motion'
-import { no } from '@/lib/i18n/no'
 import type { WorkspaceSummary } from '@/lib/supabase/types'
 
 /** Safe hex for inline style; falls back to accent-color CSS var. */
@@ -14,12 +15,12 @@ function safeHex(value: string | null): string | null {
   return /^#[0-9a-fA-F]{3,8}$/.test(value) ? value : null
 }
 
-function regionLabel(r: WorkspaceSummary['region']): string {
+function regionLabel(r: WorkspaceSummary['region'], t: Dictionary): string {
   switch (r) {
-    case 'eu':   return no.workspace.regionEU
-    case 'uk':   return no.workspace.regionUK
-    case 'us':   return no.workspace.regionUS
-    case 'apac': return no.workspace.regionAPAC
+    case 'eu':   return t.workspace.regionEU
+    case 'uk':   return t.workspace.regionUK
+    case 'us':   return t.workspace.regionUS
+    case 'apac': return t.workspace.regionAPAC
   }
 }
 
@@ -33,6 +34,7 @@ function countryFlag(cc: string | null): string | null {
 
 export function WorkspaceSwitcher() {
   const { workspaces, active, switchTo, isSwitching } = useWorkspace()
+  const t = useT()
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -89,7 +91,7 @@ export function WorkspaceSwitcher() {
         transition={spring.snappy}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={`${no.workspace.switcher}: ${active.name}`}
+        aria-label={`${t.workspace.switcher}: ${active.name}`}
         className="group flex items-center gap-2 pl-1.5 pr-2 h-8 rounded-xl text-[12px] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
         style={{
           color: 'var(--text-primary)',
@@ -138,7 +140,7 @@ export function WorkspaceSwitcher() {
               className="px-3 pt-2 pb-1 text-[10px] font-semibold tracking-wider uppercase"
               style={{ color: 'var(--text-tertiary)' }}
             >
-              {no.workspace.switcher}
+              {t.workspace.switcher}
             </div>
             <ul className="flex flex-col">
               {workspaces.map((w, i) => {
@@ -183,7 +185,7 @@ export function WorkspaceSwitcher() {
                           className="text-[11px] truncate flex items-center gap-1.5"
                           style={{ color: 'var(--text-tertiary)' }}
                         >
-                          <span>{regionLabel(w.region)}</span>
+                          <span>{regionLabel(w.region, t)}</span>
                           <span aria-hidden>·</span>
                           <span className="capitalize">{w.role}</span>
                         </div>
@@ -220,7 +222,7 @@ export function WorkspaceSwitcher() {
                   color: 'var(--text-tertiary)',
                 }}
               >
-                {no.workspace.shortcutHint.replace('{n}', '1–' + Math.min(workspaces.length, 9))}
+                {t.workspace.shortcutHint.replace('{n}', '1–' + Math.min(workspaces.length, 9))}
               </div>
             )}
           </motion.div>

@@ -4,31 +4,44 @@ import { Providers } from '@/components/providers'
 import { ConditionalHeader } from '@/components/app-header'
 import { themeVariantBootScript } from '@/components/theme-variant-provider'
 import { getOrgStatusColors } from '@/lib/status-colors/server'
+import { getServerLocale } from '@/lib/i18n/server'
+import { LOCALE_META } from '@/lib/i18n/types'
+import { no } from '@/lib/i18n/no'
+import { en } from '@/lib/i18n/en'
+import { sv } from '@/lib/i18n/sv'
+import { es } from '@/lib/i18n/es'
+import { lt } from '@/lib/i18n/lt'
 import { getSessionMember } from '@/lib/supabase/session'
 import './globals.css'
 
-export const metadata: Metadata = {
-  title: {
-    default: 'TeamPulse',
-    template: '%s · TeamPulse',
-  },
-  description: 'Den vakreste og enkleste måten å vite hvor teamet ditt er.',
-  keywords: ['team', 'location', 'status', 'dashboard', 'remote work'],
-  openGraph: {
-    title: 'TeamPulse',
-    description: 'Den vakreste og enkleste måten å vite hvor teamet ditt er.',
-    type: 'website',
-    locale: 'nb_NO',
-  },
-  twitter: {
-    card: 'summary',
-    title: 'TeamPulse',
-    description: 'Den vakreste og enkleste måten å vite hvor teamet ditt er.',
-  },
-  robots: {
-    index: false,
-    follow: false,
-  },
+const DICT_FOR_METADATA = { no, en, sv, es, lt }
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale()
+  const dict = DICT_FOR_METADATA[locale]
+  return {
+    title: {
+      default: dict.app.name,
+      template: `%s · ${dict.app.name}`,
+    },
+    description: dict.app.tagline,
+    keywords: ['team', 'location', 'status', 'dashboard', 'remote work'],
+    openGraph: {
+      title: dict.app.name,
+      description: dict.app.tagline,
+      type: 'website',
+      locale: LOCALE_META[locale].intl.replace('-', '_'),
+    },
+    twitter: {
+      card: 'summary',
+      title: dict.app.name,
+      description: dict.app.tagline,
+    },
+    robots: {
+      index: false,
+      follow: false,
+    },
+  }
 }
 
 export default async function RootLayout({
@@ -36,8 +49,9 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [initialStatusColors, session] = await Promise.all([
+  const [initialStatusColors, initialLocale, session] = await Promise.all([
     getOrgStatusColors(),
+    getServerLocale(),
     getSessionMember(),
   ])
 
@@ -54,7 +68,7 @@ export default async function RootLayout({
 
   return (
     <html
-      lang="no"
+      lang={LOCALE_META[initialLocale].htmlLang}
       className={`${fontDisplay.variable} ${fontBody.variable} ${fontSerif.variable}`}
       suppressHydrationWarning
     >
@@ -68,6 +82,7 @@ export default async function RootLayout({
       >
         <Providers
           initialStatusColors={initialStatusColors}
+          initialLocale={initialLocale}
           initialWorkspaces={session.workspaces}
           initialActiveSlug={activeWorkspace?.slug ?? null}
         >

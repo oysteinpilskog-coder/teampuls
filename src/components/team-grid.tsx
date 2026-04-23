@@ -11,6 +11,7 @@ import {
   toDateString,
   isToday,
   getTodayWeekAndYear,
+  formatDateLabelLong,
 } from '@/lib/dates'
 import { WeekNav } from '@/components/week-nav'
 import { StatusSegment, type SegmentDay } from '@/components/status-segment'
@@ -23,7 +24,8 @@ import { TodayPulse } from '@/components/today-pulse'
 import { CellEditor } from '@/components/cell-editor'
 import { spring } from '@/lib/motion'
 import { useEntries } from '@/hooks/use-entries'
-import { no } from '@/lib/i18n/no'
+import { useT } from '@/lib/i18n/context'
+import type { Dictionary } from '@/lib/i18n/types'
 import type { Entry, EntryStatus, PresenceAssumption } from '@/lib/supabase/types'
 import { inferStatus } from '@/lib/presence'
 
@@ -63,6 +65,7 @@ function buildRowSegments(
   weekDays: Date[],
   memberId: string,
   entryMap: Map<string, Entry>,
+  t: Dictionary,
   memberDefaultStatus: EntryStatus | null,
   assumption: PresenceAssumption,
 ): RowSegment[] {
@@ -89,25 +92,13 @@ function buildRowSegments(
       assumedStatus: startEntry ? null : startAssumed,
       days: dates.map((date) => ({
         date: toDateString(date),
-        dateLabel: formatDateLabel(date),
+        dateLabel: formatDateLabelLong(date, t),
         isToday: isToday(date),
       })),
     })
     i = j
   }
   return segments
-}
-
-const WEEKDAY_FULL: Record<number, string> = {
-  0: 'Søndag', 1: 'Mandag', 2: 'Tirsdag', 3: 'Onsdag',
-  4: 'Torsdag', 5: 'Fredag', 6: 'Lørdag',
-}
-const MONTH_FULL: Record<number, string> = {
-  0: 'januar', 1: 'februar', 2: 'mars', 3: 'april', 4: 'mai', 5: 'juni',
-  6: 'juli', 7: 'august', 8: 'september', 9: 'oktober', 10: 'november', 11: 'desember',
-}
-function formatDateLabel(date: Date): string {
-  return `${WEEKDAY_FULL[date.getDay()]} ${date.getDate()}. ${MONTH_FULL[date.getMonth()]}`
 }
 
 interface SelectedCell {
@@ -193,6 +184,7 @@ function SkeletonRow({ index = 0 }: { index?: number }) {
 }
 
 export function TeamGrid({ orgId }: TeamGridProps) {
+  const t = useT()
   const { week: todayWeek, year: todayYear } = getTodayWeekAndYear()
   const [week, setWeek] = useState(todayWeek)
   const [year, setYear] = useState(todayYear)
@@ -348,7 +340,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
               memberName: member.display_name,
               date: toDateString(startDate),
               endDate: toDateString(endDate),
-              dateLabel: formatDateLabel(startDate),
+              dateLabel: formatDateLabelLong(startDate, t),
               status: rz.entry.status,
               location: rz.entry.location_label,
               note: rz.entry.note,
@@ -417,7 +409,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
               memberName: member.display_name,
               date: toDateString(startDate),
               endDate: toDateString(endDate),
-              dateLabel: formatDateLabel(startDate),
+              dateLabel: formatDateLabelLong(startDate, t),
               status: mv.entry.status,
               location: mv.entry.location_label,
               note: mv.entry.note,
@@ -491,7 +483,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
             memberName: member.display_name,
             date: startStr,
             endDate: endStr,
-            dateLabel: formatDateLabel(startDate),
+            dateLabel: formatDateLabelLong(startDate, t),
             status: entry?.status ?? null,
             location: entry?.location_label ?? null,
             note: entry?.note ?? null,
@@ -512,7 +504,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     const entry = entryMap.get(`${memberId}_${dateStr}`)
     if (entry) {
       const memberDefault = members.find((m) => m.id === memberId)?.default_status ?? null
-      const segments = buildRowSegments(weekDays, memberId, entryMap, memberDefault, presenceAssumption)
+      const segments = buildRowSegments(weekDays, memberId, entryMap, t, memberDefault, presenceAssumption)
       let cursor = 0
       for (const seg of segments) {
         const n = seg.days.length
@@ -595,7 +587,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
     // Debounce — rapid arrow-presses shouldn't fire a toast per step.
     if (toastTimer.current) clearTimeout(toastTimer.current)
     toastTimer.current = setTimeout(() => {
-      const summary = summariseWeek(entries, palettes)
+      const summary = summariseWeek(entries, palettes, t)
       toast.custom((id) => (
         <WeeklySummaryToast
           weekNumber={week}
@@ -912,6 +904,7 @@ export function TeamGrid({ orgId }: TeamGridProps) {
                         weekDays,
                         member.id,
                         entryMap,
+                        t,
                         member.default_status ?? null,
                         presenceAssumption,
                       )
@@ -1016,14 +1009,14 @@ export function TeamGrid({ orgId }: TeamGridProps) {
 
             {!loading && members.length === 0 && (
               <div className="py-16 text-center text-[var(--text-tertiary)] text-[15px]">
-                Ingen teammedlemmer ennå.{' '}
+                {t.matrix.noMembers}{' '}
                 <span className="text-[var(--accent-color)]">Legg til i Innstillinger →</span>
               </div>
             )}
 
             {!loading && members.length > 0 && visibleMembers.length === 0 && (
               <div className="py-16 text-center text-[var(--text-tertiary)] text-[15px]">
-                Ingen oppføringer denne uken.
+                {t.matrix.noEntriesWeek}
               </div>
             )}
           </motion.div>
@@ -1126,6 +1119,7 @@ interface WeekSummaryItem {
 function summariseWeek(
   entries: Entry[],
   palettes: ReturnType<typeof useStatusColors>,
+  t: Dictionary,
 ): WeekSummaryItem[] {
   // Count unique members per status within the visible week — one person
   // listed multiple times across days shouldn't inflate the number.
@@ -1135,7 +1129,7 @@ function summariseWeek(
     byStatus.get(e.status)!.add(e.member_id)
   }
   const order: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
-  const labels: Record<EntryStatus, string> = no.status
+  const labels: Record<EntryStatus, string> = t.status
   return order
     .map((status) => ({
       status,
@@ -1155,6 +1149,7 @@ function WeeklySummaryToast({
   summary: WeekSummaryItem[]
   onDismiss: () => void
 }) {
+  const t = useT()
   // Show top three statuses by count; the rest collapse into a "+N mer" chip.
   const sorted = [...summary].sort((a, b) => b.count - a.count)
   const top = sorted.slice(0, 3)
@@ -1188,7 +1183,7 @@ function WeeklySummaryToast({
       </span>
       <div className="flex-1 min-w-0">
         <div className="lg-eyebrow">
-          {no.matrix.weekLabel} {weekNumber}
+          {t.matrix.weekLabel} {weekNumber}
         </div>
         <div className="flex items-center gap-1.5 flex-wrap mt-1">
           {top.map((x) => (

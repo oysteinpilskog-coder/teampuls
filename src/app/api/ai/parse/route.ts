@@ -4,8 +4,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveActiveMember } from '@/lib/supabase/session'
 import { parseTeamUpdate } from '@/lib/ai/parse-update'
 import { applyUpdates } from '@/lib/ai/apply-updates'
+import { getServerDict } from '@/lib/i18n/server'
 
 export async function POST(req: NextRequest) {
+  const dict = await getServerDict()
   try {
     // Auth-bound client: used ONLY to verify the caller's identity.
     // All subsequent org-scoped reads/writes use the admin client so RLS
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     if (!member) {
       return NextResponse.json(
-        { error: 'Din bruker er ikke koblet til et medlem. Kontakt en admin.' },
+        { error: dict.aiInput.notLinked },
         { status: 403 }
       )
     }
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     if (!allMembers?.length) {
       return NextResponse.json(
-        { error: 'Fant ingen aktive medlemmer i organisasjonen din.' },
+        { error: dict.aiInput.noActiveMembers },
         { status: 500 }
       )
     }
@@ -94,7 +96,7 @@ export async function POST(req: NextRequest) {
     if (result.confidence < 0.7 || (result.clarification && result.updates.length === 0)) {
       return NextResponse.json({
         success: false,
-        clarification: result.clarification ?? 'Jeg forstod ikke helt. Kan du formulere deg annerledes?',
+        clarification: result.clarification ?? dict.aiInput.clarificationFallback,
         updates: [],
       })
     }
@@ -112,7 +114,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('[ai/parse] Error:', err)
     return NextResponse.json(
-      { error: 'Noe gikk galt. Prøv igjen.' },
+      { error: dict.common.error },
       { status: 500 }
     )
   }
