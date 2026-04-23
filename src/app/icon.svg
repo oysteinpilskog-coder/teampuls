@@ -1,12 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <defs>
-    <linearGradient id="nordlys" x1="21" y1="63" x2="79" y2="63" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#00F5A0"/>
-      <stop offset="55%" stop-color="#00D9F5"/>
-      <stop offset="100%" stop-color="#7C3AED"/>
-    </linearGradient>
-  </defs>
   <rect width="100" height="100" rx="22" fill="#15110E"/>
   <circle cx="50" cy="50" r="33" fill="none" stroke="#F5EFE4" stroke-width="9"/>
-  <line x1="21" y1="63" x2="79" y2="63" stroke="url(#nordlys)" stroke-width="14" stroke-linecap="round"/>
+  <line x1="21" y1="63" x2="79" y2="63" stroke="#F5EFE4" stroke-width="9" stroke-linecap="round"/>
 </svg>
