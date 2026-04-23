@@ -245,6 +245,49 @@ export function TeamGrid({
     return map
   }, [entries])
 
+  // AI-query highlights: set of `${memberId}_${date}` keys for cells the
+  // last query wanted to surface. Cleared after 14 seconds, on user click,
+  // on week change, or when a new highlight request arrives.
+  const [highlightKeys, setHighlightKeys] = useState<Set<string>>(() => new Set())
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    type Detail = { cells: Array<{ memberId: string; date: string }> }
+    const handler = (e: Event) => {
+      const d = (e as CustomEvent<Detail>).detail
+      if (!d?.cells?.length) return
+      const next = new Set(d.cells.map((c) => `${c.memberId}_${c.date}`))
+      setHighlightKeys(next)
+      if (highlightTimer.current) clearTimeout(highlightTimer.current)
+      highlightTimer.current = setTimeout(() => setHighlightKeys(new Set()), 14_000)
+      // If the first match is outside the visible week, jump the grid to it.
+      // Falls back silently when dynamic imports aren't available.
+      const anyMatch = d.cells.some((c) => dateStrings.includes(c.date))
+      if (!anyMatch && d.cells[0]) {
+        import('@/lib/dates').then(({ getISOWeek, getISOWeekYear }) => {
+          const target = new Date(d.cells[0].date)
+          setWeek(getISOWeek(target))
+          setYear(getISOWeekYear(target))
+        })
+      }
+    }
+    window.addEventListener('teampulse:ai-query:highlight', handler)
+    return () => {
+      window.removeEventListener('teampulse:ai-query:highlight', handler)
+      if (highlightTimer.current) clearTimeout(highlightTimer.current)
+    }
+  }, [dateStrings])
+
+  // Clear highlights when the user navigates away from the matched week.
+  useEffect(() => {
+    if (highlightKeys.size === 0) return
+    const stillVisible = Array.from(highlightKeys).some((k) => {
+      const date = k.split('_').slice(1).join('_')
+      return dateStrings.includes(date)
+    })
+    if (!stillVisible) setHighlightKeys(new Set())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [week, year])
+
   // Only show members that have at least one entry in the visible week —
   // unless the org opted into an assumption, in which case every active
   // member gets a row (their empty days render as assumed segments).
@@ -957,6 +1000,9 @@ export function TeamGrid({
                           src !== null &&
                           segmentStarts[segIdx] === src.start &&
                           seg.days.length === src.span
+                        const segHighlight = seg.days.some((d) =>
+                          highlightKeys.has(`${member.id}_${d.date}`),
+                        )
                         return (
                           <StatusSegment
                             key={`${member.id}-${segIdx}-${seg.days[0].date}`}
@@ -964,6 +1010,7 @@ export function TeamGrid({
                             location={seg.entry?.location_label ?? null}
                             note={seg.entry?.note ?? null}
                             assumed={!seg.entry && seg.assumedStatus !== null}
+                            highlight={segHighlight}
                             days={seg.days}
                             onSelectDay={() => {
                               /* replaced by drag mousedown/mouseup flow */
