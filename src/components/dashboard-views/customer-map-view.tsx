@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { MapPin } from './map-pin'
+import { GhostPin } from './ghost-pin'
 import { project, resolveLocation } from '@/lib/geo'
 import { resolveCustomer } from '@/lib/customer-resolver'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
@@ -32,6 +33,10 @@ interface CustomerCluster {
   radius: number
   display: string
   isKnownCustomer: boolean
+  /** The customer.id when the cluster resolved via the registry — lets us
+   *  subtract visited customers from the registry list and avoid rendering
+   *  a ghost pin on top of a live pin at the same coordinates. */
+  customerId: string | null
   memberIdsToday: Set<string>
   memberIdsWeek: Set<string>
   daysThisWeek: number
@@ -82,12 +87,14 @@ export function CustomerMapView({
     const label = (e.location_label ?? '').trim()
     let resolved: { lat: number; lng: number; display: string } | null = null
     let isKnownCustomer = false
+    let customerId: string | null = null
 
     // 1) Customer registry (authoritative)
     const asCustomer = resolveCustomer(label, customers)
     if (asCustomer) {
       resolved = { lat: asCustomer.lat, lng: asCustomer.lng, display: asCustomer.display }
       isKnownCustomer = true
+      customerId = asCustomer.customer.id
     }
     // 2) Static city dictionary
     if (!resolved) resolved = resolveLocation(label)
@@ -117,6 +124,7 @@ export function CustomerMapView({
         lng: resolved.lng,
         display: resolved.display,
         isKnownCustomer,
+        customerId,
         memberIdsToday: new Set(),
         memberIdsWeek: new Set(),
         daysThisWeek: 0,
@@ -126,7 +134,10 @@ export function CustomerMapView({
     // A cluster that resolves via any known customer is marked as such —
     // we show a subtle visual distinction between "real customer" and
     // "looked-up city" markers.
-    if (isKnownCustomer) cluster.isKnownCustomer = true
+    if (isKnownCustomer) {
+      cluster.isKnownCustomer = true
+      if (customerId) cluster.customerId = customerId
+    }
     cluster.memberIdsWeek.add(e.member_id)
     cluster.daysThisWeek += 1
     if (todayEntries.some(te => te.id === e.id)) {
@@ -142,11 +153,34 @@ export function CustomerMapView({
       radius: 11,
       display: c.display,
       isKnownCustomer: c.isKnownCustomer,
+      customerId: c.customerId,
       memberIdsToday: c.memberIdsToday,
       memberIdsWeek: c.memberIdsWeek,
       daysThisWeek: c.daysThisWeek,
     }))
     .sort((a, b) => b.memberIdsWeek.size - a.memberIdsWeek.size)
+
+  // Portfolio: every registered customer with coords shows on the map.
+  // Visited ones (already in `clusters`) keep the full aurora treatment;
+  // the rest get ghost pins so the org's footprint is always visible.
+  const visitedCustomerIds = new Set(
+    clusters.map(c => c.customerId).filter((id): id is string => !!id)
+  )
+  const unvisitedCustomers = customers
+    .filter(c =>
+      c.latitude != null &&
+      c.longitude != null &&
+      !visitedCustomerIds.has(c.id)
+    )
+    .map(c => {
+      const { x, y } = project(c.latitude!, c.longitude!, MAP_WIDTH, MAP_HEIGHT)
+      return { id: c.id, name: c.name, city: c.city, x, y }
+    })
+    .filter(c => Number.isFinite(c.x) && Number.isFinite(c.y))
+
+  const registeredCount = customers.filter(c => c.latitude != null && c.longitude != null).length
+  const visitedCount = visitedCustomerIds.size
+  const portfolioPct = registeredCount === 0 ? 0 : visitedCount / registeredCount
 
   const placedLabels = placeLabels(clusters, { gap: 14, collisionRadius: 90 })
 
@@ -236,6 +270,20 @@ export function CustomerMapView({
           }}
         >
           <EuropeMapCanvas accent="#FF8A3D">
+            {/* Ghost pins — every registered-but-unvisited customer.
+             *  Rendered first so aurora pins sit on top when coords collide. */}
+            {unvisitedCustomers.map((c, i) => (
+              <motion.g
+                key={`ghost-${c.id}`}
+                transform={`translate(${c.x} ${c.y})`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.25 + i * 0.04 }}
+              >
+                <GhostPin color={customerColor} index={i} />
+              </motion.g>
+            ))}
+
             {clusters.map((c, i) => (
               <g key={c.id} transform={`translate(${c.x} ${c.y})`}>
                 <MapPin
@@ -279,7 +327,7 @@ export function CustomerMapView({
               )
             })}
 
-            {clusters.length === 0 && (
+            {clusters.length === 0 && unvisitedCustomers.length === 0 && (
               <text
                 x={MAP_WIDTH / 2}
                 y={MAP_HEIGHT / 2}
@@ -300,13 +348,104 @@ export function CustomerMapView({
           />
         </motion.div>
 
-        {/* ── Side list: top customer cities + unresolved ─────────── */}
+        {/* ── Side panel: portfolio → visited → unvisited ──────────── */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ ...spring.gentle, delay: 0.28 }}
           className="flex flex-col gap-4 min-h-0 overflow-hidden"
         >
+          {/* Portfolio card — the headline number: how much of our
+           *  customer base did the team touch this week. */}
+          {registeredCount > 0 && (
+            <div
+              className="rounded-2xl p-5 flex flex-col gap-4 flex-shrink-0 relative overflow-hidden"
+              style={{
+                background:
+                  'linear-gradient(155deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                boxShadow:
+                  'inset 0 1px 0 rgba(255,255,255,0.08), 0 20px 40px -20px rgba(0,0,0,0.5)',
+              }}
+            >
+              {/* ambient accent glow */}
+              <div
+                aria-hidden
+                className="absolute -top-16 -right-16 w-40 h-40 rounded-full pointer-events-none"
+                style={{
+                  background: `radial-gradient(circle, ${customerColor}44 0%, transparent 70%)`,
+                  filter: 'blur(18px)',
+                }}
+              />
+
+              <div className="flex items-center justify-between relative">
+                <h3
+                  className="text-[11px] font-semibold uppercase tracking-[0.22em]"
+                  style={{ color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-body)' }}
+                >
+                  Kundeportefølje
+                </h3>
+                <span
+                  className="text-[10px] tabular-nums uppercase tracking-[0.2em]"
+                  style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-body)' }}
+                >
+                  Uke {weekNum}
+                </span>
+              </div>
+
+              <div className="flex items-end gap-2 relative">
+                <span
+                  className="tabular-nums leading-none"
+                  style={{
+                    fontFamily: 'var(--font-sora)',
+                    fontSize: 54,
+                    fontWeight: 700,
+                    letterSpacing: '-0.04em',
+                    background: `linear-gradient(180deg, #ffffff 0%, ${customerColor} 130%)`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  {visitedCount}
+                </span>
+                <span
+                  className="tabular-nums pb-2"
+                  style={{
+                    fontFamily: 'var(--font-sora)',
+                    fontSize: 20,
+                    fontWeight: 500,
+                    color: 'rgba(255,255,255,0.45)',
+                  }}
+                >
+                  / {registeredCount}
+                </span>
+                <span
+                  className="pb-3 ml-auto text-[11px] uppercase tracking-[0.2em]"
+                  style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
+                >
+                  besøkt
+                </span>
+              </div>
+
+              {/* Progress rail — liquid fill */}
+              <div className="relative h-[6px] rounded-full overflow-hidden">
+                <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                <motion.div
+                  className="absolute top-0 left-0 h-full rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${portfolioPct * 100}%` }}
+                  transition={{ duration: 1.2, delay: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                  style={{
+                    background: `linear-gradient(90deg, ${customerColor}bb 0%, #ffffff 100%)`,
+                    boxShadow: `0 0 18px ${customerColor}aa`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Visited this week */}
           <div
             className="rounded-2xl p-5 flex flex-col gap-3 flex-shrink-0"
             style={{
@@ -320,15 +459,17 @@ export function CustomerMapView({
               className="text-[11px] font-semibold uppercase tracking-[0.22em]"
               style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
             >
-              Mest besøkte denne uken
+              Besøkt denne uken
             </h3>
 
             {clusters.length === 0 ? (
               <p
-                className="text-[14px]"
-                style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-body)' }}
+                className="text-[13px] leading-relaxed"
+                style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-body)' }}
               >
-                {t.dashboard.noRegistrations}
+                {registeredCount > 0
+                  ? 'Ingen kunder besøkt ennå denne uken.'
+                  : t.dashboard.noRegistrations}
               </p>
             ) : (
               <div className="flex flex-col gap-2">
@@ -339,6 +480,7 @@ export function CustomerMapView({
                       return m ? (m.full_name || m.display_name) : ''
                     })
                     .filter(Boolean)
+                  const activeToday = c.memberIdsToday.size > 0
                   return (
                     <motion.div
                       key={c.id}
@@ -347,25 +489,27 @@ export function CustomerMapView({
                       transition={{ ...spring.gentle, delay: 0.4 + i * 0.05 }}
                       className="flex items-start gap-3"
                     >
-                      <span
+                      <motion.span
                         className="w-2 h-2 rounded-full mt-[7px] flex-shrink-0"
                         style={{
                           backgroundColor: customerColor,
-                          boxShadow: `0 0 8px ${customerColor}`,
-                          opacity: c.memberIdsToday.size > 0 ? 1 : 0.45,
+                          boxShadow: `0 0 ${activeToday ? 12 : 6}px ${customerColor}`,
+                          opacity: activeToday ? 1 : 0.5,
                         }}
+                        animate={activeToday ? { scale: [1, 1.35, 1], opacity: [1, 0.7, 1] } : undefined}
+                        transition={activeToday ? { duration: 2.2, repeat: Infinity, ease: 'easeInOut' } : undefined}
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline justify-between gap-2">
                           <span
                             className="text-[14px] font-semibold truncate"
-                            style={{ color: 'rgba(255,255,255,0.85)', fontFamily: 'var(--font-body)' }}
+                            style={{ color: 'rgba(255,255,255,0.9)', fontFamily: 'var(--font-body)' }}
                           >
                             {c.display}
                           </span>
                           <span
                             className="text-[12px] tabular-nums flex-shrink-0"
-                            style={{ color: '#FFB380', fontFamily: 'var(--font-sora)' }}
+                            style={{ color: customerColor, fontFamily: 'var(--font-sora)', fontWeight: 600 }}
                           >
                             {c.memberIdsWeek.size}
                           </span>
@@ -384,18 +528,68 @@ export function CustomerMapView({
             )}
           </div>
 
-          {unresolved.size > 0 && (
+          {/* Not visited yet — chip grid. Appears only when we actually have
+           *  a meaningful remaining list to show. */}
+          {unvisitedCustomers.length > 0 && (
             <div
-              className="rounded-2xl p-5 flex flex-col gap-2.5 flex-shrink-0"
+              className="rounded-2xl p-5 flex flex-col gap-3 flex-shrink-0 min-h-0"
               style={{
                 background:
-                  'linear-gradient(155deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.01) 100%)',
-                border: '1px dashed rgba(255,255,255,0.08)',
+                  'linear-gradient(155deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.008) 100%)',
+                border: '1px solid rgba(255,255,255,0.06)',
               }}
             >
               <h3
                 className="text-[11px] font-semibold uppercase tracking-[0.22em]"
                 style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-body)' }}
+              >
+                Ikke besøkt · {unvisitedCustomers.length}
+              </h3>
+              <div className="flex flex-wrap gap-1.5 overflow-hidden">
+                {unvisitedCustomers.slice(0, 14).map((c, i) => (
+                  <motion.span
+                    key={c.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ ...spring.gentle, delay: 0.5 + i * 0.035 }}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-medium truncate max-w-[140px]"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${customerColor}38`,
+                      color: 'rgba(255,255,255,0.62)',
+                      fontFamily: 'var(--font-body)',
+                    }}
+                  >
+                    {c.name}
+                  </motion.span>
+                ))}
+                {unvisitedCustomers.length > 14 && (
+                  <span
+                    className="px-2.5 py-1 rounded-full text-[11px]"
+                    style={{
+                      color: 'rgba(255,255,255,0.35)',
+                      fontFamily: 'var(--font-body)',
+                    }}
+                  >
+                    +{unvisitedCustomers.length - 14}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {unresolved.size > 0 && (
+            <div
+              className="rounded-2xl p-4 flex flex-col gap-2 flex-shrink-0"
+              style={{
+                background:
+                  'linear-gradient(155deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.008) 100%)',
+                border: '1px dashed rgba(255,255,255,0.08)',
+              }}
+            >
+              <h3
+                className="text-[10px] font-semibold uppercase tracking-[0.22em]"
+                style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-body)' }}
               >
                 Ukjente steder
               </h3>
