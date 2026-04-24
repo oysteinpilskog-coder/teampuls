@@ -29,10 +29,10 @@ const MAP_W = 1400
 const MAP_H = 900
 
 const projection = geoConicConformal()
-  .parallels([37, 65])
-  .rotate([-10, -52])
-  .scale(1020)
-  .translate([700, 470])
+  .parallels([50, 68])
+  .rotate([-12, -60])
+  .scale(1700)
+  .translate([700, 480])
 
 // One decimal pixel is ~0.07 mm on a typical monitor — plenty for a
 // 1400×900 viewport. Trimming decimals halves the output.

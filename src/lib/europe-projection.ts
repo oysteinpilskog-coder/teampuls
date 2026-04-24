@@ -8,16 +8,11 @@
 // "stretched east-west, squashed north-south" feel of Mercator at
 // these latitudes.
 //
-// Standard parallels 37°N / 65°N bracket the audience (North Africa →
-// Lapland) so local shape distortion is minimised over the entire map.
-//
-// Scale + translate are tuned manually because d3-geo's fitExtent has a
-// known bug on triaxially-rotated conic projections where it returns a
-// near-zero scale. The values below place the Europe bbox (Tromsø →
-// Athens, Reykjavík → Istanbul) comfortably inside the 1400×900 viewBox
-// with ~130 px of breathing room top and bottom, so that a dashboard
-// container with a much wider aspect still shows the whole continent
-// after "xMidYMid slice" cropping.
+// Framing is tuned for the Nordic/Baltic + UK triangle — CalWin's
+// operational footprint. Standard parallels 50°N / 68°N bracket the
+// audience (London → Tromsø) so local shape distortion is minimised
+// over the entire visible area. Rotate origin sits over Scandinavia so
+// that zooming in doesn't crop Norway's north coast.
 
 import { geoConicConformal, type GeoProjection } from 'd3-geo'
 
@@ -26,10 +21,10 @@ export const MAP_HEIGHT = 900
 
 export function createEuropeProjection(): GeoProjection {
   return geoConicConformal()
-    .parallels([37, 65])
-    .rotate([-10, -52])
-    .scale(1020)
-    .translate([700, 470])
+    .parallels([50, 68])
+    .rotate([-12, -60])
+    .scale(1700)
+    .translate([700, 480])
 }
 
 export const europeProjection = createEuropeProjection()
