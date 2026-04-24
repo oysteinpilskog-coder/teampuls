@@ -82,7 +82,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
   }
 
   return (
-    <div className="relative h-full flex flex-col px-10 pt-6 pb-4 gap-4">
+    <div className="relative h-full flex flex-col px-10 pt-5 pb-3 gap-3">
       {/* ── Header band ──────────────────────────────────────────── */}
       <div className="flex items-start justify-between">
         <motion.div
@@ -100,20 +100,20 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
               The clock is the Nordlys hero of this surface; the wordmark sits
               on the ink/paper scale so there's room for a single signature. */}
           <p
-            className="leading-none mt-1.5"
+            className="leading-none mt-1"
             style={{
               fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
               fontWeight: 300,
               fontStyle: 'italic',
               fontVariationSettings: '"opsz" 32, "SOFT" 80',
-              fontSize: 32,
+              fontSize: 26,
               letterSpacing: '-0.025em',
               color: '#F5EFE4',
             }}
           >
             Offiview
           </p>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-1.5 flex items-center gap-2">
             <span
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase"
               style={{
@@ -156,7 +156,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
           <div
             className="tabular-nums leading-none"
             style={{
-              fontSize: 108,
+              fontSize: 84,
               fontWeight: 300,
               fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
               fontVariationSettings: '"opsz" 144, "SOFT" 80',
@@ -186,7 +186,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
           </div>
           {/* Date subline — Fraunces italic, weekday in Ember-glow */}
           <div
-            className="flex items-baseline justify-end gap-3 mt-2"
+            className="flex items-baseline justify-end gap-3 mt-1"
             style={{
               color: 'rgba(245,239,228,0.6)',
               fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
@@ -195,7 +195,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
               fontVariationSettings: '"opsz" 24, "SOFT" 80',
             }}
           >
-            <span style={{ fontSize: 19, letterSpacing: '-0.015em' }}>
+            <span style={{ fontSize: 17, letterSpacing: '-0.015em' }}>
               <span style={{ color: '#FBBF24' }}>
                 {WEEKDAY_FULL[time.getDay()].toLowerCase()}
               </span>
@@ -216,7 +216,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...spring.gentle, delay: 0.65 }}
-        className="relative rounded-2xl px-6 py-3.5 flex gap-4 overflow-hidden flex-shrink-0"
+        className="relative rounded-2xl px-5 py-2.5 flex gap-3 overflow-hidden flex-shrink-0"
         style={{
           background:
             'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
@@ -240,7 +240,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
           return (
             <div
               key={date.toISOString()}
-              className="relative flex-1 flex flex-col items-center gap-1.5 rounded-xl py-2 px-2"
+              className="relative flex-1 flex flex-col items-center gap-1 rounded-xl py-1.5 px-2"
               style={{
                 background: today
                   ? 'linear-gradient(180deg, color-mix(in oklab, var(--accent-color) 20%, transparent) 0%, color-mix(in oklab, var(--accent-color) 0%, transparent) 100%)'
@@ -263,7 +263,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
                 {weekday}
               </span>
               <span
-                className="tabular-nums text-[20px] font-semibold leading-none"
+                className="tabular-nums text-[18px] font-semibold leading-none"
                 style={{
                   fontFamily: 'var(--font-sora)',
                   color: today ? '#ffffff' : 'rgba(255,255,255,0.5)',

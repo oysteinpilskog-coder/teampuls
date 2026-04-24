@@ -1324,6 +1324,7 @@ export function DiskView({
                   const color = ev.color ?? CATEGORY_COLORS[ev.category]
                   const arcSpan = endDeg - startDeg
                   const isSelected = selectedEvent?.id === ev.id
+                  const arcLenPx = (arcSpan / 360) * 2 * Math.PI * bounds.mid
 
                   // Single-day (or ≤1.5°) events render as a visible pin. An
                   // arc that narrow is effectively invisible at wheel scale,
@@ -1334,19 +1335,23 @@ export function DiskView({
                   const pinR = isSelected ? 8 : 7
                   const path = annularArc(bounds.outer, bounds.inner, startDeg, endDeg, isPin ? 0 : 0.35)
 
-                  // Plandisc-style labels: text runs radially along the ring's
-                  // radial width so even 1-day events get a readable title.
-                  // Pins keep a compact label next to them; arcs >= 1.6° get a
-                  // full radial label centered on their midpoint.
+                  // Label strategy:
+                  //   • Wide events (arcSpan ≥ 3.5°): tangential label along
+                  //     the arc. Reads straight, fits the full title, centered.
+                  //   • Narrow events (1.6° ≤ arcSpan < 3.5°): radial label.
+                  //     The arc is too short for tangential text, so we turn
+                  //     the text outward along the ring's radial width.
+                  //   • Pins (< 1.6°): no label; the pin + hover tooltip does it.
+                  const labelMode: 'tangential' | 'radial' | null =
+                    arcSpan >= 3.5 ? 'tangential' :
+                    arcSpan >= 1.6 ? 'radial' : null
                   const radialWidthPx = bounds.outer - bounds.inner - 8
-                  const showRadialLabel = arcSpan >= 1.6
-                  const labelFontSize = arcSpan >= 3.5 ? 10 : 9
-                  // Each glyph ~0.55 × fontSize; we squeeze long titles into
-                  // the radial width, but cap squeeze at ~8 chars before we
-                  // accept overflow trimmed by the ring boundary clip.
-                  const charWidthPx = labelFontSize * 0.55
-                  const titleNaturalPx = ev.title.length * charWidthPx
-                  const useTextLength = titleNaturalPx > radialWidthPx
+                  // Truncate rather than squeeze — squeezed text becomes
+                  // illegible on tiny radial slots. ~6 chars max at 9px.
+                  const radialMaxChars = Math.max(4, Math.floor(radialWidthPx / 5.2))
+                  const radialTitle = ev.title.length > radialMaxChars
+                    ? ev.title.slice(0, radialMaxChars - 1) + '…'
+                    : ev.title
 
                   return (
                     <motion.g key={ev.id}
@@ -1394,9 +1399,34 @@ export function DiskView({
                           />
                         </>
                       )}
-                      {showRadialLabel && !isPin && (
+                      {labelMode === 'tangential' && (
                         <text
-                          fontSize={labelFontSize}
+                          fontSize={ri === 0 ? 10 : 9.5}
+                          fontWeight={600}
+                          fill="white"
+                          fillOpacity={0.96}
+                          style={{
+                            fontFamily: 'var(--font-body)',
+                            userSelect: 'none',
+                            pointerEvents: 'none',
+                            textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                            letterSpacing: '0.01em',
+                          }}
+                        >
+                          <textPath
+                            href={`#${ID.eventPath(ev.id)}`}
+                            startOffset="50%"
+                            textAnchor="middle"
+                            textLength={Math.min(ev.title.length * 6.2, arcLenPx - 8)}
+                            lengthAdjust="spacingAndGlyphs"
+                          >
+                            {ev.title}
+                          </textPath>
+                        </text>
+                      )}
+                      {labelMode === 'radial' && (
+                        <text
+                          fontSize={9}
                           fontWeight={600}
                           fill="white"
                           fillOpacity={0.96}
@@ -1412,10 +1442,8 @@ export function DiskView({
                             href={`#${ID.eventRadial(ev.id)}`}
                             startOffset="50%"
                             textAnchor="middle"
-                            textLength={useTextLength ? radialWidthPx : undefined}
-                            lengthAdjust="spacingAndGlyphs"
                           >
-                            {ev.title}
+                            {radialTitle}
                           </textPath>
                         </text>
                       )}

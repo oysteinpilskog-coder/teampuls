@@ -108,7 +108,7 @@ function Strip({
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ ...spring.gentle, delay }}
-      className="relative rounded-3xl p-4 flex items-stretch gap-4 overflow-hidden min-h-0 flex-1 basis-0"
+      className="relative rounded-2xl px-4 py-2.5 flex items-center gap-4 overflow-hidden min-h-0 flex-1 basis-0"
       style={{
         background: hasPeople
           ? `
@@ -140,42 +140,34 @@ function Strip({
 
       {/* Left rail: icon + label + count */}
       <div
-        className="relative flex items-center gap-3 flex-shrink-0"
-        style={{ minWidth: 180 }}
+        className="relative flex items-center gap-2.5 flex-shrink-0"
+        style={{ minWidth: 170 }}
       >
         <div
-          className="flex items-center justify-center rounded-2xl flex-shrink-0"
+          className="flex items-center justify-center rounded-xl flex-shrink-0"
           style={{
-            width: 40,
-            height: 40,
+            width: 32,
+            height: 32,
             background: `linear-gradient(145deg, ${accent}33, ${accent}0d)`,
             border: `1px solid ${accent}33`,
             boxShadow: `inset 0 1px 0 ${textTint}22, 0 6px 18px -8px ${accent}88`,
           }}
         >
-          <StatusIcon status={representative} size={20} color={textTint} />
+          <StatusIcon status={representative} size={16} color={textTint} />
         </div>
-        <div className="flex flex-col gap-0.5">
-          <span
-            className="text-[10px] font-semibold tracking-[0.22em] uppercase"
-            style={{ color: `${textTint}99`, fontFamily: 'var(--font-body)' }}
-          >
-            Nå
-          </span>
-          <span
-            className="text-[15px] font-semibold leading-tight"
-            style={{ color: textTint, fontFamily: 'var(--font-body)' }}
-          >
-            {label}
-          </span>
-        </div>
+        <span
+          className="text-[13px] font-semibold leading-tight"
+          style={{ color: textTint, fontFamily: 'var(--font-body)' }}
+        >
+          {label}
+        </span>
         <AnimatedCount
           value={count}
           delay={delay + 0.15}
           duration={0.9}
           className="tabular-nums ml-auto"
           style={{
-            fontSize: '36px',
+            fontSize: '28px',
             fontWeight: 700,
             lineHeight: 0.9,
             fontFamily: 'var(--font-sora)',
@@ -190,7 +182,7 @@ function Strip({
       </div>
 
       <div
-        className="relative w-px self-stretch my-1 flex-shrink-0"
+        className="relative w-px self-stretch flex-shrink-0"
         style={{ background: `${textTint}1c` }}
       />
 
