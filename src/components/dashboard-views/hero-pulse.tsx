@@ -71,10 +71,8 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
   })
   const locations = Array.from(locMap.entries())
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
+    .slice(0, 4)
 
-  const ringCirc = 2 * Math.PI * 54
-  const ringDash = ringCirc * (pct / 100)
   const insight = insightFor(registered, total, todayEntries, t)
 
   return (
@@ -82,7 +80,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ ...spring.gentle, delay: 0.18 }}
-      className="relative rounded-3xl px-6 py-5 flex items-stretch gap-6 overflow-hidden"
+      className="relative rounded-3xl px-6 py-4 flex items-stretch gap-6 overflow-hidden flex-shrink-0"
       style={{
         background:
           'linear-gradient(155deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 100%)',
@@ -93,26 +91,26 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
       }}
     >
       {/* ── Activity ring ──────────────────────────────────────────── */}
-      <div className="flex items-center gap-5 flex-shrink-0">
-        <div className="relative" style={{ width: 124, height: 124 }}>
-          <svg width={124} height={124} viewBox="-62 -62 124 124" className="absolute inset-0">
+      <div className="flex items-center gap-4 flex-shrink-0">
+        <div className="relative" style={{ width: 104, height: 104 }}>
+          <svg width={104} height={104} viewBox="-52 -52 104 104" className="absolute inset-0">
             {/* Track */}
             <circle
-              r={54}
+              r={44}
               fill="none"
               stroke="rgba(255,255,255,0.08)"
-              strokeWidth={8}
+              strokeWidth={7}
             />
             {/* Progress */}
             <motion.circle
-              r={54}
+              r={44}
               fill="none"
               stroke="url(#ringGradient)"
-              strokeWidth={8}
+              strokeWidth={7}
               strokeLinecap="round"
-              strokeDasharray={`${ringDash} ${ringCirc}`}
-              initial={{ strokeDasharray: `0 ${ringCirc}` }}
-              animate={{ strokeDasharray: `${ringDash} ${ringCirc}` }}
+              strokeDasharray={`${2 * Math.PI * 44 * (pct / 100)} ${2 * Math.PI * 44}`}
+              initial={{ strokeDasharray: `0 ${2 * Math.PI * 44}` }}
+              animate={{ strokeDasharray: `${2 * Math.PI * 44 * (pct / 100)} ${2 * Math.PI * 44}` }}
               transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
               transform="rotate(-90)"
               style={{ filter: 'drop-shadow(0 0 12px color-mix(in oklab, var(--accent-color) 60%, transparent))' }}
@@ -132,7 +130,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
                 duration={0.9}
                 className="tabular-nums leading-none"
                 style={{
-                  fontSize: '44px',
+                  fontSize: '36px',
                   fontWeight: 700,
                   fontFamily: 'var(--font-sora)',
                   letterSpacing: '-0.03em',
@@ -145,7 +143,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
               <span
                 className="tabular-nums leading-none"
                 style={{
-                  fontSize: '18px',
+                  fontSize: '15px',
                   fontWeight: 500,
                   color: 'rgba(255,255,255,0.45)',
                   fontFamily: 'var(--font-sora)',
@@ -172,7 +170,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
             {t.pulse.today} · {pct}%
           </span>
           <span
-            className="text-[26px] font-semibold leading-tight tracking-tight"
+            className="text-[22px] font-semibold leading-tight tracking-tight"
             style={{
               fontFamily: 'var(--font-sora)',
               background:
@@ -197,7 +195,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
       <div className="w-px self-stretch" style={{ background: 'rgba(255,255,255,0.08)' }} />
 
       {/* ── Distribution + legend ─────────────────────────────────── */}
-      <div className="flex-1 flex flex-col gap-3 justify-center min-w-0">
+      <div className="flex-1 flex flex-col gap-2.5 justify-center min-w-0">
         <span
           className="text-[11px] font-semibold tracking-[0.22em] uppercase"
           style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
@@ -272,14 +270,14 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
 
       {/* ── Locations ─────────────────────────────────────────────── */}
       {locations.length > 0 && (
-        <div className="flex flex-col gap-3 justify-center flex-shrink-0" style={{ minWidth: 180 }}>
+        <div className="flex flex-col gap-2 justify-center flex-shrink-0" style={{ minWidth: 170 }}>
           <span
             className="text-[11px] font-semibold tracking-[0.22em] uppercase"
             style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
           >
             {t.pulse.where}
           </span>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             {locations.map(([loc, count], i) => (
               <motion.div
                 key={loc}

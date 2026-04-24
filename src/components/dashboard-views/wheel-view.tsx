@@ -67,7 +67,7 @@ export function WheelView({ orgId, orgName, time }: WheelViewProps) {
     const future = events
       .filter(e => e.start_date > todayYmd)
       .sort((a, b) => a.start_date.localeCompare(b.start_date))
-      .slice(0, 5)
+      .slice(0, 4)
     return { todayEvents: ongoing, upcomingEvents: future }
   }, [events, todayYmd])
 
@@ -164,11 +164,13 @@ export function WheelView({ orgId, orgName, time }: WheelViewProps) {
             meta={`UKE ${pad(weekNum)}`}
             events={todayEvents}
             emptyLabel={t.wheel?.noEventsToday ?? 'Ingen hendelser i dag'}
+            grow={false}
           />
           <AgendaTile
             eyebrow="KOMMENDE"
             events={upcomingEvents}
             emptyLabel={t.wheel?.noUpcoming ?? 'Ingenting planlagt'}
+            grow
           />
         </motion.aside>
       </div>
@@ -179,16 +181,17 @@ export function WheelView({ orgId, orgName, time }: WheelViewProps) {
 // ─── Agenda tile ────────────────────────────────────────────────
 
 function AgendaTile({
-  eyebrow, meta, events, emptyLabel,
+  eyebrow, meta, events, emptyLabel, grow,
 }: {
   eyebrow: string
   meta?: string
   events: OrgEvent[]
   emptyLabel: string
+  grow: boolean
 }) {
   return (
     <section
-      className="flex-1 min-h-0 rounded-3xl px-5 py-5 flex flex-col gap-4 overflow-hidden"
+      className={`${grow ? 'flex-1' : 'flex-shrink-0'} min-h-0 rounded-3xl px-5 py-4 flex flex-col gap-3 overflow-hidden`}
       style={{
         background:
           'linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
@@ -229,7 +232,7 @@ function AgendaTile({
           {emptyLabel}
         </p>
       ) : (
-        <ul className="flex flex-col gap-2.5 min-h-0 overflow-hidden">
+        <ul className="flex flex-col gap-2 min-h-0 overflow-hidden">
           {events.map((ev, i) => (
             <motion.li
               key={ev.id}
@@ -242,20 +245,20 @@ function AgendaTile({
                 aria-hidden
                 className="mt-1.5 flex-shrink-0 rounded-full"
                 style={{
-                  width: 10, height: 10,
+                  width: 9, height: 9,
                   background: ev.color ?? CATEGORY_COLORS[ev.category],
                   boxShadow: `0 0 12px ${ev.color ?? CATEGORY_COLORS[ev.category]}66`,
                 }}
               />
               <div className="min-w-0 flex-1">
                 <p
-                  className="text-[15px] font-medium leading-tight truncate"
+                  className="text-[14px] font-medium leading-tight truncate"
                   style={{ color: 'rgba(255,255,255,0.92)', fontFamily: 'var(--font-sora)' }}
                 >
                   {ev.title}
                 </p>
                 <p
-                  className="text-[11px] mt-0.5 tabular-nums uppercase"
+                  className="text-[10px] tabular-nums uppercase"
                   style={{
                     color: 'rgba(255,255,255,0.4)',
                     fontFamily: 'var(--font-body)',
