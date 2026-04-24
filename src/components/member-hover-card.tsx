@@ -116,6 +116,8 @@ export function MemberHoverCard({
           className="z-50"
         >
           <Popover.Popup
+            initialFocus={false}
+            finalFocus={false}
             onMouseEnter={() => {
               if (closeTimer.current) clearTimeout(closeTimer.current)
             }}
