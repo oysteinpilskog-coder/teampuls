@@ -17,23 +17,25 @@ export async function applyUpdates(
 
   // Delete original_period entries for "update" action
   if (result.action === 'update' && result.original_period) {
-    await supabase
+    const { error } = await supabase
       .from('entries')
       .delete()
       .eq('org_id', orgId)
       .eq('member_id', result.original_period.member_id)
       .in('date', result.original_period.dates)
+    if (error) throw new Error(`applyUpdates delete(original_period) failed: ${error.message}`)
   }
 
   // Delete entries for "delete" action
   if (result.action === 'delete') {
     for (const update of result.updates) {
-      await supabase
+      const { error } = await supabase
         .from('entries')
         .delete()
         .eq('org_id', orgId)
         .eq('member_id', update.member_id)
         .in('date', update.dates)
+      if (error) throw new Error(`applyUpdates delete failed: ${error.message}`)
     }
     return
   }
@@ -60,7 +62,13 @@ export async function applyUpdates(
 
   if (rows.length === 0) return
 
-  await supabase
+  // Throw on failure — callers wrap this in try/catch and surface a
+  // user-visible error. Silent failure here (as it was pre-fix) meant a
+  // missing enum value (e.g. 'event' before migration 013 ran) or a
+  // missing column (confidence) would return success to the client and
+  // show "Oppdatert" while writing nothing. Don't regress.
+  const { error } = await supabase
     .from('entries')
     .upsert(rows, { onConflict: 'org_id,member_id,date' })
+  if (error) throw new Error(`applyUpdates upsert failed: ${error.message}`)
 }
