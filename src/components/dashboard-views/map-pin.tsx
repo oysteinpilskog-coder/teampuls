@@ -52,16 +52,19 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
         </filter>
       </defs>
 
-      {/* Companion halo — wide, slow, soft */}
+      {/* Companion halo — wide, dominant at the rim so the pin reads as
+       *  *two* colors. Sized larger than the primary halo below so the
+       *  outermost glow is clearly the contrast hue, not just a blurred
+       *  copy of the pin. */}
       <motion.circle
-        r={radius * 3}
+        r={radius * 4}
         fill={companion}
         filter={`url(#${filterA})`}
         initial={{ cx: 0, cy: 0, opacity: 0 }}
         animate={{
           cx: [7, -7, 7],
           cy: [4, -4, 4],
-          opacity: [0.45, 0.7, 0.45],
+          opacity: [0.7, 0.95, 0.7],
         }}
         transition={{
           cx: {
@@ -85,16 +88,18 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
         }}
       />
 
-      {/* Primary halo — tighter, brighter, counter-drift */}
+      {/* Primary halo — kept tight so the outer rim belongs to the
+       *  companion. A smaller pin-coloured core means the two hues
+       *  read as a gradient from pin → companion outwards. */}
       <motion.circle
-        r={radius * 2.2}
+        r={radius * 1.6}
         fill={color}
         filter={`url(#${filterB})`}
         initial={{ cx: 0, cy: 0, opacity: 0 }}
         animate={{
           cx: [-5, 5, -5],
           cy: [-3, 3, -3],
-          opacity: [0.65, 0.95, 0.65],
+          opacity: [0.55, 0.8, 0.55],
         }}
         transition={{
           cx: {
