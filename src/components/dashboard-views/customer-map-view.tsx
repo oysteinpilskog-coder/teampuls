@@ -465,7 +465,13 @@ export function CustomerMapView({
                 </span>
               </div>
 
-              {/* Progress rail — liquid fill */}
+              {/* Progress rail — Nordlys liquid fill.
+                  Matches the /min-plan today-chord signature (green → cyan →
+                  violet) so every progress-like element in the product speaks
+                  the same visual language. The gradient is pinned to full
+                  track width so the colours reveal left-to-right as the bar
+                  fills, instead of squeezing all three into whatever
+                  portion has been painted so far. */}
               <div className="relative h-[6px] rounded-full overflow-hidden">
                 <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
                 <motion.div
@@ -474,8 +480,12 @@ export function CustomerMapView({
                   animate={{ width: `${portfolioPct * 100}%` }}
                   transition={{ duration: 1.2, delay: 0.5, ease: [0.4, 0, 0.2, 1] }}
                   style={{
-                    background: `linear-gradient(90deg, ${customerColor}bb 0%, #ffffff 100%)`,
-                    boxShadow: `0 0 18px ${customerColor}aa`,
+                    background:
+                      'linear-gradient(90deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%)',
+                    backgroundSize: '100% 100%',
+                    backgroundRepeat: 'no-repeat',
+                    boxShadow:
+                      '0 0 12px rgba(0, 217, 245, 0.45), 0 0 24px rgba(0, 245, 160, 0.22)',
                   }}
                 />
               </div>
