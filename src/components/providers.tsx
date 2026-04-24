@@ -14,7 +14,7 @@ import { ServiceWorkerRegister } from '@/components/service-worker-register'
 import { InstallPrompt } from '@/components/install-prompt'
 import { I18nProvider } from '@/lib/i18n/context'
 import type { Locale } from '@/lib/i18n/types'
-import type { HexColors } from '@/lib/status-colors/defaults'
+import type { StatusColorsPayload } from '@/lib/status-colors/defaults'
 import type { WorkspaceSummary } from '@/lib/supabase/types'
 
 export function Providers({
@@ -25,7 +25,7 @@ export function Providers({
   initialActiveSlug,
 }: {
   children: React.ReactNode
-  initialStatusColors?: Partial<HexColors> | null
+  initialStatusColors?: StatusColorsPayload | null
   initialLocale?: Locale
   initialWorkspaces: WorkspaceSummary[]
   initialActiveSlug: string | null

@@ -49,8 +49,14 @@ export interface Organization {
   country_code: string | null
   region: WorkspaceRegion
   archived_at: string | null
-  /** Per-org override of the 7 status colors. NULL/undefined = use DEFAULT_HEX_COLORS. */
-  status_colors?: Partial<Record<EntryStatus, string>> | null
+  /** Per-org override of the status colours and map-pin aurora glow.
+   *  NULL/undefined = use DEFAULT_HEX_COLORS and auto-derived auroras.
+   *  The `*_aurora` keys override the auto-derived (180° complement)
+   *  aurora halo rendered around the office and customer map pins. */
+  status_colors?:
+    & Partial<Record<EntryStatus, string>>
+    & { office_aurora?: string; customer_aurora?: string }
+    | null
   /** How the UI should render unregistered days — see PresenceAssumption. */
   default_presence_assumption?: PresenceAssumption
   /** Privacy toggle: when false, sick entries are collapsed into "off" on the public TV dashboard. */

@@ -5,7 +5,7 @@ import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { MapPin } from './map-pin'
 import { project, resolveLocation } from '@/lib/geo'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
-import { useStatusColors } from '@/lib/status-colors/context'
+import { useStatusColors, useAuroraColors } from '@/lib/status-colors/context'
 import { spring } from '@/lib/motion'
 import type { Office } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
@@ -33,6 +33,7 @@ export function OfficeMapView({
   time,
 }: OfficeMapViewProps) {
   const STATUS_COLORS = useStatusColors()
+  const auroras = useAuroraColors()
   const t = useT()
   const hours = pad(time.getHours())
   const minutes = pad(time.getMinutes())
@@ -124,11 +125,12 @@ export function OfficeMapView({
             fontWeight: 700,
             fontFamily: 'var(--font-sora)',
             letterSpacing: '-0.04em',
-            background: 'linear-gradient(180deg, #ffffff 0%, #d4dbff 100%)',
+            background:
+              'linear-gradient(180deg, #00F5A0 -12%, #00D9F5 16%, #ffffff 52%, #ffffff 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
-            filter: 'drop-shadow(0 0 24px rgba(120,150,255,0.18))',
+            filter: 'drop-shadow(0 0 24px rgba(0,217,245,0.22))',
           }}
         >
           {hours}:{minutes}
@@ -155,6 +157,7 @@ export function OfficeMapView({
               <MapPin
                 radius={p.radius}
                 color={officeColor}
+                auroraCompanion={auroras.office}
                 index={i}
               />
             </g>

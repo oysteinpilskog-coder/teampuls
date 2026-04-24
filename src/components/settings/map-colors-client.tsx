@@ -6,7 +6,13 @@ import { toast } from 'sonner'
 import { MapPin as MapPinIcon, RotateCcw, Save } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Organization } from '@/lib/supabase/types'
-import { DEFAULT_HEX_COLORS, mergeHexColors, type HexColors } from '@/lib/status-colors/defaults'
+import {
+  DEFAULT_HEX_COLORS,
+  mergeHexColors,
+  extractAuroraColors,
+  type HexColors,
+  type AuroraColors,
+} from '@/lib/status-colors/defaults'
 import { useStatusColorsController } from '@/lib/status-colors/context'
 import { MapPin } from '@/components/dashboard-views/map-pin'
 import { complement } from '@/lib/color'
@@ -17,41 +23,67 @@ interface MapColorsClientProps {
 }
 
 /**
- * Dedicated settings surface for the two colours that drive the dashboard
+ * Dedicated settings surface for the colours that drive the dashboard
  * map pins. Writes back into the existing `organizations.status_colors`
  * JSONB so the map and the rest of the app stay in sync — the office and
  * customer hues are already used by the matrix, the wheel, and every
  * other status surface.
  *
- * The aurora companion isn't stored — `MapPin` auto-derives it as the
- * 180° complement of the primary hue. Keeps this page to a single choice
- * per map so the user can't produce a muddy pairing.
+ * The aurora companion ("Nordlys") auto-derives as the 180° complement
+ * of the primary hue, but can be overridden explicitly per pin — the
+ * override is persisted alongside the status colours under
+ * `office_aurora` / `customer_aurora` keys in the same JSONB.
  */
 export function MapColorsClient({ org: initialOrg }: MapColorsClientProps) {
   const [org, setOrg] = useState(initialOrg)
   const saved = mergeHexColors(initialOrg.status_colors)
-  const [officeColor, setOfficeColor]     = useState(saved.office)
-  const [customerColor, setCustomerColor] = useState(saved.customer)
+  const savedAuroras = extractAuroraColors(initialOrg.status_colors)
+  const [officeColor, setOfficeColor]       = useState(saved.office)
+  const [customerColor, setCustomerColor]   = useState(saved.customer)
+  const [officeAurora, setOfficeAurora]     = useState<string | undefined>(savedAuroras.office)
+  const [customerAurora, setCustomerAurora] = useState<string | undefined>(savedAuroras.customer)
   const [saving, setSaving] = useState(false)
   const ctx = useStatusColorsController()
 
+  const currentAuroras = extractAuroraColors(org.status_colors)
   const dirty =
-    officeColor   !== mergeHexColors(org.status_colors).office ||
-    customerColor !== mergeHexColors(org.status_colors).customer
+    officeColor    !== mergeHexColors(org.status_colors).office   ||
+    customerColor  !== mergeHexColors(org.status_colors).customer ||
+    officeAurora   !== currentAuroras.office                      ||
+    customerAurora !== currentAuroras.customer
 
   async function handleSave() {
     if (!dirty || saving) return
     setSaving(true)
     const supabase = createClient()
 
+    // Build the status-hex map from scratch (no spread from old JSONB)
+    // so stale aurora keys never leak back into the payload when the
+    // user has just cleared an override.
+    const baseHex = mergeHexColors(org.status_colors)
     const merged: HexColors = {
-      ...mergeHexColors(org.status_colors),
+      ...baseHex,
       office:   officeColor,
       customer: customerColor,
     }
-    const allDefault = (Object.keys(DEFAULT_HEX_COLORS) as Array<keyof HexColors>)
+    const statusOnly = (Object.keys(DEFAULT_HEX_COLORS) as Array<keyof HexColors>)
+      .reduce<Partial<HexColors>>((acc, k) => {
+        acc[k] = merged[k]
+        return acc
+      }, {})
+
+    const allStatusDefault = (Object.keys(DEFAULT_HEX_COLORS) as Array<keyof HexColors>)
       .every(k => merged[k] === DEFAULT_HEX_COLORS[k])
-    const payload = allDefault ? null : merged
+    const nothingStored =
+      allStatusDefault && officeAurora === undefined && customerAurora === undefined
+
+    const payload = nothingStored
+      ? null
+      : {
+          ...statusOnly,
+          ...(officeAurora   !== undefined ? { office_aurora:   officeAurora }   : {}),
+          ...(customerAurora !== undefined ? { customer_aurora: customerAurora } : {}),
+        }
 
     const { error } = await supabase
       .from('organizations')
@@ -65,13 +97,21 @@ export function MapColorsClient({ org: initialOrg }: MapColorsClientProps) {
     }
 
     setOrg(prev => ({ ...prev, status_colors: payload }))
-    if (ctx) ctx.setHex(merged)
+    if (ctx) {
+      ctx.setHex(merged)
+      const nextAuroras: AuroraColors = {}
+      if (officeAurora   !== undefined) nextAuroras.office   = officeAurora
+      if (customerAurora !== undefined) nextAuroras.customer = customerAurora
+      ctx.setAuroras(nextAuroras)
+    }
     toast.success('Pin-farger lagret')
   }
 
   function reset() {
     setOfficeColor(DEFAULT_HEX_COLORS.office)
     setCustomerColor(DEFAULT_HEX_COLORS.customer)
+    setOfficeAurora(undefined)
+    setCustomerAurora(undefined)
   }
 
   return (
@@ -89,7 +129,7 @@ export function MapColorsClient({ org: initialOrg }: MapColorsClientProps) {
             className="text-[14px] mt-0.5"
             style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
           >
-            Pin-farger for kontor og kunder. Nordlys-gløden deriveres automatisk som komplementfargen.
+            Pin-farger for kontor og kunder. Nordlys-gløden deriveres automatisk som komplementfargen — eller overstyr den selv per pin.
           </p>
         </div>
       </div>
@@ -100,12 +140,16 @@ export function MapColorsClient({ org: initialOrg }: MapColorsClientProps) {
           description="Pin-farge for kontorene på kartet"
           color={officeColor}
           onChange={setOfficeColor}
+          auroraOverride={officeAurora}
+          onAuroraChange={setOfficeAurora}
         />
         <PinColorCard
           title="Kunder"
           description="Pin-farge for kundebesøk"
           color={customerColor}
           onChange={setCustomerColor}
+          auroraOverride={customerAurora}
+          onAuroraChange={setCustomerAurora}
         />
       </div>
 
@@ -145,12 +189,21 @@ function PinColorCard({
   description,
   color,
   onChange,
+  auroraOverride,
+  onAuroraChange,
 }: {
   title: string
   description: string
   color: string
   onChange: (hex: string) => void
+  /** Explicit Nordlys override. `undefined` means "auto-derive from pin". */
+  auroraOverride: string | undefined
+  onAuroraChange: (hex: string | undefined) => void
 }) {
+  const autoAurora = complement(color)
+  const effectiveAurora = auroraOverride ?? autoAurora
+  const auroraCustom = auroraOverride !== undefined
+
   return (
     <div
       className="rounded-2xl p-5 flex flex-col gap-4"
@@ -177,7 +230,8 @@ function PinColorCard({
         </div>
       </div>
 
-      {/* Live pin preview — same component the dashboard uses */}
+      {/* Live pin preview — same component the dashboard uses. Feeds the
+       *  Nordlys override through so the user sees their choice live. */}
       <div
         className="relative rounded-xl overflow-hidden h-40 flex items-center justify-center"
         style={{
@@ -193,12 +247,18 @@ function PinColorCard({
           style={{ display: 'block', maxWidth: 240 }}
           aria-hidden
         >
-          <MapPin radius={11} color={color} index={0} />
+          <MapPin radius={11} color={color} auroraCompanion={effectiveAurora} index={0} />
         </svg>
       </div>
 
-      {/* Colour inputs */}
+      {/* Primary pin colour */}
       <div className="flex items-center gap-3">
+        <span
+          className="w-[68px] text-[11px] font-semibold uppercase tracking-widest shrink-0"
+          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+        >
+          Pin
+        </span>
         <input
           type="color"
           value={color}
@@ -226,22 +286,57 @@ function PinColorCard({
           onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
           onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
         />
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span
-            className="text-[10.5px] font-semibold uppercase tracking-widest"
-            style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-          >
-            Nordlys
-          </span>
-          <span
-            className="w-4 h-4 rounded-full"
-            style={{
-              backgroundColor: complement(color),
-              boxShadow: `0 0 10px ${complement(color)}80`,
-            }}
-            title={complement(color)}
-          />
-        </div>
+      </div>
+
+      {/* Aurora (Nordlys) colour — user-overridable, auto-derived otherwise */}
+      <div className="flex items-center gap-3">
+        <span
+          className="w-[68px] text-[11px] font-semibold uppercase tracking-widest shrink-0"
+          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+        >
+          Nordlys
+        </span>
+        <input
+          type="color"
+          value={effectiveAurora}
+          onChange={e => onAuroraChange(e.target.value.toUpperCase())}
+          className="w-10 h-9 rounded-lg cursor-pointer border-0 p-0.5 shrink-0"
+          style={{ backgroundColor: 'var(--bg-subtle)' }}
+          aria-label={`${title} Nordlys-farge`}
+        />
+        <input
+          type="text"
+          value={effectiveAurora}
+          onChange={e => {
+            const v = e.target.value.trim()
+            if (/^#?[0-9a-fA-F]{0,6}$/.test(v)) {
+              onAuroraChange(v.startsWith('#') ? v.toUpperCase() : `#${v.toUpperCase()}`)
+            }
+          }}
+          maxLength={7}
+          className="flex-1 px-2.5 py-2 rounded-lg text-[13px] outline-none font-mono"
+          style={{
+            backgroundColor: 'var(--bg-subtle)',
+            color: 'var(--text-primary)',
+            border: '1.5px solid transparent',
+          }}
+          onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+          onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+        />
+        <button
+          type="button"
+          onClick={() => onAuroraChange(undefined)}
+          disabled={!auroraCustom}
+          className="px-2.5 py-2 rounded-lg text-[11px] font-semibold uppercase tracking-widest transition-colors disabled:opacity-40 shrink-0"
+          style={{
+            backgroundColor: 'var(--bg-subtle)',
+            color: auroraCustom ? 'var(--accent-color)' : 'var(--text-tertiary)',
+            fontFamily: 'var(--font-body)',
+          }}
+          title={auroraCustom ? 'Bruk auto-derivert komplementfarge' : 'Auto-derivert fra pin-farge'}
+        >
+          Auto
+        </button>
       </div>
     </div>
   )
