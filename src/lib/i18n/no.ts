@@ -324,7 +324,7 @@ export const no = {
     prevMonth: 'Forrige måned',
     nextMonth: 'Neste måned',
     pickDates: 'Velg datoer',
-    helpText: 'Klikk og dra for å velge · Dra kantene for å endre · Dra midten for å flytte',
+    helpText: 'Klikk fra-dato, så til-dato · Dra kantene for å endre · Dra midten for å flytte',
   },
   statusSegment: {
     dragStart: 'Dra for å endre startdato',

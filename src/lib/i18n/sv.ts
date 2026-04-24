@@ -326,7 +326,7 @@ export const sv: Dictionary = {
     prevMonth: 'Föregående månad',
     nextMonth: 'Nästa månad',
     pickDates: 'Välj datum',
-    helpText: 'Klicka och dra för att välja · Dra kanterna för att ändra · Dra mitten för att flytta',
+    helpText: 'Klicka första datumet, sedan det sista · Dra kanterna för att ändra · Dra mitten för att flytta',
   },
   statusSegment: {
     dragStart: 'Dra för att ändra startdatum',

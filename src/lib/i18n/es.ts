@@ -326,7 +326,7 @@ export const es: Dictionary = {
     prevMonth: 'Mes anterior',
     nextMonth: 'Mes siguiente',
     pickDates: 'Elegir fechas',
-    helpText: 'Haz clic y arrastra para seleccionar · Arrastra los bordes para redimensionar · Arrastra el centro para mover',
+    helpText: 'Haz clic en la fecha inicial, luego en la final · Arrastra los bordes para redimensionar · Arrastra el centro para mover',
   },
   statusSegment: {
     dragStart: 'Arrastra para cambiar la fecha de inicio',

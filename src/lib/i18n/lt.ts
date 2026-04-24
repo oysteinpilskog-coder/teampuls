@@ -326,7 +326,7 @@ export const lt: Dictionary = {
     prevMonth: 'Praeitas mėnuo',
     nextMonth: 'Kitas mėnuo',
     pickDates: 'Pasirink datas',
-    helpText: 'Spausk ir tempk pasirinkti · Tempk kraštus, kad pakeistum · Tempk vidurį, kad perkeltum',
+    helpText: 'Spausk pradžios datą, tada pabaigos · Tempk kraštus, kad pakeistum · Tempk vidurį, kad perkeltum',
   },
   statusSegment: {
     dragStart: 'Tempk, kad pakeistum pradžios datą',
