@@ -6,14 +6,12 @@ import { project, resolveLocation } from '@/lib/geo'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { spring } from '@/lib/motion'
-import type { Member, Entry, Office } from '@/lib/supabase/types'
+import type { Office } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
 import { useT } from '@/lib/i18n/context'
 
 interface OfficeMapViewProps {
-  members: Member[]
   offices: Office[]
-  todayEntries: Entry[]   // deduped to one per member
   orgName: string
   time: Date
 }
@@ -26,14 +24,10 @@ interface PlacedOffice {
   x: number
   y: number
   radius: number
-  peopleToday: number
-  peopleHome: number
 }
 
 export function OfficeMapView({
-  members,
   offices,
-  todayEntries,
   orgName,
   time,
 }: OfficeMapViewProps) {
@@ -43,38 +37,29 @@ export function OfficeMapView({
   const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)
 
-  // Project each office that has coords (directly or via fallback lookup)
+  // Project each office. City-dictionary match wins over stored lat/lng so
+  // the continent-scale view stays robust against bad geocoder results
+  // (e.g. "Newcastle, GB" → Newcastle, Co. Down instead of upon Tyne). For
+  // a 1400×900 map of Europe, ±20 km from a city centre is invisible — we
+  // trade pin precision for consistency and immunity to data drift.
   const placed: PlacedOffice[] = offices
     .map<PlacedOffice | null>(office => {
-      let lat = office.latitude
-      let lng = office.longitude
-      if (lat == null || lng == null) {
-        const resolved = resolveLocation(office.city ?? office.name)
-        if (!resolved) return null
-        lat = resolved.lat
-        lng = resolved.lng
-      }
-      const { x, y } = project(lat, lng, MAP_WIDTH, MAP_HEIGHT)
+      const cityHit = resolveLocation(office.city ?? office.name)
+      const lat: number | null = cityHit?.lat ?? office.latitude
+      const lng: number | null = cityHit?.lng ?? office.longitude
+      if (lat == null || lng == null) return null
 
-      const homeMembers = members.filter(m => m.home_office_id === office.id)
-      const peopleToday = todayEntries.filter(e =>
-        e.status === 'office' && homeMembers.some(m => m.id === e.member_id),
-      ).length
-      const active = peopleToday > 0
-      const base = 16
-      const radius = active ? base + Math.sqrt(peopleToday) * 9 : 10
+      const { x, y } = project(lat, lng, MAP_WIDTH, MAP_HEIGHT)
 
       return {
         id: office.id,
         office,
-        x, y, radius,
-        peopleToday,
-        peopleHome: homeMembers.length,
+        x, y,
+        radius: 11,
       }
     })
     .filter((p): p is PlacedOffice => p !== null)
 
-  const totalAtOffice = placed.reduce((s, p) => s + p.peopleToday, 0)
   const officeColor = STATUS_COLORS.office.icon
 
   const placedLabels = placeLabels(placed, { gap: 16, collisionRadius: 110 })
@@ -123,13 +108,7 @@ export function OfficeMapView({
                 animate={{ opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
                 transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
               />
-              Live · Uke {weekNum}
-            </span>
-            <span
-              className="text-[12px]"
-              style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
-            >
-              {totalAtOffice} på kontor akkurat nå
+              Uke {weekNum}
             </span>
           </div>
         </motion.div>
@@ -171,46 +150,33 @@ export function OfficeMapView({
       >
         <EuropeMapCanvas accent="#5E8CFF">
           {placed.map((p, i) => {
-            const active = p.peopleToday > 0
             const radius = p.radius
 
             return (
               <g key={p.id} transform={`translate(${p.x} ${p.y})`}>
-                {/* Concentric pulse — slower, more ambient */}
-                {active && (
-                  <>
-                    <motion.circle
-                      r={radius + 6}
-                      fill="none"
-                      stroke={officeColor}
-                      strokeWidth={1.5}
-                      opacity={0.45}
-                      animate={{
-                        r: [radius + 6, radius + 38, radius + 6],
-                        opacity: [0.45, 0, 0.45],
-                      }}
-                      transition={{ duration: 3.4, repeat: Infinity, ease: 'easeOut' }}
-                    />
-                    <motion.circle
-                      r={radius + 12}
-                      fill="none"
-                      stroke={officeColor}
-                      strokeWidth={1}
-                      opacity={0.32}
-                      animate={{
-                        r: [radius + 12, radius + 58, radius + 12],
-                        opacity: [0.32, 0, 0.32],
-                      }}
-                      transition={{ duration: 3.4, delay: 1.3, repeat: Infinity, ease: 'easeOut' }}
-                    />
-                  </>
-                )}
+                {/* Gentle ambient pulse — one ring, slow, serene */}
+                <motion.circle
+                  r={radius + 4}
+                  fill="none"
+                  stroke={officeColor}
+                  strokeWidth={1.2}
+                  animate={{
+                    r: [radius + 4, radius + 26, radius + 4],
+                    opacity: [0.45, 0, 0.45],
+                  }}
+                  transition={{
+                    duration: 4.2,
+                    delay: (i % 5) * 0.6,
+                    repeat: Infinity,
+                    ease: 'easeOut',
+                  }}
+                />
 
                 {/* Ambient halo — soft gaussian */}
                 <circle
                   r={radius + 6}
                   fill={officeColor}
-                  opacity={active ? 0.28 : 0.08}
+                  opacity={0.22}
                   style={{ filter: 'blur(10px)' }}
                 />
 
@@ -220,14 +186,11 @@ export function OfficeMapView({
                   fill={officeColor}
                   stroke="rgba(255,255,255,0.55)"
                   strokeWidth={0.8}
-                  opacity={active ? 1 : 0.5}
                   initial={{ r: 0, opacity: 0 }}
-                  animate={{ r: radius, opacity: active ? 1 : 0.5 }}
+                  animate={{ r: radius, opacity: 1 }}
                   transition={{ ...spring.gentle, delay: 0.35 + i * 0.08 }}
                   style={{
-                    filter: active
-                      ? `drop-shadow(0 0 14px ${officeColor}) drop-shadow(0 2px 4px rgba(0,0,0,0.4))`
-                      : `drop-shadow(0 0 4px ${officeColor}66)`,
+                    filter: `drop-shadow(0 0 14px ${officeColor}) drop-shadow(0 2px 4px rgba(0,0,0,0.4))`,
                   }}
                 />
 
@@ -237,25 +200,9 @@ export function OfficeMapView({
                   cx={-radius * 0.22}
                   cy={-radius * 0.28}
                   fill="white"
-                  opacity={active ? 0.45 : 0.28}
+                  opacity={0.42}
                   style={{ filter: 'blur(1.2px)' }}
                 />
-
-                {/* Count label inside the dot */}
-                {active && p.peopleToday >= 1 && (
-                  <text
-                    x={0}
-                    y={radius > 22 ? 6 : 4}
-                    textAnchor="middle"
-                    fontSize={radius > 26 ? 19 : 13}
-                    fontWeight={700}
-                    fontFamily="var(--font-sora)"
-                    fill="white"
-                    style={{ userSelect: 'none', letterSpacing: '-0.01em' }}
-                  >
-                    {p.peopleToday}
-                  </text>
-                )}
               </g>
             )
           })}
@@ -275,37 +222,19 @@ export function OfficeMapView({
                   x={pl.labelX}
                   y={pl.labelY}
                   textAnchor={anchor}
-                  fontSize={18}
-                  fontWeight={700}
+                  fontSize={17}
+                  fontWeight={600}
                   fontFamily="var(--font-sora)"
                   fill="white"
-                  letterSpacing={0.5}
+                  letterSpacing={0.3}
                   style={{
                     paintOrder: 'stroke',
                     stroke: 'rgba(2,4,10,0.75)',
-                    strokeWidth: 5,
+                    strokeWidth: 4.5,
                     strokeLinejoin: 'round',
                   }}
                 >
                   {pl.point.office.city ?? pl.point.office.name}
-                </text>
-                <text
-                  x={pl.labelX}
-                  y={pl.labelY + 20}
-                  textAnchor={anchor}
-                  fontSize={11}
-                  fontFamily="var(--font-body)"
-                  fill="rgba(255,255,255,0.55)"
-                  letterSpacing={1.4}
-                  style={{
-                    textTransform: 'uppercase',
-                    paintOrder: 'stroke',
-                    stroke: 'rgba(2,4,10,0.7)',
-                    strokeWidth: 4,
-                    strokeLinejoin: 'round',
-                  }}
-                >
-                  {pl.point.peopleToday} av {pl.point.peopleHome} inne
                 </text>
               </motion.g>
             )
@@ -346,36 +275,29 @@ export function OfficeMapView({
         }}
       >
         <div className="flex items-center gap-5 min-w-0 overflow-hidden">
-          {placed.slice(0, 8).map(p => (
+          {placed.slice(0, 10).map(p => (
             <div key={p.id} className="flex items-center gap-2 flex-shrink-0">
               <span
-                className="w-2 h-2 rounded-full"
+                className="w-1.5 h-1.5 rounded-full"
                 style={{
                   backgroundColor: officeColor,
                   boxShadow: `0 0 8px ${officeColor}`,
-                  opacity: p.peopleToday > 0 ? 1 : 0.35,
                 }}
               />
               <span
-                className="text-[13px] font-medium"
+                className="text-[13px] font-medium tracking-wide"
                 style={{ color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-body)' }}
               >
                 {p.office.city ?? p.office.name}
               </span>
-              <span
-                className="text-[13px] tabular-nums"
-                style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-sora)' }}
-              >
-                {p.peopleToday}
-              </span>
             </div>
           ))}
-          {placed.length > 8 && (
+          {placed.length > 10 && (
             <span
               className="text-[12px] tabular-nums flex-shrink-0"
               style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-body)' }}
             >
-              +{placed.length - 8}
+              +{placed.length - 10}
             </span>
           )}
         </div>
@@ -383,7 +305,7 @@ export function OfficeMapView({
           className="text-[11px] tracking-[0.22em] uppercase flex-shrink-0"
           style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-body)' }}
         >
-          {placed.length} kontorer · {members.length} ansatte
+          {placed.length} {placed.length === 1 ? 'kontor' : 'kontorer'}
         </span>
       </motion.div>
     </div>

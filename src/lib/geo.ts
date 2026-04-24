@@ -98,6 +98,17 @@ const CITY_TABLE: Record<string, CityCoord> = {
   barum:           { lat: 59.8940, lng: 10.5460, display: 'Bærum' },
   baerum:          { lat: 59.8940, lng: 10.5460, display: 'Bærum' },
   fjerdingstad:    { lat: 59.7100, lng: 10.8500, display: 'Fjerdingstad' },
+  lyngdal:         { lat: 58.1381, lng:  7.0717, display: 'Lyngdal' },
+  lyndgdal:        { lat: 58.1381, lng:  7.0717, display: 'Lyngdal' }, // common typo
+  farsund:         { lat: 58.0944, lng:  6.8050, display: 'Farsund' },
+  mandal:          { lat: 58.0297, lng:  7.4577, display: 'Mandal' },
+  arendal:         { lat: 58.4619, lng:  8.7724, display: 'Arendal' },
+  porsgrunn:       { lat: 59.1405, lng:  9.6561, display: 'Porsgrunn' },
+  larvik:          { lat: 59.0537, lng: 10.0260, display: 'Larvik' },
+  kongsberg:       { lat: 59.6661, lng:  9.6497, display: 'Kongsberg' },
+  halden:          { lat: 59.1309, lng: 11.3875, display: 'Halden' },
+  lillestrom:      { lat: 59.9553, lng: 11.0490, display: 'Lillestrøm' },
+  jessheim:        { lat: 60.1411, lng: 11.1744, display: 'Jessheim' },
 
   // Sverige
   stockholm:       { lat: 59.3293, lng: 18.0686, display: 'Stockholm' },

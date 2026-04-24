@@ -208,9 +208,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
             )}
             {currentView === 'C' && (
               <OfficeMapView
-                members={members}
                 offices={offices}
-                todayEntries={dedupedTodayEntries}
                 orgName={orgName}
                 time={time}
               />
