@@ -20,7 +20,7 @@ interface MonthViewProps {
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 
-const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
+const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
 
 export function MonthView({ members, weekDays, entries, orgName, time }: MonthViewProps) {
   const STATUS_COLORS = useStatusColors()
@@ -29,6 +29,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
     office: t.status.office,
     remote: t.pulse.atHomeShort,
     customer: t.status.customer,
+    event: t.status.event,
     travel: t.status.travel,
     vacation: t.status.vacation,
     sick: t.status.sick,

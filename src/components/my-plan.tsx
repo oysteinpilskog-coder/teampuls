@@ -140,6 +140,8 @@ interface SelectedCell {
   status: EntryStatus | null
   location: string | null
   note: string | null
+  source: 'manual' | 'ai_web' | 'ai_email' | null
+  sourceText: string | null
 }
 
 interface DragPoint {
@@ -327,6 +329,8 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl 
             status: rz.entry.status,
             location: rz.entry.location_label,
             note: rz.entry.note,
+            source: rz.entry.source,
+            sourceText: rz.entry.source_text,
           })
           return
         }
@@ -378,6 +382,8 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl 
             status: mv.entry.status,
             location: mv.entry.location_label,
             note: mv.entry.note,
+            source: mv.entry.source,
+            sourceText: mv.entry.source_text,
           })
           return
         }
@@ -433,6 +439,8 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl 
           status: entry?.status ?? null,
           location: entry?.location_label ?? null,
           note: entry?.note ?? null,
+          source: entry?.source ?? null,
+          sourceText: entry?.source_text ?? null,
         })
       }
       setDragStart(null)
@@ -869,6 +877,7 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl 
                                   status={seg.entry?.status ?? null}
                                   location={seg.entry?.location_label ?? null}
                                   note={seg.entry?.note ?? null}
+                                  lowConfidence={seg.entry?.confidence != null && seg.entry.confidence < 0.7}
                                   days={seg.days}
                                   onSelectDay={() => {
                                     /* replaced by drag mousedown/mouseup flow */
@@ -961,6 +970,8 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl 
         initialLocation={selectedCell?.location ?? null}
         initialNote={selectedCell?.note ?? null}
         initialRangeEnd={selectedCell?.endDate ?? null}
+        initialSource={selectedCell?.source ?? null}
+        initialSourceText={selectedCell?.sourceText ?? null}
         onMutated={loadEntries}
         onOptimisticSave={(dates, payload) => {
           const nowISO = new Date().toISOString()
@@ -979,6 +990,7 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl 
               note: payload.note,
               source: 'manual',
               source_text: null,
+              confidence: null,
               created_by: null,
               created_at: nowISO,
               updated_at: nowISO,

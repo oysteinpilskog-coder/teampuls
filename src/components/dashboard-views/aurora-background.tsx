@@ -41,7 +41,7 @@ const LIGHTS: Array<{
   {
     key: 'customer',
     status: 'customer',
-    statuses: ['customer', 'travel'],
+    statuses: ['customer', 'event', 'travel'],
     origin: { x: 72, y: 22 },
     orbit: { x: 7, y: 5 },
     duration: 42,

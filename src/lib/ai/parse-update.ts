@@ -1,6 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { buildStableSystemPrompt, buildDynamicSystemPrompt, buildUserPrompt } from './prompts'
-import type { Member, Customer } from '@/lib/supabase/types'
+import {
+  buildStableSystemPrompt,
+  buildDynamicSystemPrompt,
+  buildUserPrompt,
+  type CorrectionExample,
+} from './prompts'
+import type { Member, Customer, Office } from '@/lib/supabase/types'
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -31,21 +36,36 @@ export async function parseTeamUpdate(params: {
   senderEmail: string
   members: Member[]
   customers?: Customer[]
+  offices?: Office[]
+  corrections?: CorrectionExample[]
   today: Date
   timezone: string
 }): Promise<ParseResult> {
-  const { text, senderEmail, members, customers = [], today, timezone } = params
+  const {
+    text,
+    senderEmail,
+    members,
+    customers = [],
+    offices = [],
+    corrections = [],
+    today,
+    timezone,
+  } = params
 
   const sender = members.find(m => m.email === senderEmail)
   if (!sender) {
     throw new Error(`Unknown sender: ${senderEmail}`)
   }
+  const senderHomeOffice = sender.home_office_id
+    ? offices.find(o => o.id === sender.home_office_id)
+    : null
 
-  const stablePrompt = buildStableSystemPrompt(members, customers)
+  const stablePrompt = buildStableSystemPrompt(members, customers, offices, corrections)
   const dynamicPrompt = buildDynamicSystemPrompt({
     today,
     senderName: sender.display_name,
     senderEmail: sender.email,
+    senderHomeOfficeCity: senderHomeOffice?.city ?? null,
     timezone,
   })
 
@@ -54,13 +74,14 @@ export async function parseTeamUpdate(params: {
     max_tokens: 1024,
     temperature: 0.2,
     system: [
-      // Stable part: member list + rules — cached across requests for the same org
+      // Stable: roster + rules + corrections — cached across requests per org.
+      // Corrections grow slowly, so cache-busting on new-correction is fine.
       {
         type: 'text',
         text: stablePrompt,
         cache_control: { type: 'ephemeral' },
       },
-      // Dynamic part: today's date, sender — changes per request, not cached
+      // Dynamic: today, sender — changes every request, not cached.
       {
         type: 'text',
         text: dynamicPrompt,
@@ -76,7 +97,6 @@ export async function parseTeamUpdate(params: {
     throw new Error('No text content in Claude response')
   }
 
-  // Strip accidental markdown code fences
   const jsonText = textBlock.text
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/```\s*$/, '')

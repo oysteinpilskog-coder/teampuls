@@ -226,7 +226,7 @@ export function TeamBoard({ members, todayMap }: TeamBoardProps) {
   const STRIPS: StripDef[] = [
     { key: 'office',   label: t.pulse.atOffice,   statuses: ['office'],                      representative: 'office'   },
     { key: 'remote',   label: t.pulse.atHome,     statuses: ['remote'],                      representative: 'remote'   },
-    { key: 'customer', label: t.pulse.atCustomer, statuses: ['customer', 'travel'],          representative: 'customer' },
+    { key: 'customer', label: t.pulse.atCustomer, statuses: ['customer', 'event', 'travel'],          representative: 'customer' },
     { key: 'away',     label: t.pulse.away,       statuses: ['vacation', 'sick', 'off'],     representative: 'vacation' },
   ]
 

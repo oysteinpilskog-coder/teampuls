@@ -33,7 +33,7 @@ export interface HealthReport {
   slotCount: number
 }
 
-const WORKING_STATUSES: EntryStatus[] = ['office', 'remote', 'customer', 'travel']
+const WORKING_STATUSES: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel']
 const OUT_STATUSES: EntryStatus[] = ['vacation', 'sick', 'off']
 
 interface ScoreInput {

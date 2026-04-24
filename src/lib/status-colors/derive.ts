@@ -63,12 +63,13 @@ export function derivePalette(hex: string): StatusPalette {
   }
 }
 
-/** Derive palettes for all 7 statuses at once. */
+/** Derive palettes for all statuses at once. */
 export function derivePalettes(colors: HexColors): Record<EntryStatus, StatusPalette> {
   return {
     office:   derivePalette(colors.office),
     remote:   derivePalette(colors.remote),
     customer: derivePalette(colors.customer),
+    event:    derivePalette(colors.event),
     travel:   derivePalette(colors.travel),
     vacation: derivePalette(colors.vacation),
     sick:     derivePalette(colors.sick),

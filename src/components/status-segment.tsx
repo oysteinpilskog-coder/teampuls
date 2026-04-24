@@ -49,6 +49,10 @@ interface StatusSegmentProps {
   /** Suppress the built-in today indicators (dot + single-day ring). Use when the
    *  parent renders a card-level today chord across the full column. */
   hideToday?: boolean
+  /** AI parser confidence (0..1) from the entry that produced this segment.
+   *  When < 0.7, a small "?" badge is rendered in the top-right so the viewer
+   *  knows the AI wasn't sure and can click through to verify. */
+  lowConfidence?: boolean
 }
 
 // Status color palettes live in `@/lib/status-colors/context` — `useStatusColors()`.
@@ -70,6 +74,7 @@ export function StatusSegment({
   onSegmentResizeStart,
   dateRangeLabel,
   hideToday,
+  lowConfidence,
 }: StatusSegmentProps) {
   const palettes = useStatusColors()
   const t = useT()
@@ -268,6 +273,27 @@ export function StatusSegment({
               size="xs"
             />
           </span>
+        </div>
+      )}
+
+      {/* Low-confidence AI badge — small "?" in top-right when the parser
+          wasn't sure. Clickable cell lets the user confirm or correct. */}
+      {status && lowConfidence && (
+        <div
+          aria-label="AI var usikker — klikk for å bekrefte"
+          title="AI var usikker — klikk for å bekrefte"
+          className="absolute top-0.5 right-1 z-40 pointer-events-none"
+          style={{
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: '0.02em',
+            color: tint,
+            opacity: 0.75,
+            fontFamily: 'var(--font-body)',
+            lineHeight: 1,
+          }}
+        >
+          ?
         </div>
       )}
 
