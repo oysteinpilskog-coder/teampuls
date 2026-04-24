@@ -1,7 +1,6 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useId } from 'react'
 import { spring } from '@/lib/motion'
 
 interface MapPinProps {
@@ -9,63 +8,78 @@ interface MapPinProps {
   radius: number
   /** Primary pin hue — drives dot and primary aurora layer. */
   color: string
-  /** Companion hue for the second aurora layer. Pick something that contrasts
-   *  the primary — cool blue for a warm pin, warm pink for a cool pin — so
-   *  the two ellipses read as *two* lights, not one. */
+  /** Companion hue for the second aurora layer. Pick something that
+   *  contrasts the primary — cool blue for a warm pin, warm pink for a
+   *  cool pin — so the two read as *two* lights. */
   auroraCompanion?: string
   /** Stable index so orbit phases don't sync across pins. */
   index: number
 }
 
 /**
- * The "premium" map pin — a glass dot with two drifting aurora ellipses
- * behind it. The aurora uses radial-gradient fills (not blend modes) so it
- * renders predictably across browsers; every stop carries its own
- * stop-opacity, which Safari respects even when it drops `mix-blend-mode`.
+ * The "premium" map pin — a glass dot with a multi-layer aurora glow.
  *
- * Gradient ids come from React's `useId()`. Collisions with other MapPins
- * (or between the office and customer views rotating through the same DOM)
- * used to make gradients silently disappear — useId guarantees uniqueness.
+ * Earlier iterations tried SVG `<radialGradient>` fills and `mix-blend-mode:
+ * screen`. Both had cross-browser rendering quirks that sometimes left the
+ * aurora completely invisible. This version goes back to basics: solid
+ * colored circles with CSS `filter: blur()` (the same technique the global
+ * AuroraBackground uses), animated in position and opacity to drift like
+ * northern lights. `filter: blur()` on SVG elements is universally supported
+ * and composes predictably with framer-motion transforms.
  */
 export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
   const companion = auroraCompanion ?? '#FFFFFF'
-  const uid = useId()
-  const idA = `mp-a${uid.replace(/:/g, '')}`
-  const idB = `mp-b${uid.replace(/:/g, '')}`
 
-  // Aurora ellipses are ~3–4× the pin radius so the glow reads as a halo of
-  // light around a bright core, not a second dot.
-  const rA = radius * 3.2 + 6
-  const rB = radius * 4.0 + 8
+  // Layer sizes chosen so the aurora reads as a halo even when neighbouring
+  // pins are ~80 px apart on the dashboard map.
+  const rOuter = radius * 3.8
+  const rInner = radius * 2.6
+  const rCore  = radius + 6
 
   return (
     <g>
-      <defs>
-        <radialGradient id={idA}>
-          <stop offset="0%"   stopColor={color}     stopOpacity="1" />
-          <stop offset="35%"  stopColor={color}     stopOpacity="0.6" />
-          <stop offset="70%"  stopColor={color}     stopOpacity="0.18" />
-          <stop offset="100%" stopColor={color}     stopOpacity="0" />
-        </radialGradient>
-        <radialGradient id={idB}>
-          <stop offset="0%"   stopColor={companion} stopOpacity="0.95" />
-          <stop offset="40%"  stopColor={companion} stopOpacity="0.42" />
-          <stop offset="75%"  stopColor={companion} stopOpacity="0.1" />
-          <stop offset="100%" stopColor={companion} stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      {/* Aurora layer A — primary hue, slow drift, wide reach */}
-      <motion.ellipse
-        rx={rA}
-        ry={rA * 0.72}
-        fill={`url(#${idA})`}
+      {/* Outer soft blob — companion hue, widest reach, slow drift */}
+      <motion.circle
+        r={rOuter}
+        fill={companion}
         initial={{ cx: 0, cy: 0, opacity: 0 }}
         animate={{
-          cx: [-8, 8, -8],
-          cy: [-4, 4, -4],
-          opacity: [0.85, 1, 0.85],
-          rx: [rA, rA + 8, rA],
+          cx: [7, -7, 7],
+          cy: [4, -4, 4],
+          opacity: [0.26, 0.42, 0.26],
+        }}
+        transition={{
+          cx: {
+            duration: 11 + (index % 3) * 1.7,
+            delay: (index % 5) * 0.5 + 1.2,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
+          cy: {
+            duration: 9 + (index % 4) * 1.4,
+            delay: (index % 5) * 0.6 + 0.6,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
+          opacity: {
+            duration: 6 + (index % 4) * 1.1,
+            delay: (index % 5) * 0.4 + 1.0,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
+        }}
+        style={{ filter: 'blur(14px)' }}
+      />
+
+      {/* Middle blob — primary hue, counter-drift */}
+      <motion.circle
+        r={rInner}
+        fill={color}
+        initial={{ cx: 0, cy: 0, opacity: 0 }}
+        animate={{
+          cx: [-5, 5, -5],
+          cy: [-3, 3, -3],
+          opacity: [0.48, 0.72, 0.48],
         }}
         transition={{
           cx: {
@@ -86,53 +100,23 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
             repeat: Infinity,
             ease: 'easeInOut',
           },
-          rx: {
-            duration: 8 + (index % 3) * 1.2,
-            delay: (index % 4) * 0.4,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
         }}
+        style={{ filter: 'blur(11px)' }}
       />
 
-      {/* Aurora layer B — companion hue, counter-drift, taller */}
-      <motion.ellipse
-        rx={rB * 0.85}
-        ry={rB}
-        fill={`url(#${idB})`}
-        initial={{ cx: 0, cy: 0, opacity: 0 }}
-        animate={{
-          cx: [5, -5, 5],
-          cy: [3, -3, 3],
-          opacity: [0.7, 0.95, 0.7],
-          ry: [rB, rB + 6, rB],
-        }}
+      {/* Tight corona — hugs the dot, breathes gently */}
+      <motion.circle
+        r={rCore}
+        fill={color}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0.55, 0.75, 0.55] }}
         transition={{
-          cx: {
-            duration: 11 + (index % 3) * 1.7,
-            delay: (index % 5) * 0.5 + 1.5,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
-          cy: {
-            duration: 9 + (index % 4) * 1.4,
-            delay: (index % 5) * 0.6 + 0.8,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
-          opacity: {
-            duration: 6 + (index % 4) * 1.1,
-            delay: (index % 5) * 0.4 + 1.2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
-          ry: {
-            duration: 10 + (index % 3) * 1.6,
-            delay: (index % 4) * 0.5 + 0.6,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
+          duration: 3.4 + (index % 3) * 0.5,
+          delay: (index % 5) * 0.3,
+          repeat: Infinity,
+          ease: 'easeInOut',
         }}
+        style={{ filter: 'blur(5px)' }}
       />
 
       {/* Crisp expanding ring — the "heartbeat" */}
@@ -143,7 +127,7 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
         strokeWidth={1.2}
         animate={{
           r: [radius + 4, radius + 26, radius + 4],
-          opacity: [0.5, 0, 0.5],
+          opacity: [0.55, 0, 0.55],
         }}
         transition={{
           duration: 4.2,
