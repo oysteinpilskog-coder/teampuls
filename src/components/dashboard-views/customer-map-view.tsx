@@ -2,8 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
-import { MapPin } from './map-pin'
-import { GhostPin } from './ghost-pin'
+import { CustomerPin, type CustomerPinState } from './customer-pin'
 import { project, resolveLocation } from '@/lib/geo'
 import { resolveCustomer } from '@/lib/customer-resolver'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
@@ -160,9 +159,10 @@ export function CustomerMapView({
     }))
     .sort((a, b) => b.memberIdsWeek.size - a.memberIdsWeek.size)
 
-  // Portfolio: every registered customer with coords shows on the map.
-  // Visited ones (already in `clusters`) keep the full aurora treatment;
-  // the rest get ghost pins so the org's footprint is always visible.
+  // Portfolio: every registered customer with coords shows on the map with
+  // the same base design — the visit state (idle/week/today) just dials up
+  // brightness and adds a soft single-pulse ring. One visual language, no
+  // loud heartbeat competing with the city labels.
   const visitedCustomerIds = new Set(
     clusters.map(c => c.customerId).filter((id): id is string => !!id)
   )
@@ -182,7 +182,44 @@ export function CustomerMapView({
   const visitedCount = visitedCustomerIds.size
   const portfolioPct = registeredCount === 0 ? 0 : visitedCount / registeredCount
 
-  const placedLabels = placeLabels(clusters, { gap: 14, collisionRadius: 90 })
+  // Unified pin model — one list for rendering + label placement so the
+  // collision solver treats visited/unvisited names equally and no pair of
+  // labels ever overlaps.
+  interface MapPoint {
+    id: string
+    x: number
+    y: number
+    radius: number
+    display: string
+    state: CustomerPinState
+    visitCount: number
+  }
+  const points: MapPoint[] = []
+  for (const c of clusters) {
+    const state: CustomerPinState = c.memberIdsToday.size > 0 ? 'today' : 'week'
+    points.push({
+      id: c.id,
+      x: c.x,
+      y: c.y,
+      radius: state === 'today' ? 5 : 4.5,
+      display: c.display,
+      state,
+      visitCount: c.memberIdsWeek.size,
+    })
+  }
+  for (const c of unvisitedCustomers) {
+    points.push({
+      id: `idle-${c.id}`,
+      x: c.x,
+      y: c.y,
+      radius: 4,
+      display: c.name,
+      state: 'idle',
+      visitCount: 0,
+    })
+  }
+
+  const placedLabels = placeLabels(points, { gap: 12, collisionRadius: 82 })
 
   return (
     <div className="relative h-full flex flex-col px-10 pt-6 pb-4 gap-4">
@@ -270,54 +307,54 @@ export function CustomerMapView({
           }}
         >
           <EuropeMapCanvas accent="#FF8A3D">
-            {/* Ghost pins — every registered-but-unvisited customer.
-             *  Rendered first so aurora pins sit on top when coords collide. */}
-            {unvisitedCustomers.map((c, i) => (
-              <motion.g
-                key={`ghost-${c.id}`}
-                transform={`translate(${c.x} ${c.y})`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.8, delay: 0.25 + i * 0.04 }}
-              >
-                <GhostPin color={customerColor} index={i} />
-              </motion.g>
-            ))}
+            {/* Pins — single unified component, intensity tier driven by
+             *  visit state. Idle first so visited sit on top when coords
+             *  collide. */}
+            {points
+              .slice()
+              .sort((a, b) => {
+                const rank: Record<CustomerPinState, number> = { idle: 0, week: 1, today: 2 }
+                return rank[a.state] - rank[b.state]
+              })
+              .map((p, i) => (
+                <motion.g
+                  key={`pin-${p.id}`}
+                  transform={`translate(${p.x} ${p.y})`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.7, delay: 0.2 + i * 0.04 }}
+                >
+                  <CustomerPin color={customerColor} index={i} state={p.state} />
+                </motion.g>
+              ))}
 
-            {clusters.map((c, i) => (
-              <g key={c.id} transform={`translate(${c.x} ${c.y})`}>
-                <MapPin
-                  radius={c.radius}
-                  color={customerColor}
-                  index={i}
-                />
-              </g>
-            ))}
-
-            {/* Labels with collision-aware placement */}
+            {/* Labels — every pin gets a name. Visited are crisper, idle are
+             *  softer so the eye still lands on "what we're doing this week"
+             *  first without hiding the portfolio footprint. */}
             {placedLabels.map((pl, i) => {
               const anchor = textAnchorFor(pl.side)
               const c = pl.point
+              const visited = c.state !== 'idle'
               return (
                 <motion.g
                   key={`label-${c.id}`}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...spring.gentle, delay: 0.5 + i * 0.07 }}
+                  transition={{ ...spring.gentle, delay: 0.45 + i * 0.05 }}
                 >
                   <text
                     x={pl.labelX}
                     y={pl.labelY}
                     textAnchor={anchor}
-                    fontSize={17}
-                    fontWeight={600}
+                    fontSize={visited ? 16 : 13}
+                    fontWeight={visited ? 600 : 500}
                     fontFamily="var(--font-sora)"
-                    fill="white"
+                    fill={visited ? 'white' : 'rgba(255,255,255,0.62)'}
                     letterSpacing={0.3}
                     style={{
                       paintOrder: 'stroke',
-                      stroke: 'rgba(2,4,10,0.75)',
-                      strokeWidth: 4.5,
+                      stroke: 'rgba(2,4,10,0.78)',
+                      strokeWidth: visited ? 4.5 : 3.5,
                       strokeLinejoin: 'round',
                     }}
                   >
@@ -327,7 +364,7 @@ export function CustomerMapView({
               )
             })}
 
-            {clusters.length === 0 && unvisitedCustomers.length === 0 && (
+            {points.length === 0 && (
               <text
                 x={MAP_WIDTH / 2}
                 y={MAP_HEIGHT / 2}
@@ -445,138 +482,112 @@ export function CustomerMapView({
             </div>
           )}
 
-          {/* Visited this week */}
-          <div
-            className="rounded-2xl p-5 flex flex-col gap-3 flex-shrink-0"
-            style={{
-              background:
-                'linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-            }}
-          >
-            <h3
-              className="text-[11px] font-semibold uppercase tracking-[0.22em]"
-              style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
-            >
-              Besøkt denne uken
-            </h3>
+          {/* Unified customer list — the "right-side expression" of the
+           *  map. Each row's leading dot mirrors the pin's state (today /
+           *  week / idle), using the same animation and opacity as the
+           *  svg pin so the list and the map feel like one object. */}
+          {(clusters.length > 0 || unvisitedCustomers.length > 0) && (() => {
+            // Sort rows by engagement tier → alphabetical within tier.
+            const rows: Array<{
+              key: string
+              name: string
+              state: CustomerPinState
+              visitCount: number
+              members: string[]
+            }> = []
+            for (const c of clusters) {
+              const state: CustomerPinState = c.memberIdsToday.size > 0 ? 'today' : 'week'
+              const members = Array.from(c.memberIdsWeek)
+                .map(id => {
+                  const m = memberById.get(id)
+                  return m ? (m.full_name || m.display_name) : ''
+                })
+                .filter(Boolean)
+              rows.push({
+                key: c.id,
+                name: c.display,
+                state,
+                visitCount: c.memberIdsWeek.size,
+                members,
+              })
+            }
+            for (const c of unvisitedCustomers) {
+              rows.push({
+                key: c.id,
+                name: c.name,
+                state: 'idle',
+                visitCount: 0,
+                members: [],
+              })
+            }
+            const tierRank: Record<CustomerPinState, number> = { today: 0, week: 1, idle: 2 }
+            rows.sort((a, b) => {
+              const ta = tierRank[a.state]
+              const tb = tierRank[b.state]
+              if (ta !== tb) return ta - tb
+              if (a.visitCount !== b.visitCount) return b.visitCount - a.visitCount
+              return a.name.localeCompare(b.name)
+            })
 
-            {clusters.length === 0 ? (
-              <p
-                className="text-[13px] leading-relaxed"
-                style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-body)' }}
+            return (
+              <div
+                className="rounded-2xl p-5 flex flex-col gap-3 min-h-0 overflow-hidden"
+                style={{
+                  background:
+                    'linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+                }}
               >
-                {registeredCount > 0
-                  ? 'Ingen kunder besøkt ennå denne uken.'
-                  : t.dashboard.noRegistrations}
-              </p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {clusters.slice(0, 5).map((c, i) => {
-                  const names = Array.from(c.memberIdsWeek)
-                    .map(id => {
-                      const m = memberById.get(id)
-                      return m ? (m.full_name || m.display_name) : ''
-                    })
-                    .filter(Boolean)
-                  const activeToday = c.memberIdsToday.size > 0
-                  return (
+                <h3
+                  className="text-[11px] font-semibold uppercase tracking-[0.22em]"
+                  style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
+                >
+                  Kunder
+                </h3>
+
+                <div className="flex flex-col gap-1.5 overflow-y-auto pr-1 -mr-1">
+                  {rows.map((r, i) => (
                     <motion.div
-                      key={c.id}
-                      initial={{ opacity: 0, x: 10 }}
+                      key={r.key}
+                      initial={{ opacity: 0, x: 8 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ ...spring.gentle, delay: 0.4 + i * 0.05 }}
-                      className="flex items-start gap-3"
+                      transition={{ ...spring.gentle, delay: 0.35 + i * 0.03 }}
+                      className="flex items-center gap-3 py-0.5"
                     >
-                      <motion.span
-                        className="w-2 h-2 rounded-full mt-[7px] flex-shrink-0"
+                      <SidePanelDot state={r.state} color={customerColor} />
+                      <span
+                        className="flex-1 min-w-0 truncate text-[13px]"
                         style={{
-                          backgroundColor: customerColor,
-                          boxShadow: `0 0 ${activeToday ? 12 : 6}px ${customerColor}`,
-                          opacity: activeToday ? 1 : 0.5,
+                          color:
+                            r.state === 'idle'
+                              ? 'rgba(255,255,255,0.55)'
+                              : 'rgba(255,255,255,0.92)',
+                          fontFamily: 'var(--font-body)',
+                          fontWeight: r.state === 'idle' ? 500 : 600,
                         }}
-                        animate={activeToday ? { scale: [1, 1.35, 1], opacity: [1, 0.7, 1] } : undefined}
-                        transition={activeToday ? { duration: 2.2, repeat: Infinity, ease: 'easeInOut' } : undefined}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span
-                            className="text-[14px] font-semibold truncate"
-                            style={{ color: 'rgba(255,255,255,0.9)', fontFamily: 'var(--font-body)' }}
-                          >
-                            {c.display}
-                          </span>
-                          <span
-                            className="text-[12px] tabular-nums flex-shrink-0"
-                            style={{ color: customerColor, fontFamily: 'var(--font-sora)', fontWeight: 600 }}
-                          >
-                            {c.memberIdsWeek.size}
-                          </span>
-                        </div>
-                        <p
-                          className="text-[11px] truncate"
-                          style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
+                      >
+                        {r.name}
+                      </span>
+                      {r.visitCount > 0 && (
+                        <span
+                          className="text-[11px] tabular-nums flex-shrink-0"
+                          style={{
+                            color: r.state === 'today' ? customerColor : 'rgba(255,255,255,0.55)',
+                            fontFamily: 'var(--font-sora)',
+                            fontWeight: 600,
+                          }}
+                          title={r.members.join(', ')}
                         >
-                          {names.join(', ')}
-                        </p>
-                      </div>
+                          {r.visitCount}
+                        </span>
+                      )}
                     </motion.div>
-                  )
-                })}
+                  ))}
+                </div>
               </div>
-            )}
-          </div>
-
-          {/* Not visited yet — chip grid. Appears only when we actually have
-           *  a meaningful remaining list to show. */}
-          {unvisitedCustomers.length > 0 && (
-            <div
-              className="rounded-2xl p-5 flex flex-col gap-3 flex-shrink-0 min-h-0"
-              style={{
-                background:
-                  'linear-gradient(155deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.008) 100%)',
-                border: '1px solid rgba(255,255,255,0.06)',
-              }}
-            >
-              <h3
-                className="text-[11px] font-semibold uppercase tracking-[0.22em]"
-                style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-body)' }}
-              >
-                Ikke besøkt · {unvisitedCustomers.length}
-              </h3>
-              <div className="flex flex-wrap gap-1.5 overflow-hidden">
-                {unvisitedCustomers.slice(0, 14).map((c, i) => (
-                  <motion.span
-                    key={c.id}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ ...spring.gentle, delay: 0.5 + i * 0.035 }}
-                    className="px-2.5 py-1 rounded-full text-[11px] font-medium truncate max-w-[140px]"
-                    style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${customerColor}38`,
-                      color: 'rgba(255,255,255,0.62)',
-                      fontFamily: 'var(--font-body)',
-                    }}
-                  >
-                    {c.name}
-                  </motion.span>
-                ))}
-                {unvisitedCustomers.length > 14 && (
-                  <span
-                    className="px-2.5 py-1 rounded-full text-[11px]"
-                    style={{
-                      color: 'rgba(255,255,255,0.35)',
-                      fontFamily: 'var(--font-body)',
-                    }}
-                  >
-                    +{unvisitedCustomers.length - 14}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
+            )
+          })()}
 
           {unresolved.size > 0 && (
             <div
@@ -604,5 +615,53 @@ export function CustomerMapView({
         </motion.div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Miniature echo of CustomerPin for the side-panel list. Same three-tier
+ * vocabulary — idle is a quiet crystal dot; week adds a brighter core and
+ * a single pulse; today is the same at higher intensity — so the list
+ * reads as the map's caption rather than a separate widget.
+ */
+function SidePanelDot({ state, color }: { state: CustomerPinState; color: string }) {
+  const baseOpacity = state === 'today' ? 1 : state === 'week' ? 0.85 : 0.45
+  const glowAlpha = state === 'today' ? 'aa' : state === 'week' ? '66' : '22'
+
+  return (
+    <span
+      aria-hidden
+      className="relative flex-shrink-0 flex items-center justify-center"
+      style={{ width: 14, height: 14 }}
+    >
+      {/* Single soft pulse ring — only for visited tiers so idle stays still. */}
+      {state !== 'idle' && (
+        <motion.span
+          className="absolute inset-0 rounded-full"
+          style={{ border: `1px solid ${color}` }}
+          animate={{
+            opacity: [state === 'today' ? 0.55 : 0.4, 0, state === 'today' ? 0.55 : 0.4],
+            scale: [0.7, 1.45, 0.7],
+          }}
+          transition={{
+            duration: state === 'today' ? 3.8 : 5.2,
+            repeat: Infinity,
+            ease: 'easeOut',
+          }}
+        />
+      )}
+      {/* Crystal dot */}
+      <span
+        className="block rounded-full"
+        style={{
+          width: state === 'idle' ? 5 : 6,
+          height: state === 'idle' ? 5 : 6,
+          backgroundColor: color,
+          opacity: baseOpacity,
+          boxShadow: `0 0 ${state === 'today' ? 10 : state === 'week' ? 6 : 3}px ${color}${glowAlpha}`,
+          border: '0.5px solid rgba(255,255,255,0.6)',
+        }}
+      />
+    </span>
   )
 }
