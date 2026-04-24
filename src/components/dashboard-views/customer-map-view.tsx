@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
+import { MapPin } from './map-pin'
 import { project, resolveLocation } from '@/lib/geo'
 import { resolveCustomer } from '@/lib/customer-resolver'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
@@ -138,7 +139,7 @@ export function CustomerMapView({
       id: c.id,
       x: c.x,
       y: c.y,
-      radius: 12 + Math.sqrt(c.memberIdsWeek.size) * 7,
+      radius: 11,
       display: c.display,
       isKnownCustomer: c.isKnownCustomer,
       memberIdsToday: c.memberIdsToday,
@@ -146,10 +147,6 @@ export function CustomerMapView({
       daysThisWeek: c.daysThisWeek,
     }))
     .sort((a, b) => b.memberIdsWeek.size - a.memberIdsWeek.size)
-
-  const visitorsToday = clusters.reduce((s, c) => s + c.memberIdsToday.size, 0)
-  const visitorsWeek = new Set<string>()
-  clusters.forEach(c => c.memberIdsWeek.forEach(id => visitorsWeek.add(id)))
 
   const placedLabels = placeLabels(clusters, { gap: 14, collisionRadius: 90 })
 
@@ -197,13 +194,7 @@ export function CustomerMapView({
                 animate={{ opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
                 transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
               />
-              {t.today.live} · {t.matrix.weekLabel} {weekNum}
-            </span>
-            <span
-              className="text-[12px]"
-              style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
-            >
-              {t.dashboard.customer.todayWeekCount.replace('{today}', String(visitorsToday)).replace('{week}', String(visitorsWeek.size))}
+              {t.matrix.weekLabel} {weekNum}
             </span>
           </div>
         </motion.div>
@@ -245,95 +236,21 @@ export function CustomerMapView({
           }}
         >
           <EuropeMapCanvas accent="#FF8A3D">
-            {clusters.map((c, i) => {
-              const countWeek = c.memberIdsWeek.size
-              const activeToday = c.memberIdsToday.size > 0
-              const radius = c.radius
-
-              return (
-                <g key={c.id} transform={`translate(${c.x} ${c.y})`}>
-                  {activeToday && (
-                    <>
-                      <motion.circle
-                        r={radius + 6}
-                        fill="none"
-                        stroke={customerColor}
-                        strokeWidth={1.5}
-                        opacity={0.45}
-                        animate={{
-                          r: [radius + 6, radius + 34, radius + 6],
-                          opacity: [0.45, 0, 0.45],
-                        }}
-                        transition={{ duration: 3.2, repeat: Infinity, ease: 'easeOut' }}
-                      />
-                      <motion.circle
-                        r={radius + 12}
-                        fill="none"
-                        stroke={customerColor}
-                        strokeWidth={1}
-                        opacity={0.3}
-                        animate={{
-                          r: [radius + 12, radius + 54, radius + 12],
-                          opacity: [0.3, 0, 0.3],
-                        }}
-                        transition={{ duration: 3.2, delay: 1.2, repeat: Infinity, ease: 'easeOut' }}
-                      />
-                    </>
-                  )}
-
-                  <circle
-                    r={radius + 6}
-                    fill={customerColor}
-                    opacity={activeToday ? 0.26 : 0.08}
-                    style={{ filter: 'blur(10px)' }}
-                  />
-
-                  <motion.circle
-                    r={radius}
-                    fill={customerColor}
-                    stroke="rgba(255,255,255,0.55)"
-                    strokeWidth={0.8}
-                    opacity={activeToday ? 1 : 0.5}
-                    initial={{ r: 0, opacity: 0 }}
-                    animate={{ r: radius, opacity: activeToday ? 1 : 0.5 }}
-                    transition={{ ...spring.gentle, delay: 0.3 + i * 0.07 }}
-                    style={{
-                      filter: activeToday
-                        ? `drop-shadow(0 0 14px ${customerColor}) drop-shadow(0 2px 4px rgba(0,0,0,0.4))`
-                        : `drop-shadow(0 0 4px ${customerColor}66)`,
-                    }}
-                  />
-
-                  <circle
-                    r={radius * 0.55}
-                    cx={-radius * 0.22}
-                    cy={-radius * 0.28}
-                    fill="white"
-                    opacity={activeToday ? 0.42 : 0.26}
-                    style={{ filter: 'blur(1.2px)' }}
-                  />
-
-                  <text
-                    x={0}
-                    y={radius > 20 ? 6 : 4}
-                    textAnchor="middle"
-                    fontSize={radius > 24 ? 18 : 13}
-                    fontWeight={700}
-                    fontFamily="var(--font-sora)"
-                    fill="white"
-                    style={{ userSelect: 'none', letterSpacing: '-0.01em' }}
-                  >
-                    {countWeek}
-                  </text>
-                </g>
-              )
-            })}
+            {clusters.map((c, i) => (
+              <g key={c.id} transform={`translate(${c.x} ${c.y})`}>
+                <MapPin
+                  radius={c.radius}
+                  color={customerColor}
+                  auroraCompanion="#FFD19E"
+                  index={i}
+                />
+              </g>
+            ))}
 
             {/* Labels with collision-aware placement */}
             {placedLabels.map((pl, i) => {
               const anchor = textAnchorFor(pl.side)
               const c = pl.point
-              const activeToday = c.memberIdsToday.size > 0
               return (
                 <motion.g
                   key={`label-${c.id}`}
@@ -346,38 +263,18 @@ export function CustomerMapView({
                     y={pl.labelY}
                     textAnchor={anchor}
                     fontSize={17}
-                    fontWeight={700}
+                    fontWeight={600}
                     fontFamily="var(--font-sora)"
                     fill="white"
-                    letterSpacing={0.4}
+                    letterSpacing={0.3}
                     style={{
                       paintOrder: 'stroke',
                       stroke: 'rgba(2,4,10,0.75)',
-                      strokeWidth: 5,
+                      strokeWidth: 4.5,
                       strokeLinejoin: 'round',
                     }}
                   >
                     {c.display}
-                  </text>
-                  <text
-                    x={pl.labelX}
-                    y={pl.labelY + 18}
-                    textAnchor={anchor}
-                    fontSize={11}
-                    fontFamily="var(--font-body)"
-                    fill="rgba(255,255,255,0.55)"
-                    letterSpacing={1.2}
-                    style={{
-                      textTransform: 'uppercase',
-                      paintOrder: 'stroke',
-                      stroke: 'rgba(2,4,10,0.7)',
-                      strokeWidth: 4,
-                      strokeLinejoin: 'round',
-                    }}
-                  >
-                    {activeToday
-                      ? `${c.memberIdsToday.size} her i dag`
-                      : `${c.daysThisWeek} dag${c.daysThisWeek === 1 ? '' : 'er'} i uken`}
                   </text>
                 </motion.g>
               )
