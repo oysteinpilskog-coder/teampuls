@@ -472,7 +472,7 @@ export function CustomerMapView({
                   track width so the colours reveal left-to-right as the bar
                   fills, instead of squeezing all three into whatever
                   portion has been painted so far. */}
-              <div className="relative h-[6px] rounded-full overflow-hidden">
+              <div className="relative h-[3px] rounded-full overflow-hidden">
                 <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
                 <motion.div
                   className="absolute top-0 left-0 h-full rounded-full"
