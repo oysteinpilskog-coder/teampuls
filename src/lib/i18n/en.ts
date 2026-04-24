@@ -342,6 +342,7 @@ export const en: Dictionary = {
       org: 'Organization',
       offices: 'Offices',
       customers: 'Customers',
+      map: 'Map',
       theme: 'Theme',
       language: 'Language',
     },

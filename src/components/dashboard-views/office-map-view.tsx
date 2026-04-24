@@ -155,7 +155,6 @@ export function OfficeMapView({
               <MapPin
                 radius={p.radius}
                 color={officeColor}
-                auroraCompanion="#FF7FBD"
                 index={i}
               />
             </g>

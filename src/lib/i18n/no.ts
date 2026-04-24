@@ -340,6 +340,7 @@ export const no = {
       org: 'Organisasjon',
       offices: 'Kontorer',
       customers: 'Kunder',
+      map: 'Kart',
       theme: 'Tema',
       language: 'Språk',
     },

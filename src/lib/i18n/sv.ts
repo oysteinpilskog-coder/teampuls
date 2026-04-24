@@ -342,6 +342,7 @@ export const sv: Dictionary = {
       org: 'Organisation',
       offices: 'Kontor',
       customers: 'Kunder',
+      map: 'Karta',
       theme: 'Tema',
       language: 'Språk',
     },

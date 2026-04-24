@@ -3,17 +3,19 @@
 import { motion } from 'framer-motion'
 import { useId } from 'react'
 import { spring } from '@/lib/motion'
+import { complement } from '@/lib/color'
 
 interface MapPinProps {
   /** Pin centre in viewBox coords — caller translates the <g>. */
   radius: number
-  /** Primary pin hue — drives dot. */
+  /** Primary pin hue — drives dot. The outer aurora glow is auto-derived
+   *  as the 180° colour-wheel complement so the two hues always read as
+   *  two distinct lights (classic aurora: green ↔ magenta, violet ↔ lime).
+   *  Override via `auroraCompanion` if the automatic choice clashes with
+   *  other accents on the canvas. */
   color: string
-  /** Companion hue that paints the *outer* glow. The companion is the
-   *  hero colour: it sits on top of a tight pin-coloured core so the
-   *  whole halo reads as the contrast hue, not as a blurred copy of
-   *  the pin. Pick something visibly distinct — magenta for green
-   *  pins, teal for violet pins. */
+  /** Explicit companion hue override. Pass only when the automatic
+   *  complement is wrong for the surrounding palette. */
   auroraCompanion?: string
   /** Stable index so orbit phases don't sync across pins. */
   index: number
@@ -39,7 +41,7 @@ interface MapPinProps {
  * element bounding box.
  */
 export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
-  const companion = auroraCompanion ?? '#FFFFFF'
+  const companion = auroraCompanion ?? complement(color)
   // useId() mints a document-unique id so filter defs don't collide when
   // office + customer views share the same DOM during rotation.
   const uid = useId().replace(/:/g, '')

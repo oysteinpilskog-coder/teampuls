@@ -342,6 +342,7 @@ export const lt: Dictionary = {
       org: 'Organizacija',
       offices: 'Biurai',
       customers: 'Klientai',
+      map: 'Žemėlapis',
       theme: 'Tema',
       language: 'Kalba',
     },
