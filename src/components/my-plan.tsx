@@ -663,20 +663,7 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl 
           {weekdayLabels.map((lbl, i) => {
             const isToday = i === todayWeekdayIdx
             return (
-              <div key={i} className="flex items-center justify-center gap-1.5 py-0.5">
-                {isToday && (
-                  <span
-                    className="lg-mono px-1.5 py-[2px] rounded-full text-[9px] font-medium uppercase"
-                    style={{
-                      background: 'rgba(139, 92, 246, 0.14)',
-                      color: 'var(--lg-accent)',
-                      border: '1px solid rgba(139, 92, 246, 0.28)',
-                      letterSpacing: '0.22em',
-                    }}
-                  >
-                    Nå
-                  </span>
-                )}
+              <div key={i} className="flex items-center justify-center py-0.5">
                 <span
                   className="lg-mono text-[10.5px] font-medium uppercase"
                   style={{
@@ -702,8 +689,7 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl 
           transition={spring.snappy}
           className="flex flex-col gap-10"
         >
-          {monthGroups.map((group, groupIdx) => {
-            const groupHasCurrentWeek = group.weeks.some((w) => w.isCurrentWeek)
+          {monthGroups.map((group) => {
             return (
               <section key={`${group.year}-${group.monthIdx}`} className="flex flex-col">
                 <header className="flex items-baseline gap-3 mb-4 px-1">
@@ -722,19 +708,6 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl 
                   >
                     {group.year}
                   </span>
-                  {groupHasCurrentWeek && (
-                    <span
-                      className="lg-mono ml-auto px-2 py-0.5 rounded-full text-[9.5px] font-medium uppercase"
-                      style={{
-                        background: 'rgba(139, 92, 246, 0.14)',
-                        color: 'var(--lg-accent)',
-                        border: '1px solid rgba(139, 92, 246, 0.28)',
-                        letterSpacing: '0.22em',
-                      }}
-                    >
-                      Nå
-                    </span>
-                  )}
                 </header>
 
                 <div className="flex flex-col gap-2.5">

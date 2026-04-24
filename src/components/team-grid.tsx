@@ -845,6 +845,31 @@ export function TeamGrid({
           )
         })()}
 
+        {/* Today chord — the Nordlys signature gradient line running through
+            today's column, same as on /min-plan's current-week row. Gives the
+            matrix the same "horisonten gjort vertikal" moment here. */}
+        {(() => {
+          const todayIdx = weekDays.findIndex(isToday)
+          if (todayIdx === -1) return null
+          const left = `calc(160px + ${todayIdx} * ((100% - 208px) / 5 + 8px) + ((100% - 208px) / 5) / 2 - 1px)`
+          return (
+            <div
+              aria-hidden
+              className="absolute pointer-events-none z-[4]"
+              style={{
+                top: 0,
+                bottom: 0,
+                left,
+                width: 2,
+                background:
+                  'linear-gradient(180deg, rgba(0, 245, 160, 0) 0%, #00F5A0 20%, #00D9F5 50%, #7C3AED 80%, rgba(124, 58, 237, 0) 100%)',
+                boxShadow:
+                  '0 0 12px rgba(0, 217, 245, 0.45), 0 0 24px rgba(0, 245, 160, 0.22)',
+              }}
+            />
+          )
+        })()}
+
         {/* Day header */}
         <div
           className="relative grid gap-2 px-4 pt-5 pb-4 z-10"
