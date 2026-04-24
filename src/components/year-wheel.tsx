@@ -29,11 +29,11 @@ const CY = 400
 const R = {
   monthOuter: 382, monthInner: 340,
   weekOuter:  336, weekInner:  310,
-  ring1Outer: 306, ring1Inner: 274,
-  ring2Outer: 270, ring2Inner: 238,
-  ring3Outer: 234, ring3Inner: 202,
-  centerRing: 196,
-  centerGlass: 176,
+  ring1Outer: 306, ring1Inner: 268,
+  ring2Outer: 264, ring2Inner: 226,
+  ring3Outer: 222, ring3Inner: 184,
+  centerRing: 180,
+  centerGlass: 160,
 }
 
 const RING_BOUNDS = [
@@ -1345,13 +1345,17 @@ export function DiskView({
                   const labelMode: 'tangential' | 'radial' | null =
                     arcSpan >= 3.5 ? 'tangential' :
                     arcSpan >= 1.6 ? 'radial' : null
-                  const radialWidthPx = bounds.outer - bounds.inner - 8
-                  // Truncate rather than squeeze — squeezed text becomes
-                  // illegible on tiny radial slots. ~6 chars max at 9px.
-                  const radialMaxChars = Math.max(4, Math.floor(radialWidthPx / 5.2))
+                  // With 38px rings we have ~30px of radial track. At 11px
+                  // text, natural char width is ~5.8; allow up to ~8 chars
+                  // then truncate. textLength + lengthAdjust absorbs small
+                  // overshoots without visible squeeze.
+                  const radialPathLen = bounds.outer - bounds.inner - 8
+                  const radialMaxChars = Math.max(5, Math.floor(radialPathLen / 4.2))
                   const radialTitle = ev.title.length > radialMaxChars
                     ? ev.title.slice(0, radialMaxChars - 1) + '…'
                     : ev.title
+                  const radialNaturalPx = radialTitle.length * 5.8
+                  const radialTextLen = Math.min(radialNaturalPx, radialPathLen)
 
                   return (
                     <motion.g key={ev.id}
@@ -1426,7 +1430,7 @@ export function DiskView({
                       )}
                       {labelMode === 'radial' && (
                         <text
-                          fontSize={10}
+                          fontSize={11}
                           fontWeight={700}
                           fill="white"
                           fillOpacity={0.98}
@@ -1435,13 +1439,15 @@ export function DiskView({
                             userSelect: 'none',
                             pointerEvents: 'none',
                             textShadow: '0 1px 3px rgba(0,0,0,0.7), 0 0 1px rgba(0,0,0,0.55)',
-                            letterSpacing: '0.015em',
+                            letterSpacing: '0.01em',
                           }}
                         >
                           <textPath
                             href={`#${ID.eventRadial(ev.id)}`}
                             startOffset="50%"
                             textAnchor="middle"
+                            textLength={radialTextLen}
+                            lengthAdjust="spacingAndGlyphs"
                           >
                             {radialTitle}
                           </textPath>
@@ -1714,10 +1720,10 @@ export function DiskView({
                 style={{ transformOrigin: `${CX}px ${CY}px`, pointerEvents: 'none' }}
               >
                 <text
-                  x={CX} y={CY - 92}
+                  x={CX} y={CY - 82}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={12}
+                  fontSize={11.5}
                   fontWeight={500}
                   fill="var(--text-tertiary)"
                   style={{
@@ -1729,13 +1735,13 @@ export function DiskView({
                   {year}
                 </text>
                 {/* The day — Fraunces 300 with opsz 144, SOFT 80.
-                    At 116px this is the type-monster; the soft axis rounds
+                    At 104px this is the type-monster; the soft axis rounds
                     the terminals so the glyph reads as warm, not mechanical. */}
                 <text
-                  x={CX} y={CY - 20}
+                  x={CX} y={CY - 18}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={116}
+                  fontSize={104}
                   fontWeight={300}
                   fill="var(--text-primary)"
                   style={{
@@ -1747,37 +1753,41 @@ export function DiskView({
                 >
                   {today.getDate()}
                 </text>
-                {/* Weekday + month — Fraunces italic, weekday in Ember */}
+                {/* Weekday + month — Fraunces italic, weekday in Ember.
+                    Bumped to 22px / weight 450 with a soft shadow so it
+                    reads cleanly against the aurora backdrop. */}
                 <text
-                  x={CX} y={CY + 54}
+                  x={CX} y={CY + 44}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={18}
+                  fontSize={22}
                   style={{
                     fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
                     fontStyle: 'italic',
-                    fontVariationSettings: '"opsz" 24, "SOFT" 80',
-                    fontWeight: 300,
-                    letterSpacing: '-0.018em',
+                    fontVariationSettings: '"opsz" 36, "SOFT" 60',
+                    fontWeight: 450,
+                    letterSpacing: '-0.012em',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.5)',
                   }}
                 >
-                  <tspan fill="var(--ember, var(--accent-color))">
+                  <tspan fill="var(--ember, var(--accent-color))" fontWeight={500}>
                     {weekdayFullT(today, t).toLowerCase()}
                   </tspan>
-                  <tspan fill="var(--text-secondary)">
+                  <tspan fill="var(--text-primary)" fillOpacity={0.92}>
                     {', '}{MONTH_FULL_L[today.getMonth()].toLowerCase()}
                   </tspan>
                 </text>
                 <text
-                  x={CX} y={CY + 78}
+                  x={CX} y={CY + 68}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={10.5}
-                  fontWeight={500}
-                  fill="var(--text-tertiary)"
+                  fontSize={10}
+                  fontWeight={600}
+                  fill="var(--text-secondary)"
+                  fillOpacity={0.85}
                   style={{
                     fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace',
-                    letterSpacing: '0.22em',
+                    letterSpacing: '0.24em',
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
@@ -1786,8 +1796,8 @@ export function DiskView({
                 {orgLogo && (
                   <image
                     href={orgLogo}
-                    x={CX - 44} y={CY + 100}
-                    width={88} height={32}
+                    x={CX - 36} y={CY + 86}
+                    width={72} height={26}
                     preserveAspectRatio="xMidYMid meet"
                     opacity={0.85}
                   />
@@ -1803,10 +1813,10 @@ export function DiskView({
                 style={{ transformOrigin: `${CX}px ${CY}px`, pointerEvents: 'none' }}
               >
                 <text
-                  x={CX} y={CY - 92}
+                  x={CX} y={CY - 82}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={12}
+                  fontSize={11.5}
                   fontWeight={500}
                   fill="var(--text-tertiary)"
                   style={{
@@ -1819,10 +1829,10 @@ export function DiskView({
                 </text>
                 {/* Month name — Fraunces italic as the month's spiritual signature */}
                 <text
-                  x={CX} y={CY - 22}
+                  x={CX} y={CY - 18}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={focus.month === 8 ? 64 : 76}
+                  fontSize={focus.month === 8 ? 56 : 68}
                   fontWeight={300}
                   fill="var(--text-primary)"
                   style={{
@@ -1838,33 +1848,35 @@ export function DiskView({
                 {focus.todayDeg !== null ? (
                   <>
                     <text
-                      x={CX} y={CY + 36}
+                      x={CX} y={CY + 28}
                       textAnchor="middle"
                       dominantBaseline="central"
-                      fontSize={16}
+                      fontSize={18}
                       style={{
                         fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
                         fontStyle: 'italic',
-                        fontVariationSettings: '"opsz" 24, "SOFT" 80',
-                        fontWeight: 300,
-                        letterSpacing: '-0.015em',
+                        fontVariationSettings: '"opsz" 30, "SOFT" 60',
+                        fontWeight: 450,
+                        letterSpacing: '-0.012em',
+                        textShadow: '0 1px 2px rgba(0,0,0,0.5)',
                       }}
                     >
-                      <tspan fill="var(--text-tertiary)">i dag · </tspan>
-                      <tspan fill="var(--ember, var(--accent-color))">
+                      <tspan fill="var(--text-secondary)">i dag · </tspan>
+                      <tspan fill="var(--ember, var(--accent-color))" fontWeight={500}>
                         {today.getDate()}. {weekdayFullT(today, t).toLowerCase()}
                       </tspan>
                     </text>
                     <text
-                      x={CX} y={CY + 64}
+                      x={CX} y={CY + 54}
                       textAnchor="middle"
                       dominantBaseline="central"
-                      fontSize={10.5}
-                      fontWeight={500}
-                      fill="var(--text-tertiary)"
+                      fontSize={10}
+                      fontWeight={600}
+                      fill="var(--text-secondary)"
+                      fillOpacity={0.85}
                       style={{
                         fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace',
-                        letterSpacing: '0.22em',
+                        letterSpacing: '0.24em',
                         fontVariantNumeric: 'tabular-nums',
                       }}
                     >
@@ -1873,17 +1885,18 @@ export function DiskView({
                   </>
                 ) : (
                   <text
-                    x={CX} y={CY + 42}
+                    x={CX} y={CY + 36}
                     textAnchor="middle"
                     dominantBaseline="central"
-                    fontSize={14}
+                    fontSize={16}
                     style={{
                       fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
                       fontStyle: 'italic',
-                      fontVariationSettings: '"opsz" 18, "SOFT" 60',
-                      fontWeight: 300,
+                      fontVariationSettings: '"opsz" 24, "SOFT" 60',
+                      fontWeight: 400,
                       letterSpacing: '-0.005em',
-                      fill: 'var(--text-tertiary)',
+                      fill: 'var(--text-secondary)',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.4)',
                     }}
                   >
                     {focus.events.length === 0
@@ -1892,15 +1905,15 @@ export function DiskView({
                   </text>
                 )}
                 <text
-                  x={CX} y={CY + 92}
+                  x={CX} y={CY + 82}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={10}
+                  fontSize={9.5}
                   fontWeight={600}
                   fill="var(--text-tertiary)"
                   style={{
                     fontFamily: 'var(--font-body)',
-                    letterSpacing: '0.2em',
+                    letterSpacing: '0.22em',
                   }}
                 >
                   KLIKK FOR Å GÅ TILBAKE
