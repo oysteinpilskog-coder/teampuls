@@ -12,7 +12,7 @@ import { CustomerMapView } from '@/components/dashboard-views/customer-map-view'
 import { WheelView } from '@/components/dashboard-views/wheel-view'
 import { AuroraBackground } from '@/components/dashboard-views/aurora-background'
 import { getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
-import type { Entry, Member, Office, Organization, Customer } from '@/lib/supabase/types'
+import type { Entry, Member, Office, Organization, Customer, DashboardViewKey } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 
@@ -20,8 +20,8 @@ interface DashboardClientProps {
   orgId: string
 }
 
-type ViewKey = 'A' | 'B' | 'C' | 'D' | 'E'
-const VIEWS: ViewKey[] = ['A', 'B', 'C', 'D', 'E']
+type ViewKey = DashboardViewKey
+const ALL_VIEWS: ViewKey[] = ['A', 'B', 'C', 'D', 'E']
 
 // How long each view dwells. Wheel gets a small bump so the eye can land on
 // the ring it cares about; operational views stay at the default tempo.
@@ -66,8 +66,21 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
   const [members, setMembers] = useState<Member[]>([])
   const [offices, setOffices] = useState<Office[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [org, setOrg] = useState<Pick<Organization, 'name' | 'timezone'> | null>(null)
+  const [org, setOrg] = useState<Pick<Organization, 'name' | 'timezone' | 'dashboard_show_sick' | 'dashboard_rotation_views'> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Active carousel views come from the org setting. Preserve canonical
+  // A..E order so the rotation sequence stays predictable, and fall back
+  // to the full set if the setting is missing or empty (shouldn't happen,
+  // but we never want a blank TV).
+  const enabledViews: ViewKey[] = (() => {
+    const raw = org?.dashboard_rotation_views
+    if (!raw || raw.length === 0) return ALL_VIEWS
+    const set = new Set(raw)
+    return ALL_VIEWS.filter(v => set.has(v))
+  })()
+  const VIEWS: ViewKey[] = enabledViews.length > 0 ? enabledViews : ALL_VIEWS
+  const showSick = org?.dashboard_show_sick ?? true
 
   const { week, year } = getTodayWeekAndYear()
   const weekDays = getWeekDays(week, year)
@@ -79,18 +92,25 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
     return () => clearInterval(id)
   }, [])
 
+  // Clamp the active index if the admin just removed the current view from
+  // the carousel (or the settings payload arrives after first paint).
+  useEffect(() => {
+    if (viewIdx >= VIEWS.length) setViewIdx(0)
+  }, [VIEWS.length, viewIdx])
+
   // Auto-rotate views. Each view can request a longer dwell via DWELL_MULTIPLIER
   // (the wheel needs more time to read than the operational boards). We also
   // stamp viewStartedAt so the progress hairline below the view switcher can
   // show that the timer is alive.
   useEffect(() => {
     setViewStartedAt(Date.now())
-    const multiplier = DWELL_MULTIPLIER[VIEWS[viewIdx]]
+    const safeIdx = viewIdx % VIEWS.length
+    const multiplier = DWELL_MULTIPLIER[VIEWS[safeIdx]]
     const id = setTimeout(() => {
       setViewIdx(i => (i + 1) % VIEWS.length)
     }, intervalSec * 1000 * multiplier)
     return () => clearTimeout(id)
-  }, [intervalSec, viewIdx])
+  }, [intervalSec, viewIdx, VIEWS])
 
   // Fetch org + members + offices once
   const fetchData = useCallback(async () => {
@@ -103,7 +123,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
     ] = await Promise.all([
       supabase
         .from('organizations')
-        .select('name, timezone')
+        .select('name, timezone, dashboard_show_sick, dashboard_rotation_views')
         .eq('id', orgId)
         .maybeSingle(),
       supabase
@@ -123,7 +143,14 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
         .eq('org_id', orgId)
         .order('name'),
     ])
-    setOrg(orgData ?? { name: 'Offiview', timezone: 'Europe/Oslo' })
+    setOrg(
+      orgData ?? {
+        name: 'Offiview',
+        timezone: 'Europe/Oslo',
+        dashboard_show_sick: true,
+        dashboard_rotation_views: ALL_VIEWS,
+      }
+    )
     setMembers(membersData ?? [])
     setOffices(officesData ?? [])
     setCustomers(customersData ?? [])
@@ -165,7 +192,14 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
   }, [orgId])
 
   // Realtime entries for the current week (includes today)
-  const { entries } = useEntries(orgId, dateStrings)
+  const { entries: rawEntries } = useEntries(orgId, dateStrings)
+
+  // Privacy: when the org has opted out of exposing sick leave on the public
+  // dashboard, collapse sick → off so the display only reveals that someone
+  // is away, not why. Keeps the count honest while hiding the health detail.
+  const entries = showSick
+    ? rawEntries
+    : rawEntries.map(e => (e.status === 'sick' ? { ...e, status: 'off' as const } : e))
 
   // Today's entries only, deduped to one per member (most recently updated wins)
   const todayStr = toDateString(new Date())
@@ -186,7 +220,9 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
     return () => document.removeEventListener('fullscreenchange', onFsChange)
   }, [])
 
-  // Keyboard: left/right to switch views, F for fullscreen, Esc handled by browser
+  // Keyboard: left/right to switch views, F for fullscreen, Esc handled by browser.
+  // Re-registers when VIEWS changes so nav wraps around the currently enabled
+  // set (not the initial one captured at mount).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'ArrowLeft')  setViewIdx(i => (i - 1 + VIEWS.length) % VIEWS.length)
@@ -195,9 +231,9 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [VIEWS]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const currentView = VIEWS[viewIdx]
+  const currentView = VIEWS[viewIdx] ?? VIEWS[0]
   const orgName = org?.name ?? 'CalWin'
 
   return (
@@ -273,7 +309,8 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
           whole product speaks the same visual language. */}
       <div className="relative h-[2px] w-full overflow-hidden">
         {(() => {
-          const multiplier = DWELL_MULTIPLIER[VIEWS[viewIdx]]
+          const key = VIEWS[viewIdx] ?? VIEWS[0] ?? 'A'
+          const multiplier = DWELL_MULTIPLIER[key]
           const dwellMs = Math.max(1, intervalSec * 1000 * multiplier)
           const elapsed = time.getTime() - viewStartedAt
           const pct = Math.max(0, Math.min(1, elapsed / dwellMs))
