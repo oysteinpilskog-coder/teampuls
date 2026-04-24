@@ -23,9 +23,36 @@ interface WeekNavProps {
   onNext: () => void
   onToday: () => void
   onJumpTo: (next: { week: number; year: number }) => void
+  /** Live metrics shown only on the current week (hides on past/future weeks). */
+  metrics?: {
+    memberCount: number
+    registeredToday: number
+    distinctLocations: number
+  } | null
 }
 
-export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, onJumpTo }: WeekNavProps) {
+/**
+ * WeekNav — compact single-row strip that lives under the AI input.
+ *
+ * Left: eyebrow pill with week number, date range, live NÅ pulse, plus the
+ * "5/8 på plass · 4 steder" metrics when viewing the current week.
+ * Right: previous / "Denne uken" / next pill.
+ *
+ * The giant "April 2026" serif heading is intentionally absent — the matrix
+ * below already renders the day numbers with month context in its header,
+ * and duplicating it costs vertical real estate that the at-a-glance view
+ * can't afford.
+ */
+export function WeekNav({
+  week,
+  year,
+  isCurrentWeek,
+  onPrev,
+  onNext,
+  onToday,
+  onJumpTo,
+  metrics,
+}: WeekNavProps) {
   const t = useT()
   const { month: currentMonth, year: currentCalYear } = getMonthForWeek(week, year)
   const weekDays = getWeekDays(week, year)
@@ -37,53 +64,73 @@ export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, on
       ? `${first.day}–${last.day} ${last.month}`
       : `${first.day} ${first.month} – ${last.day} ${last.month}`
 
+  const showMetrics = !!metrics && isCurrentWeek && metrics.memberCount > 0
+
   return (
-    <div className="flex items-end justify-between gap-6 flex-wrap">
-      {/* Title block — eyebrow, month headline, week range subline */}
-      <motion.div
-        key={`${week}-${year}`}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={spring.gentle}
-      >
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="lg-eyebrow">
-            {t.matrix.weekLabel} {week}
-            <span className="mx-2 opacity-50">·</span>
-            {rangeLabel}
-          </span>
-          {isCurrentWeek && (
+    <motion.div
+      key={`${week}-${year}`}
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={spring.gentle}
+      className="flex items-center justify-between gap-4 flex-wrap"
+    >
+      {/* Left: single-line meta — week · range · NÅ · metrics · month picker */}
+      <div className="flex items-center gap-2 flex-wrap min-w-0">
+        <span className="lg-eyebrow tabular-nums whitespace-nowrap">
+          {t.matrix.weekLabel} {week}
+          <span className="mx-2 opacity-50">·</span>
+          {rangeLabel}
+        </span>
+
+        {isCurrentWeek && (
+          <motion.span
+            layoutId="current-week-dot"
+            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full"
+            style={{
+              background: 'rgba(139, 92, 246, 0.12)',
+              color: 'var(--lg-accent)',
+              border: '1px solid rgba(139, 92, 246, 0.28)',
+              fontFamily: 'var(--font-body)',
+            }}
+          >
             <motion.span
-              layoutId="current-week-dot"
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full"
-              style={{
-                background: 'rgba(139, 92, 246, 0.12)',
-                color: 'var(--lg-accent)',
-                border: '1px solid rgba(139, 92, 246, 0.28)',
-                fontFamily: 'var(--font-body)',
-              }}
-            >
-              <motion.span
-                className="w-1 h-1 rounded-full"
-                style={{ background: 'var(--lg-accent)', boxShadow: '0 0 6px var(--lg-accent-glow)' }}
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-              />
-              <span className="lg-mono text-[9px] font-medium uppercase" style={{ letterSpacing: '0.2em' }}>Nå</span>
-            </motion.span>
-          )}
-        </div>
+              className="w-1 h-1 rounded-full"
+              style={{ background: 'var(--lg-accent)', boxShadow: '0 0 6px var(--lg-accent-glow)' }}
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            />
+            <span className="lg-mono text-[9px] font-medium uppercase" style={{ letterSpacing: '0.2em' }}>Nå</span>
+          </motion.span>
+        )}
+
+        {showMetrics && (
+          <span
+            className="lg-eyebrow tabular-nums whitespace-nowrap"
+            style={{ color: 'var(--lg-text-2)' }}
+          >
+            <span aria-hidden className="mr-2 opacity-40">·</span>
+            {metrics!.registeredToday}/{metrics!.memberCount} på plass
+            {metrics!.distinctLocations > 0 && (
+              <>
+                <span aria-hidden className="mx-2 opacity-40">·</span>
+                {metrics!.distinctLocations}{' '}
+                {metrics!.distinctLocations === 1 ? t.today.place : t.today.places}
+              </>
+            )}
+          </span>
+        )}
+
         <MonthPickerTrigger
           month={currentMonth}
           year={currentCalYear}
           week={week}
           onChange={onJumpTo}
         />
-      </motion.div>
+      </div>
 
-      {/* Right — nav cluster (glass pill containing prev, today, next) */}
+      {/* Right: glass pill with prev, today, next */}
       <div
-        className="flex items-center gap-0.5 rounded-full p-1"
+        className="flex items-center gap-0.5 rounded-full p-1 shrink-0"
         style={{
           background: 'rgba(22, 22, 27, 0.5)',
           backdropFilter: 'blur(20px) saturate(180%)',
@@ -126,12 +173,12 @@ export function WeekNav({ week, year, isCurrentWeek, onPrev, onNext, onToday, on
           <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
         </button>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The month title *is* the picker trigger — click the headline to jump.
+// Compact month picker — a small chip instead of a giant serif heading.
 
 interface MonthPickerTriggerProps {
   month: number
@@ -163,40 +210,38 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
       }}
     >
       <PopoverTrigger
-        className="group inline-flex items-baseline gap-3 focus:outline-none rounded-lg -mx-1 px-1"
+        className="group inline-flex items-center gap-1.5 focus:outline-none rounded-full px-2.5 h-6 transition-colors duration-150 hover:bg-[var(--lg-surface-2)]"
         aria-label={t.matrix.selectMonth}
+        style={{
+          border: '1px solid var(--lg-divider)',
+          background: 'transparent',
+        }}
       >
         <span
-          className="lg-serif leading-[0.95]"
+          className="capitalize"
           style={{
-            fontSize: 'clamp(40px, 5.2vw, 60px)',
             color: 'var(--lg-text-1)',
-            textTransform: 'capitalize',
+            fontFamily: 'var(--font-body)',
+            fontSize: 11.5,
+            fontWeight: 500,
+            letterSpacing: '-0.005em',
           }}
         >
           {t.dates.monthsLong[month]}
         </span>
         <span
-          className="lg-mono leading-[0.95]"
-          style={{
-            fontSize: 'clamp(18px, 2.2vw, 22px)',
-            color: 'var(--lg-text-3)',
-            fontWeight: 400,
-          }}
+          className="lg-mono"
+          style={{ color: 'var(--lg-text-3)', fontSize: 10.5 }}
         >
           {year}
         </span>
         <motion.span
           aria-hidden
-          className="inline-flex items-center justify-center w-5 h-5 rounded-full self-center ml-0.5 opacity-50 group-hover:opacity-100 transition-opacity duration-150"
-          style={{
-            background: 'var(--lg-surface-2)',
-            color: 'var(--lg-text-2)',
-          }}
           animate={{ rotate: open ? 180 : 0 }}
           transition={spring.snappy}
+          style={{ color: 'var(--lg-text-3)' }}
         >
-          <svg viewBox="0 0 12 12" width="10" height="10" fill="none">
+          <svg viewBox="0 0 12 12" width="9" height="9" fill="none">
             <path d="M3 4.5 6 7.5 9 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </motion.span>

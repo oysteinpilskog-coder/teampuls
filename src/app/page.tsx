@@ -2,9 +2,6 @@ import { redirect } from 'next/navigation'
 import { TeamGrid } from '@/components/team-grid'
 import { AIInput } from '@/components/ai-input'
 import { EmptyState } from '@/components/empty-state'
-import { PresenceHeatmap } from '@/components/presence-heatmap'
-import { DaysTogether } from '@/components/days-together'
-import { TeamHealthCard } from '@/components/team-health-card'
 import { InactivityNudge } from '@/components/inactivity-nudge'
 import { TodayGreeting } from '@/components/today-greeting'
 import { getSessionMember } from '@/lib/supabase/session'
@@ -49,16 +46,14 @@ export default async function HomePage() {
     )
   }
 
-  // Warm the grid with the current week's members + entries server-side.
-  // The client hook accepts these as its initial state and skips the first
-  // fetch, so the page hydrates into its populated state instead of flashing
-  // empty → data.
+  // Warm the grid with the current week's members + entries server-side so
+  // the page hydrates into its populated state.
   const supabase = await createClient()
   const { week, year } = getTodayWeekAndYear()
   const weekDays = getWeekDays(week, year)
   const dateStrings = weekDays.map(toDateString)
 
-  const [membersRes, entriesRes, dict] = await Promise.all([
+  const [membersRes, entriesRes] = await Promise.all([
     supabase
       .from('members')
       .select('*')
@@ -70,13 +65,11 @@ export default async function HomePage() {
       .select('*')
       .eq('org_id', member.org_id)
       .in('date', dateStrings),
-    getServerDict(),
   ])
 
-  // Compute today's presence summary server-side for the Fraunces greeting.
-  // Uses actual entries only (assumed-presence is a UI-level concept; we
-  // prefer truth-on-the-ground for the headline). Dedup by member so the
-  // same person across multiple entries counts once.
+  // Today's live metrics (rendered once in the compact strip under the AI
+  // input). Only truth-on-the-ground counts — assumed presence is a UI
+  // affordance on the matrix, not a headline signal.
   const todayStr = toDateString(new Date())
   const todayEntries = (entriesRes.data ?? []).filter(e => e.date === todayStr)
   const todayMemberIds = new Set(todayEntries.map(e => e.member_id))
@@ -86,31 +79,33 @@ export default async function HomePage() {
       .filter(Boolean),
   ).size
 
-  return (
-    <div className="mx-auto max-w-7xl px-6 pt-2 pb-10 space-y-8">
-      {/* Quiet Fraunces greeting — today's date as an italic Ember beat */}
-      <TodayGreeting
-        today={new Date()}
-        week={week}
-        memberCount={membersRes.data?.length ?? 0}
-        registeredToday={todayMemberIds.size}
-        distinctLocations={distinctLocations}
-        dict={dict}
-      />
+  const memberCount = membersRes.data?.length ?? 0
 
+  return (
+    <div className="mx-auto max-w-7xl px-6 pt-3 pb-10 space-y-5">
+      {/* Hero beat — italic Ember weekday + Fraunces date. Owns its line. */}
+      <TodayGreeting today={new Date()} dict={await getServerDict()} />
+
+      {/* AI input — single, calm call to action */}
       <div className="mx-auto max-w-3xl">
         <AIInput orgId={member.org_id} />
       </div>
+
+      {/* Week grid + compact meta strip (the WeekNav inside TeamGrid carries
+          the uke / range / live metrics / prev-today-next pill on one row). */}
       <TeamGrid
         orgId={member.org_id}
         initialMembers={membersRes.data ?? []}
         initialEntries={entriesRes.data ?? []}
         initialWeek={week}
         initialYear={year}
+        todayMetrics={{
+          memberCount,
+          registeredToday: todayMemberIds.size,
+          distinctLocations,
+        }}
       />
-      <DaysTogether />
-      <TeamHealthCard orgId={member.org_id} />
-      <PresenceHeatmap orgId={member.org_id} />
+
       <InactivityNudge orgId={member.org_id} memberId={member.id} />
     </div>
   )
