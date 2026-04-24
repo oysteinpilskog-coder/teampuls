@@ -432,6 +432,8 @@ export const en: Dictionary = {
       errorWrongCountry: 'The match was in the wrong country — try again with a more specific address',
       errorGeocode: 'Geocoding failed',
       errorNeedCountrySave: 'Pick a country before saving — otherwise the map guesses the wrong city',
+      errorNeedCoords: 'The customer must be placed on the map before you can save',
+      coordsRequiredHint: 'Tap "Find on map" to place the customer',
     },
     language: {
       title: 'Language',

@@ -432,6 +432,8 @@ export const lt: Dictionary = {
       errorWrongCountry: 'Atitikmuo buvo kitoje šalyje — bandyk tikslesnį adresą',
       errorGeocode: 'Geokodavimas nepavyko',
       errorNeedCountrySave: 'Pasirink šalį prieš saugodamas — kitaip žemėlapis atspės neteisingą miestą',
+      errorNeedCoords: 'Klientą reikia patalpinti žemėlapyje prieš saugant',
+      coordsRequiredHint: 'Spausk „Rasti žemėlapyje", kad patalpintum klientą',
     },
     language: {
       title: 'Kalba',

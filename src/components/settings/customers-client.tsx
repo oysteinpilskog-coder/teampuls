@@ -107,6 +107,24 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
 
   function closeModal() { setModalMode('closed') }
 
+  // Save is allowed only when we already have coords OR we have enough input
+  // for geocoding to plausibly succeed (address-like + country). Without this
+  // gate the row saves with lat/lng = null and the customer never appears on
+  // the map — see commit introducing ghost pins.
+  const hasManualCoords =
+    form.latitude.trim() !== '' &&
+    form.longitude.trim() !== '' &&
+    Number.isFinite(parseFloat(form.latitude)) &&
+    Number.isFinite(parseFloat(form.longitude))
+  const canGeocodeFromForm =
+    [form.address, form.postal_code, form.city].some(v => v.trim()) &&
+    !!form.country_code
+  const placedOnMap = hasManualCoords || geo.state === 'done'
+  const canSave =
+    !!form.name.trim() &&
+    !saving &&
+    (placedOnMap || canGeocodeFromForm)
+
   function updateForm<K extends keyof CustomerFormState>(key: K, value: string) {
     setForm(f => ({ ...f, [key]: value }))
     if (['address', 'postal_code', 'city', 'country_code'].includes(key)) {
@@ -184,6 +202,15 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
       const hit = await runGeocode()
       if (hit) { lat = hit.lat; lng = hit.lng }
       else { setSaving(false); return }
+    }
+
+    // Hard requirement: a customer without coordinates is invisible on the
+    // dashboard map, which defeats the whole point of the registry. Block
+    // the save at the last moment in case the UI gate above was bypassed.
+    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+      setSaving(false)
+      toast.error(t.settings.customers.errorNeedCoords)
+      return
     }
 
     const row = {
@@ -638,23 +665,50 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
                 </details>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <button
-                  onClick={closeModal}
-                  className="px-4 py-2 rounded-xl text-[13px] font-medium"
-                  style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-subtle)', fontFamily: 'var(--font-body)' }}
-                >
-                  {t.common.cancel}
-                </button>
-                <motion.button
-                  onClick={handleSave}
-                  disabled={!form.name.trim() || saving}
-                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }} transition={spring.snappy}
-                  className="px-5 py-2 rounded-xl text-[13px] font-semibold text-white disabled:opacity-40"
-                  style={{ backgroundColor: 'var(--accent-color)', fontFamily: 'var(--font-body)' }}
-                >
-                  {saving ? '...' : modalMode === 'add' ? t.common.add : t.common.save}
-                </motion.button>
+              <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
+                {/* Gentle nudge when save is gated on coords. Keeps the user
+                 *  unambiguous about *why* the button is dim. */}
+                <AnimatePresence>
+                  {!!form.name.trim() && !canSave && !saving && (
+                    <motion.span
+                      key="coords-hint"
+                      initial={{ opacity: 0, x: -6 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-medium"
+                      style={{ color: '#c99700', fontFamily: 'var(--font-body)' }}
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ backgroundColor: '#c99700' }}
+                      />
+                      {t.settings.customers.coordsRequiredHint}
+                    </motion.span>
+                  )}
+                  {canSave && !saving && (
+                    <span key="coords-spacer" className="flex-1" />
+                  )}
+                </AnimatePresence>
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    onClick={closeModal}
+                    className="px-4 py-2 rounded-xl text-[13px] font-medium"
+                    style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-subtle)', fontFamily: 'var(--font-body)' }}
+                  >
+                    {t.common.cancel}
+                  </button>
+                  <motion.button
+                    onClick={handleSave}
+                    disabled={!canSave}
+                    whileHover={canSave ? { scale: 1.02 } : undefined}
+                    whileTap={canSave ? { scale: 0.97 } : undefined}
+                    transition={spring.snappy}
+                    className="px-5 py-2 rounded-xl text-[13px] font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: 'var(--accent-color)', fontFamily: 'var(--font-body)' }}
+                  >
+                    {saving ? '...' : modalMode === 'add' ? t.common.add : t.common.save}
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
             </div>
