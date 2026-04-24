@@ -432,6 +432,8 @@ export const sv: Dictionary = {
       errorWrongCountry: 'Träffen låg i fel land — försök igen med en mer specifik adress',
       errorGeocode: 'Geokodning misslyckades',
       errorNeedCountrySave: 'Välj land innan du sparar — annars gissar kartan fel stad',
+      errorNeedCoords: 'Kunden måste placeras på kartan innan du kan spara',
+      coordsRequiredHint: 'Tryck "Hitta på kartan" för att placera kunden',
     },
     language: {
       title: 'Språk',

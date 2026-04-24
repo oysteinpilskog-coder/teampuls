@@ -432,6 +432,8 @@ export const es: Dictionary = {
       errorWrongCountry: 'El resultado estaba en otro país — prueba con una dirección más específica',
       errorGeocode: 'Falló la geocodificación',
       errorNeedCountrySave: 'Elige país antes de guardar — si no, el mapa adivina mal la ciudad',
+      errorNeedCoords: 'El cliente debe ubicarse en el mapa antes de guardar',
+      coordsRequiredHint: 'Pulsa "Buscar en el mapa" para ubicar al cliente',
     },
     language: {
       title: 'Idioma',

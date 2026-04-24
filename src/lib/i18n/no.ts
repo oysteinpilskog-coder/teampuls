@@ -430,6 +430,8 @@ export const no = {
       errorWrongCountry: 'Treffet lå i feil land — prøv igjen med mer spesifikk adresse',
       errorGeocode: 'Geokoding feilet',
       errorNeedCountrySave: 'Velg land før du lagrer — ellers gjetter kartet feil by',
+      errorNeedCoords: 'Kunden må plasseres på kartet før du kan lagre',
+      coordsRequiredHint: 'Trykk "Finn på kart" for å plassere kunden',
     },
     language: {
       title: 'Språk',
