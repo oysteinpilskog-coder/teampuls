@@ -49,6 +49,11 @@ export function DateRangePicker({
     startOfMonth(start ?? new Date())
   )
   const [drag, setDrag] = useState<DragMode>({ kind: 'idle' })
+  // Click-chain: after the first click on a blank/completed range, we remember
+  // that date so the *next* click extends instead of starting a new range.
+  const [pendingAnchor, setPendingAnchor] = useState<Date | null>(null)
+  const pointerDownDateRef = useRef<Date | null>(null)
+  const pointerMovedRef = useRef(false)
   const gridRef = useRef<HTMLDivElement>(null)
 
   const months = [anchorMonth, addMonths(anchorMonth, 1)]
@@ -73,37 +78,51 @@ export function DateRangePicker({
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     } catch { /* noop */ }
 
-    if (!start || !end) {
-      const mode: DragMode = { kind: 'creating', anchor: date }
-      setDrag(mode)
-      onChange(toDateString(date), toDateString(date))
+    pointerDownDateRef.current = date
+    pointerMovedRef.current = false
+
+    // Existing multi-day range: preserve resize/move gestures on edges and interior.
+    if (start && end && !isSameDay(start, end)) {
+      const atStart = isSameDay(date, start)
+      const atEnd = isSameDay(date, end)
+      const inside = !isBefore(date, start) && !isAfter(date, end)
+
+      if (atStart) {
+        setDrag({ kind: 'resizeStart', anchor: end })
+        setPendingAnchor(null)
+        return
+      }
+      if (atEnd) {
+        setDrag({ kind: 'resizeEnd', anchor: start })
+        setPendingAnchor(null)
+        return
+      }
+      if (inside) {
+        setDrag({
+          kind: 'move',
+          offsetDays: differenceInDays(date, start),
+          length: differenceInDays(end, start) + 1,
+        })
+        setPendingAnchor(null)
+        return
+      }
+    }
+
+    // Click-chain: second click extends from the remembered anchor.
+    if (pendingAnchor) {
+      const a = pendingAnchor
+      const s = isBefore(date, a) ? date : a
+      const ed = isBefore(date, a) ? a : date
+      onChange(toDateString(s), toDateString(ed))
+      setDrag({ kind: 'creating', anchor: a })
+      setPendingAnchor(null)
       return
     }
 
-    const singleDay = isSameDay(start, end)
-    const atStart = isSameDay(date, start)
-    const atEnd = isSameDay(date, end)
-    const inside = !isBefore(date, start) && !isAfter(date, end)
-
-    let mode: DragMode
-    if (singleDay) {
-      mode = { kind: 'creating', anchor: date }
-      onChange(toDateString(date), toDateString(date))
-    } else if (atStart) {
-      mode = { kind: 'resizeStart', anchor: end }
-    } else if (atEnd) {
-      mode = { kind: 'resizeEnd', anchor: start }
-    } else if (inside) {
-      mode = {
-        kind: 'move',
-        offsetDays: differenceInDays(date, start),
-        length: differenceInDays(end, start) + 1,
-      }
-    } else {
-      mode = { kind: 'creating', anchor: date }
-      onChange(toDateString(date), toDateString(date))
-    }
-    setDrag(mode)
+    // First click: collapse to single day and remember anchor for the next click.
+    onChange(toDateString(date), toDateString(date))
+    setDrag({ kind: 'creating', anchor: date })
+    setPendingAnchor(date)
   }
 
   function dateFromPoint(clientX: number, clientY: number): Date | null {
@@ -117,12 +136,22 @@ export function DateRangePicker({
     if (drag.kind === 'idle') return
     const date = dateFromPoint(e.clientX, e.clientY)
     if (!date) return
+    if (pointerDownDateRef.current && !isSameDay(date, pointerDownDateRef.current)) {
+      pointerMovedRef.current = true
+    }
     applyDragAt(date, drag)
   }
 
   function handlePointerUp() {
     if (drag.kind === 'idle') return
+    // A real drag (pointer moved to a different cell) is an explicit gesture —
+    // break the click chain so the next click starts fresh.
+    if (pointerMovedRef.current) {
+      setPendingAnchor(null)
+    }
     setDrag({ kind: 'idle' })
+    pointerDownDateRef.current = null
+    pointerMovedRef.current = false
   }
 
   const rangeLabel = useMemo(() => {
