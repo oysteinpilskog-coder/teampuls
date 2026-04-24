@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { Copy, Check, Upload, Trash2, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { Organization, EntryStatus, PresenceAssumption } from '@/lib/supabase/types'
+import type { Organization, EntryStatus, PresenceAssumption, DashboardViewKey } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { DEFAULT_HEX_COLORS, mergeHexColors, type HexColors } from '@/lib/status-colors/defaults'
 import { derivePalette } from '@/lib/status-colors/derive'
@@ -14,6 +14,15 @@ import { StatusIcon } from '@/components/icons/status-icons'
 import { useT } from '@/lib/i18n/context'
 
 const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
+
+const DASHBOARD_VIEW_KEYS: DashboardViewKey[] = ['A', 'B', 'C', 'D', 'E']
+
+function sameSet(a: DashboardViewKey[], b: DashboardViewKey[]): boolean {
+  if (a.length !== b.length) return false
+  const sa = new Set(a)
+  for (const k of b) if (!sa.has(k)) return false
+  return true
+}
 
 interface OrgClientProps {
   org: Organization
@@ -40,6 +49,14 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
   const [presenceAssumption, setPresenceAssumption] = useState<PresenceAssumption>(
     initialOrg.default_presence_assumption ?? 'none'
   )
+  const [dashboardShowSick, setDashboardShowSick] = useState<boolean>(
+    initialOrg.dashboard_show_sick ?? true
+  )
+  const [dashboardRotationViews, setDashboardRotationViews] = useState<DashboardViewKey[]>(
+    initialOrg.dashboard_rotation_views && initialOrg.dashboard_rotation_views.length > 0
+      ? initialOrg.dashboard_rotation_views
+      : DASHBOARD_VIEW_KEYS
+  )
   const [statusColors, setStatusColors] = useState<HexColors>(() =>
     mergeHexColors(initialOrg.status_colors)
   )
@@ -52,12 +69,35 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
   const savedStatusColors = mergeHexColors(org.status_colors)
   const statusColorsDirty = STATUS_ORDER.some(s => statusColors[s] !== savedStatusColors[s])
 
+  const savedRotationViews =
+    org.dashboard_rotation_views && org.dashboard_rotation_views.length > 0
+      ? org.dashboard_rotation_views
+      : DASHBOARD_VIEW_KEYS
+  const rotationDirty = !sameSet(dashboardRotationViews, savedRotationViews)
+
   const isDirty =
     name !== org.name ||
     timezone !== org.timezone ||
     primaryColor !== (org.primary_color ?? '#0066FF') ||
     presenceAssumption !== (org.default_presence_assumption ?? 'none') ||
+    dashboardShowSick !== (org.dashboard_show_sick ?? true) ||
+    rotationDirty ||
     statusColorsDirty
+
+  function toggleRotationView(view: DashboardViewKey) {
+    setDashboardRotationViews(prev => {
+      const has = prev.includes(view)
+      if (has) {
+        // Never let the admin save an empty rotation — the dashboard needs at
+        // least one view to render. We keep the last one locked on.
+        if (prev.length === 1) return prev
+        return prev.filter(v => v !== view)
+      }
+      // Preserve canonical A..E order so the saved array matches the rotation sequence.
+      const next = [...prev, view]
+      return DASHBOARD_VIEW_KEYS.filter(k => next.includes(k))
+    })
+  }
 
   async function handleLogoFile(file: File) {
     const allowed = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']
@@ -148,6 +188,9 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     const status_colors_payload = STATUS_ORDER.every(s => statusColors[s] === DEFAULT_HEX_COLORS[s])
       ? null
       : statusColors
+    const rotation_payload = dashboardRotationViews.length > 0
+      ? [...dashboardRotationViews]
+      : [...DASHBOARD_VIEW_KEYS]
     const { error } = await supabase
       .from('organizations')
       .update({
@@ -156,6 +199,8 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
         primary_color: primaryColor,
         status_colors: status_colors_payload,
         default_presence_assumption: presenceAssumption,
+        dashboard_show_sick: dashboardShowSick,
+        dashboard_rotation_views: rotation_payload,
       })
       .eq('id', org.id)
     setSaving(false)
@@ -167,6 +212,8 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       primary_color: primaryColor,
       status_colors: status_colors_payload,
       default_presence_assumption: presenceAssumption,
+      dashboard_show_sick: dashboardShowSick,
+      dashboard_rotation_views: rotation_payload,
     }))
     // Push fresh colors through the context so the rest of the app updates immediately.
     statusColorsCtx?.setHex(statusColors)
@@ -378,6 +425,38 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
           <PresenceAssumptionPicker value={presenceAssumption} onChange={setPresenceAssumption} />
         </SettingsField>
 
+        {/* Dashboard — sick leave privacy */}
+        <SettingsField
+          label={t.settings.org.dashboardShowSick}
+          description={t.settings.org.dashboardShowSickDesc}
+        >
+          <SickPrivacyPicker
+            value={dashboardShowSick}
+            onChange={setDashboardShowSick}
+            labelOn={t.settings.org.dashboardShowSickOn}
+            labelOff={t.settings.org.dashboardShowSickOff}
+          />
+        </SettingsField>
+
+        {/* Dashboard — carousel rotation */}
+        <SettingsField
+          label={t.settings.org.dashboardRotation}
+          description={t.settings.org.dashboardRotationDesc}
+        >
+          <DashboardRotationPicker
+            selected={dashboardRotationViews}
+            onToggle={toggleRotationView}
+            labels={{
+              A: t.dashboard.views.now,
+              B: t.dashboard.views.week,
+              C: t.dashboard.views.offices,
+              D: t.dashboard.views.customers,
+              E: t.dashboard.views.wheel,
+            }}
+            minHint={t.settings.org.dashboardRotationMinOne}
+          />
+        </SettingsField>
+
         {/* Status colors */}
         <SettingsField
           label="Statusfarger"
@@ -545,6 +624,134 @@ function PresenceAssumptionPicker({
           </button>
         )
       })}
+    </div>
+  )
+}
+
+function SickPrivacyPicker({
+  value,
+  onChange,
+  labelOn,
+  labelOff,
+}: {
+  value: boolean
+  onChange: (v: boolean) => void
+  labelOn: string
+  labelOff: string
+}) {
+  const options: Array<{ v: boolean; label: string }> = [
+    { v: true, label: labelOn },
+    { v: false, label: labelOff },
+  ]
+  return (
+    <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="Sykefravær på dashboard">
+      {options.map((opt) => {
+        const active = value === opt.v
+        return (
+          <button
+            key={String(opt.v)}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(opt.v)}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-[background,border-color] duration-150"
+            style={{
+              background: active ? 'rgba(139, 92, 246, 0.10)' : 'var(--lg-surface-2, var(--bg-subtle))',
+              border: `1px solid ${active ? 'rgba(139, 92, 246, 0.45)' : 'var(--lg-divider, var(--border-subtle))'}`,
+              fontFamily: 'var(--font-body)',
+            }}
+          >
+            <span
+              aria-hidden
+              className="inline-flex items-center justify-center rounded-full shrink-0"
+              style={{
+                width: 14,
+                height: 14,
+                background: active ? 'var(--lg-accent)' : 'transparent',
+                boxShadow: active
+                  ? '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 10px var(--lg-accent-glow)'
+                  : `inset 0 0 0 1.5px var(--lg-divider, var(--border-subtle))`,
+              }}
+            >
+              {active && (
+                <span className="rounded-full" style={{ width: 5, height: 5, background: '#ffffff' }} />
+              )}
+            </span>
+            <span
+              className="text-[13px] font-medium"
+              style={{ color: 'var(--lg-text-1, var(--text-primary))' }}
+            >
+              {opt.label}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function DashboardRotationPicker({
+  selected,
+  onToggle,
+  labels,
+  minHint,
+}: {
+  selected: DashboardViewKey[]
+  onToggle: (v: DashboardViewKey) => void
+  labels: Record<DashboardViewKey, string>
+  minHint: string
+}) {
+  const isLastOne = selected.length === 1
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
+        {DASHBOARD_VIEW_KEYS.map((key) => {
+          const active = selected.includes(key)
+          const locked = active && isLastOne
+          return (
+            <button
+              key={key}
+              type="button"
+              role="switch"
+              aria-checked={active}
+              aria-label={labels[key]}
+              disabled={locked}
+              onClick={() => onToggle(key)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-medium transition-[background,border-color,opacity] duration-150 disabled:cursor-not-allowed"
+              style={{
+                background: active ? 'rgba(139, 92, 246, 0.12)' : 'var(--lg-surface-2, var(--bg-subtle))',
+                border: `1px solid ${active ? 'rgba(139, 92, 246, 0.45)' : 'var(--lg-divider, var(--border-subtle))'}`,
+                color: active ? 'var(--lg-text-1, var(--text-primary))' : 'var(--lg-text-2, var(--text-secondary))',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              <span
+                aria-hidden
+                className="inline-flex items-center justify-center rounded-full shrink-0"
+                style={{
+                  width: 14,
+                  height: 14,
+                  background: active ? 'var(--lg-accent)' : 'transparent',
+                  boxShadow: active
+                    ? '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 10px var(--lg-accent-glow)'
+                    : `inset 0 0 0 1.5px var(--lg-divider, var(--border-subtle))`,
+                }}
+              >
+                {active && (
+                  <span className="rounded-full" style={{ width: 5, height: 5, background: '#ffffff' }} />
+                )}
+              </span>
+              {labels[key]}
+            </button>
+          )
+        })}
+      </div>
+      <p
+        className="text-[11.5px]"
+        style={{ color: 'var(--lg-text-3, var(--text-tertiary))', fontFamily: 'var(--font-body)' }}
+      >
+        {minHint}
+      </p>
     </div>
   )
 }
