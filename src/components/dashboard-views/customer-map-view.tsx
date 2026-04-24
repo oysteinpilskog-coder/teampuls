@@ -473,12 +473,32 @@ export function CustomerMapView({
                   fills, instead of squeezing all three into whatever
                   portion has been painted so far. */}
               {/* Track is intentionally NOT clipped — we want the glow to
-                  bloom outward past the rail edges, like a neon filament. */}
+                  bloom far past the rail edges, like a neon filament in
+                  fog. Two layers: a heavily-blurred halo underneath for
+                  the soft bloom, and the crisp 1.5px filament on top. */}
               <div className="relative h-[1.5px] rounded-full">
                 <div
                   className="absolute inset-0 rounded-full"
                   style={{ background: 'rgba(255,255,255,0.06)' }}
                 />
+                {/* Blurred halo — follows the fill width, filtered for
+                    true atmospheric bloom that box-shadow alone can't fake. */}
+                <motion.div
+                  aria-hidden
+                  className="absolute top-0 left-0 h-full rounded-full pointer-events-none"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${portfolioPct * 100}%` }}
+                  transition={{ duration: 1.2, delay: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                  style={{
+                    background:
+                      'linear-gradient(90deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%)',
+                    filter: 'blur(7px) saturate(140%)',
+                    opacity: 0.95,
+                    transform: 'scaleY(4)',
+                    transformOrigin: 'center',
+                  }}
+                />
+                {/* Crisp filament */}
                 <motion.div
                   className="absolute top-0 left-0 h-full rounded-full"
                   initial={{ width: 0 }}
@@ -490,7 +510,7 @@ export function CustomerMapView({
                     backgroundSize: '100% 100%',
                     backgroundRepeat: 'no-repeat',
                     boxShadow:
-                      '0 0 6px rgba(0, 245, 160, 0.9), 0 0 16px rgba(0, 217, 245, 0.75), 0 0 32px rgba(0, 217, 245, 0.45), 0 0 52px rgba(124, 58, 237, 0.35)',
+                      '0 0 4px 1px rgba(255,255,255,0.9), 0 0 10px 2px rgba(0,245,160,1), 0 0 24px 4px rgba(0,217,245,0.95), 0 0 48px 6px rgba(0,217,245,0.7), 0 0 80px 10px rgba(124,58,237,0.55)',
                   }}
                 />
               </div>
