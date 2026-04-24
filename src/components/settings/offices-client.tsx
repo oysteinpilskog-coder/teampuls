@@ -359,11 +359,7 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={spring.bouncy}
-              className="pointer-events-auto w-[520px] max-w-full max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl p-6 flex flex-col gap-4"
-              style={{
-                backgroundColor: 'var(--bg-elevated)',
-                boxShadow: 'var(--shadow-xl)',
-              }}
+              className="tp-modal pointer-events-auto w-[520px] max-w-full max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl p-6 flex flex-col gap-4"
             >
               <div className="flex items-center justify-between">
                 <h2
@@ -580,7 +576,7 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
                 <details className="col-span-6 group">
                   <summary
                     className="cursor-pointer text-[11px] font-semibold uppercase tracking-widest list-none flex items-center gap-1.5 select-none"
-                    style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+                    style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
                   >
                     <span className="transition-transform group-open:rotate-90">▸</span>
                     Juster koordinater manuelt
@@ -665,7 +661,7 @@ function OfficeField({
     <div className="flex flex-col gap-1.5">
       <label
         className="text-[11px] font-semibold uppercase tracking-widest"
-        style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+        style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
       >
         {label}
         {required && (
@@ -680,7 +676,7 @@ function OfficeField({
         {hint && (
           <span
             className="ml-1.5 font-normal normal-case tracking-normal"
-            style={{ color: 'var(--text-tertiary)', opacity: 0.7 }}
+            style={{ color: 'var(--text-tertiary)' }}
           >
             · {hint}
           </span>
