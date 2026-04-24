@@ -195,12 +195,12 @@
   --lg-divider-soft:rgba(245, 239, 228, 0.04);
 
   --lg-text-1:     #F5EFE4;
-  --lg-text-2:     rgba(245, 239, 228, 0.6);
-  --lg-text-3:     rgba(245, 239, 228, 0.38);
+  --lg-text-2:     rgba(245, 239, 228, 0.75);
+  --lg-text-3:     rgba(245, 239, 228, 0.56);
 
   --text-primary:   #F5EFE4;
-  --text-secondary: rgba(245, 239, 228, 0.6);
-  --text-tertiary:  rgba(245, 239, 228, 0.38);
+  --text-secondary: rgba(245, 239, 228, 0.75);
+  --text-tertiary:  rgba(245, 239, 228, 0.56);
 
   --border-subtle: rgba(245, 239, 228, 0.08);
   --border-strong: rgba(245, 239, 228, 0.16);
@@ -256,7 +256,7 @@
   --secondary:            #261E17;
   --secondary-foreground: #F5EFE4;
   --muted:                #261E17;
-  --muted-foreground:     rgba(245, 239, 228, 0.6);
+  --muted-foreground:     rgba(245, 239, 228, 0.75);
   --accent-foreground:    #0E0B08;
   --destructive:          oklch(0.704 0.191 22.216);
   --border:               rgba(245, 239, 228, 0.08);
