@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
+import { MapPin } from './map-pin'
 import { project, resolveLocation } from '@/lib/geo'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
 import { useStatusColors } from '@/lib/status-colors/context'
@@ -149,63 +150,16 @@ export function OfficeMapView({
         }}
       >
         <EuropeMapCanvas accent="#5E8CFF">
-          {placed.map((p, i) => {
-            const radius = p.radius
-
-            return (
-              <g key={p.id} transform={`translate(${p.x} ${p.y})`}>
-                {/* Gentle ambient pulse — one ring, slow, serene */}
-                <motion.circle
-                  r={radius + 4}
-                  fill="none"
-                  stroke={officeColor}
-                  strokeWidth={1.2}
-                  animate={{
-                    r: [radius + 4, radius + 26, radius + 4],
-                    opacity: [0.45, 0, 0.45],
-                  }}
-                  transition={{
-                    duration: 4.2,
-                    delay: (i % 5) * 0.6,
-                    repeat: Infinity,
-                    ease: 'easeOut',
-                  }}
-                />
-
-                {/* Ambient halo — soft gaussian */}
-                <circle
-                  r={radius + 6}
-                  fill={officeColor}
-                  opacity={0.22}
-                  style={{ filter: 'blur(10px)' }}
-                />
-
-                {/* Dot base — hair-thin bright ring for definition */}
-                <motion.circle
-                  r={radius}
-                  fill={officeColor}
-                  stroke="rgba(255,255,255,0.55)"
-                  strokeWidth={0.8}
-                  initial={{ r: 0, opacity: 0 }}
-                  animate={{ r: radius, opacity: 1 }}
-                  transition={{ ...spring.gentle, delay: 0.35 + i * 0.08 }}
-                  style={{
-                    filter: `drop-shadow(0 0 14px ${officeColor}) drop-shadow(0 2px 4px rgba(0,0,0,0.4))`,
-                  }}
-                />
-
-                {/* Glass highlight */}
-                <circle
-                  r={radius * 0.55}
-                  cx={-radius * 0.22}
-                  cy={-radius * 0.28}
-                  fill="white"
-                  opacity={0.42}
-                  style={{ filter: 'blur(1.2px)' }}
-                />
-              </g>
-            )
-          })}
+          {placed.map((p, i) => (
+            <g key={p.id} transform={`translate(${p.x} ${p.y})`}>
+              <MapPin
+                radius={p.radius}
+                color={officeColor}
+                auroraCompanion="#A0C4FF"
+                index={i}
+              />
+            </g>
+          ))}
 
           {/* Labels drawn AFTER pins so they sit on top — with collision-aware placement */}
           {placedLabels.map((pl, i) => {
