@@ -52,22 +52,22 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
     <g>
       <defs>
         <filter id={filterOuter} x="-100%" y="-100%" width="300%" height="300%">
-          <feGaussianBlur stdDeviation="24" />
+          <feGaussianBlur stdDeviation="11" />
         </filter>
         <filter id={filterInner} x="-100%" y="-100%" width="300%" height="300%">
-          <feGaussianBlur stdDeviation="9" />
+          <feGaussianBlur stdDeviation="6" />
         </filter>
       </defs>
 
       {/* Primary warm core — tight, pin-coloured, below the companion so
        *  a hint of the pin colour shows through the companion's centre. */}
       <motion.circle
-        r={radius * 1.4}
+        r={radius * 1.2}
         fill={color}
         filter={`url(#${filterInner})`}
         initial={{ cx: 0, cy: 0, opacity: 0 }}
         animate={{
-          cx: [-4, 4, -4],
+          cx: [-3, 3, -3],
           cy: [-2, 2, -2],
           opacity: [0.5, 0.75, 0.5],
         }}
@@ -93,17 +93,18 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
         }}
       />
 
-      {/* Aurora — massive companion halo painted ON TOP of the core so
-       *  the contrast hue dominates the visible glow. */}
+      {/* Aurora — companion halo painted ON TOP of the core. Kept tight
+       *  (~radius × 2.4 with blur ~11) so the glow hugs the heartbeat ring
+       *  instead of washing over the surrounding cities. */}
       <motion.circle
-        r={radius * 7}
+        r={radius * 2.4}
         fill={companion}
         filter={`url(#${filterOuter})`}
         initial={{ cx: 0, cy: 0, opacity: 0 }}
         animate={{
-          cx: [8, -8, 8],
-          cy: [5, -5, 5],
-          opacity: [0.8, 1, 0.8],
+          cx: [3, -3, 3],
+          cy: [2, -2, 2],
+          opacity: [0.7, 0.92, 0.7],
         }}
         transition={{
           cx: {
