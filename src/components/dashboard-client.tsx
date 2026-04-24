@@ -268,9 +268,9 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
       </div>
 
       {/* ── Rotation progress hairline ──
-          A thin accent line across the bottom edge that fills over each
-          view's dwell. It's both a visual heartbeat and — crucially —
-          proof that the auto-rotate timer is actually firing. */}
+          A thin Nordlys line across the bottom edge that fills over each
+          view's dwell. Matches the /min-plan today-chord signature so the
+          whole product speaks the same visual language. */}
       <div className="relative h-[2px] w-full overflow-hidden">
         {(() => {
           const multiplier = DWELL_MULTIPLIER[VIEWS[viewIdx]]
@@ -287,9 +287,17 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
                 className="absolute left-0 top-0 h-full transition-[width] duration-[950ms] ease-linear"
                 style={{
                   width: `${pct * 100}%`,
+                  // Gradient is pinned to the full track width (100vw) rather
+                  // than the filled portion — so as the bar grows, it reveals
+                  // more of the nordlys left-to-right instead of squeezing
+                  // all three colours into whatever width is filled.
                   background:
-                    'linear-gradient(90deg, color-mix(in oklab, var(--accent-color) 60%, transparent) 0%, color-mix(in oklab, var(--accent-color) 95%, transparent) 100%)',
-                  boxShadow: '0 0 18px color-mix(in oklab, var(--accent-color) 55%, transparent)',
+                    'linear-gradient(90deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%)',
+                  backgroundSize: '100vw 100%',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'left center',
+                  boxShadow:
+                    '0 0 12px rgba(0, 217, 245, 0.45), 0 0 24px rgba(0, 245, 160, 0.22)',
                 }}
               />
             </>
