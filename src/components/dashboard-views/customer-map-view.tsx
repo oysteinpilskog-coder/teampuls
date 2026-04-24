@@ -472,8 +472,13 @@ export function CustomerMapView({
                   track width so the colours reveal left-to-right as the bar
                   fills, instead of squeezing all three into whatever
                   portion has been painted so far. */}
-              <div className="relative h-[3px] rounded-full overflow-hidden">
-                <div className="absolute inset-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
+              {/* Track is intentionally NOT clipped — we want the glow to
+                  bloom outward past the rail edges, like a neon filament. */}
+              <div className="relative h-[1.5px] rounded-full">
+                <div
+                  className="absolute inset-0 rounded-full"
+                  style={{ background: 'rgba(255,255,255,0.06)' }}
+                />
                 <motion.div
                   className="absolute top-0 left-0 h-full rounded-full"
                   initial={{ width: 0 }}
@@ -485,7 +490,7 @@ export function CustomerMapView({
                     backgroundSize: '100% 100%',
                     backgroundRepeat: 'no-repeat',
                     boxShadow:
-                      '0 0 12px rgba(0, 217, 245, 0.45), 0 0 24px rgba(0, 245, 160, 0.22)',
+                      '0 0 6px rgba(0, 245, 160, 0.9), 0 0 16px rgba(0, 217, 245, 0.75), 0 0 32px rgba(0, 217, 245, 0.45), 0 0 52px rgba(124, 58, 237, 0.35)',
                   }}
                 />
               </div>
