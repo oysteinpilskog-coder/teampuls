@@ -13,14 +13,14 @@ interface HeroPulseProps {
   todayEntries: Entry[]   // deduped: one entry per member at most
 }
 
-const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
+const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
 
 function insightFor(registered: number, total: number, todayEntries: Entry[], t: Dictionary) {
   if (total === 0) return { title: t.pulse.ready, subtitle: t.pulse.readyHint }
   if (registered === 0) return { title: t.pulse.noRegistrationsToday, subtitle: t.pulse.noRegistrationsSubtitle }
 
   const onPositive = todayEntries.filter(e =>
-    ['office', 'remote', 'customer', 'travel'].includes(e.status)
+    ['office', 'remote', 'customer', 'event', 'travel'].includes(e.status)
   ).length
   const away = todayEntries.filter(e => ['vacation', 'sick', 'off'].includes(e.status)).length
 
@@ -47,6 +47,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
     office: t.status.office,
     remote: t.pulse.atHomeShort,
     customer: t.status.customer,
+    event: t.status.event,
     travel: t.status.travel,
     vacation: t.status.vacation,
     sick: t.status.sick,
@@ -64,7 +65,7 @@ export function HeroPulse({ members, todayEntries }: HeroPulseProps) {
   // Location aggregation — group members currently present by their city/location
   const locMap = new Map<string, number>()
   todayEntries.forEach(e => {
-    if (!['office', 'customer', 'travel', 'remote'].includes(e.status)) return
+    if (!['office', 'customer', 'event', 'travel', 'remote'].includes(e.status)) return
     const key = (e.location_label?.trim() || (e.status === 'remote' ? t.pulse.atHomeShort : '')).trim()
     if (!key) return
     locMap.set(key, (locMap.get(key) ?? 0) + 1)

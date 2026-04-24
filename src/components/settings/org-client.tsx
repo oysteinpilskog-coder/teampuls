@@ -13,7 +13,7 @@ import { useStatusColorsController } from '@/lib/status-colors/context'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useT } from '@/lib/i18n/context'
 
-const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
+const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
 
 interface OrgClientProps {
   org: Organization

@@ -8,7 +8,7 @@ type IconProps = {
 }
 
 // Status → icon mapping
-export type EntryStatus = 'office' | 'remote' | 'customer' | 'travel' | 'vacation' | 'sick' | 'off'
+export type EntryStatus = 'office' | 'remote' | 'customer' | 'event' | 'travel' | 'vacation' | 'sick' | 'off'
 
 // All icons are SF Symbol-style solid filled glyphs.
 // `color` sets the primary fill. Small cutouts use evenodd fill-rule to
@@ -50,6 +50,18 @@ export function CustomerIcon({ size = 24, color = DEFAULT_HEX_COLORS.customer, c
       <circle cx="16" cy="7" r="3.5" fill={color} />
       <path
         d="M2 19.5a6 6 0 0 1 11-3.37A6 6 0 0 1 22 19.5V21a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1.5Z"
+        fill={color}
+      />
+    </svg>
+  )
+}
+
+// Messe/konferanse/kurs — Megaphone angled upward
+export function EventIcon({ size = 24, color = DEFAULT_HEX_COLORS.event, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M20.3 3.12a1 1 0 0 0-1.45-.9L7.5 8.25H4a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h.6l.9 4.3A2 2 0 0 0 7.46 20h.82a1.5 1.5 0 0 0 1.47-1.8l-.77-3.88 9.87 4.78a1 1 0 0 0 1.45-.9V3.13Z"
         fill={color}
       />
     </svg>
@@ -130,6 +142,7 @@ export const STATUS_COLORS: Record<EntryStatus, { bg: string; text: string; icon
   office:   { icon: DEFAULT_PALETTES.office.icon,   bg: DEFAULT_PALETTES.office.bg,   text: DEFAULT_PALETTES.office.text,   bgDark: DEFAULT_PALETTES.office.bgDark,   textDark: DEFAULT_PALETTES.office.textDark },
   remote:   { icon: DEFAULT_PALETTES.remote.icon,   bg: DEFAULT_PALETTES.remote.bg,   text: DEFAULT_PALETTES.remote.text,   bgDark: DEFAULT_PALETTES.remote.bgDark,   textDark: DEFAULT_PALETTES.remote.textDark },
   customer: { icon: DEFAULT_PALETTES.customer.icon, bg: DEFAULT_PALETTES.customer.bg, text: DEFAULT_PALETTES.customer.text, bgDark: DEFAULT_PALETTES.customer.bgDark, textDark: DEFAULT_PALETTES.customer.textDark },
+  event:    { icon: DEFAULT_PALETTES.event.icon,    bg: DEFAULT_PALETTES.event.bg,    text: DEFAULT_PALETTES.event.text,    bgDark: DEFAULT_PALETTES.event.bgDark,    textDark: DEFAULT_PALETTES.event.textDark },
   travel:   { icon: DEFAULT_PALETTES.travel.icon,   bg: DEFAULT_PALETTES.travel.bg,   text: DEFAULT_PALETTES.travel.text,   bgDark: DEFAULT_PALETTES.travel.bgDark,   textDark: DEFAULT_PALETTES.travel.textDark },
   vacation: { icon: DEFAULT_PALETTES.vacation.icon, bg: DEFAULT_PALETTES.vacation.bg, text: DEFAULT_PALETTES.vacation.text, bgDark: DEFAULT_PALETTES.vacation.bgDark, textDark: DEFAULT_PALETTES.vacation.textDark },
   sick:     { icon: DEFAULT_PALETTES.sick.icon,     bg: DEFAULT_PALETTES.sick.bg,     text: DEFAULT_PALETTES.sick.text,     bgDark: DEFAULT_PALETTES.sick.bgDark,     textDark: DEFAULT_PALETTES.sick.textDark },
@@ -142,6 +155,7 @@ export function StatusIcon({ status, size = 24, className, color: colorProp }: {
     case 'office':   return <OfficeIcon size={size} color={color} className={className} />
     case 'remote':   return <RemoteIcon size={size} color={color} className={className} />
     case 'customer': return <CustomerIcon size={size} color={color} className={className} />
+    case 'event':    return <EventIcon size={size} color={color} className={className} />
     case 'travel':   return <TravelIcon size={size} color={color} className={className} />
     case 'vacation': return <VacationIcon size={size} color={color} className={className} />
     case 'sick':     return <SickIcon size={size} color={color} className={className} />

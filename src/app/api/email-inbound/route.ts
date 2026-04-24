@@ -96,8 +96,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'unknown_sender' }, { status: 200 })
   }
 
-  // ── 5. Fetch all org members + customer registry for AI context ──────────
-  const [{ data: allMembers }, { data: allCustomers }] = await Promise.all([
+  // ── 5. Fetch AI context: members, customers, offices, corrections ────────
+  const [
+    { data: allMembers },
+    { data: allCustomers },
+    { data: allOffices },
+    { data: recentCorrections },
+  ] = await Promise.all([
     supabase
       .from('members')
       .select('id, org_id, user_id, display_name, full_name, initials, email, avatar_url, nicknames, home_office_id, role, is_active, created_at, updated_at')
@@ -107,6 +112,16 @@ export async function POST(req: NextRequest) {
       .from('customers')
       .select('*')
       .eq('org_id', sender.org_id),
+    supabase
+      .from('offices')
+      .select('*')
+      .eq('org_id', sender.org_id),
+    supabase
+      .from('ai_corrections')
+      .select('input_text, ai_status, ai_location, corrected_status, corrected_location')
+      .eq('org_id', sender.org_id)
+      .order('created_at', { ascending: false })
+      .limit(20),
   ])
 
   if (!allMembers?.length) {
@@ -121,12 +136,13 @@ export async function POST(req: NextRequest) {
       senderEmail: sender.email,
       members: allMembers,
       customers: allCustomers ?? [],
+      offices: allOffices ?? [],
+      corrections: recentCorrections ?? [],
       today: new Date(),
       timezone: (org as { timezone: string }).timezone ?? 'Europe/Oslo',
     })
   } catch (err) {
     console.error('[email-inbound] Claude parse error:', err)
-    // Log the error and return — don't crash CloudMailin's retry loop
     await supabase.from('ai_messages').insert({
       org_id: sender.org_id,
       sender_member_id: sender.id,
@@ -139,6 +155,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, reason: 'parse_error' }, { status: 200 })
   }
 
+  // Match the web threshold — see CLARIFICATION_CEILING in /api/ai/parse.
+  // Medium-confidence parses get written with a "?" marker so the recipient
+  // can see and correct them, rather than silently dropped.
+  const CLARIFICATION_CEILING = 0.45
+  const shouldWrite = result.confidence >= CLARIFICATION_CEILING && result.updates.length > 0
+
   // ── 7. Log request ────────────────────────────────────────────────────────
   supabase.from('ai_messages').insert({
     org_id: sender.org_id,
@@ -146,15 +168,18 @@ export async function POST(req: NextRequest) {
     source: 'email',
     input_text: text,
     ai_response: result,
-    entries_created: result.confidence >= 0.7 ? result.updates.length : 0,
+    entries_created: shouldWrite ? result.updates.length : 0,
+    confidence: result.confidence,
   }).then(() => {})
 
   // ── 8. Apply updates ──────────────────────────────────────────────────────
-  if (result.confidence >= 0.7 && result.updates.length > 0) {
-    await applyUpdates(supabase, sender.org_id, result)
+  if (shouldWrite) {
+    await applyUpdates(supabase, sender.org_id, result, {
+      sourceText: text,
+      source: 'ai_email',
+    })
     console.log('[email-inbound] Applied', result.updates.length, 'update(s) for', senderEmail)
   } else if (result.clarification) {
-    // Low confidence — nothing we can do without a reply loop
     console.log('[email-inbound] Clarification needed:', result.clarification)
   }
 

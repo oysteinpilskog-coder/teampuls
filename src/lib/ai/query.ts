@@ -29,7 +29,7 @@ export interface QueryResult {
 }
 
 const VALID_STATUSES: EntryStatus[] = [
-  'office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off',
+  'office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off',
 ]
 
 /**

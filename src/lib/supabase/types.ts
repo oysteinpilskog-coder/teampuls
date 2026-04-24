@@ -2,7 +2,7 @@
 // Run `npx supabase gen types typescript --project-id $PROJECT_ID > src/lib/supabase/types.ts`
 // to regenerate from the live schema.
 
-export type EntryStatus = 'office' | 'remote' | 'customer' | 'travel' | 'vacation' | 'sick' | 'off'
+export type EntryStatus = 'office' | 'remote' | 'customer' | 'event' | 'travel' | 'vacation' | 'sick' | 'off'
 export type MemberRole = 'admin' | 'member'
 export type EntrySource = 'manual' | 'ai_web' | 'ai_email'
 export type EventCategory = 'company' | 'trade_show' | 'training' | 'milestone' | 'holiday' | 'deadline' | 'other'
@@ -15,6 +15,13 @@ export type WorkspaceRegion = 'eu' | 'uk' | 'us' | 'apac'
  * - 'per_member' : use each member's own default_status
  */
 export type PresenceAssumption = 'none' | 'office' | 'remote' | 'per_member'
+
+/**
+ * Keys for the rotating dashboard views shown on the public TV surface.
+ * A = Nå (today), B = Uken (week), C = Kontorer (offices map),
+ * D = Kunder (customers map), E = Årshjul (wheel).
+ */
+export type DashboardViewKey = 'A' | 'B' | 'C' | 'D' | 'E'
 
 export interface Account {
   id: string
@@ -46,6 +53,10 @@ export interface Organization {
   status_colors?: Partial<Record<EntryStatus, string>> | null
   /** How the UI should render unregistered days — see PresenceAssumption. */
   default_presence_assumption?: PresenceAssumption
+  /** Privacy toggle: when false, sick entries are collapsed into "off" on the public TV dashboard. */
+  dashboard_show_sick?: boolean
+  /** Which dashboard views take part in the auto-rotate carousel. View keys: A/B/C/D/E. */
+  dashboard_rotation_views?: DashboardViewKey[]
   timezone: string
   week_start: number
   created_at: string
@@ -132,6 +143,8 @@ export interface Entry {
   note: string | null
   source: EntrySource
   source_text: string | null
+  /** AI parser confidence 0..1. NULL for manual edits. UI shows a "?" when < 0.7. */
+  confidence: number | null
   created_by: string | null
   created_at: string
   updated_at: string

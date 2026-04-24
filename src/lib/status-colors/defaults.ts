@@ -12,6 +12,7 @@ export const DEFAULT_HEX_COLORS: Record<EntryStatus, string> = {
   office:   '#6366F1',  // indigo — "focus / tilstede"
   remote:   '#2DD4BF',  // teal — "work / hjemme"
   customer: '#A78BFA',  // soft violet — "ute / hos kunde"
+  event:    '#F472B6',  // pink — "messe / konferanse / kurs"
   travel:   '#FBBF24',  // amber — "reise"
   vacation: '#FB7185',  // rose — "viktig / ferie"
   sick:     '#F87171',  // coral-dempet — "syk"

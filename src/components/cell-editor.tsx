@@ -16,7 +16,7 @@ import { DateRangePicker } from '@/components/date-range-picker'
 import { addDays, differenceInDays, parseISO } from 'date-fns'
 import { toDateString, MONTH_LONG_NB } from '@/lib/dates'
 
-const ALL_STATUSES: EntryStatus[] = ['office', 'remote', 'customer', 'travel', 'vacation', 'sick', 'off']
+const ALL_STATUSES: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
 
 interface CellEditorProps {
   open: boolean
@@ -31,6 +31,13 @@ interface CellEditorProps {
   initialNote: string | null
   /** Optional — when set, opens with a pre-selected multi-day range [date … initialRangeEnd]. */
   initialRangeEnd?: string | null
+  /** Source of the entry being edited ('manual' | 'ai_web' | 'ai_email'). Used to
+   *  detect when a user is correcting an AI-written entry so we can log the
+   *  correction for future few-shot training. */
+  initialSource?: 'manual' | 'ai_web' | 'ai_email' | null
+  /** The original AI input that produced this entry. Needed to log the
+   *  correction against the exact phrasing the user typed. */
+  initialSourceText?: string | null
   /** Optional — invoked after a successful save or delete so the host can refetch local state
    *  without waiting for Supabase Realtime (which can lag for self-initiated mutations). */
   onMutated?: () => void | Promise<void>
@@ -58,6 +65,8 @@ export function CellEditor({
   initialLocation,
   initialNote,
   initialRangeEnd,
+  initialSource,
+  initialSourceText,
   onMutated,
   onOptimisticSave,
   onOptimisticDelete,
@@ -167,6 +176,8 @@ export function CellEditor({
       location_label: locLabel,
       note: noteLabel,
       source: 'manual' as const,
+      // Manual edits reset confidence — the user has the final word.
+      confidence: null,
     }))
     const { error } = await supabase
       .from('entries')
@@ -174,6 +185,27 @@ export function CellEditor({
     setSaving(false)
     if (error) {
       toast.error(t.aiInput.error)
+    }
+
+    // If the user is correcting an AI-written entry into something materially
+    // different, log the correction so the parser can few-shot from it next
+    // time. We fire-and-forget — this must never block the save or toast.
+    const wasAi = initialSource === 'ai_web' || initialSource === 'ai_email'
+    const statusChanged = status !== initialStatus
+    const locationChanged = (locLabel ?? null) !== (initialLocation ?? null)
+    if (wasAi && initialSourceText && (statusChanged || locationChanged)) {
+      supabase
+        .from('ai_corrections')
+        .insert({
+          org_id: orgId,
+          member_id: memberId,
+          input_text: initialSourceText,
+          ai_status: initialStatus,
+          ai_location: initialLocation,
+          corrected_status: status,
+          corrected_location: locLabel,
+        })
+        .then(() => {})
     }
     // onMutated still fires on success *and* failure so the host refetches
     // the server's truth — this corrects the optimistic paint if the write
