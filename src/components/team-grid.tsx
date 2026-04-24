@@ -410,7 +410,7 @@ export function TeamGrid({
             const endDate = weekDays[origEnd]
             setSelectedCell({
               memberId: member.id,
-              memberName: member.display_name,
+              memberName: member.full_name || member.display_name,
               date: toDateString(startDate),
               endDate: toDateString(endDate),
               dateLabel: formatDateLabelLong(startDate, t),
@@ -479,7 +479,7 @@ export function TeamGrid({
             const endDate = weekDays[mv.segmentStart + mv.segmentSpan - 1]
             setSelectedCell({
               memberId: member.id,
-              memberName: member.display_name,
+              memberName: member.full_name || member.display_name,
               date: toDateString(startDate),
               endDate: toDateString(endDate),
               dateLabel: formatDateLabelLong(startDate, t),
@@ -553,7 +553,7 @@ export function TeamGrid({
           const entry = entryMap.get(`${member.id}_${startStr}`)
           setSelectedCell({
             memberId: member.id,
-            memberName: member.display_name,
+            memberName: member.full_name || member.display_name,
             date: startStr,
             endDate: endStr,
             dateLabel: formatDateLabelLong(startDate, t),
@@ -739,6 +739,8 @@ export function TeamGrid({
         return {
           id: m.id,
           display_name: m.display_name,
+          full_name: m.full_name,
+          initials: m.initials,
           avatar_url: m.avatar_url,
           status: entry.status,
           location_label: entry.location_label,
@@ -750,6 +752,8 @@ export function TeamGrid({
       return {
         id: m.id,
         display_name: m.display_name,
+        full_name: m.full_name,
+        initials: m.initials,
         avatar_url: m.avatar_url,
         status: assumed,
         location_label: null,
@@ -759,6 +763,8 @@ export function TeamGrid({
     .filter(Boolean) as Array<{
       id: string
       display_name: string
+      full_name: string | null
+      initials: string | null
       avatar_url: string | null
       status: import('@/lib/supabase/types').EntryStatus
       location_label: string | null
@@ -975,7 +981,7 @@ export function TeamGrid({
                                 letterSpacing: '-0.01em',
                               }}
                             >
-                              {member.display_name.split(' ')[0]}
+                              {member.full_name || member.display_name}
                             </span>
                           </div>
                         </MemberHoverCard>

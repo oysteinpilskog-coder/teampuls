@@ -62,6 +62,7 @@ const OUT_ISH: EntryStatus[] = ['vacation', 'sick', 'off']
 interface Member {
   id: string
   display_name: string
+  full_name?: string | null
 }
 
 export function suggestCoordinationDays(params: {
@@ -144,14 +145,15 @@ export function suggestCoordinationDays(params: {
     const likelyOut: string[] = []
 
     for (const m of params.members) {
+      const name = m.full_name || m.display_name
       const e = byMember.get(m.id)
       if (e) {
-        if (OFFICE_ISH.includes(e.status)) plannedIn.push(m.display_name)
-        else if (OUT_ISH.includes(e.status)) plannedOut.push(m.display_name)
+        if (OFFICE_ISH.includes(e.status)) plannedIn.push(name)
+        else if (OUT_ISH.includes(e.status)) plannedOut.push(name)
       } else {
         const rate = memberWeekdayInRate.get(m.id)?.[dow] ?? 0.5
-        if (rate >= 0.6) likelyIn.push(m.display_name)
-        else if (rate <= 0.25) likelyOut.push(m.display_name)
+        if (rate >= 0.6) likelyIn.push(name)
+        else if (rate <= 0.25) likelyOut.push(name)
       }
     }
 

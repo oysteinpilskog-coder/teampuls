@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
       return {
         entry_id: r.id as string,
         member_id: r.member_id as string,
-        member_name: m?.display_name ?? 'Ukjent',
+        member_name: (m?.full_name || m?.display_name) ?? 'Ukjent',
         member_avatar_url: m?.avatar_url ?? null,
         member_initials: m?.initials ?? null,
         date: r.date as string,
@@ -127,7 +127,10 @@ export async function POST(req: NextRequest) {
 
     // Compose the answer from the template the model returned.
     const names = Array.from(uniqueMemberIds)
-      .map((id) => byId.get(id)?.display_name)
+      .map((id) => {
+        const m = byId.get(id)
+        return m ? (m.full_name || m.display_name) : null
+      })
       .filter(Boolean) as string[]
 
     const count = uniqueMemberIds.size

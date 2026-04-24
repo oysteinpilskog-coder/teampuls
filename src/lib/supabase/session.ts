@@ -64,7 +64,7 @@ async function resolveSession() {
   //    Any post-010 field we need (accent_color, short_name,
   //    region, country_code, archived_at) is null-coalesced below.
   const SELECT = `
-    id, org_id, display_name, role, avatar_url, user_id, email,
+    id, org_id, display_name, full_name, initials, role, avatar_url, user_id, email,
     organizations!inner (*)
   `
 
@@ -84,6 +84,8 @@ async function resolveSession() {
     id: string
     org_id: string
     display_name: string
+    full_name: string | null
+    initials: string | null
     role: MemberRole
     avatar_url: string | null
     user_id: string | null
@@ -163,12 +165,13 @@ async function resolveSession() {
     try {
       const { data: memberRows } = await supabase
         .from('members')
-        .select('id, org_id, display_name, role, avatar_url, user_id, email')
+        .select('id, org_id, display_name, full_name, initials, role, avatar_url, user_id, email')
         .eq('user_id', user.id)
         .eq('is_active', true)
 
       const mems = (memberRows ?? []) as Array<{
-        id: string; org_id: string; display_name: string; role: MemberRole;
+        id: string; org_id: string; display_name: string; full_name: string | null;
+        initials: string | null; role: MemberRole;
         avatar_url: string | null; user_id: string | null; email: string
       }>
 
@@ -242,6 +245,8 @@ async function resolveSession() {
     id: activeRow.id,
     org_id: activeRow.org_id,
     display_name: activeRow.display_name,
+    full_name: activeRow.full_name,
+    initials: activeRow.initials,
     role: activeRow.role,
     avatar_url: activeRow.avatar_url,
   }

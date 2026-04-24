@@ -191,7 +191,7 @@ export function PresenceHeatmap({ orgId, weeks = 6 }: PresenceHeatmapProps) {
                 >
                   <div className="flex items-center gap-2 pr-2 min-w-0">
                     <MemberAvatar
-                      name={member.display_name}
+                      name={member.full_name || member.display_name}
                       avatarUrl={member.avatar_url}
                       initials={member.initials ?? null}
                       size="xs"
@@ -200,7 +200,7 @@ export function PresenceHeatmap({ orgId, weeks = 6 }: PresenceHeatmapProps) {
                       className="text-[12px] font-medium truncate"
                       style={{ color: 'var(--lg-text-1)' }}
                     >
-                      {member.display_name.split(' ')[0]}
+                      {member.full_name || member.display_name}
                     </span>
                   </div>
 

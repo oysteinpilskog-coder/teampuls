@@ -27,6 +27,7 @@ interface MyPlanProps {
   orgId: string
   memberId: string
   memberName: string
+  memberInitials?: string | null
   avatarUrl: string | null
 }
 
@@ -164,7 +165,7 @@ interface ResizeDrag {
   entry: Entry
 }
 
-export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) {
+export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl }: MyPlanProps) {
   const t = useT()
   const currentYear = useMemo(() => getISOWeekYear(new Date()), [])
   const [year, setYear] = useState(currentYear)
@@ -544,7 +545,7 @@ export function MyPlan({ orgId, memberId, memberName, avatarUrl }: MyPlanProps) 
       {/* Header */}
       <div className="relative flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4 min-w-0">
-          <MemberAvatar name={memberName} avatarUrl={avatarUrl} size="md" />
+          <MemberAvatar name={memberName} initials={memberInitials ?? null} avatarUrl={avatarUrl} size="md" />
           <div className="min-w-0">
             <div className="lg-eyebrow mb-1.5">{memberName}</div>
             <h1

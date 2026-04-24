@@ -52,15 +52,20 @@ function MemberChip({ member, entry, accent, textTint, bg, delay }: MemberChipPr
         }}
       >
         <div className="rounded-full p-[1px]" style={{ background: bg }}>
-          <MemberAvatar name={member.display_name} avatarUrl={member.avatar_url} size="sm" />
+          <MemberAvatar
+            name={member.full_name || member.display_name}
+            initials={member.initials}
+            avatarUrl={member.avatar_url}
+            size="sm"
+          />
         </div>
       </div>
       <div className="flex flex-col leading-tight min-w-0">
         <span
           className="text-[13px] font-semibold truncate"
-          style={{ color: textTint, fontFamily: 'var(--font-body)', maxWidth: 120 }}
+          style={{ color: textTint, fontFamily: 'var(--font-body)', maxWidth: 160 }}
         >
-          {member.display_name.split(' ')[0]}
+          {member.full_name || member.display_name}
         </span>
         {location && (
           <span

@@ -35,7 +35,7 @@ export async function GET() {
     // Members for the org.
     const { data: members } = await admin
       .from('members')
-      .select('id, display_name')
+      .select('id, display_name, full_name')
       .eq('org_id', member.org_id)
       .eq('is_active', true)
 

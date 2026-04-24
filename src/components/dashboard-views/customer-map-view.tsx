@@ -438,7 +438,10 @@ export function CustomerMapView({
               <div className="flex flex-col gap-2">
                 {clusters.slice(0, 5).map((c, i) => {
                   const names = Array.from(c.memberIdsWeek)
-                    .map(id => memberById.get(id)?.display_name.split(' ')[0] ?? '')
+                    .map(id => {
+                      const m = memberById.get(id)
+                      return m ? (m.full_name || m.display_name) : ''
+                    })
                     .filter(Boolean)
                   return (
                     <motion.div

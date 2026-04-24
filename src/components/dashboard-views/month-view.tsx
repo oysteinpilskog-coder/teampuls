@@ -399,16 +399,21 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                       border: '1px solid rgba(255,255,255,0.08)',
                     }}
                   >
-                    <MemberAvatar name={m.display_name} avatarUrl={m.avatar_url} size="sm" />
+                    <MemberAvatar
+                      name={m.full_name || m.display_name}
+                      initials={m.initials}
+                      avatarUrl={m.avatar_url}
+                      size="sm"
+                    />
                     <span
                       className="text-[12px] font-medium truncate"
                       style={{
                         color: 'rgba(255,255,255,0.78)',
                         fontFamily: 'var(--font-body)',
-                        maxWidth: 110,
+                        maxWidth: 160,
                       }}
                     >
-                      {m.display_name.split(' ')[0]}
+                      {m.full_name || m.display_name}
                     </span>
                   </motion.div>
                 ))}

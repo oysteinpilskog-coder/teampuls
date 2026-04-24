@@ -13,6 +13,8 @@ import { formatDateLabelLong } from '@/lib/dates'
 interface MemberWithEntry {
   id: string
   display_name: string
+  full_name?: string | null
+  initials?: string | null
   avatar_url: string | null
   status: EntryStatus
   location_label: string | null

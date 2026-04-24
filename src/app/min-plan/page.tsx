@@ -37,7 +37,8 @@ export default async function MinPlanPage() {
       <MyPlan
         orgId={member.org_id}
         memberId={member.id}
-        memberName={member.display_name}
+        memberName={member.full_name || member.display_name}
+        memberInitials={member.initials}
         avatarUrl={member.avatar_url}
       />
     </div>
