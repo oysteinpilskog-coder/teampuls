@@ -3,7 +3,6 @@ import { TeamGrid } from '@/components/team-grid'
 import { AIInput } from '@/components/ai-input'
 import { EmptyState } from '@/components/empty-state'
 import { InactivityNudge } from '@/components/inactivity-nudge'
-import { TodayGreeting } from '@/components/today-greeting'
 import { getSessionMember } from '@/lib/supabase/session'
 import { getServerDict } from '@/lib/i18n/server'
 import { createClient } from '@/lib/supabase/server'
@@ -89,12 +88,9 @@ export default async function HomePage() {
         <AIInput orgId={member.org_id} />
       </div>
 
-      {/* Hero beat — italic Ember weekday + Fraunces date. Lives under
-          the AI input so the matrix is only a glance away. */}
-      <TodayGreeting today={new Date()} dict={await getServerDict()} />
-
-      {/* Week grid + compact meta strip (the WeekNav inside TeamGrid carries
-          the uke / range / live metrics / prev-today-next pill on one row). */}
+      {/* Week grid + compact meta strip. The WeekNav inside TeamGrid carries
+          everything on one line: weekday+date · uke · range · NÅ · metrics
+          · month-picker · prev/denne uken/next. */}
       <TeamGrid
         orgId={member.org_id}
         initialMembers={membersRes.data ?? []}

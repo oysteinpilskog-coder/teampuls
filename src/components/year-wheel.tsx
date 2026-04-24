@@ -1209,16 +1209,16 @@ export function DiskView({
                         style={isCurrent ? { filter: `url(#${ID.glow})` } : undefined}
                       />
                       <text
-                        fontSize={isCurrent ? 13 : 12}
-                        fontWeight={isCurrent ? 700 : 600}
+                        fontSize={isCurrent ? 13.5 : 12.5}
+                        fontWeight={isCurrent ? 800 : 700}
                         fill="white"
-                        fillOpacity={0.96}
+                        fillOpacity={0.98}
                         style={{
                           fontFamily: 'var(--font-body)',
-                          letterSpacing: '0.1em',
+                          letterSpacing: '0.12em',
                           userSelect: 'none',
                           pointerEvents: 'none',
-                          textShadow: '0 1px 2px rgba(0,0,0,0.28)',
+                          textShadow: '0 1px 2px rgba(0,0,0,0.55), 0 0 1px rgba(0,0,0,0.5)',
                         }}
                       >
                         <textPath href={`#${ID.monthPath(m.idx)}`} startOffset="50%" textAnchor="middle">
@@ -1296,15 +1296,15 @@ export function DiskView({
                           x={lblPoint.x} y={lblPoint.y}
                           textAnchor="middle"
                           dominantBaseline="central"
-                          fontSize={isCurrent ? 11 : 9}
-                          fontWeight={isCurrent ? 700 : 500}
-                          fill={isCurrent ? 'white' : 'var(--text-tertiary)'}
+                          fontSize={isCurrent ? 11.5 : 10}
+                          fontWeight={isCurrent ? 800 : 600}
+                          fill={isCurrent ? 'white' : 'var(--text-secondary)'}
                           style={{
                             fontFamily: 'var(--font-sora)',
                             userSelect: 'none',
                             pointerEvents: 'none',
                             fontVariantNumeric: 'tabular-nums',
-                            textShadow: isCurrent ? '0 1px 2px rgba(0,0,0,0.3)' : undefined,
+                            textShadow: isCurrent ? '0 1px 2px rgba(0,0,0,0.45)' : '0 1px 1px rgba(0,0,0,0.35)',
                           }}
                         >
                           {w.weekNum}
@@ -1401,23 +1401,23 @@ export function DiskView({
                       )}
                       {labelMode === 'tangential' && (
                         <text
-                          fontSize={ri === 0 ? 10 : 9.5}
-                          fontWeight={600}
+                          fontSize={ri === 0 ? 11 : 10.5}
+                          fontWeight={700}
                           fill="white"
-                          fillOpacity={0.96}
+                          fillOpacity={0.98}
                           style={{
                             fontFamily: 'var(--font-body)',
                             userSelect: 'none',
                             pointerEvents: 'none',
-                            textShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                            letterSpacing: '0.01em',
+                            textShadow: '0 1px 3px rgba(0,0,0,0.6), 0 0 1px rgba(0,0,0,0.55)',
+                            letterSpacing: '0.015em',
                           }}
                         >
                           <textPath
                             href={`#${ID.eventPath(ev.id)}`}
                             startOffset="50%"
                             textAnchor="middle"
-                            textLength={Math.min(ev.title.length * 6.2, arcLenPx - 8)}
+                            textLength={Math.min(ev.title.length * 6.6, arcLenPx - 8)}
                             lengthAdjust="spacingAndGlyphs"
                           >
                             {ev.title}
@@ -1426,16 +1426,16 @@ export function DiskView({
                       )}
                       {labelMode === 'radial' && (
                         <text
-                          fontSize={9}
-                          fontWeight={600}
+                          fontSize={10}
+                          fontWeight={700}
                           fill="white"
-                          fillOpacity={0.96}
+                          fillOpacity={0.98}
                           style={{
                             fontFamily: 'var(--font-body)',
                             userSelect: 'none',
                             pointerEvents: 'none',
-                            textShadow: '0 1px 2px rgba(0,0,0,0.45)',
-                            letterSpacing: '0.01em',
+                            textShadow: '0 1px 3px rgba(0,0,0,0.7), 0 0 1px rgba(0,0,0,0.55)',
+                            letterSpacing: '0.015em',
                           }}
                         >
                           <textPath
@@ -1614,23 +1614,23 @@ export function DiskView({
                       )}
                       {showLabel && (
                         <text
-                          fontSize={11}
-                          fontWeight={600}
+                          fontSize={11.5}
+                          fontWeight={700}
                           fill="white"
-                          fillOpacity={0.97}
+                          fillOpacity={0.98}
                           style={{
                             fontFamily: 'var(--font-body)',
                             userSelect: 'none',
                             pointerEvents: 'none',
-                            textShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                            letterSpacing: '0.01em',
+                            textShadow: '0 1px 3px rgba(0,0,0,0.6), 0 0 1px rgba(0,0,0,0.55)',
+                            letterSpacing: '0.015em',
                           }}
                         >
                           <textPath
                             href={`#${ID.eventPathM(ev.id)}`}
                             startOffset="50%"
                             textAnchor="middle"
-                            textLength={Math.min(ev.title.length * 6.6, arcLenPx - 10)}
+                            textLength={Math.min(ev.title.length * 7.0, arcLenPx - 10)}
                             lengthAdjust="spacingAndGlyphs"
                           >
                             {ev.title}
@@ -1651,15 +1651,16 @@ export function DiskView({
             return (
               <text
                 key={`rlbl-${ri}`}
-                fontSize={9}
+                fontSize={10.5}
                 fontWeight={700}
-                fill={`hsl(${ring.hue}, 35%, 42%)`}
-                fillOpacity={0.62}
+                fill={`hsl(${ring.hue}, 55%, 72%)`}
+                fillOpacity={0.9}
                 style={{
                   fontFamily: 'var(--font-body)',
-                  letterSpacing: '0.36em',
+                  letterSpacing: '0.28em',
                   userSelect: 'none',
                   pointerEvents: 'none',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.6)',
                 }}
               >
                 <textPath href={`#${ID.ringPath(ri)}`} startOffset="50%" textAnchor="middle">
