@@ -848,8 +848,8 @@ export function DiskView({
     event: (id: string) => `ev-${id}-${uid}`,
     eventPath: (id: string) => `evp-${id}-${uid}`,
     eventPathM: (id: string) => `evpm-${id}-${uid}`,
-    eventRadial:  (id: string) => `evr-${id}-${uid}`,
-    eventRadialM: (id: string) => `evrm-${id}-${uid}`,
+    eventCallout:  (id: string) => `evc-${id}-${uid}`,
+    eventCalloutM: (id: string) => `evcm-${id}-${uid}`,
     dayPath: (d: number) => `dp-${d}-${uid}`,
     ringPath: (i: number) => `rp-${i}-${uid}`,
   }
@@ -965,8 +965,9 @@ export function DiskView({
 
         <motion.svg
           ref={svgRef}
-          viewBox="0 0 800 800"
+          viewBox="-28 -28 856 856"
           className="relative w-full h-full"
+          style={{ overflow: 'visible' }}
           onMouseMove={onMouseMove}
           onMouseLeave={onMouseLeaveWheel}
           initial={{ opacity: 0, rotate: -6, scale: 0.96 }}
@@ -1073,16 +1074,20 @@ export function DiskView({
               />
             ))}
 
-            {/* Year-mode: event label paths (tangential arc + radial line).
-                The radial path is the Plandisc-style label track that lets a
-                title read outward from the wheel centre even on very narrow
-                arcs where a tangential label wouldn't fit. */}
+            {/* Year-mode: event label paths. Tangential arc on the ring for
+                wide events; plus a callout arc just outside the month ring
+                so narrow events (pins) can land their full title in free
+                space without squeezing. */}
             {!focus && events.map(ev => {
               const startDeg = dateStringToDeg(ev.start_date, year)
               const endDeg   = dateStringToDeg(ev.end_date, year) + (360 / daysInYear(year))
               if (endDeg <= startDeg) return null
               const ri = ringIdxForCategory(ev.category)
               const midDeg = (startDeg + endDeg) / 2
+              const calloutR = R.monthOuter + 14
+              const calloutChars = Math.min(ev.title.length, 18)
+              const calloutArcPx = calloutChars * 6.3 + 12
+              const calloutArcDeg = (calloutArcPx / calloutR) * (180 / Math.PI)
               return (
                 <Fragment key={`evpath-${ev.id}`}>
                   <path
@@ -1091,8 +1096,8 @@ export function DiskView({
                     fill="none"
                   />
                   <path
-                    id={ID.eventRadial(ev.id)}
-                    d={radialLinePath(RING_BOUNDS[ri].inner + 4, RING_BOUNDS[ri].outer - 4, midDeg)}
+                    id={ID.eventCallout(ev.id)}
+                    d={labelArcPath(calloutR, midDeg - calloutArcDeg / 2, midDeg + calloutArcDeg / 2)}
                     fill="none"
                   />
                 </Fragment>
@@ -1109,10 +1114,14 @@ export function DiskView({
               />
             ))}
 
-            {/* Month-mode: event label paths (tangential + radial) */}
+            {/* Month-mode: event label paths (tangential + callout) */}
             {focus && focus.events.map(({ ev, arc }) => {
               const ri = ringIdxForCategory(ev.category)
               const midDeg = (arc.startDeg + arc.endDeg) / 2
+              const calloutR = R.monthOuter + 14
+              const calloutChars = Math.min(ev.title.length, 18)
+              const calloutArcPx = calloutChars * 6.3 + 12
+              const calloutArcDeg = (calloutArcPx / calloutR) * (180 / Math.PI)
               return (
                 <Fragment key={`evpm-${ev.id}`}>
                   <path
@@ -1121,8 +1130,8 @@ export function DiskView({
                     fill="none"
                   />
                   <path
-                    id={ID.eventRadialM(ev.id)}
-                    d={radialLinePath(RING_BOUNDS[ri].inner + 4, RING_BOUNDS[ri].outer - 4, midDeg)}
+                    id={ID.eventCalloutM(ev.id)}
+                    d={labelArcPath(calloutR, midDeg - calloutArcDeg / 2, midDeg + calloutArcDeg / 2)}
                     fill="none"
                   />
                 </Fragment>
@@ -1342,20 +1351,16 @@ export function DiskView({
                   //     The arc is too short for tangential text, so we turn
                   //     the text outward along the ring's radial width.
                   //   • Pins (< 1.6°): no label; the pin + hover tooltip does it.
-                  const labelMode: 'tangential' | 'radial' | null =
-                    arcSpan >= 3.5 ? 'tangential' :
-                    arcSpan >= 1.6 ? 'radial' : null
-                  // With 38px rings we have ~30px of radial track. At 11px
-                  // text, natural char width is ~5.8; allow up to ~8 chars
-                  // then truncate. textLength + lengthAdjust absorbs small
-                  // overshoots without visible squeeze.
-                  const radialPathLen = bounds.outer - bounds.inner - 8
-                  const radialMaxChars = Math.max(5, Math.floor(radialPathLen / 4.2))
-                  const radialTitle = ev.title.length > radialMaxChars
-                    ? ev.title.slice(0, radialMaxChars - 1) + '…'
-                    : ev.title
-                  const radialNaturalPx = radialTitle.length * 5.8
-                  const radialTextLen = Math.min(radialNaturalPx, radialPathLen)
+                  // Label strategy:
+                  //   • Wide events (arcSpan ≥ 3.5°): tangential label on the
+                  //     event's own ring — plenty of arc to read straight.
+                  //   • Narrow events: callout label on an arc just outside
+                  //     the month ring, connected to the pin with a thin
+                  //     leader line. This replaces the old radial-line label
+                  //     that got cramped between ring edges.
+                  const labelMode: 'tangential' | 'callout' | null =
+                    arcSpan >= 3.5 ? 'tangential' : 'callout'
+                  const calloutAnchor = polarPoint(R.monthOuter + 4, midDeg)
 
                   return (
                     <motion.g key={ev.id}
@@ -1428,30 +1433,40 @@ export function DiskView({
                           </textPath>
                         </text>
                       )}
-                      {labelMode === 'radial' && (
-                        <text
-                          fontSize={11}
-                          fontWeight={700}
-                          fill="white"
-                          fillOpacity={0.98}
-                          style={{
-                            fontFamily: 'var(--font-body)',
-                            userSelect: 'none',
-                            pointerEvents: 'none',
-                            textShadow: '0 1px 3px rgba(0,0,0,0.7), 0 0 1px rgba(0,0,0,0.55)',
-                            letterSpacing: '0.01em',
-                          }}
-                        >
-                          <textPath
-                            href={`#${ID.eventRadial(ev.id)}`}
-                            startOffset="50%"
-                            textAnchor="middle"
-                            textLength={radialTextLen}
-                            lengthAdjust="spacingAndGlyphs"
+                      {labelMode === 'callout' && (
+                        <>
+                          {/* Leader line from the pin out to just below the callout arc. */}
+                          <line
+                            x1={f(pinCenter.x)} y1={f(pinCenter.y)}
+                            x2={f(calloutAnchor.x)} y2={f(calloutAnchor.y)}
+                            stroke={color}
+                            strokeWidth={0.9}
+                            strokeOpacity={0.55}
+                            strokeLinecap="round"
+                            style={{ pointerEvents: 'none' }}
+                          />
+                          <text
+                            fontSize={11}
+                            fontWeight={600}
+                            fill="var(--text-primary)"
+                            fillOpacity={0.96}
+                            style={{
+                              fontFamily: 'var(--font-body)',
+                              userSelect: 'none',
+                              pointerEvents: 'none',
+                              textShadow: '0 1px 2px rgba(0,0,0,0.75), 0 0 1px rgba(0,0,0,0.5)',
+                              letterSpacing: '0.01em',
+                            }}
                           >
-                            {radialTitle}
-                          </textPath>
-                        </text>
+                            <textPath
+                              href={`#${ID.eventCallout(ev.id)}`}
+                              startOffset="50%"
+                              textAnchor="middle"
+                            >
+                              {ev.title}
+                            </textPath>
+                          </text>
+                        </>
                       )}
                     </motion.g>
                   )
