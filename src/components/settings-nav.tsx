@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTransition, useState, useEffect } from 'react'
-import { Users, Building2, MapPin, Briefcase, Palette, Languages, CreditCard } from 'lucide-react'
+import { Users, Building2, MapPin, Map, Briefcase, Palette, Languages, CreditCard } from 'lucide-react'
 import { useT } from '@/lib/i18n/context'
 
 export function SettingsNav() {
@@ -18,6 +18,7 @@ export function SettingsNav() {
     { href: '/settings/org', label: t.settings.nav.org, icon: Building2 },
     { href: '/settings/offices', label: t.settings.nav.offices, icon: MapPin },
     { href: '/settings/customers', label: t.settings.nav.customers, icon: Briefcase },
+    { href: '/settings/map', label: t.settings.nav.map, icon: Map },
     { href: '/settings/theme', label: t.settings.nav.theme, icon: Palette },
     { href: '/settings/language', label: t.settings.nav.language, icon: Languages },
     { href: '/settings/billing', label: 'Fakturering', icon: CreditCard },

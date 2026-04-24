@@ -241,7 +241,6 @@ export function CustomerMapView({
                 <MapPin
                   radius={c.radius}
                   color={customerColor}
-                  auroraCompanion="#5FE3D0"
                   index={i}
                 />
               </g>
