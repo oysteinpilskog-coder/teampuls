@@ -19,107 +19,98 @@ interface MapPinProps {
 /**
  * The "premium" map pin — a glass dot with a multi-layer aurora glow.
  *
- * Earlier iterations tried SVG `<radialGradient>` fills and `mix-blend-mode:
- * screen`. Both had cross-browser rendering quirks that sometimes left the
- * aurora completely invisible. This version goes back to basics: solid
- * colored circles with CSS `filter: blur()` (the same technique the global
- * AuroraBackground uses), animated in position and opacity to drift like
- * northern lights. `filter: blur()` on SVG elements is universally supported
- * and composes predictably with framer-motion transforms.
+ * Three prior attempts failed to produce a visible glow:
+ *   1. `mix-blend-mode: screen` — Safari drops it.
+ *   2. `<radialGradient>` fills — silent failure on id collisions and
+ *      opacity animation quirks under framer-motion.
+ *   3. CSS `filter: blur()` on SVG circles — the browser's default
+ *      filter region clips the blur at ~10 % past the element bbox,
+ *      so a 14 px blur on a 42-px radius disc comes out almost flat.
+ *
+ * This version avoids all three by faking the soft falloff with five
+ * concentric circles at graduated opacity — plain <circle> elements,
+ * no filter, no blend mode, no gradient. It renders identically in
+ * every browser. Two nested <g> wrappers (companion and primary)
+ * drift on opposite tempos so the composite shimmers like northern
+ * lights rather than breathing as a single disc.
  */
 export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
   const companion = auroraCompanion ?? '#FFFFFF'
 
-  // Layer sizes chosen so the aurora reads as a halo even when neighbouring
-  // pins are ~80 px apart on the dashboard map.
-  const rOuter = radius * 3.8
-  const rInner = radius * 2.6
-  const rCore  = radius + 6
-
   return (
     <g>
-      {/* Outer soft blob — companion hue, widest reach, slow drift */}
-      <motion.circle
-        r={rOuter}
-        fill={companion}
-        initial={{ cx: 0, cy: 0, opacity: 0 }}
+      {/* ─── Companion halo — wide, cool, slow drift ─── */}
+      <motion.g
+        initial={{ opacity: 0 }}
         animate={{
-          cx: [7, -7, 7],
-          cy: [4, -4, 4],
-          opacity: [0.26, 0.42, 0.26],
+          opacity: [0.75, 1, 0.75],
+          x: [6, -6, 6],
+          y: [4, -4, 4],
         }}
         transition={{
-          cx: {
-            duration: 11 + (index % 3) * 1.7,
-            delay: (index % 5) * 0.5 + 1.2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
-          cy: {
-            duration: 9 + (index % 4) * 1.4,
-            delay: (index % 5) * 0.6 + 0.6,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
           opacity: {
             duration: 6 + (index % 4) * 1.1,
             delay: (index % 5) * 0.4 + 1.0,
             repeat: Infinity,
             ease: 'easeInOut',
           },
+          x: {
+            duration: 11 + (index % 3) * 1.7,
+            delay: (index % 5) * 0.5 + 1.2,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
+          y: {
+            duration: 9 + (index % 4) * 1.4,
+            delay: (index % 5) * 0.6 + 0.6,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
         }}
-        style={{ filter: 'blur(14px)' }}
-      />
+      >
+        <circle r={radius * 7.5} fill={companion} opacity={0.05} />
+        <circle r={radius * 6.0} fill={companion} opacity={0.09} />
+        <circle r={radius * 4.5} fill={companion} opacity={0.16} />
+        <circle r={radius * 3.2} fill={companion} opacity={0.26} />
+      </motion.g>
 
-      {/* Middle blob — primary hue, counter-drift */}
-      <motion.circle
-        r={rInner}
-        fill={color}
-        initial={{ cx: 0, cy: 0, opacity: 0 }}
+      {/* ─── Primary halo — tighter, hotter, counter-drift ─── */}
+      <motion.g
+        initial={{ opacity: 0 }}
         animate={{
-          cx: [-5, 5, -5],
-          cy: [-3, 3, -3],
-          opacity: [0.48, 0.72, 0.48],
+          opacity: [0.8, 1, 0.8],
+          x: [-5, 5, -5],
+          y: [-3, 3, -3],
         }}
         transition={{
-          cx: {
-            duration: 9 + (index % 4) * 1.4,
-            delay: (index % 5) * 0.8,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
-          cy: {
-            duration: 7 + (index % 3) * 1.2,
-            delay: (index % 5) * 0.4,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
           opacity: {
             duration: 5 + (index % 3) * 1.3,
             delay: (index % 4) * 0.3,
             repeat: Infinity,
             ease: 'easeInOut',
           },
+          x: {
+            duration: 9 + (index % 4) * 1.4,
+            delay: (index % 5) * 0.8,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
+          y: {
+            duration: 7 + (index % 3) * 1.2,
+            delay: (index % 5) * 0.4,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
         }}
-        style={{ filter: 'blur(11px)' }}
-      />
+      >
+        <circle r={radius * 5.0} fill={color} opacity={0.08} />
+        <circle r={radius * 4.0} fill={color} opacity={0.15} />
+        <circle r={radius * 3.0} fill={color} opacity={0.26} />
+        <circle r={radius * 2.2} fill={color} opacity={0.42} />
+        <circle r={radius * 1.6} fill={color} opacity={0.60} />
+      </motion.g>
 
-      {/* Tight corona — hugs the dot, breathes gently */}
-      <motion.circle
-        r={rCore}
-        fill={color}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: [0.55, 0.75, 0.55] }}
-        transition={{
-          duration: 3.4 + (index % 3) * 0.5,
-          delay: (index % 5) * 0.3,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-        style={{ filter: 'blur(5px)' }}
-      />
-
-      {/* Crisp expanding ring — the "heartbeat" */}
+      {/* ─── Crisp expanding ring — heartbeat ─── */}
       <motion.circle
         r={radius + 4}
         fill="none"
@@ -137,7 +128,7 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
         }}
       />
 
-      {/* Dot base */}
+      {/* ─── Dot base ─── */}
       <motion.circle
         r={radius}
         fill={color}
@@ -146,12 +137,9 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
         initial={{ r: 0, opacity: 0 }}
         animate={{ r: radius, opacity: 1 }}
         transition={{ ...spring.gentle, delay: 0.35 + index * 0.06 }}
-        style={{
-          filter: `drop-shadow(0 0 14px ${color}) drop-shadow(0 2px 4px rgba(0,0,0,0.4))`,
-        }}
       />
 
-      {/* Glass highlight */}
+      {/* ─── Glass highlight ─── */}
       <circle
         r={radius * 0.55}
         cx={-radius * 0.22}
