@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -66,6 +66,17 @@ export function WeekNav({
 
   const showMetrics = !!metrics && isCurrentWeek && metrics.memberCount > 0
 
+  // Today's weekday + date label — shown only when the user is on the
+  // current week. Lives in the meta strip at the same visual weight as the
+  // rest of the line (the old italic Fraunces hero was beautiful but ate
+  // a whole row). Computed after mount so server and client agree even if
+  // the clock ticks across midnight between SSR and hydration.
+  const [todayLabel, setTodayLabel] = useState<string>('')
+  useEffect(() => {
+    const now = new Date()
+    setTodayLabel(`${t.dates.weekdaysLong[now.getDay()]} ${now.getDate()}. ${t.dates.monthsLong[now.getMonth()]}`)
+  }, [t])
+
   return (
     <motion.div
       key={`${week}-${year}`}
@@ -74,8 +85,18 @@ export function WeekNav({
       transition={spring.gentle}
       className="flex items-center justify-between gap-4 flex-wrap"
     >
-      {/* Left: single-line meta — week · range · NÅ · metrics · month picker */}
+      {/* Left: single-line meta — today · week · range · NÅ · metrics · month picker */}
       <div className="flex items-center gap-2 flex-wrap min-w-0">
+        {isCurrentWeek && todayLabel && (
+          <span
+            className="lg-eyebrow tabular-nums whitespace-nowrap capitalize"
+            style={{ color: 'var(--lg-text-1)' }}
+            suppressHydrationWarning
+          >
+            {todayLabel}
+            <span aria-hidden className="mx-2 opacity-40">·</span>
+          </span>
+        )}
         <span className="lg-eyebrow tabular-nums whitespace-nowrap">
           {t.matrix.weekLabel} {week}
           <span className="mx-2 opacity-50">·</span>
