@@ -103,11 +103,12 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
             fontWeight: 700,
             fontFamily: 'var(--font-sora)',
             letterSpacing: '-0.04em',
-            background: 'linear-gradient(180deg, #ffffff 0%, #d4dbff 100%)',
+            background:
+              'linear-gradient(180deg, #00F5A0 -12%, #00D9F5 16%, #ffffff 52%, #ffffff 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
-            filter: 'drop-shadow(0 0 24px rgba(120,150,255,0.18))',
+            filter: 'drop-shadow(0 0 24px rgba(0,217,245,0.22))',
           }}
         >
           {hours}:{minutes}

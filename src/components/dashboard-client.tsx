@@ -303,47 +303,44 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
         </AnimatePresence>
       </div>
 
-      {/* ── Rotation progress hairline ──
-          A thin Nordlys line across the bottom edge that fills over each
-          view's dwell. Matches the /min-plan today-chord signature so the
-          whole product speaks the same visual language. */}
-      <div className="relative h-[2px] w-full overflow-hidden">
-        {(() => {
-          const key = VIEWS[viewIdx] ?? VIEWS[0] ?? 'A'
-          const multiplier = DWELL_MULTIPLIER[key]
-          const dwellMs = Math.max(1, intervalSec * 1000 * multiplier)
-          const elapsed = time.getTime() - viewStartedAt
-          const pct = Math.max(0, Math.min(1, elapsed / dwellMs))
-          return (
-            <>
-              <div
-                className="absolute inset-0"
-                style={{ background: 'rgba(255,255,255,0.05)' }}
-              />
-              <div
-                className="absolute left-0 top-0 h-full transition-[width] duration-[950ms] ease-linear"
-                style={{
-                  width: `${pct * 100}%`,
-                  // Gradient is pinned to the full track width (100vw) rather
-                  // than the filled portion — so as the bar grows, it reveals
-                  // more of the nordlys left-to-right instead of squeezing
-                  // all three colours into whatever width is filled.
-                  background:
-                    'linear-gradient(90deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%)',
-                  backgroundSize: '100vw 100%',
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'left center',
-                  boxShadow:
-                    '0 0 12px rgba(0, 217, 245, 0.45), 0 0 24px rgba(0, 245, 160, 0.22)',
-                }}
-              />
-            </>
-          )
-        })()}
-      </div>
+      {/* ── Rotation progress hairlines (top + bottom of the control bar) ──
+          Thin Nordlys lines that fill over each view's dwell. Rendered at
+          half strength and mirrored on both edges so the combined weight
+          matches the original single line and frames the control bar like
+          the KUNDEPORTEFØLJE widget's Nordlys rail. */}
+      {(() => {
+        const key = VIEWS[viewIdx] ?? VIEWS[0] ?? 'A'
+        const multiplier = DWELL_MULTIPLIER[key]
+        const dwellMs = Math.max(1, intervalSec * 1000 * multiplier)
+        const elapsed = time.getTime() - viewStartedAt
+        const pct = Math.max(0, Math.min(1, elapsed / dwellMs))
+        const hairlineStyle = {
+          width: `${pct * 100}%`,
+          background:
+            'linear-gradient(90deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%)',
+          backgroundSize: '100vw 100%',
+          backgroundRepeat: 'no-repeat' as const,
+          backgroundPosition: 'left center' as const,
+          opacity: 0.55,
+          boxShadow:
+            '0 0 8px rgba(0, 217, 245, 0.28), 0 0 16px rgba(0, 245, 160, 0.14)',
+        }
+        return (
+          <div className="relative h-[2px] w-full overflow-hidden">
+            <div
+              className="absolute inset-0"
+              style={{ background: 'rgba(255,255,255,0.04)' }}
+            />
+            <div
+              className="absolute left-0 top-0 h-full transition-[width] duration-[950ms] ease-linear"
+              style={hairlineStyle}
+            />
+          </div>
+        )
+      })()}
 
       {/* ── Floating control bar (iOS-style segmented glass pill) ── */}
-      <div className="relative flex items-center justify-between px-6 pt-2 pb-4 gap-4">
+      <div className="relative flex items-center justify-between px-6 pt-2 pb-2 gap-4">
         {/* Left: back link */}
         <a
           href="/"
@@ -398,7 +395,25 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
                     }}
                   />
                 )}
-                <span className="relative">{VIEW_LABELS[v]}</span>
+                <span
+                  className="relative"
+                  style={
+                    active
+                      ? {
+                          // Nordlys in toppen på det hvite — aurora tint fades
+                          // down into white body, mirroring the KUNDEPORTEFØLJE
+                          // hero-number language (inverted direction).
+                          background:
+                            'linear-gradient(180deg, #00F5A0 -20%, #00D9F5 18%, #ffffff 55%, #ffffff 100%)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          backgroundClip: 'text',
+                        }
+                      : undefined
+                  }
+                >
+                  {VIEW_LABELS[v]}
+                </span>
               </button>
             )
           })}
@@ -435,6 +450,37 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
           </button>
         </div>
       </div>
+
+      {/* ── Rotation progress hairline (bottom edge, mirror of the top one) ── */}
+      {(() => {
+        const key = VIEWS[viewIdx] ?? VIEWS[0] ?? 'A'
+        const multiplier = DWELL_MULTIPLIER[key]
+        const dwellMs = Math.max(1, intervalSec * 1000 * multiplier)
+        const elapsed = time.getTime() - viewStartedAt
+        const pct = Math.max(0, Math.min(1, elapsed / dwellMs))
+        return (
+          <div className="relative h-[2px] w-full overflow-hidden">
+            <div
+              className="absolute inset-0"
+              style={{ background: 'rgba(255,255,255,0.04)' }}
+            />
+            <div
+              className="absolute left-0 top-0 h-full transition-[width] duration-[950ms] ease-linear"
+              style={{
+                width: `${pct * 100}%`,
+                background:
+                  'linear-gradient(90deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%)',
+                backgroundSize: '100vw 100%',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'left center',
+                opacity: 0.55,
+                boxShadow:
+                  '0 0 8px rgba(0, 217, 245, 0.28), 0 0 16px rgba(0, 245, 160, 0.14)',
+              }}
+            />
+          </div>
+        )
+      })()}
 
       {/* Blink animation for clock colon */}
       <style>{`
