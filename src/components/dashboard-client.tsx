@@ -131,6 +131,39 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  // Realtime customers — the settings page writes directly to the DB, so
+  // without this the customer map stays frozen until the next reload.
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`customers:org:${orgId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'customers',
+          filter: `org_id=eq.${orgId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            const deleted = payload.old as Partial<Customer>
+            if (!deleted.id) return
+            setCustomers(prev => prev.filter(c => c.id !== deleted.id))
+            return
+          }
+          const upserted = payload.new as Customer
+          if (!upserted?.id) return
+          setCustomers(prev => {
+            const without = prev.filter(c => c.id !== upserted.id)
+            return [...without, upserted].sort((a, b) => a.name.localeCompare(b.name))
+          })
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [orgId])
+
   // Realtime entries for the current week (includes today)
   const { entries } = useEntries(orgId, dateStrings)
 
