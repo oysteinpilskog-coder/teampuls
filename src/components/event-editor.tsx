@@ -158,7 +158,7 @@ export function EventEditor({ open, onClose, orgId, event, onMutated }: EventEdi
 
             {/* Title */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
+              <label className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>
                 {t.eventEditor.fieldTitle}
               </label>
               <input
@@ -175,7 +175,7 @@ export function EventEditor({ open, onClose, orgId, event, onMutated }: EventEdi
 
             {/* Category */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
+              <label className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>
                 {t.eventEditor.category}
               </label>
               <div className="flex flex-wrap gap-1.5">
@@ -199,7 +199,7 @@ export function EventEditor({ open, onClose, orgId, event, onMutated }: EventEdi
 
             {/* Dates */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
+              <label className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>
                 {t.eventEditor.period}
               </label>
               <div
@@ -217,7 +217,7 @@ export function EventEditor({ open, onClose, orgId, event, onMutated }: EventEdi
 
             {/* Description */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
+              <label className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>
                 {t.eventEditor.description}
               </label>
               <textarea

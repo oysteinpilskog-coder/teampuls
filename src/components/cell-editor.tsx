@@ -286,7 +286,7 @@ export function CellEditor({
             <div>
               <p
                 className="text-[13px] font-medium uppercase tracking-widest mb-0.5"
-                style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+                style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
               >
                 {(() => {
                   if (rangeStart === rangeEnd) return dateLabel
@@ -309,7 +309,7 @@ export function CellEditor({
             <div className="flex flex-col gap-1.5">
               <label
                 className="text-[11px] font-semibold uppercase tracking-widest"
-                style={{ color: 'var(--text-tertiary)' }}
+                style={{ color: 'var(--text-secondary)' }}
               >
                 {t.editor.period}
               </label>
@@ -332,7 +332,7 @@ export function CellEditor({
             <div className="flex flex-col gap-2">
               <span
                 className="text-[11px] font-semibold uppercase tracking-widest"
-                style={{ color: 'var(--text-tertiary)' }}
+                style={{ color: 'var(--text-secondary)' }}
               >
                 {t.editor.status}
               </span>
@@ -397,7 +397,7 @@ export function CellEditor({
             <div className="flex flex-col gap-1.5">
               <label
                 className="text-[11px] font-semibold uppercase tracking-widest"
-                style={{ color: 'var(--text-tertiary)' }}
+                style={{ color: 'var(--text-secondary)' }}
               >
                 {t.editor.location}
               </label>
@@ -430,7 +430,7 @@ export function CellEditor({
             <div className="flex flex-col gap-1.5">
               <label
                 className="text-[11px] font-semibold uppercase tracking-widest"
-                style={{ color: 'var(--text-tertiary)' }}
+                style={{ color: 'var(--text-secondary)' }}
               >
                 {t.editor.note}
               </label>

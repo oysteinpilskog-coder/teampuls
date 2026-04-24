@@ -243,11 +243,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={spring.bouncy}
-              className="pointer-events-auto w-[440px] max-w-full max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl p-6 flex flex-col gap-4"
-              style={{
-                backgroundColor: 'var(--bg-elevated)',
-                boxShadow: 'var(--shadow-xl)',
-              }}
+              className="tp-modal pointer-events-auto w-[440px] max-w-full max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl p-6 flex flex-col gap-4"
             >
               <div className="flex items-center justify-between">
                 <h2
@@ -275,7 +271,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                         initials: f.initials || deriveInitials(display_name, f.full_name),
                       }))
                     }}
-                    placeholder="Sindre"
+                    placeholder="Ola"
                     className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
                     style={inputStyle}
                     onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
@@ -295,7 +291,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                         initials: f.initials || deriveInitials(f.display_name, full_name),
                       }))
                     }}
-                    placeholder="Sindre Barstad"
+                    placeholder="Ola Normann"
                     className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
                     style={inputStyle}
                     onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
@@ -349,19 +345,19 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                 <div className="flex items-baseline gap-2">
                   <label
                     className="text-[11px] font-semibold uppercase tracking-widest"
-                    style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+                    style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
                   >
                     AI-kortkode
                   </label>
                   <span className="text-[11px]" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
-                    2 bokstaver for raske referanser — «ØP uke 18»
+                    2 bokstaver for raske referanser — «ON uke 18»
                   </span>
                 </div>
                 <input
                   type="text"
                   value={form.initials}
                   onChange={e => setForm(f => ({ ...f, initials: e.target.value.slice(0, 3).toUpperCase() }))}
-                  placeholder="ØP"
+                  placeholder="ON"
                   maxLength={3}
                   className="w-24 px-3 py-2.5 rounded-xl text-[14px] font-semibold tracking-wider outline-none uppercase"
                   style={{ ...inputStyle, backgroundColor: 'var(--bg-elevated)' }}
@@ -412,11 +408,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={spring.bouncy}
-              className="pointer-events-auto w-[420px] max-w-full rounded-2xl p-6 flex flex-col gap-4"
-              style={{
-                backgroundColor: 'var(--bg-elevated)',
-                boxShadow: 'var(--shadow-xl)',
-              }}
+              className="tp-modal pointer-events-auto w-[420px] max-w-full rounded-2xl p-6 flex flex-col gap-4"
             >
               <div className="flex items-start gap-3">
                 <div
@@ -505,7 +497,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
       <div className="flex items-baseline gap-2">
         <label
           className="text-[11px] font-semibold uppercase tracking-widest"
-          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+          style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
         >
           {label}
         </label>

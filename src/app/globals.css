@@ -474,6 +474,30 @@
 }
 
 /* ============================================================
+   MODAL SURFACE — shared dialog/modal frame
+   Handlers for settings dialogs (add/edit member, office, customer).
+   In dark mode the background slightly lifts off --bg-primary
+   and a soft ember-tinted border + inner highlight give the
+   window a defined edge instead of bleeding into the page.
+   ============================================================ */
+
+.tp-modal {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-xl);
+}
+
+.dark .tp-modal {
+  background-color: #221A13;
+  border-color: rgba(245, 239, 228, 0.18);
+  box-shadow:
+    0 30px 60px -18px rgba(0, 0, 0, 0.85),
+    0 14px 30px -14px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(245, 239, 228, 0.04),
+    inset 0 1px 0 rgba(245, 239, 228, 0.08);
+}
+
+/* ============================================================
    LIQUID GLASS — translucent panel material
    ============================================================ */
 
