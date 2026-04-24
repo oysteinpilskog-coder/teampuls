@@ -83,13 +83,15 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 pt-3 pb-10 space-y-5">
-      {/* Hero beat — italic Ember weekday + Fraunces date. Owns its line. */}
-      <TodayGreeting today={new Date()} dict={await getServerDict()} />
-
-      {/* AI input — single, calm call to action */}
+      {/* AI input — single, calm call to action. Sits at the top so the
+          first thing users meet is the write-and-done field. */}
       <div className="mx-auto max-w-3xl">
         <AIInput orgId={member.org_id} />
       </div>
+
+      {/* Hero beat — italic Ember weekday + Fraunces date. Lives under
+          the AI input so the matrix is only a glance away. */}
+      <TodayGreeting today={new Date()} dict={await getServerDict()} />
 
       {/* Week grid + compact meta strip (the WeekNav inside TeamGrid carries
           the uke / range / live metrics / prev-today-next pill on one row). */}
