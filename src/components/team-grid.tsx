@@ -146,6 +146,13 @@ interface TeamGridProps {
   initialWeek?: number
   /** Optional — the ISO year these initialEntries belong to. Must match for the seed to kick in. */
   initialYear?: number
+  /** Server-computed today metrics — rendered in the compact WeekNav strip
+   *  only when the user is viewing the current week. */
+  todayMetrics?: {
+    memberCount: number
+    registeredToday: number
+    distinctLocations: number
+  }
 }
 
 // Skeleton row for loading state
@@ -198,6 +205,7 @@ export function TeamGrid({
   initialEntries,
   initialWeek,
   initialYear,
+  todayMetrics,
 }: TeamGridProps) {
   const t = useT()
   const { week: todayWeek, year: todayYear } = getTodayWeekAndYear()
@@ -782,6 +790,7 @@ export function TeamGrid({
         onNext={goToNext}
         onToday={goToToday}
         onJumpTo={jumpTo}
+        metrics={todayMetrics ?? null}
       />
 
       {/* Matrix — dark liquid glass panel */}

@@ -4,11 +4,9 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { StatusIcon } from '@/components/icons/status-icons'
 import type { EntryStatus } from '@/lib/supabase/types'
 import { AvatarStack } from '@/components/member-avatar'
-import { useI18n, useT } from '@/lib/i18n/context'
-import { LOCALE_META } from '@/lib/i18n/types'
+import { useT } from '@/lib/i18n/context'
 import { useState, useEffect, useRef } from 'react'
 import { useStatusColors } from '@/lib/status-colors/context'
-import { formatDateLabelLong } from '@/lib/dates'
 
 interface MemberWithEntry {
   id: string
@@ -40,8 +38,6 @@ const COL_CLASSES: Record<number, string> = {
 
 export function TodayPulse({ entries }: TodayPulseProps) {
   const t = useT()
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
   const STATUS_COLORS = useStatusColors()
   const reduce = !!useReducedMotion()
 
@@ -66,8 +62,19 @@ export function TodayPulse({ entries }: TodayPulseProps) {
   const colClasses = COL_CLASSES[visibleGroups.length] ?? COL_CLASSES[7]
 
   return (
-    <section className="relative isolate">
-      <PulseHeader mounted={mounted} totalToday={totalToday} reduce={reduce} />
+    <section className="relative isolate" aria-label="Akkurat nå">
+      <div className="flex items-center gap-2 mb-3">
+        <motion.span
+          className="w-1.5 h-1.5 rounded-full"
+          style={{
+            background: 'var(--lg-accent)',
+            boxShadow: '0 0 10px var(--lg-accent-glow)',
+          }}
+          animate={reduce ? {} : { opacity: [0.35, 1, 0.35] }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <span className="lg-eyebrow">Akkurat nå</span>
+      </div>
 
       <TeamBalanceBar
         visibleGroups={visibleGroups}
@@ -76,7 +83,7 @@ export function TodayPulse({ entries }: TodayPulseProps) {
         reduce={reduce}
       />
 
-      <div className={`grid ${colClasses} gap-3`}>
+      <div className={`grid ${colClasses} gap-2.5`}>
         {visibleGroups.map((group, i) => (
           <PulseCard
             key={group.status}
@@ -111,7 +118,7 @@ function TeamBalanceBar({ visibleGroups, total, statusColors, reduce }: TeamBala
   const activePct = activeGroup ? Math.round((activeGroup.members.length / total) * 100) : 0
 
   return (
-    <div className="mb-6">
+    <div className="mb-4">
       <div
         className="flex items-center gap-2 mb-2 text-[12px] h-[18px]"
         style={{ fontFamily: 'var(--font-body)', color: 'var(--lg-text-2)' }}
@@ -181,89 +188,6 @@ function TeamBalanceBar({ visibleGroups, total, statusColors, reduce }: TeamBala
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function PulseHeader({
-  mounted,
-  totalToday,
-  reduce,
-}: {
-  mounted: boolean
-  totalToday: number
-  reduce: boolean
-}) {
-  const t = useT()
-  const { locale } = useI18n()
-  const [now, setNow] = useState<Date | null>(null)
-  useEffect(() => {
-    if (!mounted) return
-    setNow(new Date())
-    const tick = setInterval(() => setNow(new Date()), 20_000)
-    return () => clearInterval(tick)
-  }, [mounted])
-
-  const time = now
-    ? new Intl.DateTimeFormat(LOCALE_META[locale].intl, { hour: '2-digit', minute: '2-digit' }).format(now)
-    : ''
-  const dateLabel = now ? formatDateLabelLong(now, t) : ''
-
-  return (
-    <div className="relative mb-6 md:mb-8">
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 mb-3">
-            <motion.span
-              className="w-1.5 h-1.5 rounded-full"
-              style={{
-                background: 'var(--lg-accent)',
-                boxShadow: '0 0 10px var(--lg-accent-glow)',
-              }}
-              animate={reduce ? {} : { opacity: [0.35, 1, 0.35] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            />
-            <span className="lg-eyebrow">Live · akkurat nå</span>
-          </div>
-          <h2
-            className="lg-serif leading-[0.95]"
-            style={{
-              color: 'var(--lg-text-1)',
-              fontSize: 'clamp(36px, 5vw, 56px)',
-            }}
-          >
-            {totalToday} {totalToday === 1 ? 'person' : 'personer'}
-          </h2>
-          <div
-            className="mt-2 text-[13px] min-h-[20px] capitalize"
-            style={{ color: 'var(--lg-text-3)', fontFamily: 'var(--font-body)' }}
-            suppressHydrationWarning
-          >
-            {dateLabel}
-          </div>
-        </div>
-
-        <div className="flex flex-col items-end shrink-0">
-          <span className="lg-eyebrow mb-1.5">Klokka er</span>
-          <motion.span
-            key={time || 'empty'}
-            initial={{ opacity: 0, y: 2 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
-            className="lg-mono leading-none min-h-[40px]"
-            style={{
-              color: 'var(--lg-text-1)',
-              fontSize: 'clamp(28px, 3.5vw, 44px)',
-              fontWeight: 500,
-            }}
-            suppressHydrationWarning
-          >
-            {time || ' '}
-          </motion.span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface PulseCardProps {
   status: EntryStatus
   label: string
@@ -287,29 +211,29 @@ function PulseCard({ status, label, members, index, tone, reduce }: PulseCardPro
         background: 'var(--lg-surface-1)',
         border: '1px solid var(--lg-divider)',
         boxShadow: `inset 2px 0 0 ${tone}, 0 0 18px -10px ${tone}55`,
-        minHeight: 164,
+        minHeight: 124,
       }}
     >
-      <div className="relative flex flex-col justify-between h-full p-4 md:p-5" style={{ minHeight: 164 }}>
+      <div className="relative flex flex-col justify-between h-full p-3.5 md:p-4" style={{ minHeight: 124 }}>
         {/* Top row — icon + mono count */}
         <div className="flex items-start justify-between gap-3">
           <div
             className="flex items-center justify-center rounded-lg"
             style={{
-              width: 28,
-              height: 28,
+              width: 26,
+              height: 26,
               background: `color-mix(in oklab, ${tone} 18%, transparent)`,
               boxShadow: `0 0 0 1px color-mix(in oklab, ${tone} 35%, transparent)`,
             }}
           >
-            <StatusIcon status={status} size={14} color={tone} />
+            <StatusIcon status={status} size={13} color={tone} />
           </div>
 
           <motion.span
             className="lg-mono leading-none"
             style={{
               color: 'var(--lg-text-1)',
-              fontSize: 'clamp(40px, 5vw, 56px)',
+              fontSize: 'clamp(30px, 3.6vw, 40px)',
               fontWeight: 500,
             }}
           >
@@ -318,14 +242,14 @@ function PulseCard({ status, label, members, index, tone, reduce }: PulseCardPro
         </div>
 
         {/* Bottom — label + avatar stack */}
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between gap-2">
             <span
               className="font-medium truncate"
               style={{
                 color: 'var(--lg-text-1)',
                 fontFamily: 'var(--font-body)',
-                fontSize: 14,
+                fontSize: 13,
               }}
             >
               {label}
