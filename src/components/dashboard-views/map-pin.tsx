@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useId } from 'react'
 import { spring } from '@/lib/motion'
 
 interface MapPinProps {
@@ -17,100 +18,107 @@ interface MapPinProps {
 }
 
 /**
- * The "premium" map pin — a glass dot with a multi-layer aurora glow.
+ * The "premium" map pin — a glass dot with a soft aurora glow.
  *
- * Three prior attempts failed to produce a visible glow:
- *   1. `mix-blend-mode: screen` — Safari drops it.
- *   2. `<radialGradient>` fills — silent failure on id collisions and
- *      opacity animation quirks under framer-motion.
- *   3. CSS `filter: blur()` on SVG circles — the browser's default
- *      filter region clips the blur at ~10 % past the element bbox,
- *      so a 14 px blur on a 42-px radius disc comes out almost flat.
+ * Uses explicit SVG <filter> elements with feGaussianBlur, NOT CSS
+ * `filter: blur()`. The CSS property is convenient but the browser
+ * wraps it in a default filter region of ~(-10%, -10%, 120%, 120%),
+ * which clips anything the blur spills past — on a small circle a
+ * 16 px blur gets mostly cut off. An explicit <filter> with an
+ * oversized region (300 %) lets the blur fall off naturally instead
+ * of slamming into a bounding box, which is what produced the visible
+ * bullseye rings in the prior "stacked opacity circles" attempt.
  *
- * This version avoids all three by faking the soft falloff with five
- * concentric circles at graduated opacity — plain <circle> elements,
- * no filter, no blend mode, no gradient. It renders identically in
- * every browser. Two nested <g> wrappers (companion and primary)
- * drift on opposite tempos so the composite shimmers like northern
- * lights rather than breathing as a single disc.
+ * Two blurred circles drift at different tempos to mimic the same
+ * nordlys dance the dashboard's AuroraBackground uses.
  */
 export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
   const companion = auroraCompanion ?? '#FFFFFF'
+  // useId() generates a document-unique id so two MapPins never reference
+  // the same <filter> definition (earlier versions collided between the
+  // office and customer views rotating through the same DOM).
+  const uid = useId().replace(/:/g, '')
+  const filterA = `mp-blur-a-${uid}`
+  const filterB = `mp-blur-b-${uid}`
 
   return (
     <g>
-      {/* ─── Companion halo — wide, cool, slow drift ─── */}
-      <motion.g
-        initial={{ opacity: 0 }}
+      <defs>
+        <filter id={filterA} x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="18" />
+        </filter>
+        <filter id={filterB} x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="11" />
+        </filter>
+      </defs>
+
+      {/* Companion halo — wide, slow, soft */}
+      <motion.circle
+        r={radius * 3}
+        fill={companion}
+        filter={`url(#${filterA})`}
+        initial={{ cx: 0, cy: 0, opacity: 0 }}
         animate={{
-          opacity: [0.75, 1, 0.75],
-          x: [6, -6, 6],
-          y: [4, -4, 4],
+          cx: [7, -7, 7],
+          cy: [4, -4, 4],
+          opacity: [0.45, 0.7, 0.45],
         }}
         transition={{
+          cx: {
+            duration: 11 + (index % 3) * 1.7,
+            delay: (index % 5) * 0.5 + 1.2,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
+          cy: {
+            duration: 9 + (index % 4) * 1.4,
+            delay: (index % 5) * 0.6 + 0.6,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
           opacity: {
             duration: 6 + (index % 4) * 1.1,
             delay: (index % 5) * 0.4 + 1.0,
             repeat: Infinity,
             ease: 'easeInOut',
           },
-          x: {
-            duration: 11 + (index % 3) * 1.7,
-            delay: (index % 5) * 0.5 + 1.2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
-          y: {
-            duration: 9 + (index % 4) * 1.4,
-            delay: (index % 5) * 0.6 + 0.6,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
         }}
-      >
-        <circle r={radius * 7.5} fill={companion} opacity={0.05} />
-        <circle r={radius * 6.0} fill={companion} opacity={0.09} />
-        <circle r={radius * 4.5} fill={companion} opacity={0.16} />
-        <circle r={radius * 3.2} fill={companion} opacity={0.26} />
-      </motion.g>
+      />
 
-      {/* ─── Primary halo — tighter, hotter, counter-drift ─── */}
-      <motion.g
-        initial={{ opacity: 0 }}
+      {/* Primary halo — tighter, brighter, counter-drift */}
+      <motion.circle
+        r={radius * 2.2}
+        fill={color}
+        filter={`url(#${filterB})`}
+        initial={{ cx: 0, cy: 0, opacity: 0 }}
         animate={{
-          opacity: [0.8, 1, 0.8],
-          x: [-5, 5, -5],
-          y: [-3, 3, -3],
+          cx: [-5, 5, -5],
+          cy: [-3, 3, -3],
+          opacity: [0.65, 0.95, 0.65],
         }}
         transition={{
+          cx: {
+            duration: 9 + (index % 4) * 1.4,
+            delay: (index % 5) * 0.8,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
+          cy: {
+            duration: 7 + (index % 3) * 1.2,
+            delay: (index % 5) * 0.4,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
           opacity: {
             duration: 5 + (index % 3) * 1.3,
             delay: (index % 4) * 0.3,
             repeat: Infinity,
             ease: 'easeInOut',
           },
-          x: {
-            duration: 9 + (index % 4) * 1.4,
-            delay: (index % 5) * 0.8,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
-          y: {
-            duration: 7 + (index % 3) * 1.2,
-            delay: (index % 5) * 0.4,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          },
         }}
-      >
-        <circle r={radius * 5.0} fill={color} opacity={0.08} />
-        <circle r={radius * 4.0} fill={color} opacity={0.15} />
-        <circle r={radius * 3.0} fill={color} opacity={0.26} />
-        <circle r={radius * 2.2} fill={color} opacity={0.42} />
-        <circle r={radius * 1.6} fill={color} opacity={0.60} />
-      </motion.g>
+      />
 
-      {/* ─── Crisp expanding ring — heartbeat ─── */}
+      {/* Crisp expanding ring — heartbeat */}
       <motion.circle
         r={radius + 4}
         fill="none"
@@ -128,7 +136,7 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
         }}
       />
 
-      {/* ─── Dot base ─── */}
+      {/* Dot base */}
       <motion.circle
         r={radius}
         fill={color}
@@ -139,7 +147,7 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
         transition={{ ...spring.gentle, delay: 0.35 + index * 0.06 }}
       />
 
-      {/* ─── Glass highlight ─── */}
+      {/* Glass highlight */}
       <circle
         r={radius * 0.55}
         cx={-radius * 0.22}
