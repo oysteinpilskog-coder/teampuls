@@ -1,66 +1,71 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useId } from 'react'
 import { spring } from '@/lib/motion'
 
 interface MapPinProps {
   /** Pin centre in viewBox coords — caller translates the <g>. */
   radius: number
-  /** Primary pin hue — drives dot, halo, and aurora. */
+  /** Primary pin hue — drives dot and primary aurora layer. */
   color: string
-  /** Optional cooler companion hue for the drifting aurora. Falls back to a
-   *  white-tinted version of `color`. */
+  /** Companion hue for the second aurora layer. Pick something that contrasts
+   *  the primary — cool blue for a warm pin, warm pink for a cool pin — so
+   *  the two ellipses read as *two* lights, not one. */
   auroraCompanion?: string
-  /** Stable index so staggered entry + orbit phases don't sync across pins. */
+  /** Stable index so orbit phases don't sync across pins. */
   index: number
 }
 
 /**
- * The "premium" map pin — a glass dot with a slow ambient pulse and a drifting
- * aurora-like glow behind it. Two ellipses filled with radial gradients orbit
- * at different tempos to evoke the same "nordlys" dance seen in
- * AuroraBackground, scaled to pin size.
+ * The "premium" map pin — a glass dot with two drifting aurora ellipses
+ * behind it. The aurora uses radial-gradient fills (not blend modes) so it
+ * renders predictably across browsers; every stop carries its own
+ * stop-opacity, which Safari respects even when it drops `mix-blend-mode`.
  *
- * We deliberately avoid CSS `mix-blend-mode: screen` inside SVG here — it
- * renders unpredictably across browsers (Safari often drops it entirely),
- * which is why the first version of this component produced invisible
- * aurora in some environments. Radial-gradient fills give the soft,
- * light-emitting feel natively without any blend trickery.
+ * Gradient ids come from React's `useId()`. Collisions with other MapPins
+ * (or between the office and customer views rotating through the same DOM)
+ * used to make gradients silently disappear — useId guarantees uniqueness.
  */
 export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
   const companion = auroraCompanion ?? '#FFFFFF'
-  const rA = radius + 22
-  const rB = radius + 30
-  // Gradient ids must be unique across the whole document, otherwise a later
-  // <defs> will shadow an earlier one (they're resolved by name at paint time).
-  const idA = `mp-aurora-a-${index}`
-  const idB = `mp-aurora-b-${index}`
+  const uid = useId()
+  const idA = `mp-a${uid.replace(/:/g, '')}`
+  const idB = `mp-b${uid.replace(/:/g, '')}`
+
+  // Aurora ellipses are ~3–4× the pin radius so the glow reads as a halo of
+  // light around a bright core, not a second dot.
+  const rA = radius * 3.2 + 6
+  const rB = radius * 4.0 + 8
 
   return (
     <g>
       <defs>
         <radialGradient id={idA}>
-          <stop offset="0%" stopColor={color} stopOpacity="0.95" />
-          <stop offset="45%" stopColor={color} stopOpacity="0.45" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
+          <stop offset="0%"   stopColor={color}     stopOpacity="1" />
+          <stop offset="35%"  stopColor={color}     stopOpacity="0.6" />
+          <stop offset="70%"  stopColor={color}     stopOpacity="0.18" />
+          <stop offset="100%" stopColor={color}     stopOpacity="0" />
         </radialGradient>
         <radialGradient id={idB}>
-          <stop offset="0%" stopColor={companion} stopOpacity="0.8" />
-          <stop offset="50%" stopColor={companion} stopOpacity="0.25" />
+          <stop offset="0%"   stopColor={companion} stopOpacity="0.95" />
+          <stop offset="40%"  stopColor={companion} stopOpacity="0.42" />
+          <stop offset="75%"  stopColor={companion} stopOpacity="0.1" />
           <stop offset="100%" stopColor={companion} stopOpacity="0" />
         </radialGradient>
       </defs>
 
-      {/* Aurora layer A — primary hue, slow horizontal drift */}
+      {/* Aurora layer A — primary hue, slow drift, wide reach */}
       <motion.ellipse
         rx={rA}
         ry={rA * 0.72}
         fill={`url(#${idA})`}
         initial={{ cx: 0, cy: 0, opacity: 0 }}
         animate={{
-          cx: [-6, 6, -6],
-          cy: [-3, 3, -3],
-          opacity: [0.75, 1, 0.75],
+          cx: [-8, 8, -8],
+          cy: [-4, 4, -4],
+          opacity: [0.85, 1, 0.85],
+          rx: [rA, rA + 8, rA],
         }}
         transition={{
           cx: {
@@ -81,19 +86,26 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
             repeat: Infinity,
             ease: 'easeInOut',
           },
+          rx: {
+            duration: 8 + (index % 3) * 1.2,
+            delay: (index % 4) * 0.4,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
         }}
       />
 
-      {/* Aurora layer B — companion hue, counter-rotating drift */}
+      {/* Aurora layer B — companion hue, counter-drift, taller */}
       <motion.ellipse
-        rx={rB * 0.88}
+        rx={rB * 0.85}
         ry={rB}
         fill={`url(#${idB})`}
         initial={{ cx: 0, cy: 0, opacity: 0 }}
         animate={{
-          cx: [4, -4, 4],
-          cy: [2, -2, 2],
-          opacity: [0.55, 0.9, 0.55],
+          cx: [5, -5, 5],
+          cy: [3, -3, 3],
+          opacity: [0.7, 0.95, 0.7],
+          ry: [rB, rB + 6, rB],
         }}
         transition={{
           cx: {
@@ -114,6 +126,12 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
             repeat: Infinity,
             ease: 'easeInOut',
           },
+          ry: {
+            duration: 10 + (index % 3) * 1.6,
+            delay: (index % 4) * 0.5 + 0.6,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          },
         }}
       />
 
@@ -125,7 +143,7 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
         strokeWidth={1.2}
         animate={{
           r: [radius + 4, radius + 26, radius + 4],
-          opacity: [0.45, 0, 0.45],
+          opacity: [0.5, 0, 0.5],
         }}
         transition={{
           duration: 4.2,
