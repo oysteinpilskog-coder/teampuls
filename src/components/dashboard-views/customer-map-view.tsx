@@ -6,7 +6,7 @@ import { CustomerPin, type CustomerPinState } from './customer-pin'
 import { project, resolveLocation } from '@/lib/geo'
 import { resolveCustomer } from '@/lib/customer-resolver'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
-import { useStatusColors } from '@/lib/status-colors/context'
+import { useStatusColors, useAuroraColors } from '@/lib/status-colors/context'
 import { spring } from '@/lib/motion'
 import type { Member, Entry, Customer } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
@@ -50,6 +50,7 @@ export function CustomerMapView({
   time,
 }: CustomerMapViewProps) {
   const STATUS_COLORS = useStatusColors()
+  const auroras = useAuroraColors()
   const t = useT()
   const hours = pad(time.getHours())
   const minutes = pad(time.getMinutes())
@@ -280,11 +281,12 @@ export function CustomerMapView({
             fontWeight: 700,
             fontFamily: 'var(--font-sora)',
             letterSpacing: '-0.04em',
-            background: 'linear-gradient(180deg, #ffffff 0%, #ffd4bb 100%)',
+            background:
+              'linear-gradient(180deg, #00F5A0 -12%, #00D9F5 16%, #ffffff 52%, #ffffff 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
-            filter: 'drop-shadow(0 0 24px rgba(255,122,26,0.22))',
+            filter: 'drop-shadow(0 0 24px rgba(0,217,245,0.22))',
           }}
         >
           {hours}:{minutes}
@@ -324,7 +326,12 @@ export function CustomerMapView({
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.7, delay: 0.2 + i * 0.04 }}
                 >
-                  <CustomerPin color={customerColor} index={i} state={p.state} />
+                  <CustomerPin
+                    color={customerColor}
+                    auroraCompanion={auroras.customer}
+                    index={i}
+                    state={p.state}
+                  />
                 </motion.g>
               ))}
 

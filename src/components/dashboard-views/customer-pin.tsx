@@ -8,6 +8,10 @@ export type CustomerPinState = 'idle' | 'week' | 'today'
 interface CustomerPinProps {
   /** Primary hue — inherits from STATUS_COLORS.customer. */
   color: string
+  /** Optional override for the breathing aura halo ("Nordlys"). When
+   *  omitted the halo tints with the same hue as the pin — i.e. the
+   *  pre-override behaviour. */
+  auroraCompanion?: string
   /** Stable index so animations desynchronise across pins. */
   index: number
   /** Visit state drives the subtle intensity tiers:
@@ -28,9 +32,10 @@ interface CustomerPinProps {
  * breath) so the eye groups them as "customers". What changes is the
  * brightness and whether a subtle single-pulse ring appears.
  */
-export function CustomerPin({ color, index, state }: CustomerPinProps) {
+export function CustomerPin({ color, auroraCompanion, index, state }: CustomerPinProps) {
   const uid = useId().replace(/:/g, '')
   const filterId = `cp-blur-${uid}`
+  const auraColor = auroraCompanion ?? color
 
   // Tier-specific tunables. Kept in a local const so the JSX stays legible.
   const visited = state !== 'idle'
@@ -65,7 +70,7 @@ export function CustomerPin({ color, index, state }: CustomerPinProps) {
       {/* Breathing aura */}
       <motion.circle
         r={auraRadius}
-        fill={color}
+        fill={auraColor}
         filter={`url(#${filterId})`}
         initial={{ opacity: 0 }}
         animate={{ opacity: auraOpacityRange }}
