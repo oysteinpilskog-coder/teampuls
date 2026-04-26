@@ -11,6 +11,7 @@ import { OfficeMapView } from '@/components/dashboard-views/office-map-view'
 import { CustomerMapView } from '@/components/dashboard-views/customer-map-view'
 import { WheelView } from '@/components/dashboard-views/wheel-view'
 import { AuroraBackground } from '@/components/dashboard-views/aurora-background'
+import { OffiviewSignature } from '@/components/brand/offiview-signature'
 import { getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
 import type { Entry, Member, Office, Organization, Customer, DashboardViewKey } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
@@ -486,6 +487,8 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
       <style>{`
         @keyframes blink { 0%, 100% { opacity: 0.4 } 50% { opacity: 0.15 } }
       `}</style>
+
+      <OffiviewSignature visible />
     </div>
   )
 }
