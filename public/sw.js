@@ -14,7 +14,7 @@
  * activate so we never serve stale JS after a release.
  */
 
-const CACHE_VERSION = 'v2'
+const CACHE_VERSION = 'v3'
 const PAGES_CACHE = `teampulse-pages-${CACHE_VERSION}`
 const STATIC_CACHE = `teampulse-static-${CACHE_VERSION}`
 const OFFLINE_URL = '/offline'
@@ -55,6 +55,11 @@ self.addEventListener('fetch', (event) => {
 
   // Never cache Supabase auth callbacks, API routes, or realtime WebSocket.
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return
+
+  // Favicons + PWA-ikoner → alltid friskt fra nettverk. Ikonet endres
+  // sjelden men når det skjer skal det propagere umiddelbart, ikke
+  // henge igjen i SW-cachen til neste CACHE_VERSION-bump.
+  if (url.pathname.startsWith('/icons/') || url.pathname === '/manifest.webmanifest') return
 
   // Navigations → network-first, offline fallback
   if (req.mode === 'navigate') {
@@ -105,7 +110,6 @@ async function cacheFirst(req) {
 function isStaticAsset(path) {
   return (
     path.startsWith('/_next/static/') ||
-    path.startsWith('/icons/') ||
     path.startsWith('/fonts/') ||
     /\.(?:js|css|woff2?|ttf|otf|eot|svg|png|jpe?g|gif|webp|avif|ico|json|webmanifest)$/.test(path)
   )
