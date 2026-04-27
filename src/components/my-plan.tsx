@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { addDays, getISOWeek, getISOWeekYear } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -10,6 +10,7 @@ import { MemberAvatar } from '@/components/member-avatar'
 import { CellEditor } from '@/components/cell-editor'
 import { EmptyState } from '@/components/empty-state'
 import { StatusSegment, type SegmentDay } from '@/components/status-segment'
+import { MyPlanYearStripe } from '@/components/my-plan-year-stripe'
 import {
   toDateString,
   isToday,
@@ -29,6 +30,9 @@ interface MyPlanProps {
   memberName: string
   memberInitials?: string | null
   avatarUrl: string | null
+  /** Rendered above the year-stripe inside the sticky header. Pass an `<AIInput>`
+   *  here on /min-plan so it stays reachable while scrolling the year list. */
+  aiInputSlot?: ReactNode
 }
 
 interface WeekBlock {
@@ -167,7 +171,7 @@ interface ResizeDrag {
   entry: Entry
 }
 
-export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl }: MyPlanProps) {
+export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl, aiInputSlot }: MyPlanProps) {
   const t = useT()
   const currentYear = useMemo(() => getISOWeekYear(new Date()), [])
   const [year, setYear] = useState(currentYear)
@@ -543,6 +547,16 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl 
     didScrollToCurrentWeek.current = false
   }
 
+  // Smooth-scroll the corresponding week row into view when a stripe pill is clicked.
+  const scrollToWeek = useCallback(
+    (weekNumber: number) => {
+      const el = document.getElementById(`week-${year}-${weekNumber}`)
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    },
+    [year],
+  )
+
   const totalEntries = entries.length
 
   return (
@@ -647,16 +661,24 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl 
           structure is still visible underneath and clickable. */}
       {!loading && totalEntries === 0 && <MyPlanEmpty year={year} />}
 
-      {/* Sticky weekday header — Man Tir Ons Tor Fre, today gets an Nå capsule.
-          Sits just below the app-header (h-16) and fades content scrolling under it. */}
+      {/* Composite sticky header — AI input (slot), year stripe, and the
+          weekday header live together so they freeze as one unit when the
+          year list scrolls under. Sits just below the app-header (h-16)
+          with a fade-to-bg gradient so content disappears smoothly under. */}
       <div
-        className="sticky z-20 -mx-1 px-1 pt-3 pb-3"
+        className="sticky z-30 -mx-1 px-1 pt-3 pb-3 space-y-3"
         style={{
           top: 64,
           background:
-            'linear-gradient(180deg, var(--lg-bg) 0%, var(--lg-bg) 72%, transparent 100%)',
+            'linear-gradient(180deg, var(--lg-bg) 0%, var(--lg-bg) 78%, transparent 100%)',
         }}
       >
+        {aiInputSlot && (
+          <div className="mx-auto max-w-3xl">{aiInputSlot}</div>
+        )}
+
+        <MyPlanYearStripe year={year} entries={entries} onWeekClick={scrollToWeek} />
+
         <div
           className="grid gap-2 px-4 py-2 rounded-2xl"
           style={{
@@ -735,11 +757,12 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl 
                     return (
                       <motion.div
                         key={`${wk.year}-${wk.weekNumber}`}
+                        id={`week-${wk.year}-${wk.weekNumber}`}
                         ref={wk.isCurrentWeek ? currentWeekRef : undefined}
                         initial={{ y: 6, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ duration: 0.2, delay: Math.min(wkIdx, 18) * 0.015, ease: [0.4, 0, 0.2, 1] }}
-                        className="group relative rounded-2xl overflow-hidden"
+                        className="group relative rounded-2xl overflow-hidden scroll-mt-[260px]"
                         style={{
                           // Current-week row uses a warm Ember tint so the
                           // Nordlys today-chord is the lone signature.
