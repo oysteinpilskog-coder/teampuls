@@ -57,6 +57,12 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
   const [dashboardShowSick, setDashboardShowSick] = useState<boolean>(
     initialOrg.dashboard_show_sick ?? true
   )
+  const [birthdaysEnabled, setBirthdaysEnabled] = useState<boolean>(
+    initialOrg.birthdays_enabled ?? true
+  )
+  const [anniversariesEnabled, setAnniversariesEnabled] = useState<boolean>(
+    initialOrg.anniversaries_enabled ?? true
+  )
   const [dashboardRotationViews, setDashboardRotationViews] = useState<DashboardViewKey[]>(
     initialOrg.dashboard_rotation_views && initialOrg.dashboard_rotation_views.length > 0
       ? initialOrg.dashboard_rotation_views
@@ -102,6 +108,8 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     primaryColor !== (org.primary_color ?? '#0066FF') ||
     presenceAssumption !== (org.default_presence_assumption ?? 'none') ||
     dashboardShowSick !== (org.dashboard_show_sick ?? true) ||
+    birthdaysEnabled !== (org.birthdays_enabled ?? true) ||
+    anniversariesEnabled !== (org.anniversaries_enabled ?? true) ||
     rotationDirty ||
     durationsDirty ||
     statusColorsDirty
@@ -222,6 +230,8 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
         status_colors: status_colors_payload,
         default_presence_assumption: presenceAssumption,
         dashboard_show_sick: dashboardShowSick,
+        birthdays_enabled: birthdaysEnabled,
+        anniversaries_enabled: anniversariesEnabled,
         dashboard_rotation_views: rotation_payload,
         dashboard_view_durations: { ...viewDurations },
       })
@@ -236,6 +246,8 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       status_colors: status_colors_payload,
       default_presence_assumption: presenceAssumption,
       dashboard_show_sick: dashboardShowSick,
+      birthdays_enabled: birthdaysEnabled,
+      anniversaries_enabled: anniversariesEnabled,
       dashboard_rotation_views: rotation_payload,
       dashboard_view_durations: { ...viewDurations },
     }))
@@ -462,6 +474,27 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
           />
         </SettingsField>
 
+        {/* Birthdays & anniversaries */}
+        <SettingsField
+          label={t.settings.org.celebrations}
+          description={t.settings.org.celebrationsDesc}
+        >
+          <div className="flex flex-col gap-2">
+            <OrgToggleRow
+              label={t.settings.org.birthdaysEnabled}
+              hint={t.settings.org.birthdaysEnabledDesc}
+              checked={birthdaysEnabled}
+              onChange={setBirthdaysEnabled}
+            />
+            <OrgToggleRow
+              label={t.settings.org.anniversariesEnabled}
+              hint={t.settings.org.anniversariesEnabledDesc}
+              checked={anniversariesEnabled}
+              onChange={setAnniversariesEnabled}
+            />
+          </div>
+        </SettingsField>
+
         {/* Dashboard — carousel rotation */}
         <SettingsField
           label={t.settings.org.dashboardRotation}
@@ -672,6 +705,70 @@ function PresenceAssumptionPicker({
         )
       })}
     </div>
+  )
+}
+
+function OrgToggleRow({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string
+  hint?: string
+  checked: boolean
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-[background,border-color] duration-150"
+      style={{
+        background: checked ? 'rgba(139, 92, 246, 0.10)' : 'var(--lg-surface-2, var(--bg-subtle))',
+        border: `1px solid ${checked ? 'rgba(139, 92, 246, 0.45)' : 'var(--lg-divider, var(--border-subtle))'}`,
+        fontFamily: 'var(--font-body)',
+      }}
+    >
+      <span
+        aria-hidden
+        className="inline-flex shrink-0 mt-0.5 rounded-full transition-[background] duration-150"
+        style={{
+          width: 32,
+          height: 18,
+          background: checked ? 'var(--accent-color, #0066FF)' : 'rgba(120,120,120,0.25)',
+          padding: 2,
+        }}
+      >
+        <span
+          className="block rounded-full bg-white transition-transform duration-150"
+          style={{
+            width: 14,
+            height: 14,
+            transform: checked ? 'translateX(14px)' : 'translateX(0)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+          }}
+        />
+      </span>
+      <span className="flex flex-col gap-0.5 min-w-0 flex-1">
+        <span
+          className="text-[13px] font-medium"
+          style={{ color: 'var(--lg-text-1, var(--text-primary))' }}
+        >
+          {label}
+        </span>
+        {hint && (
+          <span
+            className="text-[12px]"
+            style={{ color: 'var(--lg-text-3, var(--text-tertiary))' }}
+          >
+            {hint}
+          </span>
+        )}
+      </span>
+    </button>
   )
 }
 
