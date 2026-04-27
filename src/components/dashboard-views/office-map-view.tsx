@@ -4,13 +4,13 @@ import { motion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { MapPin } from './map-pin'
 import { project, resolveLocation } from '@/lib/geo'
-import { placeLabels, textAnchorFor } from '@/lib/map-labels'
+import { placeLabels } from '@/lib/map-labels'
 import { useStatusColors, useAuroraColors } from '@/lib/status-colors/context'
 import { spring } from '@/lib/motion'
 import type { Office } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
 import { useT } from '@/lib/i18n/context'
-import { WeatherInline } from '@/components/weather/weather-inline'
+import { OfficeMapLabel } from './office-map-label'
 
 interface OfficeMapViewProps {
   offices: Office[]
@@ -167,38 +167,22 @@ export function OfficeMapView({
             </g>
           ))}
 
-          {/* Labels drawn AFTER pins so they sit on top — with collision-aware placement */}
-          {placedLabels.map((pl, i) => {
-            const anchor = textAnchorFor(pl.side)
-            return (
-              <motion.g
-                key={`label-${pl.point.id}`}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ ...spring.gentle, delay: 0.55 + i * 0.08 }}
-              >
-                {/* Subtle dark pill behind the text for readability */}
-                <text
-                  x={pl.labelX}
-                  y={pl.labelY}
-                  textAnchor={anchor}
-                  fontSize={17}
-                  fontWeight={600}
-                  fontFamily="var(--font-sora)"
-                  fill="white"
-                  letterSpacing={0.3}
-                  style={{
-                    paintOrder: 'stroke',
-                    stroke: 'rgba(2,4,10,0.75)',
-                    strokeWidth: 4.5,
-                    strokeLinejoin: 'round',
-                  }}
-                >
-                  {pl.point.office.city ?? pl.point.office.name}
-                </text>
-              </motion.g>
-            )
-          })}
+          {/* Labels drawn AFTER pins so they sit on top. Each label is a
+              `<foreignObject>` so the city name and the live weather can
+              flow inline together — same visual unit, side-aware
+              alignment from `placeLabels`. */}
+          {placedLabels.map((pl, i) => (
+            <OfficeMapLabel
+              key={`label-${pl.point.id}`}
+              city={pl.point.office.city ?? pl.point.office.name}
+              lat={pl.point.lat}
+              lng={pl.point.lng}
+              side={pl.side}
+              labelX={pl.labelX}
+              labelY={pl.labelY}
+              index={i}
+            />
+          ))}
 
           {placed.length === 0 && (
             <text
@@ -250,7 +234,6 @@ export function OfficeMapView({
               >
                 {p.office.city ?? p.office.name}
               </span>
-              <WeatherInline lat={p.lat} lng={p.lng} size="sm" />
             </div>
           ))}
           {placed.length > 10 && (
