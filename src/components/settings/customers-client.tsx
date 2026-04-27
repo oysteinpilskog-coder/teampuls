@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, X, Briefcase, Sparkles, Check, Loader2 } from 'lucide-react'
@@ -9,6 +10,25 @@ import { geocode } from '@/lib/geocode-client'
 import type { Customer } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
+import { CountryCombobox } from '@/components/ui/country-combobox'
+
+// Leaflet leser `window` ved import — må lastes klient-side etter mount.
+const CoordsMapPicker = dynamic(
+  () => import('@/components/ui/coords-map-picker').then(m => m.CoordsMapPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="rounded-xl"
+        style={{
+          height: 260,
+          backgroundColor: 'var(--bg-subtle)',
+          border: '1px solid var(--border-subtle)',
+        }}
+      />
+    ),
+  },
+)
 
 interface CustomersClientProps {
   orgId: string
@@ -64,20 +84,6 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
   const [deleting, setDeleting] = useState<string | null>(null)
   const [geo, setGeo] = useState<GeocodeStatus>({ state: 'idle' })
   const t = useT()
-
-  const COUNTRY_OPTIONS = [
-    { code: 'NO', label: t.countries.NO },
-    { code: 'SE', label: t.countries.SE },
-    { code: 'LT', label: t.countries.LT },
-    { code: 'GB', label: t.countries.GB },
-    { code: 'DE', label: t.countries.DE },
-    { code: 'FR', label: t.countries.FR },
-    { code: 'DK', label: t.countries.DK },
-    { code: 'FI', label: t.countries.FI },
-    { code: 'PL', label: t.countries.PL },
-    { code: 'NL', label: t.countries.NL },
-    { code: 'US', label: t.countries.US },
-  ]
 
   function openAdd() {
     setForm(EMPTY_FORM)
@@ -495,23 +501,11 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
 
                 <div className="col-span-6">
                   <CustomerField label="Land" required hint="unngår feil by">
-                    <select
+                    <CountryCombobox
                       value={form.country_code}
-                      onChange={e => updateForm('country_code', e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none appearance-none cursor-pointer"
-                      style={{
-                        ...inputStyle,
-                        backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23A8A29E' stroke-width='1.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")",
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'right 12px center',
-                        paddingRight: '36px',
-                      }}
-                    >
-                      <option value="">Velg land</option>
-                      {COUNTRY_OPTIONS.map(c => (
-                        <option key={c.code} value={c.code}>{c.label}</option>
-                      ))}
-                    </select>
+                      onChange={code => updateForm('country_code', code)}
+                      ariaLabel="Velg land"
+                    />
                   </CustomerField>
                 </div>
 
@@ -626,13 +620,32 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
                   </CustomerField>
                 </div>
 
+                <div className="col-span-6">
+                  <CoordsMapPicker
+                    lat={form.latitude ? parseFloat(form.latitude) || null : null}
+                    lng={form.longitude ? parseFloat(form.longitude) || null : null}
+                    countryCode={form.country_code || null}
+                    onChange={(lat, lng) => {
+                      setForm(f => ({
+                        ...f,
+                        latitude: lat.toFixed(6),
+                        longitude: lng.toFixed(6),
+                      }))
+                      // Manuell pin-plassering tilfredsstiller hasManualCoords
+                      // og avskaffer geocode-status (som ellers ville påstått
+                      // adresse-treff når brukeren har dratt pinnen).
+                      setGeo({ state: 'idle' })
+                    }}
+                  />
+                </div>
+
                 <details className="col-span-6 group">
                   <summary
                     className="cursor-pointer text-[11px] font-semibold uppercase tracking-widest list-none flex items-center gap-1.5 select-none"
                     style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
                   >
                     <span className="transition-transform group-open:rotate-90">▸</span>
-                    Juster koordinater manuelt
+                    Skriv inn koordinater direkte
                   </summary>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     <CustomerField label="Breddegrad">
