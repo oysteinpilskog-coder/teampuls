@@ -12,6 +12,24 @@ const TAGLINE_ROTATION = [
 
 const ROTATION_INTERVAL_MS = 30 * 60 * 1000
 
+/*
+ * Tre visningskontekster, drevet av CSS-vars (--wm-size, --mono-size, --pad)
+ * som omdefineres av media queries. Sizing innenfor hver state bruker clamp()
+ * for myk skalering; modusbyttet er hardt og diskret per terskel.
+ *
+ *   mobil/print    → @media (max-width: 639px), print
+ *                    wm 18, mono 25, pad 24
+ *   desktop (def)  → ingen match — fallback for alt mellom 640 og 4K-vegg
+ *                    wm clamp(28, 1.5vw, 32), mono = wm × 1.4, pad 48
+ *   4K-vegg        → @media (min-resolution: 2dppx) and (min-width: 3000px)
+ *                    wm clamp(40, 1.3vw, 48), mono = wm × 1.4, pad 72
+ *
+ * Wall-spørringen er identisk med den i spec-en
+ * `window.matchMedia('(min-resolution: 2dppx) and (min-width: 3000px)')` —
+ * CSS @media og JS matchMedia tolker den samme strengen likt, så detection
+ * er konsistent uansett hvor vi spør.
+ */
+
 export interface OffiviewSignatureProps {
   visible: boolean
   opacity?: number
@@ -32,14 +50,15 @@ export function OffiviewSignature({ visible, opacity = 0.85 }: OffiviewSignature
     <AnimatePresence>
       {visible && (
         <motion.div
+          className="offiview-signature"
           initial={reduce ? { opacity } : { opacity: 0, y: 10 }}
           animate={{ opacity, y: 0 }}
           exit={reduce ? { opacity: 0 } : { opacity: 0, y: 10 }}
           transition={{ duration: reduce ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] }}
           style={{
             position: 'fixed',
-            bottom: 48,
-            right: 48,
+            bottom: 'var(--offiview-sig-pad)',
+            right: 'var(--offiview-sig-pad)',
             zIndex: 40,
             display: 'flex',
             alignItems: 'center',
@@ -48,17 +67,39 @@ export function OffiviewSignature({ visible, opacity = 0.85 }: OffiviewSignature
           }}
           aria-hidden
         >
+          <style>{`
+            .offiview-signature {
+              --offiview-sig-pad: 48px;
+              --offiview-sig-wm: clamp(28px, 1.5vw, 32px);
+              --offiview-sig-mono: clamp(40px, 2.1vw, 45px);
+            }
+            @media (max-width: 639px), print {
+              .offiview-signature {
+                --offiview-sig-pad: 24px;
+                --offiview-sig-wm: 18px;
+                --offiview-sig-mono: 25px;
+              }
+            }
+            @media (min-resolution: 2dppx) and (min-width: 3000px) {
+              .offiview-signature {
+                --offiview-sig-pad: 72px;
+                --offiview-sig-wm: clamp(40px, 1.3vw, 48px);
+                --offiview-sig-mono: clamp(56px, 1.82vw, 67px);
+              }
+            }
+            .offiview-signature-mark > svg { width: 100% !important; height: 100% !important; }
+          `}</style>
+
           <div
             className="offiview-signature-mark"
             style={{
-              width: 'clamp(33.6px, 2.8vw, 56px)',
-              height: 'clamp(33.6px, 2.8vw, 56px)',
+              width: 'var(--offiview-sig-mono)',
+              height: 'var(--offiview-sig-mono)',
               flexShrink: 0,
             }}
           >
             <OffiviewMark variant="nordlys" size={56} strokeWidth={5} />
           </div>
-          <style>{`.offiview-signature-mark > svg { width: 100% !important; height: 100% !important; }`}</style>
 
           <div
             style={{
@@ -75,7 +116,7 @@ export function OffiviewSignature({ visible, opacity = 0.85 }: OffiviewSignature
                 fontStyle: 'italic',
                 fontWeight: 300,
                 fontVariationSettings: '"opsz" 32, "SOFT" 60',
-                fontSize: 'clamp(24px, 2vw, 40px)',
+                fontSize: 'var(--offiview-sig-wm)',
                 color: '#F5EFE4',
                 letterSpacing: '-0.02em',
               }}
