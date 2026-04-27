@@ -34,10 +34,17 @@ const ROTATION_INTERVAL_MS = 30 * 60 * 1000
 export interface OffiviewSignatureProps {
   visible: boolean
   opacity?: number
+  /*
+   * Lift the signature above a floating control bar (e.g. dashboard's BACK ·
+   * BYTT · F FULLSKJERM pill + Nordlys hairline). Adds enough bottom padding
+   * to clear ~52px control bar + ~2px hairline + a generous air gap, scaled
+   * per breakpoint so it stays balanced on mobile and 4K-walls.
+   */
+  controlBarSafeArea?: boolean
 }
 
 export const OffiviewSignature = forwardRef<HTMLDivElement, OffiviewSignatureProps>(
-  function OffiviewSignature({ visible, opacity = 0.85 }, ref) {
+  function OffiviewSignature({ visible, opacity = 0.85, controlBarSafeArea = false }, ref) {
   const [taglineIdx, setTaglineIdx] = useState(0)
   const reduce = useReducedMotion()
 
@@ -62,14 +69,17 @@ export const OffiviewSignature = forwardRef<HTMLDivElement, OffiviewSignaturePro
       {visible && (
         <motion.div
           ref={ref}
-          className="offiview-signature"
+          className={
+            'offiview-signature' +
+            (controlBarSafeArea ? ' offiview-signature--lifted' : '')
+          }
           initial={reduce ? { opacity } : { opacity: 0, y: 6 }}
           animate={{ opacity, y: 0 }}
           exit={{ opacity: 0, transition: { duration: 0 } }}
           transition={{ duration: reduce ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
           style={{
             position: 'fixed',
-            bottom: 'var(--offiview-sig-pad)',
+            bottom: 'var(--offiview-sig-bottom, var(--offiview-sig-pad))',
             right: 'var(--offiview-sig-pad)',
             zIndex: 40,
             display: 'flex',
@@ -98,6 +108,13 @@ export const OffiviewSignature = forwardRef<HTMLDivElement, OffiviewSignaturePro
                 --offiview-sig-wm: clamp(40px, 1.3vw, 48px);
                 --offiview-sig-mono: clamp(56px, 1.82vw, 67px);
               }
+            }
+            .offiview-signature--lifted { --offiview-sig-bottom: 96px; }
+            @media (max-width: 639px), print {
+              .offiview-signature--lifted { --offiview-sig-bottom: 72px; }
+            }
+            @media (min-resolution: 2dppx) and (min-width: 3000px) {
+              .offiview-signature--lifted { --offiview-sig-bottom: 144px; }
             }
             .offiview-signature-mark > svg { width: 100% !important; height: 100% !important; }
           `}</style>
