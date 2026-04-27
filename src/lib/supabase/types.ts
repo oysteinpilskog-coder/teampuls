@@ -63,6 +63,8 @@ export interface Organization {
   dashboard_show_sick?: boolean
   /** Which dashboard views take part in the auto-rotate carousel. View keys: A/B/C/D/E. */
   dashboard_rotation_views?: DashboardViewKey[]
+  /** Per-view auto-rotation dwell time in seconds. Missing keys fall back to DEFAULT_VIEW_DURATIONS. */
+  dashboard_view_durations?: Partial<Record<DashboardViewKey, number>>
   timezone: string
   week_start: number
   created_at: string

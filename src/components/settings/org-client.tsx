@@ -7,6 +7,11 @@ import { Copy, Check, Upload, Trash2, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Organization, EntryStatus, PresenceAssumption, DashboardViewKey } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
+import {
+  DEFAULT_VIEW_DURATIONS,
+  DURATION_MIN_SEC,
+  DURATION_MAX_SEC,
+} from '@/lib/dashboard-defaults'
 import { DEFAULT_HEX_COLORS, mergeHexColors, type HexColors } from '@/lib/status-colors/defaults'
 import { derivePalette } from '@/lib/status-colors/derive'
 import { useStatusColorsController } from '@/lib/status-colors/context'
@@ -57,6 +62,20 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       ? initialOrg.dashboard_rotation_views
       : DASHBOARD_VIEW_KEYS
   )
+  const savedViewDurations: Record<DashboardViewKey, number> = (() => {
+    const out = { ...DEFAULT_VIEW_DURATIONS }
+    const raw = initialOrg.dashboard_view_durations
+    if (raw) {
+      for (const k of DASHBOARD_VIEW_KEYS) {
+        const v = raw[k]
+        if (typeof v === 'number' && Number.isFinite(v) && v >= DURATION_MIN_SEC && v <= DURATION_MAX_SEC) {
+          out[k] = Math.round(v)
+        }
+      }
+    }
+    return out
+  })()
+  const [viewDurations, setViewDurations] = useState<Record<DashboardViewKey, number>>(savedViewDurations)
   const [statusColors, setStatusColors] = useState<HexColors>(() =>
     mergeHexColors(initialOrg.status_colors)
   )
@@ -75,6 +94,8 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       : DASHBOARD_VIEW_KEYS
   const rotationDirty = !sameSet(dashboardRotationViews, savedRotationViews)
 
+  const durationsDirty = DASHBOARD_VIEW_KEYS.some(k => viewDurations[k] !== savedViewDurations[k])
+
   const isDirty =
     name !== org.name ||
     timezone !== org.timezone ||
@@ -82,6 +103,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     presenceAssumption !== (org.default_presence_assumption ?? 'none') ||
     dashboardShowSick !== (org.dashboard_show_sick ?? true) ||
     rotationDirty ||
+    durationsDirty ||
     statusColorsDirty
 
   function toggleRotationView(view: DashboardViewKey) {
@@ -201,6 +223,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
         default_presence_assumption: presenceAssumption,
         dashboard_show_sick: dashboardShowSick,
         dashboard_rotation_views: rotation_payload,
+        dashboard_view_durations: { ...viewDurations },
       })
       .eq('id', org.id)
     setSaving(false)
@@ -214,6 +237,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       default_presence_assumption: presenceAssumption,
       dashboard_show_sick: dashboardShowSick,
       dashboard_rotation_views: rotation_payload,
+      dashboard_view_durations: { ...viewDurations },
     }))
     // Push fresh colors through the context so the rest of the app updates immediately.
     statusColorsCtx?.setHex(statusColors)
@@ -454,6 +478,29 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
               E: t.dashboard.views.wheel,
             }}
             minHint={t.settings.org.dashboardRotationMinOne}
+          />
+        </SettingsField>
+
+        {/* Dashboard — per-view durations */}
+        <SettingsField
+          label={t.settings.org.dashboardDurations}
+          description={t.settings.org.dashboardDurationsDesc}
+        >
+          <DashboardDurationsEditor
+            durations={viewDurations}
+            onChange={(view, value) =>
+              setViewDurations(prev => ({ ...prev, [view]: value }))
+            }
+            labels={{
+              A: t.dashboard.views.now,
+              B: t.dashboard.views.week,
+              C: t.dashboard.views.offices,
+              D: t.dashboard.views.customers,
+              E: t.dashboard.views.wheel,
+            }}
+            secondsSuffix={t.settings.org.dashboardDurationsSecondsSuffix}
+            onReset={() => setViewDurations({ ...DEFAULT_VIEW_DURATIONS })}
+            resetLabel={t.settings.org.dashboardDurationsResetDefault}
           />
         </SettingsField>
 
@@ -752,6 +799,96 @@ function DashboardRotationPicker({
       >
         {minHint}
       </p>
+    </div>
+  )
+}
+
+function DashboardDurationsEditor({
+  durations,
+  onChange,
+  labels,
+  secondsSuffix,
+  onReset,
+  resetLabel,
+}: {
+  durations: Record<DashboardViewKey, number>
+  onChange: (view: DashboardViewKey, value: number) => void
+  labels: Record<DashboardViewKey, string>
+  secondsSuffix: string
+  onReset: () => void
+  resetLabel: string
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
+        {DASHBOARD_VIEW_KEYS.map(key => {
+          const value = durations[key]
+          const isDefault = value === DEFAULT_VIEW_DURATIONS[key]
+          return (
+            <div
+              key={key}
+              className="flex items-center gap-3 px-3.5 py-2 rounded-xl"
+              style={{
+                background: 'var(--lg-surface-2, var(--bg-subtle))',
+                border: '1px solid var(--lg-divider, var(--border-subtle))',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              <span
+                className="flex-1 text-[13px] font-medium"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                {labels[key]}
+              </span>
+              <input
+                type="number"
+                min={DURATION_MIN_SEC}
+                max={DURATION_MAX_SEC}
+                step={1}
+                value={value}
+                onChange={e => {
+                  const n = Math.round(Number(e.target.value))
+                  if (Number.isFinite(n)) {
+                    const clamped = Math.max(DURATION_MIN_SEC, Math.min(DURATION_MAX_SEC, n))
+                    onChange(key, clamped)
+                  }
+                }}
+                aria-label={labels[key]}
+                className="w-16 px-2 py-1 rounded-md text-[13px] tabular-nums text-right outline-none"
+                style={{
+                  backgroundColor: 'var(--bg-elevated)',
+                  color: 'var(--text-primary)',
+                  border: `1.5px solid ${isDefault ? 'transparent' : 'rgba(139, 92, 246, 0.45)'}`,
+                  fontFamily: 'var(--font-body)',
+                }}
+                onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                onBlur={e =>
+                  (e.currentTarget.style.borderColor = isDefault
+                    ? 'transparent'
+                    : 'rgba(139, 92, 246, 0.45)')
+                }
+              />
+              <span
+                className="text-[12px] uppercase tracking-[0.14em] tabular-nums"
+                style={{ color: 'var(--text-tertiary)', minWidth: 28 }}
+              >
+                {secondsSuffix}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={onReset}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium self-start transition-colors mt-1"
+        style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+        onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-color)')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-tertiary)')}
+      >
+        <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.5} />
+        {resetLabel}
+      </button>
     </div>
   )
 }
