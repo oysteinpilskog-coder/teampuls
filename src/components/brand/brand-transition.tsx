@@ -176,7 +176,20 @@ function HeroMark({
       >
         <svg viewBox="0 0 100 100" width={HERO_PX} height={HERO_PX} aria-hidden>
           <defs>
-            <linearGradient id="brand-transition-grad" x1="0" y1="0" x2="1" y2="0">
+            {/*
+             * userSpaceOnUse keeps the gradient stable on the horizontal
+             * meridian. With the default objectBoundingBox, a <line> with
+             * y1=y2 collapses to a zero-height bbox and the gradient renders
+             * transparent — same root cause as the favicon fix.
+             */}
+            <linearGradient
+              id="brand-transition-grad"
+              x1={15}
+              y1={62}
+              x2={85}
+              y2={62}
+              gradientUnits="userSpaceOnUse"
+            >
               <stop offset="0%" stopColor="#00F5A0" />
               <stop offset="55%" stopColor="#00D9F5" />
               <stop offset="100%" stopColor="#7C3AED" />

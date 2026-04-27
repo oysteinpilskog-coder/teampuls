@@ -549,7 +549,11 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
         @keyframes blink { 0%, 100% { opacity: 0.4 } 50% { opacity: 0.15 } }
       `}</style>
 
-      <OffiviewSignature ref={signatureRef} visible={pendingViewIdx === null} />
+      <OffiviewSignature
+        ref={signatureRef}
+        visible={pendingViewIdx === null}
+        controlBarSafeArea
+      />
     </div>
   )
 }

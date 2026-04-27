@@ -79,7 +79,14 @@ export function OffiviewMark({
       {title ? <title>{title}</title> : null}
       <defs>
         {variant === 'ember' ? (
-          <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+          <linearGradient
+            id={gradientId}
+            x1={hx1}
+            y1={hy}
+            x2={hx2}
+            y2={hy}
+            gradientUnits="userSpaceOnUse"
+          >
             <stop offset="0%" stopColor="#B45309" />
             <stop offset="60%" stopColor="#D97706" />
             <stop offset="100%" stopColor="#FBBF24" />
@@ -87,7 +94,20 @@ export function OffiviewMark({
         ) : null}
         {variant === 'nordlys' ? (
           <>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
+            {/*
+             * userSpaceOnUse with concrete line endpoints — without it the
+             * default `objectBoundingBox` collapses on a horizontal <line>
+             * (y1=y2 → bbox height 0) and the gradient renders transparent.
+             * Same root cause as the favicon fix in commit 7ecd3e4.
+             */}
+            <linearGradient
+              id={gradientId}
+              x1={hx1}
+              y1={hy}
+              x2={hx2}
+              y2={hy}
+              gradientUnits="userSpaceOnUse"
+            >
               <stop offset="0%" stopColor="#00F5A0" />
               <stop offset="55%" stopColor="#00D9F5" />
               <stop offset="100%" stopColor="#7C3AED" />
