@@ -11,6 +11,7 @@ import { CellEditor } from '@/components/cell-editor'
 import { EmptyState } from '@/components/empty-state'
 import { StatusSegment, type SegmentDay } from '@/components/status-segment'
 import { MyPlanYearStripe } from '@/components/my-plan-year-stripe'
+import type { CountryCode } from '@/lib/holidays'
 import {
   toDateString,
   isToday,
@@ -30,6 +31,8 @@ interface MyPlanProps {
   memberName: string
   memberInitials?: string | null
   avatarUrl: string | null
+  /** Country code used to mark public holidays on the year-stripe. */
+  country?: CountryCode
   /** Rendered above the year-stripe inside the sticky header. Pass an `<AIInput>`
    *  here on /min-plan so it stays reachable while scrolling the year list. */
   aiInputSlot?: ReactNode
@@ -171,7 +174,7 @@ interface ResizeDrag {
   entry: Entry
 }
 
-export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl, aiInputSlot }: MyPlanProps) {
+export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl, country = 'NO', aiInputSlot }: MyPlanProps) {
   const t = useT()
   const currentYear = useMemo(() => getISOWeekYear(new Date()), [])
   const [year, setYear] = useState(currentYear)
@@ -677,7 +680,7 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
           <div className="mx-auto max-w-3xl">{aiInputSlot}</div>
         )}
 
-        <MyPlanYearStripe year={year} entries={entries} onWeekClick={scrollToWeek} />
+        <MyPlanYearStripe year={year} entries={entries} country={country} onWeekClick={scrollToWeek} />
 
         <div
           className="grid gap-2 px-4 py-2 rounded-2xl"

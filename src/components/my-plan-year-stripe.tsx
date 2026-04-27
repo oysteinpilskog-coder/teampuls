@@ -7,11 +7,15 @@ import { getWeekStart, getLastISOWeek, toDateString } from '@/lib/dates'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
+import { getHolidayForDate, type CountryCode } from '@/lib/holidays'
 import type { Entry, EntryStatus } from '@/lib/supabase/types'
 
 interface MyPlanYearStripeProps {
   year: number
   entries: Entry[]
+  /** Country to probe for public holidays on each week — e.g. 'NO' marks
+   *  weeks containing Norwegian public holidays with a red top-stripe. */
+  country?: CountryCode
   onWeekClick: (week: number) => void
 }
 
@@ -20,7 +24,7 @@ interface MyPlanYearStripeProps {
  * signed-in user. Clicking a pill smooth-scrolls the corresponding week row
  * into view in the list below. The current week is marked with an accent ring.
  */
-export function MyPlanYearStripe({ year, entries, onWeekClick }: MyPlanYearStripeProps) {
+export function MyPlanYearStripe({ year, entries, country, onWeekClick }: MyPlanYearStripeProps) {
   const t = useT()
   const palettes = useStatusColors()
   const lastWeek = useMemo(() => getLastISOWeek(year), [year])
@@ -59,7 +63,8 @@ export function MyPlanYearStripe({ year, entries, onWeekClick }: MyPlanYearStrip
     return out
   }, [entries, year])
 
-  // Build week metadata once — labels for tooltip, month boundaries for divider hints.
+  // Build week metadata once — labels for tooltip, month boundaries for divider hints,
+  // and any public holidays that fall on the Mon–Fri working days.
   const weeks = useMemo(() => {
     return Array.from({ length: lastWeek }, (_, i) => {
       const weekNumber = i + 1
@@ -76,9 +81,18 @@ export function MyPlanYearStripe({ year, entries, onWeekClick }: MyPlanYearStrip
       const dateRange = startMonth === endMonth
         ? `${startDay}.–${endDay}. ${endMonth}`
         : `${startDay}. ${startMonth}–${endDay}. ${endMonth}`
-      return { weekNumber, monthIdx, monthLabel, dateRange, isCurrent }
+
+      const holidayNames: string[] = []
+      if (country) {
+        for (let d = 0; d < 5; d++) {
+          const hit = getHolidayForDate(addDays(start, d), country)
+          if (hit && !holidayNames.includes(hit.name)) holidayNames.push(hit.name)
+        }
+      }
+
+      return { weekNumber, monthIdx, monthLabel, dateRange, isCurrent, holidayNames }
     })
-  }, [lastWeek, year, todayWeek, todayYear, t])
+  }, [lastWeek, year, todayWeek, todayYear, t, country])
 
   return (
     <div className="w-full">
@@ -91,6 +105,8 @@ export function MyPlanYearStripe({ year, entries, onWeekClick }: MyPlanYearStrip
           const status = weekStatuses.get(wk.weekNumber) ?? null
           const palette = status ? palettes[status] : null
           const isMonthStart = wk.weekNumber === 1 || weeks[wk.weekNumber - 2]?.monthIdx !== wk.monthIdx
+          const hasHoliday = wk.holidayNames.length > 0
+          const holidaySuffix = hasHoliday ? ` · ${wk.holidayNames.join(', ')}` : ''
 
           return (
             <button
@@ -98,8 +114,8 @@ export function MyPlanYearStripe({ year, entries, onWeekClick }: MyPlanYearStrip
               role="listitem"
               type="button"
               onClick={() => onWeekClick(wk.weekNumber)}
-              title={`${t.matrix.weekLabel} ${wk.weekNumber} · ${wk.dateRange}`}
-              aria-label={`${t.matrix.weekLabel} ${wk.weekNumber} ${wk.dateRange}${status ? ` · ${t.status[status]}` : ''}`}
+              title={`${t.matrix.weekLabel} ${wk.weekNumber} · ${wk.dateRange}${holidaySuffix}`}
+              aria-label={`${t.matrix.weekLabel} ${wk.weekNumber} ${wk.dateRange}${status ? ` · ${t.status[status]}` : ''}${holidaySuffix}`}
               className="group relative flex-1 min-w-0 rounded-[5px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lg-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
               style={{
                 height: 28,
@@ -109,27 +125,48 @@ export function MyPlanYearStripe({ year, entries, onWeekClick }: MyPlanYearStrip
               <motion.div
                 whileHover={{ y: -2 }}
                 transition={spring.snappy}
-                className="absolute inset-0 rounded-[5px] transition-colors duration-150"
+                className="absolute inset-0 rounded-[5px] transition-colors duration-150 overflow-hidden"
                 style={{
                   background: palette
                     ? `linear-gradient(180deg, ${palette.icon} 0%, ${palette.gradient.dark[1]} 100%)`
-                    : 'transparent',
+                    : hasHoliday
+                      ? 'linear-gradient(180deg, rgba(244, 63, 94, 0.16) 0%, rgba(244, 63, 94, 0.04) 100%)'
+                      : 'transparent',
                   border: palette
                     ? `1px solid ${palette.icon}55`
-                    : '1px dashed var(--lg-divider)',
+                    : hasHoliday
+                      ? '1px solid rgba(244, 63, 94, 0.45)'
+                      : '1px dashed var(--lg-divider)',
                   boxShadow: wk.isCurrent
                     ? '0 0 0 2px var(--lg-accent), 0 0 14px var(--lg-accent-glow)'
-                    : palette
-                      ? `0 0 8px -2px ${palette.icon}66`
-                      : 'none',
+                    : hasHoliday
+                      ? '0 0 10px -2px rgba(244, 63, 94, 0.55)'
+                      : palette
+                        ? `0 0 8px -2px ${palette.icon}66`
+                        : 'none',
                 }}
-              />
+              >
+                {/* Holiday cap — red bookmark stripe along the top edge so a
+                    helligdag-uke reads at a glance even when the pill is
+                    already coloured by the week's dominant work status. */}
+                {hasHoliday && (
+                  <span
+                    aria-hidden
+                    className="absolute inset-x-0 top-0"
+                    style={{
+                      height: 3,
+                      background: '#F43F5E',
+                      boxShadow: '0 0 8px rgba(244, 63, 94, 0.75)',
+                    }}
+                  />
+                )}
+              </motion.div>
               {/* Hover label — shows week number above the pill */}
               <span
                 aria-hidden
                 className="lg-mono pointer-events-none absolute left-1/2 -translate-x-1/2 -top-5 text-[9.5px] uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-150"
                 style={{
-                  color: 'var(--lg-text-2)',
+                  color: hasHoliday ? '#F43F5E' : 'var(--lg-text-2)',
                   letterSpacing: '0.18em',
                   whiteSpace: 'nowrap',
                 }}
