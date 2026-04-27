@@ -10,6 +10,7 @@ import { spring } from '@/lib/motion'
 import type { Office } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
 import { useT } from '@/lib/i18n/context'
+import { WeatherInline } from '@/components/weather/weather-inline'
 
 interface OfficeMapViewProps {
   offices: Office[]
@@ -22,6 +23,8 @@ function pad(n: number) { return String(n).padStart(2, '0') }
 interface PlacedOffice {
   id: string
   office: Office
+  lat: number
+  lng: number
   x: number
   y: number
   radius: number
@@ -56,6 +59,7 @@ export function OfficeMapView({
       return {
         id: office.id,
         office,
+        lat, lng,
         x, y,
         radius: 7.7,
       }
@@ -246,6 +250,7 @@ export function OfficeMapView({
               >
                 {p.office.city ?? p.office.name}
               </span>
+              <WeatherInline lat={p.lat} lng={p.lng} size="sm" />
             </div>
           ))}
           {placed.length > 10 && (

@@ -50,6 +50,15 @@
   --radius-2xl:  32px;
   --radius-full: 9999px;
 
+  /* Offiview brand-tokens — gjør `text-ember`, `bg-paper`, `text-ink`,
+     `text-mist` o.l. til gyldige Tailwind 4-utility-klasser. Tokens
+     forblir enkel-eierskap (én definisjon i :root, ikke duplisert per
+     komponent). */
+  --color-ember: var(--ember);
+  --color-ink:   var(--ink);
+  --color-paper: var(--paper);
+  --color-mist:  var(--mist);
+
   /* Sidebar (shadcn compat) */
   --color-sidebar-ring:               var(--sidebar-ring);
   --color-sidebar-border:             var(--sidebar-border);
