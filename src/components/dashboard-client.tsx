@@ -13,6 +13,7 @@ import { WheelView } from '@/components/dashboard-views/wheel-view'
 import { AuroraBackground } from '@/components/dashboard-views/aurora-background'
 import { OffiviewSignature } from '@/components/brand/offiview-signature'
 import { BrandTransition } from '@/components/brand/brand-transition'
+import { TimezoneStrip } from '@/components/dashboard/timezone-strip'
 import { resolveViewDuration, DEFAULT_VIEW_DURATIONS } from '@/lib/dashboard-defaults'
 import { trackBrandImpression } from '@/lib/analytics'
 import { getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
@@ -548,6 +549,12 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
       <style>{`
         @keyframes blink { 0%, 100% { opacity: 0.4 } 50% { opacity: 0.15 } }
       `}</style>
+
+      {/* Tidssoneklokker — alltid synlig, ikke en del av view-rotasjonen.
+          Skjules under BrandTransition så brand-broa er ren. */}
+      <div className="pointer-events-none absolute top-4 right-6 z-50">
+        <TimezoneStrip visible={pendingViewIdx === null} />
+      </div>
 
       <OffiviewSignature
         ref={signatureRef}
