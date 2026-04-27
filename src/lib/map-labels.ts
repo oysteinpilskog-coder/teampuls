@@ -1,10 +1,11 @@
 // Label placement helpers for dashboard map views.
 //
 // SVG text labels placed next to pins overlap badly when two cities are close
-// together (e.g. Drammen/Fjerdingstad, Oslo/Asker). We solve this by:
-//   1. Deflecting each label to the side with the most room.
-//   2. If two pins are inside a tight radius, the label is placed at an
-//      offset that prevents vertical collision.
+// together (e.g. Drammen/Fjerdingstad, Oslo/Asker, Vestfossen/Gjøvik). For each
+// pin we score every candidate side+slot by the minimum distance from the
+// label anchor to nearby neighbour pins *and* their already-placed labels —
+// the highest-scoring candidate wins, with a small tie-break that prefers
+// `bottom` for isolated pins (the historical default).
 
 export interface LabeledPoint {
   id: string
@@ -38,8 +39,10 @@ interface PlaceOptions {
 
 /**
  * Resolve label positions for a set of pins, avoiding collisions between
- * neighbours. For each pin we start with a "below" placement, then if a
- * neighbour is also below within the collision radius, alternate sides.
+ * neighbours. For each pin we score candidate placements by how far the
+ * label sits from nearby neighbour pins and their labels — the candidate
+ * that maximises the minimum distance wins. Isolated pins fall through to
+ * `bottom:0` via the tie-break.
  */
 export function placeLabels<T extends LabeledPoint>(
   points: T[],
@@ -53,6 +56,21 @@ export function placeLabels<T extends LabeledPoint>(
   const sorted = [...points].sort((a, b) => a.y - b.y)
   const placed: PlacedLabel<T>[] = []
 
+  const candidates: Array<{ side: LabelSide; slot: number }> = [
+    { side: 'bottom', slot: 0 },
+    { side: 'top', slot: 0 },
+    { side: 'right', slot: 0 },
+    { side: 'left', slot: 0 },
+    { side: 'bottom', slot: 1 },
+    { side: 'top', slot: 1 },
+  ]
+
+  // Two label anchors must be at least this far apart to avoid visual
+  // collision. Roughly one line-height + a small breathing margin —
+  // tighter and labels start kissing each other; looser and well-separated
+  // pins get pushed into wide-orbit slots unnecessarily.
+  const safeDistance = lineHeight + 4
+
   for (const p of sorted) {
     // Find already-placed neighbours within collision radius.
     const neighbours = placed.filter(pl => {
@@ -61,25 +79,43 @@ export function placeLabels<T extends LabeledPoint>(
       return Math.sqrt(dx * dx + dy * dy) < collisionRadius
     })
 
-    // Pick a side + slot that doesn't collide with neighbours.
-    const candidates: Array<{ side: LabelSide; slot: number }> = [
-      { side: 'bottom', slot: 0 },
-      { side: 'top', slot: 0 },
-      { side: 'right', slot: 0 },
-      { side: 'left', slot: 0 },
-      { side: 'bottom', slot: 1 },
-      { side: 'top', slot: 1 },
-    ]
+    type Resolved = { side: LabelSide; slot: number; labelX: number; labelY: number; score: number }
+    let best: Resolved | null = null
+    let firstSafe: Resolved | null = null
 
-    const taken = new Set(neighbours.map(n => `${n.side}:${n.slot}`))
-    const pick = candidates.find(c => !taken.has(`${c.side}:${c.slot}`)) ?? candidates[0]
+    for (const c of candidates) {
+      const { labelX, labelY } = anchorFor(p, c.side, c.slot, gap, lineHeight)
 
-    const { labelX, labelY } = anchorFor(p, pick.side, pick.slot, gap, lineHeight)
+      // Distance from this candidate's anchor to every neighbour pin AND
+      // every neighbour's already-placed label. A candidate side that
+      // "faces" a neighbour scores low because the label lands on top of
+      // that neighbour's pin or label.
+      let minDist = Infinity
+      for (const n of neighbours) {
+        const dPin = Math.hypot(n.point.x - labelX, n.point.y - labelY)
+        const dLabel = Math.hypot(n.labelX - labelX, n.labelY - labelY)
+        if (dPin < minDist) minDist = dPin
+        if (dLabel < minDist) minDist = dLabel
+      }
 
+      const resolved: Resolved = { side: c.side, slot: c.slot, labelX, labelY, score: minDist }
+
+      // Pick the FIRST candidate (in priority order) that clears the safe
+      // distance — keeps natural bottom-of-pin placement whenever there's
+      // room, only deflecting when neighbours genuinely block the slot.
+      if (firstSafe === null && minDist >= safeDistance) {
+        firstSafe = resolved
+      }
+      if (!best || minDist > best.score) {
+        best = resolved
+      }
+    }
+
+    const pick = firstSafe ?? best!
     placed.push({
       point: p,
-      labelX,
-      labelY,
+      labelX: pick.labelX,
+      labelY: pick.labelY,
       side: pick.side,
       slot: pick.slot,
     })

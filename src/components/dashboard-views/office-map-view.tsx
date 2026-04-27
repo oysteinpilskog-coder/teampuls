@@ -57,7 +57,7 @@ export function OfficeMapView({
         id: office.id,
         office,
         x, y,
-        radius: 11,
+        radius: 7.7,
       }
     })
     .filter((p): p is PlacedOffice => p !== null)
