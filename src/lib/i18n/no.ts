@@ -56,6 +56,7 @@ export const no = {
     people: 'personer',
     place: 'sted',
     places: 'steder',
+    metricsHelp: 'Antall medlemmer som har meldt status i dag, og hvor mange forskjellige steder de er fordelt på',
     nobody: 'Ingen',
     noEntriesTitle: 'Ingen status for i dag ennå',
     noEntriesHint: 'Skriv en statusoppdatering på forsiden for å komme i gang.',

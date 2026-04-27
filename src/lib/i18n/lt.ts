@@ -72,6 +72,7 @@ export const lt: Dictionary = {
     people: 'žmonės',
     place: 'vieta',
     places: 'vietos',
+    metricsHelp: 'Kiek komandos narių šiandien užfiksavo savo būseną ir kiek skirtingų vietų jie pasiskirstę',
     nobody: 'Nieko',
     noEntriesTitle: 'Dar nėra šiandienos būsenų',
     noEntriesHint: 'Pradžios puslapyje parašyk būsenos atnaujinimą, kad pradėtum.',

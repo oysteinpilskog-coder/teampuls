@@ -14,6 +14,7 @@ import {
   formatDateLabelLong,
 } from '@/lib/dates'
 import { WeekNav } from '@/components/week-nav'
+import { TodayHero } from '@/components/today-hero'
 import { StatusSegment, type SegmentDay } from '@/components/status-segment'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { usePresenceCtx } from '@/lib/presence/context'
@@ -822,6 +823,10 @@ export function TeamGrid({
 
   return (
     <div className="space-y-5">
+      {/* Today's date as a serif "oppslag" — the compact strip below carries
+          the week number, range, NÅ pulse and metrics. */}
+      {isCurrentWeek && <TodayHero />}
+
       {/* Week navigation */}
       <WeekNav
         week={week}
@@ -958,12 +963,12 @@ export function TeamGrid({
           {weekDays.map((date, i) => {
             const { weekday, day, month } = getDayLabel(date)
             const today = isToday(date)
-            // Show month only when it changes from the previous day (or on the
-            // first day of the week). For a typical Mon-Fri view within April,
-            // only Monday would render "Apr". Saves us from five identical
-            // "Apr" labels stacked under every day.
+            // Show month only at a true month transition within the week.
+            // The header strip already names the current month, so labelling
+            // Monday with it again is noise — we only earn the ink when the
+            // month actually changes mid-week (e.g. apr→mai on Fri 1).
             const prev = i > 0 ? getDayLabel(weekDays[i - 1]) : null
-            const showMonth = !prev || prev.month !== month
+            const showMonth = prev != null && prev.month !== month
             const dayHol = weekHolidays[i]
             const noHoliday = dayHol?.no ?? null
             const allHolidays = dayHol?.byCountry ?? new Map<CountryCode, string>()
@@ -1039,17 +1044,16 @@ export function TeamGrid({
                 {/* Inline label: holiday name takes precedence over month. */}
                 {noHoliday ? (
                   <div
-                    className="lg-serif capitalize"
+                    className="lg-serif capitalize text-center"
                     style={{
                       color: '#F43F5E',
                       fontSize: 11,
                       opacity: 0.95,
-                      maxWidth: 110,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
+                      maxWidth: '100%',
+                      lineHeight: 1.2,
                       letterSpacing: '-0.005em',
                       fontWeight: 500,
+                      wordBreak: 'break-word',
                     }}
                   >
                     {noHoliday.name}
@@ -1079,7 +1083,7 @@ export function TeamGrid({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: slideDir === 'next' ? -32 : 32, opacity: 0 }}
             transition={spring.snappy}
-            className="relative p-4 space-y-2 z-10"
+            className="relative pt-4 px-4 pb-2 space-y-2 z-10"
             style={{ userSelect: 'none' }}
           >
             {loading
