@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import * as React from 'react'
+import { useEffect, useState, forwardRef } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { OffiviewMark } from './offiview-mark'
 
@@ -35,7 +36,8 @@ export interface OffiviewSignatureProps {
   opacity?: number
 }
 
-export function OffiviewSignature({ visible, opacity = 0.85 }: OffiviewSignatureProps) {
+export const OffiviewSignature = forwardRef<HTMLDivElement, OffiviewSignatureProps>(
+  function OffiviewSignature({ visible, opacity = 0.85 }, ref) {
   const [taglineIdx, setTaglineIdx] = useState(0)
   const reduce = useReducedMotion()
 
@@ -46,15 +48,25 @@ export function OffiviewSignature({ visible, opacity = 0.85 }: OffiviewSignature
     return () => clearInterval(id)
   }, [])
 
+  /*
+   * Visibility timing per Dashboard-integration:
+   *  - Hide (visible → false): instant. The brand-transition's hero mark
+   *    must own the screen during a 3.2s rotation moment, and a fading
+   *    signature would read as two monograms at once.
+   *  - Show (false → true): 300ms fade-in. Slow enough to feel intentional
+   *    after the hero lands, fast enough not to hold attention away from
+   *    the new view.
+   */
   return (
     <AnimatePresence>
       {visible && (
         <motion.div
+          ref={ref}
           className="offiview-signature"
-          initial={reduce ? { opacity } : { opacity: 0, y: 10 }}
+          initial={reduce ? { opacity } : { opacity: 0, y: 6 }}
           animate={{ opacity, y: 0 }}
-          exit={reduce ? { opacity: 0 } : { opacity: 0, y: 10 }}
-          transition={{ duration: reduce ? 0 : 0.6, ease: [0.22, 1, 0.36, 1] }}
+          exit={{ opacity: 0, transition: { duration: 0 } }}
+          transition={{ duration: reduce ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
           style={{
             position: 'fixed',
             bottom: 'var(--offiview-sig-pad)',
@@ -153,4 +165,5 @@ export function OffiviewSignature({ visible, opacity = 0.85 }: OffiviewSignature
       )}
     </AnimatePresence>
   )
-}
+  },
+)

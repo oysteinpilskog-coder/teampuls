@@ -12,6 +12,9 @@ import { CustomerMapView } from '@/components/dashboard-views/customer-map-view'
 import { WheelView } from '@/components/dashboard-views/wheel-view'
 import { AuroraBackground } from '@/components/dashboard-views/aurora-background'
 import { OffiviewSignature } from '@/components/brand/offiview-signature'
+import { BrandTransition } from '@/components/brand/brand-transition'
+import { resolveViewDuration, DEFAULT_VIEW_DURATIONS } from '@/lib/dashboard-defaults'
+import { trackBrandImpression } from '@/lib/analytics'
 import { getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
 import type { Entry, Member, Office, Organization, Customer, DashboardViewKey } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
@@ -23,12 +26,6 @@ interface DashboardClientProps {
 
 type ViewKey = DashboardViewKey
 const ALL_VIEWS: ViewKey[] = ['A', 'B', 'C', 'D', 'E']
-
-// How long each view dwells. Wheel gets a small bump so the eye can land on
-// the ring it cares about; operational views stay at the default tempo.
-const DWELL_MULTIPLIER: Record<ViewKey, number> = {
-  A: 1, B: 1, C: 1, D: 1, E: 1.4,
-}
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 
@@ -56,10 +53,20 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
     E: t.dashboard.views.wheel,
   }
   const searchParams = useSearchParams()
-  const intervalSec = Number(searchParams.get('interval') ?? 15)
+  // ?brand=off disables the 3.2s brand-transition moment for the entire
+  // session (kundepresentasjoner der dashbordet skal være helt stille).
+  // Manual keyboard navigation always uses the quick crossfade regardless.
+  const brandOff = searchParams.get('brand') === 'off'
 
   const [time, setTime] = useState(new Date())
   const [viewIdx, setViewIdx] = useState(0)
+  // pendingViewIdx is set when an auto-rotation tick has captured the
+  // signature position and BrandTransition is mounted. Null = idle (the
+  // current view is shown via the lightweight crossfade AnimatePresence).
+  const [pendingViewIdx, setPendingViewIdx] = useState<number | null>(null)
+  // Captured at the moment the auto-tick fires, before the signature is
+  // hidden — the hero mark uses this as its flight target.
+  const [signaturePos, setSignaturePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   // Wall-clock ms when the current view was entered. Used for the rotation
   // progress hairline so we can prove the auto-rotate timer is alive.
   const [viewStartedAt, setViewStartedAt] = useState(() => Date.now())
@@ -67,8 +74,9 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
   const [members, setMembers] = useState<Member[]>([])
   const [offices, setOffices] = useState<Office[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
-  const [org, setOrg] = useState<Pick<Organization, 'name' | 'timezone' | 'dashboard_show_sick' | 'dashboard_rotation_views'> | null>(null)
+  const [org, setOrg] = useState<Pick<Organization, 'name' | 'timezone' | 'dashboard_show_sick' | 'dashboard_rotation_views' | 'dashboard_view_durations'> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const signatureRef = useRef<HTMLDivElement>(null)
 
   // Active carousel views come from the org setting. Preserve canonical
   // A..E order so the rotation sequence stays predictable, and fall back
@@ -99,19 +107,37 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
     if (viewIdx >= VIEWS.length) setViewIdx(0)
   }, [VIEWS.length, viewIdx])
 
-  // Auto-rotate views. Each view can request a longer dwell via DWELL_MULTIPLIER
-  // (the wheel needs more time to read than the operational boards). We also
-  // stamp viewStartedAt so the progress hairline below the view switcher can
-  // show that the timer is alive.
+  // Auto-rotate views with per-view durations from Settings. When the timer
+  // fires we either jump straight to the next view (?brand=off, or during
+  // an in-flight transition) or capture the signature position and arm
+  // BrandTransition by setting pendingViewIdx.
+  const safeIdx = viewIdx % VIEWS.length
+  const currentDwellSec = resolveViewDuration(VIEWS[safeIdx], org?.dashboard_view_durations)
   useEffect(() => {
+    // Pause the rotation timer while a brand transition is mid-flight —
+    // BrandTransition.onComplete advances the index itself.
+    if (pendingViewIdx !== null) return
     setViewStartedAt(Date.now())
-    const safeIdx = viewIdx % VIEWS.length
-    const multiplier = DWELL_MULTIPLIER[VIEWS[safeIdx]]
     const id = setTimeout(() => {
-      setViewIdx(i => (i + 1) % VIEWS.length)
-    }, intervalSec * 1000 * multiplier)
+      const nextIdx = (viewIdx + 1) % VIEWS.length
+      if (brandOff) {
+        setViewIdx(nextIdx)
+        return
+      }
+      const rect = signatureRef.current?.getBoundingClientRect()
+      const pos = rect
+        ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+        : { x: window.innerWidth - 96, y: window.innerHeight - 72 }
+      setSignaturePos(pos)
+      trackBrandImpression({
+        view_key: VIEWS[safeIdx],
+        dwell_sec: currentDwellSec,
+        org_id: orgId,
+      })
+      setPendingViewIdx(nextIdx)
+    }, currentDwellSec * 1000)
     return () => clearTimeout(id)
-  }, [intervalSec, viewIdx, VIEWS])
+  }, [viewIdx, VIEWS, currentDwellSec, brandOff, pendingViewIdx, orgId, safeIdx])
 
   // Fetch org + members + offices once
   const fetchData = useCallback(async () => {
@@ -124,7 +150,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
     ] = await Promise.all([
       supabase
         .from('organizations')
-        .select('name, timezone, dashboard_show_sick, dashboard_rotation_views')
+        .select('name, timezone, dashboard_show_sick, dashboard_rotation_views, dashboard_view_durations')
         .eq('id', orgId)
         .maybeSingle(),
       supabase
@@ -150,6 +176,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
         timezone: 'Europe/Oslo',
         dashboard_show_sick: true,
         dashboard_rotation_views: ALL_VIEWS,
+        dashboard_view_durations: DEFAULT_VIEW_DURATIONS,
       }
     )
     setMembers(membersData ?? [])
@@ -222,12 +249,18 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
   }, [])
 
   // Keyboard: left/right to switch views, F for fullscreen, Esc handled by browser.
-  // Re-registers when VIEWS changes so nav wraps around the currently enabled
-  // set (not the initial one captured at mount).
+  // Manual nav cancels any pending brand transition and uses the quick 400ms
+  // crossfade — the brand moment is reserved for auto-rotation.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'ArrowLeft')  setViewIdx(i => (i - 1 + VIEWS.length) % VIEWS.length)
-      if (e.key === 'ArrowRight') setViewIdx(i => (i + 1) % VIEWS.length)
+      if (e.key === 'ArrowLeft') {
+        setPendingViewIdx(null)
+        setViewIdx(i => (i - 1 + VIEWS.length) % VIEWS.length)
+      }
+      if (e.key === 'ArrowRight') {
+        setPendingViewIdx(null)
+        setViewIdx(i => (i + 1) % VIEWS.length)
+      }
       if (e.key === 'f' || e.key === 'F') toggleFullscreen()
     }
     window.addEventListener('keydown', onKey)
@@ -235,7 +268,61 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
   }, [VIEWS]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentView = VIEWS[viewIdx] ?? VIEWS[0]
+  const incomingView = pendingViewIdx !== null ? (VIEWS[pendingViewIdx] ?? VIEWS[0]) : null
   const orgName = org?.name ?? 'CalWin'
+
+  function renderView(view: ViewKey) {
+    switch (view) {
+      case 'A':
+        return (
+          <TodayView
+            members={members}
+            weekDays={weekDays}
+            entries={entries}
+            todayEntries={todayEntries}
+            orgName={orgName}
+            time={time}
+          />
+        )
+      case 'B':
+        return (
+          <MonthView
+            members={members}
+            weekDays={weekDays}
+            entries={entries}
+            orgName={orgName}
+            time={time}
+          />
+        )
+      case 'C':
+        return (
+          <OfficeMapView
+            offices={offices}
+            orgName={orgName}
+            time={time}
+          />
+        )
+      case 'D':
+        return (
+          <CustomerMapView
+            members={members}
+            entries={entries}
+            todayEntries={dedupedTodayEntries}
+            customers={customers}
+            orgName={orgName}
+            time={time}
+          />
+        )
+      case 'E':
+        return (
+          <WheelView
+            orgId={orgId}
+            orgName={orgName}
+            time={time}
+          />
+        )
+    }
+  }
 
   return (
     <div
@@ -246,62 +333,38 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
       {/* Ambient aurora backdrop */}
       <AuroraBackground entries={todayEntries} />
 
-      {/* Main content with view transition */}
+      {/* Main content. Two render paths:
+          - pendingViewIdx set: BrandTransition owns the screen for ~3.2s.
+            It renders both outgoing and incoming views internally and the
+            hero mark flies to signaturePos. onComplete commits the index.
+          - pendingViewIdx null (idle, manual nav, or ?brand=off): existing
+            AnimatePresence handles the lighter 400ms crossfade. */}
       <div className="relative flex-1 overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentView}
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.01 }}
-            transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute inset-0"
-          >
-            {currentView === 'A' && (
-              <TodayView
-                members={members}
-                weekDays={weekDays}
-                entries={entries}
-                todayEntries={todayEntries}
-                orgName={orgName}
-                time={time}
-              />
-            )}
-            {currentView === 'B' && (
-              <MonthView
-                members={members}
-                weekDays={weekDays}
-                entries={entries}
-                orgName={orgName}
-                time={time}
-              />
-            )}
-            {currentView === 'C' && (
-              <OfficeMapView
-                offices={offices}
-                orgName={orgName}
-                time={time}
-              />
-            )}
-            {currentView === 'D' && (
-              <CustomerMapView
-                members={members}
-                entries={entries}
-                todayEntries={dedupedTodayEntries}
-                customers={customers}
-                orgName={orgName}
-                time={time}
-              />
-            )}
-            {currentView === 'E' && (
-              <WheelView
-                orgId={orgId}
-                orgName={orgName}
-                time={time}
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
+        {pendingViewIdx !== null && incomingView !== null ? (
+          <BrandTransition
+            key={`brand-${viewIdx}-to-${pendingViewIdx}`}
+            outgoingView={renderView(currentView)}
+            incomingView={renderView(incomingView)}
+            signaturePosition={signaturePos}
+            onComplete={() => {
+              setViewIdx(pendingViewIdx)
+              setPendingViewIdx(null)
+            }}
+          />
+        ) : (
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={currentView}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.01 }}
+              transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+              className="absolute inset-0"
+            >
+              {renderView(currentView)}
+            </motion.div>
+          </AnimatePresence>
+        )}
       </div>
 
       {/* ── Rotation progress hairlines (top + bottom of the control bar) ──
@@ -311,8 +374,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
           the KUNDEPORTEFØLJE widget's Nordlys rail. */}
       {(() => {
         const key = VIEWS[viewIdx] ?? VIEWS[0] ?? 'A'
-        const multiplier = DWELL_MULTIPLIER[key]
-        const dwellMs = Math.max(1, intervalSec * 1000 * multiplier)
+        const dwellMs = Math.max(1, resolveViewDuration(key, org?.dashboard_view_durations) * 1000)
         const elapsed = time.getTime() - viewStartedAt
         const pct = Math.max(0, Math.min(1, elapsed / dwellMs))
         const hairlineStyle = {
@@ -455,8 +517,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
       {/* ── Rotation progress hairline (bottom edge, mirror of the top one) ── */}
       {(() => {
         const key = VIEWS[viewIdx] ?? VIEWS[0] ?? 'A'
-        const multiplier = DWELL_MULTIPLIER[key]
-        const dwellMs = Math.max(1, intervalSec * 1000 * multiplier)
+        const dwellMs = Math.max(1, resolveViewDuration(key, org?.dashboard_view_durations) * 1000)
         const elapsed = time.getTime() - viewStartedAt
         const pct = Math.max(0, Math.min(1, elapsed / dwellMs))
         return (
@@ -488,7 +549,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
         @keyframes blink { 0%, 100% { opacity: 0.4 } 50% { opacity: 0.15 } }
       `}</style>
 
-      <OffiviewSignature visible />
+      <OffiviewSignature ref={signatureRef} visible={pendingViewIdx === null} />
     </div>
   )
 }
