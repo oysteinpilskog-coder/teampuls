@@ -13,6 +13,7 @@ import { getISOWeek } from '@/lib/dates'
 import { useResolvedLocations } from '@/hooks/use-resolved-locations'
 import { useT } from '@/lib/i18n/context'
 import { useMemo } from 'react'
+import { WeatherInline } from '@/components/weather/weather-inline'
 
 interface CustomerMapViewProps {
   members: Member[]
@@ -29,6 +30,8 @@ interface CustomerCluster {
   id: string
   x: number
   y: number
+  lat: number
+  lng: number
   radius: number
   display: string
   isKnownCustomer: boolean
@@ -150,6 +153,8 @@ export function CustomerMapView({
       id: c.id,
       x: c.x,
       y: c.y,
+      lat: c.lat,
+      lng: c.lng,
       radius: 11,
       display: c.display,
       isKnownCustomer: c.isKnownCustomer,
@@ -530,12 +535,17 @@ export function CustomerMapView({
            *  svg pin so the list and the map feel like one object. */}
           {(clusters.length > 0 || unvisitedCustomers.length > 0) && (() => {
             // Sort rows by engagement tier → alphabetical within tier.
+            // `lat`/`lng` carries forward only on visited rows so the
+            // weather badge knows where to fetch from. Idle rows omit
+            // it on purpose — feature 2 only attaches vær til besøk.
             const rows: Array<{
               key: string
               name: string
               state: CustomerPinState
               visitCount: number
               members: string[]
+              lat: number | null
+              lng: number | null
             }> = []
             for (const c of clusters) {
               const state: CustomerPinState = c.memberIdsToday.size > 0 ? 'today' : 'week'
@@ -551,6 +561,8 @@ export function CustomerMapView({
                 state,
                 visitCount: c.memberIdsWeek.size,
                 members,
+                lat: c.lat,
+                lng: c.lng,
               })
             }
             for (const c of unvisitedCustomers) {
@@ -560,6 +572,8 @@ export function CustomerMapView({
                 state: 'idle',
                 visitCount: 0,
                 members: [],
+                lat: null,
+                lng: null,
               })
             }
             const tierRank: Record<CustomerPinState, number> = { today: 0, week: 1, idle: 2 }
@@ -570,6 +584,18 @@ export function CustomerMapView({
               if (a.visitCount !== b.visitCount) return b.visitCount - a.visitCount
               return a.name.localeCompare(b.name)
             })
+
+            // Maks 5 værbadges samtidig (TODO 2: «3 er atmosfære, 40 er
+            // støy»). Tier-sorteringen plasserer alle today-rader først,
+            // så den første N er garantert det som driver dagen.
+            const MAX_WEATHER_BADGES = 5
+            const weatherKeys = new Set<string>()
+            for (const r of rows) {
+              if (r.state !== 'today') break
+              if (r.lat == null || r.lng == null) continue
+              weatherKeys.add(r.key)
+              if (weatherKeys.size >= MAX_WEATHER_BADGES) break
+            }
 
             return (
               <div
@@ -611,6 +637,9 @@ export function CustomerMapView({
                       >
                         {r.name}
                       </span>
+                      {weatherKeys.has(r.key) && (
+                        <WeatherInline lat={r.lat} lng={r.lng} size="sm" />
+                      )}
                       {r.visitCount > 0 && (
                         <span
                           className="text-[11px] tabular-nums flex-shrink-0"
