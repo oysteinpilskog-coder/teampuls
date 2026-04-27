@@ -29,6 +29,13 @@ import { useT } from '@/lib/i18n/context'
 import type { Dictionary } from '@/lib/i18n/types'
 import type { Entry, EntryStatus, PresenceAssumption } from '@/lib/supabase/types'
 import { inferStatus } from '@/lib/presence'
+import {
+  getHolidayForDate,
+  getHolidaysForCountries,
+  isSupportedCountry,
+  flagFor,
+  type CountryCode,
+} from '@/lib/holidays'
 
 interface RowSegment {
   days: SegmentDay[]
@@ -355,6 +362,32 @@ export function TeamGrid({
     offices.forEach((o) => map.set(o.id, o))
     return map
   }, [offices])
+
+  // Country codes that have at least one active member assigned to an office.
+  // Empty until offices/members load — used to decide which countries to
+  // probe for holidays in the day-header tooltip.
+  const activeCountries = useMemo<CountryCode[]>(() => {
+    const set = new Set<CountryCode>()
+    for (const m of members) {
+      if (!m.home_office_id) continue
+      const office = officeById.get(m.home_office_id)
+      if (office && isSupportedCountry(office.country_code)) {
+        set.add(office.country_code)
+      }
+    }
+    return Array.from(set)
+  }, [members, officeById])
+
+  // Pre-compute holiday data for the visible week. NO drives the column-wide
+  // red treatment; the per-country map drives the tooltip and per-member
+  // corner-stripes.
+  const weekHolidays = useMemo(() => {
+    return weekDays.map((date) => ({
+      date,
+      no: getHolidayForDate(date, 'NO'),
+      byCountry: getHolidaysForCountries(date, activeCountries),
+    }))
+  }, [weekDays, activeCountries])
 
   // Compute clamped target start for an in-progress move drag.
   function moveTargetStart(m: MoveDrag): number {
@@ -862,6 +895,32 @@ export function TeamGrid({
           )
         })()}
 
+        {/* Norwegian holiday columns — soft red light-shaft mirroring the
+            today column, so a NO red day reads at a glance even before you
+            see the orb. Rendered before the today chord so today still wins
+            visually when both apply. */}
+        {weekHolidays.map((dh, idx) => {
+          if (!dh.no) return null
+          if (isToday(dh.date)) return null
+          const left = `calc(160px + ${idx} * ((100% - 208px) / 5 + 8px))`
+          const width = `calc((100% - 208px) / 5)`
+          return (
+            <div
+              key={`no-hol-col-${idx}`}
+              aria-hidden
+              className="absolute pointer-events-none z-0"
+              style={{
+                top: 0,
+                bottom: 0,
+                left,
+                width,
+                background:
+                  'linear-gradient(180deg, rgba(244, 63, 94, 0.10) 0%, rgba(244, 63, 94, 0.045) 40%, rgba(244, 63, 94, 0.018) 100%)',
+              }}
+            />
+          )
+        })}
+
         {/* Today chord — the Nordlys signature gradient line running through
             today's column, same as on /min-plan's current-week row. Gives the
             matrix the same "horisonten gjort vertikal" moment here. */}
@@ -905,20 +964,43 @@ export function TeamGrid({
             // "Apr" labels stacked under every day.
             const prev = i > 0 ? getDayLabel(weekDays[i - 1]) : null
             const showMonth = !prev || prev.month !== month
+            const dayHol = weekHolidays[i]
+            const noHoliday = dayHol?.no ?? null
+            const allHolidays = dayHol?.byCountry ?? new Map<CountryCode, string>()
+            // Tooltip lists every active country with a holiday today, with
+            // flag + local name. NO comes first when present.
+            const tooltipParts: string[] = []
+            if (allHolidays.has('NO')) tooltipParts.push(`${flagFor('NO')} ${allHolidays.get('NO')}`)
+            for (const [c, name] of allHolidays) {
+              if (c === 'NO') continue
+              tooltipParts.push(`${flagFor(c)} ${name}`)
+            }
+            const tooltip = tooltipParts.join(' · ')
             return (
               <div
                 key={date.toISOString()}
                 className="text-center relative flex flex-col items-center gap-1.5"
+                title={tooltip || undefined}
               >
                 <div
                   className="lg-mono text-[10px] uppercase"
                   style={{
                     // Today's weekday gets Ember-glow warmth — the Nordlys
                     // gradient is reserved for the day-number orb below.
-                    color: today ? 'var(--ember-glow, #FBBF24)' : 'var(--lg-text-3)',
-                    fontWeight: today ? 600 : 500,
+                    // Norwegian holidays paint the weekday in the same red as
+                    // the orb so the column reads as red at a glance.
+                    color: today
+                      ? 'var(--ember-glow, #FBBF24)'
+                      : noHoliday
+                        ? '#F43F5E'
+                        : 'var(--lg-text-3)',
+                    fontWeight: today || noHoliday ? 600 : 500,
                     letterSpacing: '0.2em',
-                    textShadow: today ? '0 0 10px rgba(251, 191, 36, 0.35)' : undefined,
+                    textShadow: today
+                      ? '0 0 10px rgba(251, 191, 36, 0.35)'
+                      : noHoliday
+                        ? '0 0 10px rgba(244, 63, 94, 0.35)'
+                        : undefined,
                   }}
                 >
                   {weekday}
@@ -929,24 +1011,50 @@ export function TeamGrid({
                     fontSize: today ? 22 : 26,
                     fontWeight: today ? 600 : 400,
                     // Nordlys-signature: today's day number sits inside a
-                    // gradient orb — the "once per flate" signature moment
-                    // for /oversikt. Rest of the surface stays on Ember/Paper.
-                    color: today ? '#0E0B08' : 'var(--lg-text-1)',
-                    width: today ? 40 : 'auto',
-                    height: today ? 40 : 'auto',
+                    // gradient orb. Norwegian holidays swap that for a red
+                    // ember-orb. If today is *also* a Norwegian holiday we
+                    // keep the Nordlys gradient (today wins visually) but
+                    // wrap it in a red ring so the holiday still reads.
+                    color: today || noHoliday ? '#0E0B08' : 'var(--lg-text-1)',
+                    width: today || noHoliday ? 40 : 'auto',
+                    height: today || noHoliday ? 40 : 'auto',
                     borderRadius: 9999,
                     background: today
                       ? 'linear-gradient(135deg, #00F5A0 0%, #00D9F5 55%, #7C3AED 100%)'
-                      : 'transparent',
-                    boxShadow: today
-                      ? '0 0 0 3px rgba(0, 245, 160, 0.18), 0 0 28px rgba(0, 217, 245, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
-                      : 'none',
+                      : noHoliday
+                        ? 'linear-gradient(135deg, #FB7185 0%, #F43F5E 55%, #E11D48 100%)'
+                        : 'transparent',
+                    boxShadow: today && noHoliday
+                      ? '0 0 0 3px rgba(244, 63, 94, 0.55), 0 0 28px rgba(0, 217, 245, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
+                      : today
+                        ? '0 0 0 3px rgba(0, 245, 160, 0.18), 0 0 28px rgba(0, 217, 245, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
+                        : noHoliday
+                          ? '0 0 0 3px rgba(244, 63, 94, 0.18), 0 0 28px rgba(244, 63, 94, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
+                          : 'none',
                     letterSpacing: '-0.02em',
                   }}
                 >
                   {day}
                 </div>
-                {showMonth && (
+                {/* Inline label: holiday name takes precedence over month. */}
+                {noHoliday ? (
+                  <div
+                    className="lg-serif capitalize"
+                    style={{
+                      color: '#F43F5E',
+                      fontSize: 11,
+                      opacity: 0.95,
+                      maxWidth: 110,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      letterSpacing: '-0.005em',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {noHoliday.name}
+                  </div>
+                ) : showMonth ? (
                   <div
                     className="lg-serif capitalize"
                     style={{
@@ -957,7 +1065,7 @@ export function TeamGrid({
                   >
                     {month}
                   </div>
-                )}
+                ) : null}
               </div>
             )
           })}
@@ -1116,6 +1224,58 @@ export function TeamGrid({
                                 : undefined
                             }
                           />
+                        )
+                      })
+                    })()}
+
+                    {/* Holiday corner-stripes — for SE/LT/GB members on days
+                        where their home country has a holiday but Norway
+                        doesn't. NO holidays already paint the whole column,
+                        so we suppress the per-cell stripe to avoid double
+                        signal. */}
+                    {(() => {
+                      const office = member.home_office_id
+                        ? officeById.get(member.home_office_id)
+                        : undefined
+                      const country = office?.country_code
+                      if (!isSupportedCountry(country) || country === 'NO') return null
+                      return weekHolidays.map((dh, dayIdx) => {
+                        if (dh.no) return null
+                        const name = dh.byCountry.get(country)
+                        if (!name) return null
+                        const leftCalc = `calc(144px + ${dayIdx} * ((100% - 176px) / 5 + 8px))`
+                        const widthCalc = `calc((100% - 176px) / 5)`
+                        return (
+                          <div
+                            key={`hol-stripe-${dayIdx}`}
+                            aria-hidden
+                            title={`${flagFor(country)} ${name}`}
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              height: 36,
+                              left: leftCalc,
+                              width: widthCalc,
+                              borderRadius: 8,
+                              pointerEvents: 'none',
+                              zIndex: 6,
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                right: 0,
+                                width: 14,
+                                height: 14,
+                                background:
+                                  'linear-gradient(225deg, #F43F5E 0%, #F43F5E 50%, transparent 50%)',
+                                boxShadow: '0 0 8px rgba(244, 63, 94, 0.45)',
+                                borderTopRightRadius: 8,
+                              }}
+                            />
+                          </div>
                         )
                       })
                     })()}

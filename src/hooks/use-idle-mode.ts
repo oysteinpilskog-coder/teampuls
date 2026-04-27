@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { isPublicHolidayNO } from '@/lib/no-holidays'
+import { getHolidayForDate } from '@/lib/holidays'
 import { track } from '@/lib/analytics'
 
 export interface UseIdleModeOptions {
@@ -106,7 +106,7 @@ export function useIdleMode({
   const isOutsideBusinessHoursRef = useRef<(now: Date) => boolean>(() => false)
   isOutsideBusinessHoursRef.current = (now: Date) => {
     if (isWeekend(now)) return true
-    if (isPublicHolidayNO(now)) return true
+    if (getHolidayForDate(now, 'NO')) return true
     const m = minutesOfDay(now)
     return m < businessStartMin || m >= businessEndMin
   }
