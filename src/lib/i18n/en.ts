@@ -72,6 +72,7 @@ export const en: Dictionary = {
     people: 'people',
     place: 'place',
     places: 'places',
+    metricsHelp: 'How many team members have logged a status today, and across how many distinct locations',
     nobody: 'Nobody',
     noEntriesTitle: 'No status for today yet',
     noEntriesHint: 'Write a status update on the home page to get started.',

@@ -72,6 +72,7 @@ export const es: Dictionary = {
     people: 'personas',
     place: 'lugar',
     places: 'lugares',
+    metricsHelp: 'Cuántos miembros del equipo han registrado un estado hoy y en cuántos lugares distintos están repartidos',
     nobody: 'Nadie',
     noEntriesTitle: 'Todavía no hay estados para hoy',
     noEntriesHint: 'Escribe una actualización de estado en la página de inicio para empezar.',

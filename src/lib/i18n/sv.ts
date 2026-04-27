@@ -72,6 +72,7 @@ export const sv: Dictionary = {
     people: 'personer',
     place: 'plats',
     places: 'platser',
+    metricsHelp: 'Antal medlemmar som har anmält status idag, och hur många olika platser de är fördelade på',
     nobody: 'Ingen',
     noEntriesTitle: 'Ingen status för idag ännu',
     noEntriesHint: 'Skriv en statusuppdatering på startsidan för att komma igång.',
