@@ -65,6 +65,10 @@ export interface Organization {
   dashboard_rotation_views?: DashboardViewKey[]
   /** Per-view auto-rotation dwell time in seconds. Missing keys fall back to DEFAULT_VIEW_DURATIONS. */
   dashboard_view_durations?: Partial<Record<DashboardViewKey, number>>
+  /** Org-wide kill switch for the birthday surface. When false, member opt-ins are ignored. */
+  birthdays_enabled?: boolean
+  /** Org-wide kill switch for the work-anniversary surface. */
+  anniversaries_enabled?: boolean
   timezone: string
   week_start: number
   created_at: string
@@ -137,6 +141,14 @@ export interface Member {
   default_status?: EntryStatus | null
   role: MemberRole
   is_active: boolean
+  /** Personal date — only surfaced when birthday_visible is true. ISO 'YYYY-MM-DD'. */
+  birth_date?: string | null
+  /** Employment start date — drives work-anniversary celebration. ISO 'YYYY-MM-DD'. */
+  start_date?: string | null
+  /** Default FALSE: birthdays are sensitive and require explicit opt-in. */
+  birthday_visible?: boolean
+  /** Default TRUE: work anniversaries are public, but a member can still hide theirs. */
+  anniversary_visible?: boolean
   created_at: string
   updated_at: string
 }

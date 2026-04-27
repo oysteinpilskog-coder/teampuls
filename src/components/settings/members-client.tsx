@@ -22,6 +22,10 @@ interface MemberFormState {
   initials: string
   email: string
   role: MemberRole
+  birth_date: string
+  birthday_visible: boolean
+  start_date: string
+  anniversary_visible: boolean
 }
 
 const EMPTY_FORM: MemberFormState = {
@@ -30,6 +34,10 @@ const EMPTY_FORM: MemberFormState = {
   initials: '',
   email: '',
   role: 'member',
+  birth_date: '',
+  birthday_visible: false,
+  start_date: '',
+  anniversary_visible: true,
 }
 
 export function MembersClient({ orgId, currentMemberId, initialMembers }: MembersClientProps) {
@@ -60,6 +68,10 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
       initials: m.initials ?? '',
       email: m.email,
       role: m.role,
+      birth_date: m.birth_date ?? '',
+      birthday_visible: m.birthday_visible ?? false,
+      start_date: m.start_date ?? '',
+      anniversary_visible: m.anniversary_visible ?? true,
     })
     setEditTarget(m)
     setModalMode('edit')
@@ -81,6 +93,10 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
       initials,
       email: form.email.trim().toLowerCase(),
       role: form.role,
+      birth_date: form.birth_date || null,
+      birthday_visible: form.birthday_visible,
+      start_date: form.start_date || null,
+      anniversary_visible: form.anniversary_visible,
     }
 
     if (modalMode === 'edit' && editTarget) {
@@ -337,6 +353,59 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                 </div>
               </Field>
 
+              {/* Divider */}
+              <div className="h-px -mx-6" style={{ backgroundColor: 'var(--border-subtle)' }} />
+
+              {/* Personal — birthday + anniversary */}
+              <div className="flex flex-col gap-3">
+                <p
+                  className="text-[11px] font-semibold uppercase tracking-widest"
+                  style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
+                >
+                  {t.settings.members.personalSection}
+                </p>
+
+                <Field label={t.settings.members.birthDateLabel} hint={t.settings.members.birthDateHint}>
+                  <input
+                    type="date"
+                    value={form.birth_date}
+                    onChange={e => setForm(f => ({ ...f, birth_date: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
+                    style={inputStyle}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                  />
+                </Field>
+
+                <ToggleRow
+                  label={t.settings.members.birthdayVisibleLabel}
+                  hint={t.settings.members.birthdayVisibleHint}
+                  checked={form.birthday_visible}
+                  onChange={v => setForm(f => ({ ...f, birthday_visible: v }))}
+                  disabled={!form.birth_date}
+                />
+
+                <Field label={t.settings.members.startDateLabel} hint={t.settings.members.startDateHint}>
+                  <input
+                    type="date"
+                    value={form.start_date}
+                    onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
+                    className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
+                    style={inputStyle}
+                    onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                    onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                  />
+                </Field>
+
+                <ToggleRow
+                  label={t.settings.members.anniversaryVisibleLabel}
+                  hint={t.settings.members.anniversaryVisibleHint}
+                  checked={form.anniversary_visible}
+                  onChange={v => setForm(f => ({ ...f, anniversary_visible: v }))}
+                  disabled={!form.start_date}
+                />
+              </div>
+
               {/* AI group */}
               <div
                 className="flex flex-col gap-2 p-3 rounded-xl"
@@ -489,6 +558,74 @@ function describeSaveError(error: SupabaseError, emailTakenMessage: string): str
     return 'Du må være admin for å endre medlemmer.'
   }
   return error.message || 'Noe gikk galt. Prøv igjen.'
+}
+
+function ToggleRow({
+  label,
+  hint,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string
+  hint?: string
+  checked: boolean
+  onChange: (v: boolean) => void
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => !disabled && onChange(!checked)}
+      disabled={disabled}
+      className="flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-[background,border-color,opacity] duration-150 disabled:cursor-not-allowed"
+      style={{
+        background: checked ? 'rgba(139, 92, 246, 0.10)' : 'var(--bg-subtle)',
+        border: `1px solid ${checked ? 'rgba(139, 92, 246, 0.45)' : 'var(--border-subtle)'}`,
+        opacity: disabled ? 0.5 : 1,
+        fontFamily: 'var(--font-body)',
+      }}
+    >
+      <span
+        aria-hidden
+        className="inline-flex shrink-0 mt-0.5 rounded-full transition-[background] duration-150"
+        style={{
+          width: 32,
+          height: 18,
+          background: checked ? 'var(--accent-color, #0066FF)' : 'rgba(120,120,120,0.25)',
+          padding: 2,
+        }}
+      >
+        <span
+          className="block rounded-full bg-white transition-transform duration-150"
+          style={{
+            width: 14,
+            height: 14,
+            transform: checked ? 'translateX(14px)' : 'translateX(0)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+          }}
+        />
+      </span>
+      <span className="flex flex-col gap-0.5 min-w-0 flex-1">
+        <span
+          className="text-[13px] font-medium"
+          style={{ color: 'var(--text-primary)' }}
+        >
+          {label}
+        </span>
+        {hint && (
+          <span
+            className="text-[12px]"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            {hint}
+          </span>
+        )}
+      </span>
+    </button>
+  )
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
