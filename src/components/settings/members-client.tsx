@@ -45,6 +45,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
   const [modalMode, setModalMode] = useState<'closed' | 'add' | 'edit'>('closed')
   const [editTarget, setEditTarget] = useState<Member | null>(null)
   const [form, setForm] = useState<MemberFormState>(EMPTY_FORM)
+  const [initialsTouched, setInitialsTouched] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -57,6 +58,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
 
   function openAdd() {
     setForm(EMPTY_FORM)
+    setInitialsTouched(false)
     setEditTarget(null)
     setModalMode('add')
   }
@@ -73,6 +75,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
       start_date: m.start_date ?? '',
       anniversary_visible: m.anniversary_visible ?? true,
     })
+    setInitialsTouched(true)
     setEditTarget(m)
     setModalMode('edit')
   }
@@ -284,7 +287,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                       setForm(f => ({
                         ...f,
                         display_name,
-                        initials: f.initials || deriveInitials(display_name, f.full_name),
+                        initials: initialsTouched ? f.initials : deriveInitials(display_name, f.full_name),
                       }))
                     }}
                     placeholder="Ola"
@@ -304,7 +307,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                       setForm(f => ({
                         ...f,
                         full_name,
-                        initials: f.initials || deriveInitials(f.display_name, full_name),
+                        initials: initialsTouched ? f.initials : deriveInitials(f.display_name, full_name),
                       }))
                     }}
                     placeholder="Ola Normann"
@@ -425,7 +428,10 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                 <input
                   type="text"
                   value={form.initials}
-                  onChange={e => setForm(f => ({ ...f, initials: e.target.value.slice(0, 3).toUpperCase() }))}
+                  onChange={e => {
+                    setInitialsTouched(true)
+                    setForm(f => ({ ...f, initials: e.target.value.slice(0, 3).toUpperCase() }))
+                  }}
                   placeholder="ON"
                   maxLength={3}
                   className="w-24 px-3 py-2.5 rounded-xl text-[14px] font-semibold tracking-wider outline-none uppercase"
