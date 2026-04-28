@@ -77,6 +77,10 @@ export const no = {
     regionAPAC: 'APAC',
     shortcutHint: '⌘{n} for rask bytte',
     only: 'Eneste arbeidsområde',
+    combinedAll: 'Alle CalWin',
+    combinedDescription: 'Vis alle selskaper sammen',
+    combinedShortcut: '⌘0',
+    combinedFilterAll: 'Alle',
   },
   status: {
     office: 'Kontor',

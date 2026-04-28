@@ -28,7 +28,8 @@ import { spring } from '@/lib/motion'
 import { useEntries } from '@/hooks/use-entries'
 import { useT } from '@/lib/i18n/context'
 import type { Dictionary } from '@/lib/i18n/types'
-import type { Entry, EntryStatus, PresenceAssumption } from '@/lib/supabase/types'
+import type { Entry, EntryStatus, PresenceAssumption, WorkspaceSummary } from '@/lib/supabase/types'
+import { WorkspaceBadge } from '@/components/workspace-switcher'
 import { inferStatus } from '@/lib/presence'
 import {
   getHolidayForDate,
@@ -163,6 +164,12 @@ interface TeamGridProps {
     registeredToday: number
     distinctLocations: number
   }
+  /** All workspaces the user belongs to. Used in combined view to render
+   *  per-row org badges and the workspace filter pill row. */
+  workspaces?: WorkspaceSummary[]
+  /** When true: render org badge per member row + filter pill row, and
+   *  read members from multiple workspaces. */
+  combinedView?: boolean
 }
 
 // Skeleton row for loading state
@@ -216,6 +223,8 @@ export function TeamGrid({
   initialWeek,
   initialYear,
   todayMetrics,
+  workspaces,
+  combinedView = false,
 }: TeamGridProps) {
   const t = useT()
   const { week: todayWeek, year: todayYear } = getTodayWeekAndYear()
@@ -252,7 +261,9 @@ export function TeamGrid({
   // before the hook has a chance to fetch should still trigger a fetch.
   const ssrEntriesMatchWeek = initialWeek === week && initialYear === year
   const { entries, loading: entriesLoading, refetch, applyOptimistic } = useEntries(
-    orgId,
+    combinedView && workspaces && workspaces.length > 0
+      ? workspaces.map((w) => w.org_id)
+      : orgId,
     dateStrings,
     ssrEntriesMatchWeek ? { initial: initialEntries } : {},
   )
@@ -308,19 +319,60 @@ export function TeamGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [week, year])
 
+  // Workspace filter pills — null = "Alle", otherwise an org_id from the
+  // workspaces list. Only meaningful in combinedView; reset to null when
+  // the user leaves the combined surface.
+  const [orgFilter, setOrgFilter] = useState<string | null>(null)
+
   // Only show members that have at least one entry in the visible week —
   // unless the org opted into an assumption, in which case every active
   // member gets a row (their empty days render as assumed segments).
+  // In combined view we then narrow further by the orgFilter pill.
   const visibleMembers = useMemo(() => {
-    if (presenceAssumption !== 'none') return members
-    const memberIdsWithEntries = new Set(entries.map((e) => e.member_id))
-    return members.filter((m) => memberIdsWithEntries.has(m.id))
-  }, [members, entries, presenceAssumption])
+    let pool = members
+    if (presenceAssumption === 'none') {
+      const memberIdsWithEntries = new Set(entries.map((e) => e.member_id))
+      pool = members.filter((m) => memberIdsWithEntries.has(m.id))
+    }
+    if (combinedView && orgFilter) {
+      pool = pool.filter((m) => m.org_id === orgFilter)
+    }
+    return pool
+  }, [members, entries, presenceAssumption, combinedView, orgFilter])
+
+  // Per-workspace member counts for the filter pills.
+  const memberCountsByOrg = useMemo(() => {
+    const map = new Map<string, number>()
+    members.forEach((m) => {
+      map.set(m.org_id, (map.get(m.org_id) ?? 0) + 1)
+    })
+    return map
+  }, [members])
+
+  // Workspace lookup keyed by org_id — used for the org-chip rendered
+  // after each member's display name in combined view.
+  const workspaceByOrgId = useMemo(() => {
+    const map = new Map<string, WorkspaceSummary>()
+    if (workspaces) {
+      workspaces.forEach((w) => map.set(w.org_id, w))
+    }
+    return map
+  }, [workspaces])
 
   // Fetch supporting data once. When SSR has already seeded `members` we
   // skip the members query and only fetch the things SSR didn't provide
   // (offices for the hover card + the org's presence-assumption setting),
   // saving one round trip on every cold load of the home page.
+  // Combined view broadens the scope to every workspace the user
+  // belongs to. We pre-compute the org_id list so the fetch query
+  // can swap eq() for in() in one place.
+  const scopedOrgIds = useMemo(
+    () => (combinedView && workspaces && workspaces.length > 0
+      ? workspaces.map((w) => w.org_id)
+      : [orgId]),
+    [combinedView, workspaces, orgId],
+  )
+
   const firstFetchWithSSR = useRef(!!initialMembers)
   const fetchMembers = useCallback(async () => {
     const skipMembers = firstFetchWithSSR.current
@@ -334,7 +386,7 @@ export function TeamGrid({
         supabase
           .from('offices')
           .select('*')
-          .eq('org_id', orgId)
+          .in('org_id', scopedOrgIds)
           .order('sort_order'),
         supabase
           .from('organizations')
@@ -351,13 +403,13 @@ export function TeamGrid({
       supabase
         .from('members')
         .select('*')
-        .eq('org_id', orgId)
+        .in('org_id', scopedOrgIds)
         .eq('is_active', true)
         .order('display_name'),
       supabase
         .from('offices')
         .select('*')
-        .eq('org_id', orgId)
+        .in('org_id', scopedOrgIds)
         .order('sort_order'),
       supabase
         .from('organizations')
@@ -369,7 +421,7 @@ export function TeamGrid({
     setOffices(os ?? [])
     setPresenceAssumption((org?.default_presence_assumption ?? 'none') as PresenceAssumption)
     setMembersLoading(false)
-  }, [orgId])
+  }, [orgId, scopedOrgIds])
 
   useEffect(() => {
     fetchMembers()
@@ -967,6 +1019,40 @@ export function TeamGrid({
           )
         })()}
 
+        {/* Workspace filter pills — combined view only. The "Alle" pill
+            shows everyone; per-workspace pills filter the matrix down to
+            members of one CalWin entity. Pure client state — does not
+            change the cookie or the active workspace. */}
+        {combinedView && workspaces && workspaces.length >= 2 && (
+          <div
+            className="px-4 pt-3 flex items-center gap-1.5 flex-wrap"
+            style={{ borderBottom: '1px solid var(--lg-divider-soft)' }}
+          >
+            <FilterPill
+              active={orgFilter === null}
+              onClick={() => setOrgFilter(null)}
+              label={t.workspace.combinedFilterAll}
+              count={members.length}
+              accent="#7C3AED"
+            />
+            {workspaces.map((w) => (
+              <FilterPill
+                key={w.org_id}
+                active={orgFilter === w.org_id}
+                onClick={() => setOrgFilter(w.org_id)}
+                workspace={w}
+                count={memberCountsByOrg.get(w.org_id) ?? 0}
+              />
+            ))}
+            <span
+              className="ml-auto text-[10.5px] uppercase tracking-wider"
+              style={{ color: 'var(--text-tertiary)', letterSpacing: '0.12em' }}
+            >
+              {t.workspace.combinedAll}
+            </span>
+          </div>
+        )}
+
         {/* Day header */}
         <div
           className="relative grid gap-2 px-4 pt-5 pb-4 z-10"
@@ -1165,7 +1251,7 @@ export function TeamGrid({
                           todayLocation={todayEntry?.location_label ?? null}
                           todayNote={todayEntry?.note ?? null}
                         >
-                          <div className="flex items-center gap-2.5 px-1 h-[32px]">
+                          <div className="flex items-center gap-2 px-1 h-[32px] min-w-0">
                             <MemberAvatar
                               name={member.display_name}
                               initials={member.initials}
@@ -1173,7 +1259,7 @@ export function TeamGrid({
                               size="sm"
                             />
                             <span
-                              className="text-[13px] truncate leading-tight"
+                              className="text-[13px] truncate leading-tight min-w-0"
                               style={{
                                 color: 'var(--lg-text-1)',
                                 fontWeight: 500,
@@ -1182,6 +1268,12 @@ export function TeamGrid({
                             >
                               {member.full_name || member.display_name}
                             </span>
+                            {combinedView && workspaceByOrgId.get(member.org_id) && (
+                              <WorkspaceBadge
+                                workspace={workspaceByOrgId.get(member.org_id)!}
+                                size="sm"
+                              />
+                            )}
                           </div>
                         </MemberHoverCard>
                       )
@@ -1603,5 +1695,62 @@ function WeeklySummaryToast({
         </svg>
       </button>
     </div>
+  )
+}
+
+/**
+ * Pill button used in the combined-view filter row. Either a workspace
+ * (renders its WorkspaceBadge + name + count) or the "Alle" pill (uses
+ * the violet combined accent). Active state is a tinted background +
+ * inset ring in the matching accent.
+ */
+function FilterPill({
+  active,
+  onClick,
+  workspace,
+  label,
+  count,
+  accent: accentOverride,
+}: {
+  active: boolean
+  onClick: () => void
+  workspace?: WorkspaceSummary
+  label?: string
+  count: number
+  accent?: string
+}) {
+  const accent =
+    accentOverride ??
+    (workspace?.accent_color?.match(/^#[0-9a-fA-F]{3,8}$/)?.[0] ?? 'var(--accent-color)')
+  const displayLabel = label ?? workspace?.name ?? '?'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11.5px] font-medium transition-[background,box-shadow] duration-150"
+      style={{
+        background: active
+          ? `linear-gradient(135deg, color-mix(in oklab, ${accent} 28%, transparent), color-mix(in oklab, ${accent} 16%, transparent))`
+          : 'color-mix(in oklab, var(--bg-subtle) 60%, transparent)',
+        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+        boxShadow: active
+          ? `inset 0 0 0 1px color-mix(in oklab, ${accent} 50%, transparent)`
+          : '0 0 0 1px color-mix(in oklab, var(--border-subtle) 40%, transparent)',
+        fontFamily: 'var(--font-body)',
+      }}
+    >
+      {workspace && <WorkspaceBadge workspace={workspace} size="sm" />}
+      <span>{displayLabel}</span>
+      <span
+        className="text-[10px] font-semibold tabular-nums"
+        style={{
+          color: active ? 'var(--text-primary)' : 'var(--text-tertiary)',
+          opacity: active ? 0.85 : 1,
+        }}
+      >
+        {count}
+      </span>
+    </button>
   )
 }
