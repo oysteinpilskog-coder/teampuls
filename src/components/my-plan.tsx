@@ -1,13 +1,18 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import { addDays, getISOWeek, getISOWeekYear } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { MemberAvatar } from '@/components/member-avatar'
-import { CellEditor } from '@/components/cell-editor'
+// Lazy CellEditor — see TeamGrid for the same rationale.
+const CellEditor = dynamic(
+  () => import('@/components/cell-editor').then(m => ({ default: m.CellEditor })),
+  { ssr: false }
+)
 import { EmptyState } from '@/components/empty-state'
 import { StatusSegment, type SegmentDay } from '@/components/status-segment'
 import { MyPlanYearStripe } from '@/components/my-plan-year-stripe'

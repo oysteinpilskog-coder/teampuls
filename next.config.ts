@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  // React Compiler — auto-memoizes components and values so we don't have to
+  // sprinkle useMemo/useCallback/React.memo by hand. Stable in Next 16. Cost
+  // is a slightly slower production build; runtime is faster everywhere it
+  // catches a previously-unmemoized render.
+  reactCompiler: true,
   // Keep prefetched RSC payloads around longer so second/third visits to a
   // route are instant. The default for dynamic routes is 0s, which means every
   // tab-switch hits the server again.
