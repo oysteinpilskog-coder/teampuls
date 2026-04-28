@@ -86,24 +86,20 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...spring.gentle, delay: 0.05 }}
         >
-          <p
-            className="text-[13px] font-medium tracking-[0.22em] uppercase"
-            style={{ color: 'rgba(245,239,228,0.45)', fontFamily: 'var(--font-manrope), system-ui, sans-serif' }}
-          >
-            {orgName}
-          </p>
-          {/* Org wordmark — Fraunces italic on Paper. Quiet, warm, restrained.
+          {/* Org wordmark — Fraunces italic på Paper. Quiet, warm, restrained.
               The clock is the Nordlys hero of this surface; the wordmark sits
-              on the ink/paper scale so there's room for a single signature. */}
+              on the ink/paper scale so there's room for a single signature.
+              Bevisst ingen uppercase eyebrow over — wordmarken står alene mot
+              pillen under så org-navnet ikke ekko-er seg selv to ganger. */}
           {orgName && (
             <p
-              className="leading-none mt-1"
+              className="leading-none"
               style={{
                 fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
                 fontWeight: 300,
                 fontStyle: 'italic',
                 fontVariationSettings: '"opsz" 32, "SOFT" 80',
-                fontSize: 26,
+                fontSize: 30,
                 letterSpacing: '-0.025em',
                 color: 'var(--paper)',
               }}
@@ -111,7 +107,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
               {orgName}
             </p>
           )}
-          <div className="mt-1.5 flex items-center gap-2">
+          <div className="mt-2.5 flex items-center gap-2">
             <span
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase"
               style={{
