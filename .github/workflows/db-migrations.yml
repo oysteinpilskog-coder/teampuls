@@ -50,16 +50,46 @@ jobs:
         with:
           version: latest
 
+      # Sanity-checks the DB-password secret BEFORE we hand it to the CLI
+      # (which masks all output). Catches the most common mistakes — empty
+      # value, accidental newline, or someone pasting an access-token /
+      # service-role key (both are JWTs ~200+ chars and start with "eyJ")
+      # instead of the actual postgres password.
+      - name: Sanity-check secrets
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          if [ -z "${SUPABASE_DB_PASSWORD}" ]; then
+            echo "::error::SUPABASE_DB_PASSWORD is empty."
+            exit 1
+          fi
+          LEN=${#SUPABASE_DB_PASSWORD}
+          echo "Password length: ${LEN} characters"
+          # Trailing newline / CR check — GitHub's secret UI strips most
+          # whitespace but a paste with a hard return can sneak through.
+          case "${SUPABASE_DB_PASSWORD}" in
+            *$'\n'*) echo "::error::Password contains a newline. Re-paste without trailing return." ; exit 1 ;;
+            *$'\r'*) echo "::error::Password contains a CR. Re-paste without trailing return." ; exit 1 ;;
+            ' '*|*' ') echo "::error::Password has leading/trailing space." ; exit 1 ;;
+          esac
+          # JWT shape: dot-separated three segments, base64-ish, starts with eyJ
+          case "${SUPABASE_DB_PASSWORD}" in
+            eyJ*.*.*)
+              echo "::error::SUPABASE_DB_PASSWORD looks like a JWT (anon-key / service-role-key / access-token)."
+              echo "::error::Use the postgres database password instead: Project Settings → Database → Reset database password."
+              exit 1 ;;
+          esac
+
       - name: Link project
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --debug
 
       - name: Push migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          supabase db push --include-all
+          supabase db push --include-all --debug
