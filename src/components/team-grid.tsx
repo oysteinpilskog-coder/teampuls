@@ -999,6 +999,16 @@ export function TeamGrid({
               tooltipParts.push(`${flagFor(c)} ${name}`)
             }
             const tooltip = tooltipParts.join(' · ')
+            // Countries with a holiday today, excluding NO (NO already drives
+            // the column-wide red treatment + inline name). Used to render a
+            // visible flag indicator in the header so a SE/LT/GB-only holiday
+            // is never invisible — even when the corresponding members have
+            // no entries in the visible week and would otherwise be filtered
+            // out of `visibleMembers`.
+            const nonNoCountries: CountryCode[] = []
+            for (const c of allHolidays.keys()) {
+              if (c !== 'NO') nonNoCountries.push(c)
+            }
             return (
               <div
                 key={date.toISOString()}
@@ -1059,7 +1069,10 @@ export function TeamGrid({
                 >
                   {day}
                 </div>
-                {/* Inline label: holiday name takes precedence over month. */}
+                {/* Inline label: NO holiday name takes precedence over month.
+                    Non-NO holidays add a flag row below so they're always
+                    visible in the header (even when no member from that
+                    country is rendered in the matrix). */}
                 {noHoliday ? (
                   <div
                     className="lg-serif capitalize text-center"
@@ -1088,6 +1101,22 @@ export function TeamGrid({
                     {month}
                   </div>
                 ) : null}
+                {nonNoCountries.length > 0 && (
+                  <div
+                    className="flex items-center justify-center gap-1"
+                    style={{
+                      fontSize: 13,
+                      lineHeight: 1,
+                      filter: 'drop-shadow(0 0 6px rgba(244, 63, 94, 0.45))',
+                    }}
+                  >
+                    {nonNoCountries.map((c) => (
+                      <span key={c} aria-hidden>
+                        {flagFor(c)}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })}
