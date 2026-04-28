@@ -11,7 +11,13 @@ import type { OrgEvent } from '@/lib/supabase/types'
 import { useT } from '@/lib/i18n/context'
 
 interface WheelViewProps {
-  orgId: string
+  /** All workspace org_ids in scope — combined-mode unions events from
+   *  every workspace under the account, single-mode passes one. */
+  orgIds: string[]
+  /** Which workspace's logo to render in the wheel centre. The
+   *  combined view doesn't have its own logo, so the dashboard hands
+   *  over the canonical headerOrgId here. */
+  logoOrgId: string
   orgName: string
   time: Date
 }
@@ -32,12 +38,13 @@ function formatRange(startIso: string, endIso: string, monthsShort: string[]): s
   return `${start.getDate()}. ${monthsShort[start.getMonth()]} – ${end.getDate()}. ${monthsShort[end.getMonth()]}`
 }
 
-export function WheelView({ orgId, orgName, time }: WheelViewProps) {
+export function WheelView({ orgIds, logoOrgId, orgName, time }: WheelViewProps) {
   const t = useT()
   const year = time.getFullYear()
   const todayYmd = toYmd(time)
   const [events, setEvents] = useState<OrgEvent[]>([])
   const [orgLogo, setOrgLogo] = useState<string | null>(null)
+  const orgIdsKey = orgIds.join(',')
 
   // Dashboard-owned fetch. We avoid useEvents() because its Realtime channel
   // would re-subscribe every rotation; the dashboard cycles views every ~15s
@@ -51,7 +58,7 @@ export function WheelView({ orgId, orgName, time }: WheelViewProps) {
     supabase
       .from('events')
       .select('*')
-      .eq('org_id', orgId)
+      .in('org_id', orgIds)
       .lte('start_date', `${year}-12-31`)
       .gte('end_date', `${year}-01-01`)
       .order('start_date')
@@ -60,10 +67,11 @@ export function WheelView({ orgId, orgName, time }: WheelViewProps) {
     supabase
       .from('organizations')
       .select('logo_url')
-      .eq('id', orgId)
+      .eq('id', logoOrgId)
       .maybeSingle()
       .then(({ data }) => setOrgLogo(data?.logo_url ?? null))
-  }, [orgId, year])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgIdsKey, logoOrgId, year])
 
   const { todayEvents, upcomingEvents } = useMemo(() => {
     const ongoing = events.filter(e => e.start_date <= todayYmd && e.end_date >= todayYmd)

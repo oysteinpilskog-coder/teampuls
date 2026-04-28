@@ -43,7 +43,20 @@ import { useT } from '@/lib/i18n/context'
 type OrgRow = Pick<Organization, 'name' | 'timezone' | 'dashboard_show_sick' | 'dashboard_rotation_views' | 'dashboard_view_durations'>
 
 interface DashboardClientProps {
-  orgId: string
+  /** All workspace org_ids the dashboard scopes to. Single-workspace
+   *  → one entry; «Alle CalWin» combined-mode → every workspace under
+   *  the account. Members/offices/customers/entries fan out across
+   *  this list. */
+  orgIds: string[]
+  /** Canonical org for non-tenant data — toggles, rotation views, view
+   *  durations, and analytics impressions. Always one of `orgIds`. */
+  headerOrgId: string
+  /** True when the active surface is the synthetic «Alle CalWin» view.
+   *  Drives header naming and any combined-only UI affordances. */
+  isCombined: boolean
+  /** Header label when combined (e.g. «Alle CalWin»). Falls back to
+   *  the headerOrg's name when null. */
+  combinedName?: string | null
   /** Server-prefetched org row. Skips the first client fetch when present. */
   initialOrg?: OrgRow | null
   initialMembers?: Member[]
@@ -68,12 +81,18 @@ function dedupeByMember(rows: Entry[], members: Member[]): Entry[] {
 }
 
 export function DashboardClient({
-  orgId,
+  orgIds,
+  headerOrgId,
+  isCombined,
+  combinedName,
   initialOrg,
   initialMembers,
   initialOffices,
   initialCustomers,
 }: DashboardClientProps) {
+  // Stable join key so effects/memos can depend on the list contents
+  // without re-running on every render of an inline array literal.
+  const orgIdsKey = orgIds.join(',')
   const t = useT()
   // Memoized so the segmented switcher and aria-labels keep stable refs
   // across the once-per-second clock tick.
@@ -199,12 +218,12 @@ export function DashboardClient({
       trackBrandImpression({
         view_key: VIEWS[safeIdx],
         dwell_sec: currentDwellSec,
-        org_id: orgId,
+        org_id: headerOrgId,
       })
       setPendingViewIdx(nextIdx)
     }, currentDwellSec * 1000)
     return () => clearTimeout(id)
-  }, [viewIdx, VIEWS, currentDwellSec, brandOff, pendingViewIdx, orgId, safeIdx])
+  }, [viewIdx, VIEWS, currentDwellSec, brandOff, pendingViewIdx, headerOrgId, safeIdx])
 
   // Fetch org + members + offices + customers once. Errors are caught so
   // the TV never shows React's red overlay; instead a quiet "could not load"
@@ -221,23 +240,23 @@ export function DashboardClient({
         supabase
           .from('organizations')
           .select('name, timezone, dashboard_show_sick, dashboard_rotation_views, dashboard_view_durations')
-          .eq('id', orgId)
+          .eq('id', headerOrgId)
           .maybeSingle(),
         supabase
           .from('members')
           .select('*')
-          .eq('org_id', orgId)
+          .in('org_id', orgIds)
           .eq('is_active', true)
           .order('display_name'),
         supabase
           .from('offices')
           .select('*')
-          .eq('org_id', orgId)
+          .in('org_id', orgIds)
           .order('sort_order'),
         supabase
           .from('customers')
           .select('*')
-          .eq('org_id', orgId)
+          .in('org_id', orgIds)
           .order('name'),
       ])
       if (orgRes.error) throw orgRes.error
@@ -255,82 +274,97 @@ export function DashboardClient({
       setLoadError(t.dashboard.loadError)
       setDataReady(true)
     }
-  }, [orgId, t])
+  // orgIdsKey covers the contents of orgIds; React-hooks lint can't see
+  // through the join so we rely on the joined string for stability.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgIdsKey, headerOrgId, t])
 
   useEffect(() => { fetchData() }, [fetchData])
 
   // Realtime customers — the settings page writes directly to the DB, so
   // without this the customer map stays frozen until the next reload.
+  // One channel per scoped workspace so combined-mode receives writes
+  // from every side of «Alle CalWin».
   useEffect(() => {
     const supabase = createClient()
-    const channel = supabase
-      .channel(`customers:org:${orgId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'customers',
-          filter: `org_id=eq.${orgId}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'DELETE') {
-            const deleted = payload.old as Partial<Customer>
-            if (!deleted.id) return
-            setCustomers(prev => prev.filter(c => c.id !== deleted.id))
-            return
+    const channels = orgIds.map((id) =>
+      supabase
+        .channel(`customers:org:${id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'customers',
+            filter: `org_id=eq.${id}`,
+          },
+          (payload) => {
+            if (payload.eventType === 'DELETE') {
+              const deleted = payload.old as Partial<Customer>
+              if (!deleted.id) return
+              setCustomers(prev => prev.filter(c => c.id !== deleted.id))
+              return
+            }
+            const upserted = payload.new as Customer
+            if (!upserted?.id) return
+            setCustomers(prev => {
+              const without = prev.filter(c => c.id !== upserted.id)
+              return [...without, upserted].sort((a, b) => a.name.localeCompare(b.name))
+            })
           }
-          const upserted = payload.new as Customer
-          if (!upserted?.id) return
-          setCustomers(prev => {
-            const without = prev.filter(c => c.id !== upserted.id)
-            return [...without, upserted].sort((a, b) => a.name.localeCompare(b.name))
-          })
-        }
-      )
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [orgId])
+        )
+        .subscribe()
+    )
+    return () => { channels.forEach((ch) => supabase.removeChannel(ch)) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgIdsKey])
 
   // Realtime members — without this the TV shows a stale roster until the
   // next reload when admin (de)activates a member or edits their profile.
   // is_active=false is treated as a soft delete so headcounts stay honest.
+  // One channel per scoped workspace so combined-mode receives roster
+  // changes from every side of «Alle CalWin».
   useEffect(() => {
     const supabase = createClient()
-    const channel = supabase
-      .channel(`members:org:${orgId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'members',
-          filter: `org_id=eq.${orgId}`,
-        },
-        (payload) => {
-          if (payload.eventType === 'DELETE') {
-            const deleted = payload.old as Partial<Member>
-            if (!deleted.id) return
-            setMembers(prev => prev.filter(m => m.id !== deleted.id))
-            return
+    const channels = orgIds.map((id) =>
+      supabase
+        .channel(`members:org:${id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'members',
+            filter: `org_id=eq.${id}`,
+          },
+          (payload) => {
+            if (payload.eventType === 'DELETE') {
+              const deleted = payload.old as Partial<Member>
+              if (!deleted.id) return
+              setMembers(prev => prev.filter(m => m.id !== deleted.id))
+              return
+            }
+            const upserted = payload.new as Member
+            if (!upserted?.id) return
+            setMembers(prev => {
+              const without = prev.filter(m => m.id !== upserted.id)
+              if (!upserted.is_active) return without
+              return [...without, upserted].sort((a, b) =>
+                (a.display_name ?? '').localeCompare(b.display_name ?? '')
+              )
+            })
           }
-          const upserted = payload.new as Member
-          if (!upserted?.id) return
-          setMembers(prev => {
-            const without = prev.filter(m => m.id !== upserted.id)
-            if (!upserted.is_active) return without
-            return [...without, upserted].sort((a, b) =>
-              (a.display_name ?? '').localeCompare(b.display_name ?? '')
-            )
-          })
-        }
-      )
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [orgId])
+        )
+        .subscribe()
+    )
+    return () => { channels.forEach((ch) => supabase.removeChannel(ch)) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgIdsKey])
 
-  // Realtime entries for the current week (includes today)
-  const { entries: rawEntries } = useEntries(orgId, dateStrings)
+  // Realtime entries for the current week (includes today). useEntries
+  // takes a string | string[]; combined-mode passes the full scope so the
+  // matrix and «Akkurat nå»-widget stay live across every workspace.
+  const { entries: rawEntries } = useEntries(orgIds, dateStrings)
 
   // Privacy: when the org has opted out of exposing sick leave on the public
   // dashboard, collapse sick → off so the display only reveals that someone
@@ -388,7 +422,10 @@ export function DashboardClient({
 
   const currentView = VIEWS[viewIdx] ?? VIEWS[0]
   const incomingView = pendingViewIdx !== null ? (VIEWS[pendingViewIdx] ?? VIEWS[0]) : null
-  const orgName = org?.name ?? ''
+  // In combined mode the headerOrg's name is misleading (just one of
+  // several workspaces); the synthetic «Alle CalWin»-label reads truer
+  // and matches the workspace pill in the rest of the app.
+  const orgName = isCombined ? (combinedName ?? '') : (org?.name ?? '')
 
   function renderView(view: ViewKey) {
     switch (view) {
@@ -435,7 +472,8 @@ export function DashboardClient({
       case 'E':
         return (
           <WheelView
-            orgId={orgId}
+            orgIds={orgIds}
+            logoOrgId={headerOrgId}
             orgName={orgName}
             time={time}
           />
