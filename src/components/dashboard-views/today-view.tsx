@@ -7,7 +7,7 @@ import { getDayLabel, getISOWeek, isToday } from '@/lib/dates'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import type { Dictionary } from '@/lib/i18n/types'
-import { HeroPulse } from './hero-pulse'
+import { HeroBigNumber } from './hero-big-number'
 import { TeamBoard } from './team-board'
 
 interface TodayViewProps {
@@ -202,8 +202,10 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
         </motion.div>
       </div>
 
-      {/* ── Hero pulse strip (with deduped entries) ──────────────── */}
-      <HeroPulse members={members} todayEntries={dedupedTodayEntries} />
+      {/* ── Hero number — Apple Weather-style. One Fraunces tall, lap-read
+            from across reception. The screen has a single hero instead of
+            four competing widgets. */}
+      <HeroBigNumber members={members} todayEntries={dedupedTodayEntries} />
 
       {/* ── Team board ───────────────────────────────────────────── */}
       <TeamBoard members={members} todayMap={todayMap} />

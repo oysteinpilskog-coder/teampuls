@@ -33,9 +33,9 @@ import { AuroraBackground } from '@/components/dashboard-views/aurora-background
 import { OffiviewSignature } from '@/components/brand/offiview-signature'
 import { BrandTransition } from '@/components/brand/brand-transition'
 import { TimezoneStrip } from '@/components/dashboard/timezone-strip'
-import { resolveViewDuration } from '@/lib/dashboard-defaults'
+import { applyQuietHours, resolveViewDuration } from '@/lib/dashboard-defaults'
 import { trackBrandImpression } from '@/lib/analytics'
-import { getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
+import { getDayPhase, getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
 import type { Entry, Member, Office, Organization, Customer, DashboardViewKey } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
@@ -197,8 +197,12 @@ export function DashboardClient({
   // fires we either jump straight to the next view (?brand=off, or during
   // an in-flight transition) or capture the signature position and arm
   // BrandTransition by setting pendingViewIdx.
+  // After 18:00 / before 07:00 we also apply a quiet-hours stretch so the
+  // empty reception breathes slower instead of marching at the same pace
+  // as a Tuesday lunch.
   const safeIdx = viewIdx % VIEWS.length
-  const currentDwellSec = resolveViewDuration(VIEWS[safeIdx], org?.dashboard_view_durations)
+  const baseDwell = resolveViewDuration(VIEWS[safeIdx], org?.dashboard_view_durations)
+  const currentDwellSec = applyQuietHours(baseDwell, time.getHours())
   useEffect(() => {
     // Pause the rotation timer while a brand transition is mid-flight —
     // BrandTransition.onComplete advances the index itself.
@@ -491,8 +495,11 @@ export function DashboardClient({
       className="relative h-screen w-screen overflow-hidden flex flex-col"
       style={{ backgroundColor: '#050507', color: 'white' }}
     >
-      {/* Ambient aurora backdrop */}
-      <AuroraBackground entries={todayEntries} />
+      {/* Ambient aurora backdrop. The phase prop shifts the base tone with
+          time of day — cool morning, neutral midday, golden evening,
+          espresso night. Cross-fades for ~4s so the change is felt, not
+          seen. */}
+      <AuroraBackground entries={todayEntries} phase={getDayPhase(time)} />
 
       {/* Main content. Two render paths:
           - pendingViewIdx set: BrandTransition owns the screen for ~3.2s.
