@@ -119,7 +119,7 @@ export function OffiviewMark({
               width="140%"
               height="140%"
             >
-              <feGaussianBlur stdDeviation="1.4" result="blur" />
+              <feGaussianBlur stdDeviation="2.2" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
@@ -139,14 +139,15 @@ export function OffiviewMark({
         strokeWidth={strokeWidth}
       />
 
-      {/* Horizon */}
+      {/* Horizon — på nordlys-varianten gis linja ekstra tykkelse så den
+          leser tydelig som lysende strek over mørk dashboard-bakgrunn. */}
       <line
         x1={hx1}
         y1={hy}
         x2={hx2}
         y2={hy}
         stroke={horizonStroke}
-        strokeWidth={strokeWidth}
+        strokeWidth={variant === 'nordlys' ? strokeWidth * 1.4 : strokeWidth}
         strokeLinecap="round"
         filter={horizonFilter}
       />

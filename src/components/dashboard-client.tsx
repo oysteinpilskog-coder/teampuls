@@ -684,11 +684,35 @@ export function DashboardClient({
           for å bevise at auto-rotasjonen lever, uten å ramme dashbordet. */}
       <RotationHairline pct={rotationPct} />
 
-      {/* Tidssoneklokker — alltid synlig, ikke en del av view-rotasjonen.
-          Skjules under BrandTransition så brand-broa er ren. */}
-      <div className="pointer-events-none absolute top-4 right-6 z-50">
-        <TimezoneStrip visible={pendingViewIdx === null} />
-      </div>
+      {/* Global topp-bar — org-navn (venstre) + tidssoneklokker (høyre).
+          Begge står på samme baseline (top-4), uavhengig av aktiv visning.
+          Skjules på TodayView (View A): der eier Fraunces wordmark + 84px
+          hero-klokken toppen — vi vil ikke ha to org-navn eller to klokker
+          å lese på den hero-orienterte flaten. Skjules også under
+          BrandTransition så brand-broa er helt ren. */}
+      {currentView !== 'A' && (
+        <>
+          <div className="pointer-events-none absolute top-4 left-6 z-50">
+            <span
+              className="transition-opacity duration-500"
+              style={{
+                opacity: pendingViewIdx === null ? 1 : 0,
+                fontFamily: 'var(--font-body)',
+                fontSize: 13,
+                fontWeight: 500,
+                letterSpacing: '0.22em',
+                textTransform: 'uppercase',
+                color: 'var(--mist)',
+              }}
+            >
+              {orgName}
+            </span>
+          </div>
+          <div className="pointer-events-none absolute top-4 right-6 z-50">
+            <TimezoneStrip visible={pendingViewIdx === null} />
+          </div>
+        </>
+      )}
 
       <OffiviewSignature
         ref={signatureRef}

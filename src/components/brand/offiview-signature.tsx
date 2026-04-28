@@ -134,7 +134,7 @@ export const OffiviewSignature = forwardRef<HTMLDivElement, OffiviewSignaturePro
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 4,
+              gap: 8,
               lineHeight: 1,
             }}
           >

@@ -24,8 +24,6 @@ interface CustomerMapViewProps {
   time: Date
 }
 
-function pad(n: number) { return String(n).padStart(2, '0') }
-
 interface CustomerCluster {
   id: string
   x: number
@@ -55,8 +53,6 @@ export function CustomerMapView({
   const STATUS_COLORS = useStatusColors()
   const auroras = useAuroraColors()
   const t = useT()
-  const hours = pad(time.getHours())
-  const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)
 
   const memberById = new Map(members.map(m => [m.id, m]))
@@ -225,25 +221,20 @@ export function CustomerMapView({
     })
   }
 
-  const placedLabels = placeLabels(points, { gap: 12, collisionRadius: 82 })
+  const placedLabels = placeLabels(points, { gap: 14, collisionRadius: 140, lineHeight: 26 })
 
   return (
-    <div className="relative h-full flex flex-col px-10 pt-6 pb-4 gap-4">
-      {/* ── Header ────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between flex-shrink-0">
+    <div className="relative h-full flex flex-col px-10 pt-14 pb-4 gap-4">
+      {/* ── Header — org-navn og klokke eies av global topp-bar; her står
+          kun visningstittel + uke-badge så kart får mest mulig pust. */}
+      <div className="flex-shrink-0">
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...spring.gentle, delay: 0.05 }}
         >
           <p
-            className="text-[13px] font-medium tracking-[0.22em] uppercase"
-            style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
-          >
-            {orgName}
-          </p>
-          <p
-            className="text-[30px] font-semibold tracking-tight leading-none mt-1"
+            className="text-[30px] font-semibold tracking-tight leading-none"
             style={{
               fontFamily: 'var(--font-sora)',
               background:
@@ -274,27 +265,6 @@ export function CustomerMapView({
               {t.matrix.weekLabel} {weekNum}
             </span>
           </div>
-        </motion.div>
-
-        <motion.div
-          className="tabular-nums text-right"
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.gentle, delay: 0.12 }}
-          style={{
-            fontSize: '64px',
-            fontWeight: 700,
-            fontFamily: 'var(--font-sora)',
-            letterSpacing: '-0.04em',
-            background:
-              'linear-gradient(180deg, #00F5A0 -12%, #00D9F5 16%, #ffffff 52%, #ffffff 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            filter: 'drop-shadow(0 0 24px rgba(0,217,245,0.22))',
-          }}
-        >
-          {hours}:{minutes}
         </motion.div>
       </div>
 
