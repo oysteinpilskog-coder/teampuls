@@ -113,6 +113,24 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/* Open the TLS handshake to Supabase as soon as the browser parses
+            <head>. Auth, DB, Realtime, Storage all share the same hostname,
+            so one preconnect saves ~150-300ms on the first call to any of
+            them. `crossOrigin="anonymous"` matches the fetch credentials
+            mode the supabase-js client uses. */}
+        {process.env.NEXT_PUBLIC_SUPABASE_URL && (
+          <>
+            <link
+              rel="preconnect"
+              href={process.env.NEXT_PUBLIC_SUPABASE_URL}
+              crossOrigin="anonymous"
+            />
+            <link
+              rel="dns-prefetch"
+              href={process.env.NEXT_PUBLIC_SUPABASE_URL}
+            />
+          </>
+        )}
         <script dangerouslySetInnerHTML={{ __html: themeVariantBootScript }} />
       </head>
       <body

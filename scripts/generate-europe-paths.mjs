@@ -20,9 +20,13 @@ import { geoConicConformal, geoPath } from 'd3-geo'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
 const CACHE_DIR = path.join(__dirname, '.cache')
-const CACHE_FILE = path.join(CACHE_DIR, 'ne_10m_admin_0_countries.geojson')
+// 50m resolution gives ~10× smaller paths than 10m — at our 1400×900 viewport,
+// 50m coastlines are visually indistinguishable but the resulting JS chunk
+// goes from ~2 MB to ~200 KB. 10m only pays off if someone zooms in on the
+// SVG, which the dashboard map never does.
+const CACHE_FILE = path.join(CACHE_DIR, 'ne_50m_admin_0_countries.geojson')
 const SOURCE_URL =
-  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson'
+  'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson'
 
 // ── Projection — MUST match src/lib/europe-projection.ts ─────────────
 const MAP_W = 1400
