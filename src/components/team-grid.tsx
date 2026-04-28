@@ -1093,6 +1093,10 @@ export function TeamGrid({
             for (const c of allHolidays.keys()) {
               if (c !== 'NO') nonNoCountries.push(c)
             }
+            // Any country has a holiday today — drives the red text treatment
+            // on weekday + day-number so a non-NO red day reads at a glance,
+            // not only via flag emoji.
+            const anyHoliday = noHoliday !== null || nonNoCountries.length > 0
             return (
               <div
                 key={date.toISOString()}
@@ -1104,18 +1108,18 @@ export function TeamGrid({
                   style={{
                     // Today's weekday gets Ember-glow warmth — the Nordlys
                     // gradient is reserved for the day-number orb below.
-                    // Norwegian holidays paint the weekday in the same red as
-                    // the orb so the column reads as red at a glance.
+                    // Any holiday (NO or non-NO) paints the weekday red so
+                    // the column reads as red at a glance.
                     color: today
                       ? 'var(--ember-glow, #FBBF24)'
-                      : noHoliday
+                      : anyHoliday
                         ? '#F43F5E'
                         : 'var(--lg-text-3)',
-                    fontWeight: today || noHoliday ? 600 : 500,
+                    fontWeight: today || anyHoliday ? 600 : 500,
                     letterSpacing: '0.2em',
                     textShadow: today
                       ? '0 0 10px rgba(251, 191, 36, 0.35)'
-                      : noHoliday
+                      : anyHoliday
                         ? '0 0 10px rgba(244, 63, 94, 0.35)'
                         : undefined,
                   }}
@@ -1129,10 +1133,16 @@ export function TeamGrid({
                     fontWeight: today ? 600 : 400,
                     // Nordlys-signature: today's day number sits inside a
                     // gradient orb. Norwegian holidays swap that for a red
-                    // ember-orb. If today is *also* a Norwegian holiday we
-                    // keep the Nordlys gradient (today wins visually) but
-                    // wrap it in a red ring so the holiday still reads.
-                    color: today || noHoliday ? '#0E0B08' : 'var(--lg-text-1)',
+                    // ember-orb (NO is our primary org — earns the orb).
+                    // Non-NO holidays get red TEXT only — clearly a red day
+                    // without diluting the orb signature. If today is also
+                    // a Norwegian holiday we keep the Nordlys gradient (today
+                    // wins visually) but wrap it in a red ring.
+                    color: today || noHoliday
+                      ? '#0E0B08'
+                      : anyHoliday
+                        ? '#F43F5E'
+                        : 'var(--lg-text-1)',
                     width: today || noHoliday ? 40 : 'auto',
                     height: today || noHoliday ? 40 : 'auto',
                     borderRadius: 9999,
@@ -1148,6 +1158,9 @@ export function TeamGrid({
                         : noHoliday
                           ? '0 0 0 3px rgba(244, 63, 94, 0.18), 0 0 28px rgba(244, 63, 94, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
                           : 'none',
+                    textShadow: !today && !noHoliday && anyHoliday
+                      ? '0 0 14px rgba(244, 63, 94, 0.45)'
+                      : undefined,
                     letterSpacing: '-0.02em',
                   }}
                 >
