@@ -4,9 +4,58 @@ import { motion, useReducedMotion } from 'framer-motion'
 import type { Entry, EntryStatus } from '@/lib/supabase/types'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { useDocumentVisibility } from '@/hooks/use-document-visibility'
+import type { DayPhase } from '@/lib/dates'
 
 interface AuroraBackgroundProps {
   entries: Entry[]
+  /** Time-of-day phase. Drives base-gradient warmth and how loud the
+   *  drifting lights breathe. Default 'day' so callers without a clock
+   *  still render correctly. */
+  phase?: DayPhase
+}
+
+/**
+ * Per-phase tonal recipe. Kept inline so the gradients are co-located with
+ * the layer they're applied to and easy to tweak by eye.
+ *
+ * `base` is the deep backdrop ellipse. `light` scales each colored orbit's
+ * opacity. `breath` scales the central accent orb. None of the values dim
+ * the screen below readability — the screen never goes "off".
+ */
+const PHASE_TONES: Record<DayPhase, {
+  base: string
+  light: number
+  breath: { min: number; max: number; scale: number }
+  vignette: number
+}> = {
+  morning: {
+    // Cool first-coffee blue — like dawn through a window.
+    base: 'radial-gradient(ellipse at 50% -10%, #11141C 0%, #08090F 55%, #04050A 100%)',
+    light: 0.95,
+    breath: { min: 0.10, max: 0.20, scale: 1.06 },
+    vignette: 0.45,
+  },
+  day: {
+    // Default tone — the original recipe.
+    base: 'radial-gradient(ellipse at 50% -10%, #121216 0%, #09090B 55%, #050507 100%)',
+    light: 1.00,
+    breath: { min: 0.12, max: 0.22, scale: 1.08 },
+    vignette: 0.45,
+  },
+  evening: {
+    // Warm bronze undertone — the room itself takes on golden-hour cast.
+    base: 'radial-gradient(ellipse at 50% -10%, #1A1310 0%, #0D0807 55%, #07040A 100%)',
+    light: 0.92,
+    breath: { min: 0.10, max: 0.18, scale: 1.05 },
+    vignette: 0.50,
+  },
+  night: {
+    // Espresso. Lights still drift, but quietly — no one's watching.
+    base: 'radial-gradient(ellipse at 50% -10%, #0B0907 0%, #050402 55%, #020100 100%)',
+    light: 0.70,
+    breath: { min: 0.06, max: 0.10, scale: 1.03 },
+    vignette: 0.60,
+  },
 }
 
 // Four anchored "lights", one per status family. Intensity scales with how
@@ -59,7 +108,7 @@ const LIGHTS: Array<{
   },
 ]
 
-export function AuroraBackground({ entries }: AuroraBackgroundProps) {
+export function AuroraBackground({ entries, phase = 'day' }: AuroraBackgroundProps) {
   const total = entries.length || 1
   const STATUS_COLORS = useStatusColors()
   // Pause the orbit + breathing animations when the tab is hidden or the
@@ -68,16 +117,19 @@ export function AuroraBackground({ entries }: AuroraBackgroundProps) {
   const visible = useDocumentVisibility()
   const reduceMotion = useReducedMotion()
   const animate = visible && !reduceMotion
+  const tone = PHASE_TONES[phase]
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-      {/* Deep base layer — never true black, slight cool undertone */}
-      <div
+      {/* Deep base layer — never true black. Tone shifts with phase so the
+          dashboard reads cool in the morning, warm at golden hour, and
+          settles to espresso after hours. Cross-fades when phase changes
+          so the change never snaps. */}
+      <motion.div
         className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse at 50% -10%, #121216 0%, #09090B 55%, #050507 100%)',
-        }}
+        animate={{ background: tone.base }}
+        transition={{ duration: 4.0, ease: 'easeInOut' }}
+        style={{ background: tone.base }}
       />
 
       {/* Drifting colored lights */}
@@ -85,8 +137,9 @@ export function AuroraBackground({ entries }: AuroraBackgroundProps) {
         const count = entries.filter(e => light.statuses.includes(e.status)).length
         const share = count / total
         // Size + opacity respond to group weight, but never vanish entirely.
+        // Phase scales the headline opacity so night is dim, day is full.
         const size = 780 + share * 520
-        const opacity = 0.22 + share * 0.38
+        const opacity = (0.22 + share * 0.38) * tone.light
         const color = STATUS_COLORS[light.status].icon
 
         return (
@@ -154,14 +207,19 @@ export function AuroraBackground({ entries }: AuroraBackgroundProps) {
         )
       })}
 
-      {/* Breathing accent orb — keeps the composition alive even with zero data */}
+      {/* Breathing accent orb — keeps the composition alive even with zero data.
+          Amplitude is phase-aware: full at midday, almost-still at night, so
+          the after-hours TV feels like it's holding its breath. */}
       <motion.div
         className="absolute rounded-full"
         initial={{ opacity: 0 }}
         animate={
           animate
-            ? { opacity: [0.12, 0.22, 0.12], scale: [1, 1.08, 1] }
-            : { opacity: 0.18, scale: 1 }
+            ? {
+                opacity: [tone.breath.min, tone.breath.max, tone.breath.min],
+                scale: [1, tone.breath.scale, 1],
+              }
+            : { opacity: (tone.breath.min + tone.breath.max) / 2, scale: 1 }
         }
         transition={
           animate
@@ -182,13 +240,14 @@ export function AuroraBackground({ entries }: AuroraBackgroundProps) {
         }}
       />
 
-      {/* Vignette — pulls focus to the center */}
-      <div
+      {/* Vignette — pulls focus to the center. Slightly stronger at night
+          so the surrounding room reads even darker around the screen edge. */}
+      <motion.div
         className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.45) 90%, rgba(0,0,0,0.75) 100%)',
+        animate={{
+          background: `radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,${tone.vignette}) 90%, rgba(0,0,0,${Math.min(tone.vignette + 0.3, 0.95)}) 100%)`,
         }}
+        transition={{ duration: 4.0, ease: 'easeInOut' }}
       />
 
       {/* Film grain — subtle texture so gradients don't look CGI-clean */}

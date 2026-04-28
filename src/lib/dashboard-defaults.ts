@@ -34,3 +34,25 @@ export function resolveViewDuration(
   }
   return DEFAULT_VIEW_DURATIONS[view]
 }
+
+/**
+ * After-hours window (local time). Outside 07:00–18:00 the dashboard
+ * acts as if the office is empty — slower rotation, dimmer aurora.
+ * Symmetric so reception TVs in different timezones get the same feel.
+ */
+export const QUIET_START_HOUR = 18
+export const QUIET_END_HOUR = 7
+export const QUIET_DWELL_FACTOR = 1.5
+
+export function isQuietHour(hour: number): boolean {
+  return hour < QUIET_END_HOUR || hour >= QUIET_START_HOUR
+}
+
+/**
+ * Stretches the dwell window by 1.5× when no one is around. Reception is
+ * empty after 18:00 — the screen should breathe slower, not march on at
+ * the same cadence as 11:00.
+ */
+export function applyQuietHours(durationSec: number, hour: number): number {
+  return isQuietHour(hour) ? Math.round(durationSec * QUIET_DWELL_FACTOR) : durationSec
+}

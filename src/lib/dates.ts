@@ -85,3 +85,19 @@ export const WEEKDAY_LONG_NB: Record<number, string> = Object.fromEntries(
 export function formatDateLabelLong(date: Date, dict: Dictionary = no): string {
   return `${dict.dates.weekdaysLong[date.getDay()]} ${date.getDate()}. ${dict.dates.monthsLong[date.getMonth()]}`
 }
+
+/**
+ * Coarse time-of-day phase used by the dashboard surface to shift its tone
+ * (aurora warmth, breathing amplitude). Bands are picked so the visual
+ * change happens around moments people notice — first-coffee, lunch,
+ * golden-hour, after-hours.
+ */
+export type DayPhase = 'morning' | 'day' | 'evening' | 'night'
+
+export function getDayPhase(date: Date): DayPhase {
+  const h = date.getHours()
+  if (h >= 6 && h < 10) return 'morning'
+  if (h >= 10 && h < 16) return 'day'
+  if (h >= 16 && h < 20) return 'evening'
+  return 'night'
+}

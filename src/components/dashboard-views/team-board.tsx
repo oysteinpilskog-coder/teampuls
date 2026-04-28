@@ -241,9 +241,9 @@ export function TeamBoard({ members, todayMap }: TeamBoardProps) {
   }))
 
   // Four equal-height strips sharing whatever vertical space the parent gives
-  // the board. No scroll container anywhere — chips wrap in-place, and the
-  // unregistered count surfaces in HeroPulse so this board stays focused on
-  // the live "where is everyone" answer.
+  // the board. No scroll container anywhere — chips wrap in-place. The
+  // unregistered count lives in the hero number above, so this board stays
+  // focused on the live "where is everyone" answer.
   return (
     <div className="relative flex-1 min-h-0 flex flex-col gap-3">
       {buckets.map((bucket, i) => (
