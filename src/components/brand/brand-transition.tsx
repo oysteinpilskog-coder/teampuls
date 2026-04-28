@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 
 /*
@@ -49,11 +49,19 @@ export function BrandTransition({
   const [markPhase, setMarkPhase] = useState<MarkPhase>('hidden')
   const [incomingVisible, setIncomingVisible] = useState(false)
 
+  // Hold onComplete bak en ref slik at en re-render hos parent (f.eks.
+  // klokketikken i DashboardClient hvert sekund) ikke endrer prop-referansen
+  // i deps og clearTimeout-er hele animasjonen midt i sekvensen.
+  const onCompleteRef = useRef(onComplete)
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+  })
+
   useEffect(() => {
     if (reduce) {
       setOutgoingVisible(false)
       setIncomingVisible(true)
-      const t = setTimeout(onComplete, TIMINGS.reducedCrossfade)
+      const t = setTimeout(() => onCompleteRef.current(), TIMINGS.reducedCrossfade)
       return () => clearTimeout(t)
     }
 
@@ -79,10 +87,10 @@ export function BrandTransition({
     t(flyStart, () => setMarkPhase('fly'))
     t(incomingStart, () => setIncomingVisible(true))
     t(flyEnd, () => setMarkPhase('gone'))
-    t(total, () => onComplete())
+    t(total, () => onCompleteRef.current())
 
     return () => timers.forEach(clearTimeout)
-  }, [reduce, onComplete])
+  }, [reduce])
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
