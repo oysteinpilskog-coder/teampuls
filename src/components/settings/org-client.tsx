@@ -149,8 +149,9 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type })
 
     if (uploadError) {
+      console.error('[settings/org] logo upload failed:', uploadError)
       setUploadingLogo(false)
-      toast.error('Kunne ikke laste opp logo.')
+      toast.error(`Kunne ikke laste opp logo. (${uploadError.message})`)
       return
     }
 
@@ -163,8 +164,9 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       .eq('id', org.id)
 
     if (updateError) {
+      console.error('[settings/org] logo URL save failed:', updateError)
       setUploadingLogo(false)
-      toast.error('Opplastet, men kunne ikke lagre URL.')
+      toast.error(`Opplastet, men kunne ikke lagre URL. (${updateError.code ?? 'ukjent'}: ${updateError.message})`)
       return
     }
 
@@ -194,8 +196,9 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       .eq('id', org.id)
 
     if (updateError) {
+      console.error('[settings/org] logo remove failed:', updateError)
       setUploadingLogo(false)
-      toast.error('Kunne ikke fjerne logo.')
+      toast.error(`Kunne ikke fjerne logo. (${updateError.code ?? 'ukjent'}: ${updateError.message})`)
       return
     }
 
@@ -237,7 +240,11 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       })
       .eq('id', org.id)
     setSaving(false)
-    if (error) { toast.error(t.common.error); return }
+    if (error) {
+      console.error('[settings/org] save failed:', error)
+      toast.error(`${t.common.error} (${error.code ?? 'ukjent'}: ${error.message})`)
+      return
+    }
     setOrg(o => ({
       ...o,
       name: name.trim(),
