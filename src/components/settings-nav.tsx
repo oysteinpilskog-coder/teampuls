@@ -39,33 +39,67 @@ export function SettingsNav() {
   }
 
   return (
-    <nav className="w-44 shrink-0 flex flex-col gap-0.5">
+    <nav className="w-full md:w-44 shrink-0 flex flex-col gap-0.5">
       <p
-        className="text-[11px] font-semibold uppercase tracking-widest px-3 mb-3"
+        className="hidden md:block text-[11px] font-semibold uppercase tracking-widest px-3 mb-3"
         style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
       >
         {t.settings.title}
       </p>
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-        const isActive = optimisticHref === href || (!optimisticHref && pathname.startsWith(href))
-        return (
-          <Link
-            key={href}
-            href={href}
-            onClick={(e) => handleNav(href, e)}
-            className={[
-              'flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-colors',
-              isActive
-                ? 'bg-[var(--bg-subtle)] text-[var(--text-primary)]'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]',
-            ].join(' ')}
-            style={{ fontFamily: 'var(--font-body)' }}
-          >
-            <Icon className="w-4 h-4" strokeWidth={1.5} />
-            {label}
-          </Link>
-        )
-      })}
+      {/* Mobile: horizontal scroll-rail of pills */}
+      <div
+        className="md:hidden -mx-4 px-4 overflow-x-auto"
+        style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+      >
+        <div className="flex items-center gap-1.5 pb-1 w-max">
+          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+            const isActive = optimisticHref === href || (!optimisticHref && pathname.startsWith(href))
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={(e) => handleNav(href, e)}
+                className={[
+                  'flex items-center gap-2 px-3.5 py-2 rounded-full text-[13px] font-medium whitespace-nowrap transition-colors shrink-0',
+                  isActive
+                    ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+                    : 'text-[var(--text-secondary)] bg-[var(--bg-subtle)]',
+                ].join(' ')}
+                style={{
+                  fontFamily: 'var(--font-body)',
+                  border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+                }}
+              >
+                <Icon className="w-3.5 h-3.5" strokeWidth={1.5} />
+                {label}
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+      {/* Desktop: vertical list (unchanged) */}
+      <div className="hidden md:flex md:flex-col md:gap-0.5">
+        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+          const isActive = optimisticHref === href || (!optimisticHref && pathname.startsWith(href))
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={(e) => handleNav(href, e)}
+              className={[
+                'flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-colors',
+                isActive
+                  ? 'bg-[var(--bg-subtle)] text-[var(--text-primary)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)]',
+              ].join(' ')}
+              style={{ fontFamily: 'var(--font-body)' }}
+            >
+              <Icon className="w-4 h-4" strokeWidth={1.5} />
+              {label}
+            </Link>
+          )
+        })}
+      </div>
     </nav>
   )
 }

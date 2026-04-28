@@ -1,9 +1,9 @@
 export default function Loading() {
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
-      <div className="flex gap-10">
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-10">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-10">
         {/* Nav skeleton */}
-        <div className="w-44 shrink-0 flex flex-col gap-0.5">
+        <div className="w-full md:w-44 shrink-0 flex flex-col gap-0.5">
           <div className="h-3 w-24 rounded bg-[var(--bg-subtle)] animate-pulse mx-3 mb-3" />
           {Array.from({ length: 4 }).map((_, i) => (
             <div

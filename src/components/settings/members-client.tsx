@@ -256,13 +256,13 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
               style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)' }}
               onClick={closeModal}
             />
-            <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh] pointer-events-none">
+            <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-4 pt-[6vh] sm:pt-[8vh] pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.94, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={spring.bouncy}
-              className="tp-modal pointer-events-auto w-[440px] max-w-full max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl p-6 flex flex-col gap-4"
+              className="tp-modal pointer-events-auto w-[440px] max-w-full max-h-[calc(100vh-10vh-1rem)] sm:max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl p-4 sm:p-6 flex flex-col gap-4"
             >
               <div className="flex items-center justify-between">
                 <h2
@@ -477,13 +477,13 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
               style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)' }}
               onClick={() => !deleting && setDeleteTarget(null)}
             />
-            <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[12vh] pointer-events-none">
+            <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-4 pt-[10vh] sm:pt-[12vh] pointer-events-none">
             <motion.div
               initial={{ opacity: 0, scale: 0.94, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={spring.bouncy}
-              className="tp-modal pointer-events-auto w-[420px] max-w-full rounded-2xl p-6 flex flex-col gap-4"
+              className="tp-modal pointer-events-auto w-[420px] max-w-full rounded-2xl p-4 sm:p-6 flex flex-col gap-4"
             >
               <div className="flex items-start gap-3">
                 <div
