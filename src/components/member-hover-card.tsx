@@ -265,7 +265,13 @@ function HoverCardBody({
       }
     }
     render()
-    const t = setInterval(render, 30_000)
+    // Pause the 30s tick when the tab is hidden — the hover card has no
+    // visible consumer, and rendering Intl.DateTimeFormat on a treadmill
+    // wakes the main thread for nothing.
+    const t = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      render()
+    }, 30_000)
     return () => clearInterval(t)
   }, [timezone])
 
