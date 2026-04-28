@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+// Edge runtime — cold-start ~50ms vs ~300ms på Node serverless. Open-Meteo-
+// fetch + en Supabase-cache-sjekk er begge fetch-baserte, så det er ingen
+// Node-spesifikk kode som holder oss vekke fra V8-isolate-runtimen.
+export const runtime = 'edge'
+
 // Open-Meteo: gratis, ingen nøkkel, ingen rate-limit. Returnerer
 // alltid `current.temperature_2m` + `current.weather_code`. Vi cacher
 // per (lat,lng) rundet til 2 desimaler i Supabase i 30 min — så Oslo

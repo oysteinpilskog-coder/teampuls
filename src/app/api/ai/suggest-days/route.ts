@@ -6,6 +6,11 @@ import { suggestCoordinationDays } from '@/lib/ai/suggest-days'
 import { getServerDict } from '@/lib/i18n/server'
 import type { Entry } from '@/lib/supabase/types'
 
+// Edge runtime — pure analytics, no LLM call, deterministic. Smaller
+// cold-start matters here because the home page kicks this off as part of
+// the welcome banner.
+export const runtime = 'edge'
+
 /**
  * GET /api/ai/suggest-days
  *
