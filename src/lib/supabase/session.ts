@@ -9,6 +9,21 @@ import type { WorkspaceSummary, MemberRole } from '@/lib/supabase/types'
 export const ACTIVE_WORKSPACE_COOKIE = 'tp_active_workspace'
 
 /**
+ * Special slug meaning "all workspaces under my account" — used by the
+ * combined CalWin Group view so a single Oversikt can show Nordic + UK
+ * members side-by-side. The switch route accepts it; resolveSession()
+ * fans it out into a `combinedScope.orgIds` list.
+ */
+export const COMBINED_WORKSPACE_SLUG = '__all__'
+
+export interface CombinedScope {
+  /** All workspaces involved share this account (we require it). */
+  account_id: string
+  /** Org ids to feed an `in('org_id', …)` query. */
+  org_ids: string[]
+}
+
+/**
  * Resolve the signed-in user, their full list of workspace
  * memberships, and the currently active workspace (driven by the
  * `tp_active_workspace` cookie, with fallbacks).
@@ -39,6 +54,7 @@ export const getSessionMember = cache(async () => {
       member: null,
       workspaces: [] as WorkspaceSummary[],
       activeWorkspace: null as WorkspaceSummary | null,
+      combinedScope: null as CombinedScope | null,
     }
   }
 })
@@ -52,6 +68,7 @@ async function resolveSession() {
       member: null,
       workspaces: [] as WorkspaceSummary[],
       activeWorkspace: null as WorkspaceSummary | null,
+      combinedScope: null as CombinedScope | null,
     }
   }
 
@@ -204,6 +221,7 @@ async function resolveSession() {
       member: null,
       workspaces: [] as WorkspaceSummary[],
       activeWorkspace: null,
+      combinedScope: null as CombinedScope | null,
     }
   }
 
@@ -233,6 +251,56 @@ async function resolveSession() {
       member: null,
       workspaces,
       activeWorkspace: null,
+      combinedScope: null as CombinedScope | null,
+    }
+  }
+
+  // Combined "Alle CalWin"-mode: cookie carries the sentinel slug and
+  // the user has ≥2 workspaces sharing the same account. We synthesize
+  // an activeWorkspace so the header pill renders, and emit a
+  // combinedScope downstream for IN-queries.
+  const accountIds = new Set(workspaces.map((w) => w.account_id).filter((x): x is string => !!x))
+  const sharesAccount = accountIds.size === 1 && workspaces.length >= 2
+
+  if (requestedSlug === COMBINED_WORKSPACE_SLUG && sharesAccount) {
+    const accountId = [...accountIds][0]
+    const orgIds = workspaces.map((w) => w.org_id)
+
+    // member used for write-paths (AI input) — pick the highest-privileged
+    // row we have, preferring an admin membership. Falls back to first row.
+    const adminRow = rows.find((r) => r.role === 'admin') ?? rows[0]
+    const member = {
+      id: adminRow.id,
+      org_id: adminRow.org_id,
+      display_name: adminRow.display_name,
+      full_name: adminRow.full_name,
+      initials: adminRow.initials,
+      role: adminRow.role,
+      avatar_url: adminRow.avatar_url,
+    }
+
+    const synthetic: WorkspaceSummary = {
+      org_id: '__combined__',
+      account_id: accountId,
+      name: 'Alle',
+      slug: COMBINED_WORKSPACE_SLUG,
+      short_name: 'ALL',
+      region: workspaces[0].region,
+      country_code: null,
+      // Neutral violet — readable in both light/dark, distinct from
+      // either workspace's brand accent so the combined-view UI reads
+      // as its own surface rather than impersonating one of them.
+      accent_color: '#7C3AED',
+      logo_url: null,
+      role: adminRow.role,
+    }
+
+    return {
+      user,
+      member,
+      workspaces,
+      activeWorkspace: synthetic,
+      combinedScope: { account_id: accountId, org_ids: orgIds } satisfies CombinedScope,
     }
   }
 
@@ -251,7 +319,13 @@ async function resolveSession() {
     avatar_url: activeRow.avatar_url,
   }
 
-  return { user, member, workspaces, activeWorkspace }
+  return {
+    user,
+    member,
+    workspaces,
+    activeWorkspace,
+    combinedScope: null as CombinedScope | null,
+  }
 }
 
 /**

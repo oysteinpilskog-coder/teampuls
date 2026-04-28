@@ -10,8 +10,15 @@ import type { StatusColorsPayload } from './defaults'
  * per-status hex keys and the optional `*_aurora` map-pin overrides.
  */
 export const getOrgStatusColors = cache(async (): Promise<StatusColorsPayload | null> => {
-  const { activeWorkspace } = await getSessionMember()
+  const { activeWorkspace, combinedScope } = await getSessionMember()
   if (!activeWorkspace) return null
+
+  // Combined "Alle CalWin" view: the synthetic workspace's org_id
+  // (`__combined__`) doesn't exist in the DB. We could merge per-org
+  // overrides but that gets messy when the two workspaces disagree —
+  // falling back to the default palette keeps the combined surface
+  // neutral and avoids favouring one company's branding.
+  if (combinedScope) return null
 
   const supabase = await createClient()
   const { data: org } = await supabase

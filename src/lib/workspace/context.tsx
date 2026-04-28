@@ -6,10 +6,15 @@ import { toast } from 'sonner'
 import { useT } from '@/lib/i18n/context'
 import type { WorkspaceSummary } from '@/lib/supabase/types'
 
+/** Sentinel slug — must match COMBINED_WORKSPACE_SLUG in session.ts. */
+export const COMBINED_SLUG = '__all__'
+
 interface WorkspaceContextValue {
   workspaces: WorkspaceSummary[]
   active: WorkspaceSummary | null
   isSwitching: boolean
+  /** True when active.slug === COMBINED_SLUG, i.e. cross-workspace view. */
+  isCombined: boolean
   /** Fire-and-forget switch; UI is updated optimistically. */
   switchTo: (slug: string) => Promise<void>
 }
@@ -19,10 +24,13 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
 export function WorkspaceProvider({
   initialWorkspaces,
   initialActiveSlug,
+  initialCombinedActive,
   children,
 }: {
   initialWorkspaces: WorkspaceSummary[]
   initialActiveSlug: string | null
+  /** When true, the synthetic "Alle CalWin" workspace is the active surface. */
+  initialCombinedActive?: boolean
   children: React.ReactNode
 }) {
   const router = useRouter()
@@ -33,10 +41,33 @@ export function WorkspaceProvider({
   const [optimisticSlug, setOptimisticSlug] = useState<string | null>(null)
 
   const activeSlug = optimisticSlug ?? initialActiveSlug
-  const active = useMemo(
-    () => initialWorkspaces.find((w) => w.slug === activeSlug) ?? initialWorkspaces[0] ?? null,
-    [initialWorkspaces, activeSlug],
-  )
+  // Synthesize a combined-view summary client-side so the pill renders
+  // the violet badge and the "Alle CalWin" name without needing the
+  // server to inject one.
+  const combinedSummary = useMemo<WorkspaceSummary | null>(() => {
+    if (initialWorkspaces.length < 2) return null
+    const accountIds = new Set(initialWorkspaces.map((w) => w.account_id).filter((x): x is string => !!x))
+    if (accountIds.size !== 1) return null
+    return {
+      org_id: '__combined__',
+      account_id: [...accountIds][0],
+      name: t.workspace.combinedAll,
+      slug: COMBINED_SLUG,
+      short_name: 'ALL',
+      region: initialWorkspaces[0].region,
+      country_code: null,
+      accent_color: '#7C3AED',
+      logo_url: null,
+      role: 'admin',
+    } as WorkspaceSummary
+  }, [initialWorkspaces, t.workspace.combinedAll])
+
+  const active = useMemo(() => {
+    if (activeSlug === COMBINED_SLUG && combinedSummary) return combinedSummary
+    return initialWorkspaces.find((w) => w.slug === activeSlug) ?? initialWorkspaces[0] ?? null
+  }, [initialWorkspaces, activeSlug, combinedSummary])
+
+  const isCombined = active?.slug === COMBINED_SLUG
 
   // Once the server round-trip + refresh has landed and the cookie-backed
   // active slug matches our optimistic target, drop the optimistic state so
@@ -70,7 +101,10 @@ export function WorkspaceProvider({
   const switchTo = useCallback(
     async (slug: string) => {
       if (!slug || slug === active?.slug) return
-      const target = initialWorkspaces.find((w) => w.slug === slug)
+      const target =
+        slug === COMBINED_SLUG
+          ? combinedSummary
+          : initialWorkspaces.find((w) => w.slug === slug)
       if (!target) return
 
       setOptimisticSlug(slug)
@@ -96,7 +130,7 @@ export function WorkspaceProvider({
         toast.error(t.workspace.switchFailed)
       }
     },
-    [active?.slug, initialWorkspaces, router],
+    [active?.slug, initialWorkspaces, combinedSummary, router, t.workspace],
   )
 
   const value = useMemo<WorkspaceContextValue>(
@@ -104,9 +138,10 @@ export function WorkspaceProvider({
       workspaces: initialWorkspaces,
       active,
       isSwitching: isPending || optimisticSlug !== null,
+      isCombined,
       switchTo,
     }),
-    [initialWorkspaces, active, isPending, optimisticSlug, switchTo],
+    [initialWorkspaces, active, isPending, optimisticSlug, isCombined, switchTo],
   )
 
   return (
@@ -125,6 +160,7 @@ export function useWorkspace(): WorkspaceContextValue {
       workspaces: [],
       active: null,
       isSwitching: false,
+      isCombined: false,
       switchTo: async () => {},
     }
   }

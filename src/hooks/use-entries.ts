@@ -6,8 +6,11 @@ import type { Entry } from '@/lib/supabase/types'
 import { useDocumentVisibility } from '@/hooks/use-document-visibility'
 
 /**
- * Fetches entries for the given org + date strings, and subscribes to
+ * Fetches entries for the given org(s) + date strings, and subscribes to
  * Supabase Realtime to keep the data live.
+ *
+ * Pass `orgIds: string[]` for combined views that span multiple
+ * workspaces; for the single-org case continue passing one id.
  *
  * Optional `initial` lets the caller seed the hook with server-rendered
  * data. If provided AND the initial dateStrings match, the hook skips the
@@ -15,10 +18,16 @@ import { useDocumentVisibility } from '@/hooks/use-document-visibility'
  * cold loads.
  */
 export function useEntries(
-  orgId: string,
+  orgIdOrIds: string | string[],
   dateStrings: string[],
   opts: { initial?: Entry[] } = {},
 ) {
+  const orgIds = useMemo(
+    () => (Array.isArray(orgIdOrIds) ? orgIdOrIds : [orgIdOrIds]),
+    [orgIdOrIds],
+  )
+  const orgIdsKey = orgIds.join(',')
+
   const [entries, setEntries] = useState<Entry[]>(opts.initial ?? [])
   const [loading, setLoading] = useState(opts.initial === undefined)
   const visible = useDocumentVisibility()
@@ -45,12 +54,12 @@ export function useEntries(
     const { data } = await supabase
       .from('entries')
       .select('*')
-      .eq('org_id', orgId)
+      .in('org_id', orgIds)
       .in('date', dateStrings)
     setEntries(data ?? [])
     setLoading(false)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgId, dateStrings.join(',')])
+  }, [orgIdsKey, dateStrings.join(',')])
 
   useEffect(() => {
     const currentKey = dateStrings.join(',')
@@ -75,45 +84,49 @@ export function useEntries(
     return () => window.removeEventListener('teampulse:entries-changed', handler)
   }, [fetchEntries])
 
-  // Subscribe to Realtime changes for this org — one subscription per orgId.
-  // Skipped while the tab is hidden so we don't burn a websocket + decode JSON
-  // on every entry update for a screen no one is looking at. When the tab
-  // becomes visible again the effect re-runs (subscribe + fetch catch-up).
+  // Subscribe to Realtime changes for the scoped org(s) — one channel
+  // per org so a multi-workspace combined view receives updates from
+  // every side. Skipped while the tab is hidden so we don't burn a
+  // websocket + decode JSON on every entry update for a screen no one
+  // is looking at. When the tab becomes visible again the effect
+  // re-runs (subscribe + fetch catch-up).
   useEffect(() => {
     if (!visible) {
       wasHiddenRef.current = true
       return
     }
     const supabase = createClient()
-    const channel = supabase
-      .channel(`entries:org:${orgId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'entries',
-          filter: `org_id=eq.${orgId}`,
-        },
-        (payload) => {
-          // DELETE: payload.old may only contain the primary key when the
-          // table uses the default REPLICA IDENTITY, so fall back to removing
-          // by id alone and skip the date-window check.
-          if (payload.eventType === 'DELETE') {
-            const deleted = payload.old as Partial<Entry>
-            if (!deleted.id) return
-            setEntries(prev => prev.filter(e => e.id !== deleted.id))
-            return
+    const channels = orgIds.map((id) =>
+      supabase
+        .channel(`entries:org:${id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'entries',
+            filter: `org_id=eq.${id}`,
+          },
+          (payload) => {
+            // DELETE: payload.old may only contain the primary key when the
+            // table uses the default REPLICA IDENTITY, so fall back to removing
+            // by id alone and skip the date-window check.
+            if (payload.eventType === 'DELETE') {
+              const deleted = payload.old as Partial<Entry>
+              if (!deleted.id) return
+              setEntries(prev => prev.filter(e => e.id !== deleted.id))
+              return
+            }
+            const upserted = payload.new as Entry
+            if (!upserted?.date || !dateStringsRef.current.includes(upserted.date)) return
+            setEntries(prev => {
+              const without = prev.filter(e => e.id !== upserted.id)
+              return [...without, upserted]
+            })
           }
-          const upserted = payload.new as Entry
-          if (!upserted?.date || !dateStringsRef.current.includes(upserted.date)) return
-          setEntries(prev => {
-            const without = prev.filter(e => e.id !== upserted.id)
-            return [...without, upserted]
-          })
-        }
-      )
-      .subscribe()
+        )
+        .subscribe(),
+    )
     // Fire a one-shot catch-up only when resuming from a hidden state;
     // the initial-mount fetch is handled by the fetch effect above.
     if (wasHiddenRef.current) {
@@ -122,9 +135,10 @@ export function useEntries(
     }
 
     return () => {
-      supabase.removeChannel(channel)
+      channels.forEach((ch) => supabase.removeChannel(ch))
     }
-  }, [orgId, visible, fetchEntries])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgIdsKey, visible, fetchEntries])
 
   /**
    * Apply an in-memory update to the entries list without touching the DB.

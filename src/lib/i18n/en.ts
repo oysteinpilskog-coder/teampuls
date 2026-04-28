@@ -57,6 +57,10 @@ export const en: Dictionary = {
     regionAPAC: 'APAC',
     shortcutHint: '⌘{n} for quick switch',
     only: 'Only workspace',
+    combinedAll: 'All CalWin',
+    combinedDescription: 'Show all companies together',
+    combinedShortcut: '⌘0',
+    combinedFilterAll: 'All',
   },
   today: {
     title: 'Today',

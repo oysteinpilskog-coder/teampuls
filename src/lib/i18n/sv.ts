@@ -57,6 +57,10 @@ export const sv: Dictionary = {
     regionAPAC: 'APAC',
     shortcutHint: '⌘{n} för snabb växling',
     only: 'Enda arbetsyta',
+    combinedAll: 'Alla CalWin',
+    combinedDescription: 'Visa alla företag tillsammans',
+    combinedShortcut: '⌘0',
+    combinedFilterAll: 'Alla',
   },
   today: {
     title: 'Idag',

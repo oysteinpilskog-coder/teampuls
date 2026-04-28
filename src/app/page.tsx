@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getTodayWeekAndYear, getWeekDays, toDateString } from '@/lib/dates'
 
 export default async function HomePage() {
-  const { user, member } = await getSessionMember()
+  const { user, member, workspaces, combinedScope } = await getSessionMember()
 
   if (!user) redirect('/login')
 
@@ -52,17 +52,22 @@ export default async function HomePage() {
   const weekDays = getWeekDays(week, year)
   const dateStrings = weekDays.map(toDateString)
 
+  // Combined "Alle CalWin"-mode broadens the scope to every workspace
+  // the user belongs to under the same account; otherwise we stay
+  // scoped to the active workspace's org_id like before.
+  const orgIds = combinedScope?.org_ids ?? [member.org_id]
+
   const [membersRes, entriesRes] = await Promise.all([
     supabase
       .from('members')
       .select('*')
-      .eq('org_id', member.org_id)
+      .in('org_id', orgIds)
       .eq('is_active', true)
       .order('display_name'),
     supabase
       .from('entries')
       .select('*')
-      .eq('org_id', member.org_id)
+      .in('org_id', orgIds)
       .in('date', dateStrings),
   ])
 
@@ -80,13 +85,20 @@ export default async function HomePage() {
 
   const memberCount = membersRes.data?.length ?? 0
 
+  // In combined view we hide the AI input — Claude can't disambiguate
+  // which workspace to write into when several share members ("Johan"
+  // could resolve to either side). The user picks a single workspace
+  // first if they want to log a status. The InactivityNudge is also
+  // workspace-scoped so we hide it.
+  const showSingleWorkspaceAffordances = !combinedScope
+
   return (
     <div className="mx-auto max-w-7xl px-6 pt-3 pb-10 space-y-5">
-      {/* AI input — single, calm call to action. Sits at the top so the
-          first thing users meet is the write-and-done field. */}
-      <div className="mx-auto max-w-3xl">
-        <AIInput orgId={member.org_id} />
-      </div>
+      {showSingleWorkspaceAffordances && (
+        <div className="mx-auto max-w-3xl">
+          <AIInput orgId={member.org_id} />
+        </div>
+      )}
 
       {/* Week grid + compact meta strip. The WeekNav inside TeamGrid carries
           everything on one line: weekday+date · uke · range · NÅ · metrics
@@ -102,9 +114,13 @@ export default async function HomePage() {
           registeredToday: todayMemberIds.size,
           distinctLocations,
         }}
+        workspaces={workspaces}
+        combinedView={!!combinedScope}
       />
 
-      <InactivityNudge orgId={member.org_id} memberId={member.id} />
+      {showSingleWorkspaceAffordances && (
+        <InactivityNudge orgId={member.org_id} memberId={member.id} />
+      )}
     </div>
   )
 }

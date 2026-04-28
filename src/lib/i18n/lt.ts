@@ -57,6 +57,10 @@ export const lt: Dictionary = {
     regionAPAC: 'APAC',
     shortcutHint: '⌘{n} greitam perjungimui',
     only: 'Vienintelė darbo sritis',
+    combinedAll: 'Visi CalWin',
+    combinedDescription: 'Rodyti visas įmones kartu',
+    combinedShortcut: '⌘0',
+    combinedFilterAll: 'Visi',
   },
   today: {
     title: 'Šiandien',

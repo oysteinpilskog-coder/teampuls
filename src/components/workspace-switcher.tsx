@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, ChevronsUpDown } from 'lucide-react'
-import { useWorkspace } from '@/lib/workspace/context'
+import { Check, ChevronsUpDown, Layers } from 'lucide-react'
+import { useWorkspace, COMBINED_SLUG } from '@/lib/workspace/context'
 import { useT } from '@/lib/i18n/context'
 import type { Dictionary } from '@/lib/i18n/types'
 import { spring } from '@/lib/motion'
@@ -33,14 +33,23 @@ function countryFlag(cc: string | null): string | null {
 }
 
 export function WorkspaceSwitcher() {
-  const { workspaces, active, switchTo, isSwitching } = useWorkspace()
+  const { workspaces, active, switchTo, isSwitching, isCombined } = useWorkspace()
   const t = useT()
   const [open, setOpen] = useState(false)
   const [hoveredSlug, setHoveredSlug] = useState<string | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // ⌘1..⌘9 — switch to N-th workspace. Escape closes.
+  // Combined view is offered only when the user has ≥2 workspaces
+  // sharing one account. We mirror the same gate the server applies.
+  const combinedAvailable = useMemo(() => {
+    if (workspaces.length < 2) return false
+    const accountIds = new Set(workspaces.map((w) => w.account_id).filter((x): x is string => !!x))
+    return accountIds.size === 1
+  }, [workspaces])
+
+  // ⌘0..⌘9 — ⌘0 = combined view (when available), ⌘1..⌘9 = workspaces.
+  // Escape closes.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape' && open) {
@@ -50,7 +59,14 @@ export function WorkspaceSwitcher() {
       const isMeta = e.metaKey || e.ctrlKey
       if (!isMeta || e.altKey || e.shiftKey) return
       const n = Number(e.key)
-      if (!Number.isInteger(n) || n < 1 || n > 9) return
+      if (!Number.isInteger(n)) return
+      if (n === 0) {
+        if (!combinedAvailable) return
+        e.preventDefault()
+        void switchTo(COMBINED_SLUG)
+        return
+      }
+      if (n < 1 || n > 9) return
       const target = workspaces[n - 1]
       if (!target) return
       e.preventDefault()
@@ -58,7 +74,7 @@ export function WorkspaceSwitcher() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [workspaces, switchTo, open])
+  }, [workspaces, switchTo, open, combinedAvailable])
 
   // Close on outside click.
   useEffect(() => {
@@ -78,7 +94,7 @@ export function WorkspaceSwitcher() {
   if (!active || workspaces.length === 0) return null
 
   const accent = safeHex(active.accent_color)
-  const flag = countryFlag(active.country_code)
+  const flag = isCombined ? null : countryFlag(active.country_code)
   const badge = active.short_name || active.name.slice(0, 2).toUpperCase()
 
   return (
@@ -108,7 +124,11 @@ export function WorkspaceSwitcher() {
           transition: 'opacity 140ms ease',
         }}
       >
-        <WorkspaceBadge workspace={active} size="sm" />
+        {isCombined ? (
+          <CombinedBadge size="sm" workspaces={workspaces} />
+        ) : (
+          <WorkspaceBadge workspace={active} size="sm" />
+        )}
         <span className="hidden md:inline max-w-[140px] truncate">{active.name}</span>
         <span className="md:hidden">{badge}</span>
         {flag && <span aria-hidden className="text-[13px] leading-none">{flag}</span>}
@@ -144,8 +164,75 @@ export function WorkspaceSwitcher() {
               {t.workspace.switcher}
             </div>
             <ul className="flex flex-col">
+              {combinedAvailable && (
+                <li key="__combined__">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={isCombined}
+                    onClick={() => {
+                      setOpen(false)
+                      void switchTo(COMBINED_SLUG)
+                    }}
+                    onMouseEnter={() => setHoveredSlug(COMBINED_SLUG)}
+                    onMouseLeave={() => setHoveredSlug((s) => (s === COMBINED_SLUG ? null : s))}
+                    onFocus={() => setHoveredSlug(COMBINED_SLUG)}
+                    onBlur={() => setHoveredSlug((s) => (s === COMBINED_SLUG ? null : s))}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-[background,box-shadow] duration-150"
+                    style={{
+                      background: isCombined
+                        ? 'linear-gradient(135deg, color-mix(in oklab, #7C3AED 28%, transparent), color-mix(in oklab, #7C3AED 18%, transparent))'
+                        : hoveredSlug === COMBINED_SLUG
+                          ? 'color-mix(in oklab, var(--bg-subtle) 70%, transparent)'
+                          : 'transparent',
+                      boxShadow: isCombined
+                        ? 'inset 0 0 0 1px color-mix(in oklab, #7C3AED 55%, transparent), 0 1px 0 color-mix(in oklab, #7C3AED 18%, transparent)'
+                        : 'none',
+                    }}
+                  >
+                    <CombinedBadge size="md" workspaces={workspaces} />
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="text-[13px] font-medium truncate"
+                        style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+                      >
+                        {t.workspace.combinedAll}
+                      </div>
+                      <div
+                        className="text-[11px] truncate flex items-center gap-1.5"
+                        style={{ color: 'var(--text-tertiary)' }}
+                      >
+                        <Layers className="w-3 h-3" aria-hidden />
+                        <span>{t.workspace.combinedDescription}</span>
+                      </div>
+                    </div>
+                    {isCombined ? (
+                      <Check className="w-4 h-4 shrink-0" style={{ color: '#7C3AED' }} aria-hidden />
+                    ) : (
+                      <span
+                        className="shrink-0 inline-flex items-center justify-center min-w-[28px] h-5 px-1.5 rounded-md text-[10px] font-semibold"
+                        style={{
+                          background: 'color-mix(in oklab, var(--bg-subtle) 80%, transparent)',
+                          color: 'var(--text-tertiary)',
+                          border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+                          letterSpacing: '0.02em',
+                        }}
+                      >
+                        ⌘0
+                      </span>
+                    )}
+                  </button>
+                </li>
+              )}
+              {combinedAvailable && (
+                <li
+                  aria-hidden
+                  className="my-1 mx-2 h-px"
+                  style={{ background: 'color-mix(in oklab, var(--border-subtle) 50%, transparent)' }}
+                />
+              )}
               {workspaces.map((w, i) => {
-                const isActive = w.slug === active.slug
+                const isActive = !isCombined && w.slug === active.slug
                 const wAccent = safeHex(w.accent_color)
                 const shortcut = i < 9 ? `⌘${i + 1}` : null
                 const tint = wAccent ?? 'var(--accent-color)'
@@ -226,7 +313,12 @@ export function WorkspaceSwitcher() {
                   color: 'var(--text-tertiary)',
                 }}
               >
-                {t.workspace.shortcutHint.replace('{n}', '1–' + Math.min(workspaces.length, 9))}
+                {t.workspace.shortcutHint.replace(
+                  '{n}',
+                  combinedAvailable
+                    ? '0–' + Math.min(workspaces.length, 9)
+                    : '1–' + Math.min(workspaces.length, 9),
+                )}
               </div>
             )}
           </motion.div>
@@ -268,6 +360,46 @@ export function WorkspaceBadge({
       }}
     >
       {label}
+    </span>
+  )
+}
+
+/**
+ * Two-tone badge for the combined "Alle CalWin" view — splits diagonally
+ * so each workspace's accent reads on its own half. Falls back to the
+ * neutral violet when fewer than two accent colors are available.
+ */
+export function CombinedBadge({
+  workspaces,
+  size = 'md',
+}: {
+  workspaces: WorkspaceSummary[]
+  size?: 'sm' | 'md'
+}) {
+  const accents = workspaces
+    .map((w) => safeHex(w.accent_color))
+    .filter((x): x is string => !!x)
+  const left = accents[0] ?? '#7C3AED'
+  const right = accents[1] ?? '#7C3AED'
+  const px = size === 'sm' ? 20 : 26
+  return (
+    <span
+      aria-hidden
+      className="inline-flex items-center justify-center rounded-md shrink-0"
+      style={{
+        width: px,
+        height: px,
+        background: `linear-gradient(135deg, ${left} 0%, ${left} 48%, ${right} 52%, ${right} 100%)`,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.35), 0 1px 2px rgba(124, 58, 237, 0.35)`,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      <Layers
+        className={size === 'sm' ? 'w-[10px] h-[10px]' : 'w-3 h-3'}
+        style={{ color: 'white', filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.45))' }}
+        aria-hidden
+      />
     </span>
   )
 }
