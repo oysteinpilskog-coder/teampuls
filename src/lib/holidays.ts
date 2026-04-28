@@ -41,7 +41,16 @@ function dateKey(date: Date): string {
 export function getHolidayForDate(date: Date, country: CountryCode): HolidayHit | null {
   const key = `${country}_${dateKey(date)}`
   if (dateCache.has(key)) return dateCache.get(key) ?? null
-  const result = getInstance(country).isHoliday(date)
+  // `date-holidays` defines its day-window in the country's local timezone,
+  // so a Norway-local midnight (22:00 UTC the day before, in summer) falls
+  // OUTSIDE the UK day-window (23:00 UTC the day before to 23:00 UTC of the
+  // day, in BST). To probe a calendar date Y-M-D regardless of runtime tz,
+  // we pass noon UTC of that Y/M/D — that lands squarely inside every
+  // country's day-window from UTC-12 to UTC+14.
+  const probe = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0),
+  )
+  const result = getInstance(country).isHoliday(probe)
   let hit: HolidayHit | null = null
   if (Array.isArray(result)) {
     const pub = result.find((h) => h.type === 'public')
