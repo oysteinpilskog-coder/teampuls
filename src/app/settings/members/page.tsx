@@ -1,27 +1,23 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getSessionMember } from '@/lib/supabase/session'
 import { MembersClient } from '@/components/settings/members-client'
 
 export default async function MembersSettingsPage() {
+  const { member } = await getSessionMember()
+  if (!member) redirect('/')
+
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  const { data: currentMember } = await supabase
-    .from('members')
-    .select('id, org_id')
-    .eq('user_id', user!.id)
-    .eq('is_active', true)
-    .maybeSingle()
-
   const { data: members } = await supabase
     .from('members')
     .select('*')
-    .eq('org_id', currentMember!.org_id)
+    .eq('org_id', member.org_id)
     .order('display_name')
 
   return (
     <MembersClient
-      orgId={currentMember!.org_id}
-      currentMemberId={currentMember!.id}
+      orgId={member.org_id}
+      currentMemberId={member.id}
       initialMembers={members ?? []}
     />
   )
