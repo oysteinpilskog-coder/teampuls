@@ -432,13 +432,13 @@ export function CustomerMapView({
                   className="text-[11px] font-semibold uppercase tracking-[0.22em]"
                   style={{ color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-body)' }}
                 >
-                  Kundeportefølje
+                  {t.dashboard.customer.portfolio}
                 </h3>
                 <span
                   className="text-[10px] tabular-nums uppercase tracking-[0.2em]"
                   style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-body)' }}
                 >
-                  Uke {weekNum}
+                  {t.matrix.weekLabel} {weekNum}
                 </span>
               </div>
 
@@ -473,7 +473,7 @@ export function CustomerMapView({
                   className="pb-3 ml-auto text-[11px] uppercase tracking-[0.2em]"
                   style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
                 >
-                  besøkt
+                  {t.dashboard.customer.visited}
                 </span>
               </div>
 
@@ -585,9 +585,9 @@ export function CustomerMapView({
               return a.name.localeCompare(b.name)
             })
 
-            // Maks 5 værbadges samtidig (TODO 2: «3 er atmosfære, 40 er
-            // støy»). Tier-sorteringen plasserer alle today-rader først,
-            // så den første N er garantert det som driver dagen.
+            // Maks 5 værbadges samtidig — atmosfære uten støy. Tier-
+            // sorteringen plasserer alle today-rader først, så den første
+            // N er garantert det som driver dagen.
             const MAX_WEATHER_BADGES = 5
             const weatherKeys = new Set<string>()
             for (const r of rows) {
@@ -611,7 +611,7 @@ export function CustomerMapView({
                   className="text-[11px] font-semibold uppercase tracking-[0.22em]"
                   style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
                 >
-                  Kunder
+                  {t.dashboard.customer.customers}
                 </h3>
 
                 <div className="flex flex-col gap-1.5 overflow-y-auto pr-1 -mr-1">
@@ -673,7 +673,7 @@ export function CustomerMapView({
                 className="text-[10px] font-semibold uppercase tracking-[0.22em]"
                 style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-body)' }}
               >
-                Ukjente steder
+                {t.dashboard.customer.unknownPlaces}
               </h3>
               <p
                 className="text-[11px] leading-relaxed"

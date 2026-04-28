@@ -5,6 +5,8 @@ import { useStatusColors } from '@/lib/status-colors/context'
 import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
 import { getDayLabel, getISOWeek, isToday } from '@/lib/dates'
 import { spring } from '@/lib/motion'
+import { useT } from '@/lib/i18n/context'
+import type { Dictionary } from '@/lib/i18n/types'
 import { HeroPulse } from './hero-pulse'
 import { TeamBoard } from './team-board'
 
@@ -26,13 +28,13 @@ const WEEK_STATUS_GROUPS: Array<{ key: string; statuses: EntryStatus[]; represen
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 
-function greetingFor(h: number) {
-  if (h < 5)  return 'God natt'
-  if (h < 10) return 'God morgen'
-  if (h < 12) return 'God formiddag'
-  if (h < 17) return 'God ettermiddag'
-  if (h < 22) return 'God kveld'
-  return 'God natt'
+function greetingFor(h: number, g: Dictionary['dashboard']['greetings']): string {
+  if (h < 5)  return g.night
+  if (h < 10) return g.morning
+  if (h < 12) return g.forenoon
+  if (h < 17) return g.afternoon
+  if (h < 22) return g.evening
+  return g.night
 }
 
 /**
@@ -55,20 +57,14 @@ function dedupeForMembers(entries: Entry[], members: Member[]): Map<string, Entr
 
 export function TodayView({ members, weekDays, entries, todayEntries, orgName, time }: TodayViewProps) {
   const STATUS_COLORS = useStatusColors()
+  const t = useT()
   const hours   = pad(time.getHours())
   const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)
 
-  const MONTH_FULL: Record<number, string> = {
-    0: 'januar', 1: 'februar', 2: 'mars', 3: 'april', 4: 'mai', 5: 'juni',
-    6: 'juli', 7: 'august', 8: 'september', 9: 'oktober', 10: 'november', 11: 'desember',
-  }
-  const WEEKDAY_FULL: Record<number, string> = {
-    0: 'Søndag', 1: 'Mandag', 2: 'Tirsdag', 3: 'Onsdag',
-    4: 'Torsdag', 5: 'Fredag', 6: 'Lørdag',
-  }
-  const dateLabel = `${WEEKDAY_FULL[time.getDay()]} ${time.getDate()}. ${MONTH_FULL[time.getMonth()]}`
-  const greeting = greetingFor(time.getHours())
+  const monthLong = t.dates.monthsLong[time.getMonth()]
+  const weekdayLong = t.dates.weekdaysLong[time.getDay()]
+  const greeting = greetingFor(time.getHours(), t.dashboard.greetings)
 
   // Deduplicate: one entry per member, per day. Fixes the "12/5 · 240%" bug.
   const todayMap = dedupeForMembers(todayEntries, members)
@@ -96,23 +92,25 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
           >
             {orgName}
           </p>
-          {/* Product name — Fraunces italic on Paper. Quiet, warm, restrained.
+          {/* Org wordmark — Fraunces italic on Paper. Quiet, warm, restrained.
               The clock is the Nordlys hero of this surface; the wordmark sits
               on the ink/paper scale so there's room for a single signature. */}
-          <p
-            className="leading-none mt-1"
-            style={{
-              fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
-              fontWeight: 300,
-              fontStyle: 'italic',
-              fontVariationSettings: '"opsz" 32, "SOFT" 80',
-              fontSize: 26,
-              letterSpacing: '-0.025em',
-              color: '#F5EFE4',
-            }}
-          >
-            Offiview
-          </p>
+          {orgName && (
+            <p
+              className="leading-none mt-1"
+              style={{
+                fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+                fontWeight: 300,
+                fontStyle: 'italic',
+                fontVariationSettings: '"opsz" 32, "SOFT" 80',
+                fontSize: 26,
+                letterSpacing: '-0.025em',
+                color: 'var(--paper)',
+              }}
+            >
+              {orgName}
+            </p>
+          )}
           <div className="mt-1.5 flex items-center gap-2">
             <span
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase"
@@ -129,7 +127,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
                 animate={{ opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
                 transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
               />
-              Live · Uke {weekNum}
+              {t.dashboard.live} · {t.matrix.weekLabel} {weekNum}
             </span>
             <span
               className="text-[12px]"
@@ -161,8 +159,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
               fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
               fontVariationSettings: '"opsz" 144, "SOFT" 80',
               letterSpacing: '-0.04em',
-              backgroundImage:
-                'linear-gradient(120deg, #00F5A0 0%, #00D9F5 55%, #7C3AED 100%)',
+              backgroundImage: 'var(--gradient-nordlys-clock)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
@@ -196,10 +193,10 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
             }}
           >
             <span style={{ fontSize: 17, letterSpacing: '-0.015em' }}>
-              <span style={{ color: '#FBBF24' }}>
-                {WEEKDAY_FULL[time.getDay()].toLowerCase()}
+              <span style={{ color: 'var(--ember-glow)' }}>
+                {weekdayLong.toLowerCase()}
               </span>
-              <span>{' · '}{time.getDate()}. {MONTH_FULL[time.getMonth()]}</span>
+              <span>{' · '}{time.getDate()}. {monthLong}</span>
             </span>
           </div>
         </motion.div>
@@ -315,12 +312,6 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
         })}
       </motion.div>
 
-      <style>{`
-        @keyframes clockBlink {
-          0%, 100% { opacity: 0.35 }
-          50%      { opacity: 0.08 }
-        }
-      `}</style>
     </div>
   )
 }

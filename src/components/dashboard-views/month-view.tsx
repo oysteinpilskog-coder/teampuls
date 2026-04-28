@@ -90,7 +90,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
               backgroundClip: 'text',
             }}
           >
-            Ukehorisonten
+            {t.dashboard.month.title}
           </p>
         </motion.div>
         <motion.div

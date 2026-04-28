@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
@@ -33,7 +33,7 @@ import { AuroraBackground } from '@/components/dashboard-views/aurora-background
 import { OffiviewSignature } from '@/components/brand/offiview-signature'
 import { BrandTransition } from '@/components/brand/brand-transition'
 import { TimezoneStrip } from '@/components/dashboard/timezone-strip'
-import { resolveViewDuration, DEFAULT_VIEW_DURATIONS } from '@/lib/dashboard-defaults'
+import { resolveViewDuration } from '@/lib/dashboard-defaults'
 import { trackBrandImpression } from '@/lib/analytics'
 import { getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
 import type { Entry, Member, Office, Organization, Customer, DashboardViewKey } from '@/lib/supabase/types'
@@ -46,8 +46,6 @@ interface DashboardClientProps {
 
 type ViewKey = DashboardViewKey
 const ALL_VIEWS: ViewKey[] = ['A', 'B', 'C', 'D', 'E']
-
-function pad(n: number) { return String(n).padStart(2, '0') }
 
 function dedupeByMember(rows: Entry[], members: Member[]): Entry[] {
   const activeIds = new Set(members.map(m => m.id))
@@ -64,14 +62,15 @@ function dedupeByMember(rows: Entry[], members: Member[]): Entry[] {
 
 export function DashboardClient({ orgId }: DashboardClientProps) {
   const t = useT()
-  // Moved inside the component so view labels track the active locale.
-  const VIEW_LABELS: Record<ViewKey, string> = {
+  // Memoized so the segmented switcher and aria-labels keep stable refs
+  // across the once-per-second clock tick.
+  const VIEW_LABELS = useMemo<Record<ViewKey, string>>(() => ({
     A: t.dashboard.views.now,
     B: t.dashboard.views.week,
     C: t.dashboard.views.offices,
     D: t.dashboard.views.customers,
     E: t.dashboard.views.wheel,
-  }
+  }), [t])
   const searchParams = useSearchParams()
   // ?brand=off disables the 3.2s brand-transition moment for the entire
   // session (kundepresentasjoner der dashbordet skal være helt stille).
@@ -95,6 +94,8 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
   const [offices, setOffices] = useState<Office[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [org, setOrg] = useState<Pick<Organization, 'name' | 'timezone' | 'dashboard_show_sick' | 'dashboard_rotation_views' | 'dashboard_view_durations'> | null>(null)
+  const [dataReady, setDataReady] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const signatureRef = useRef<HTMLDivElement>(null)
 
@@ -102,18 +103,24 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
   // A..E order so the rotation sequence stays predictable, and fall back
   // to the full set if the setting is missing or empty (shouldn't happen,
   // but we never want a blank TV).
-  const enabledViews: ViewKey[] = (() => {
+  const VIEWS = useMemo<ViewKey[]>(() => {
     const raw = org?.dashboard_rotation_views
     if (!raw || raw.length === 0) return ALL_VIEWS
     const set = new Set(raw)
-    return ALL_VIEWS.filter(v => set.has(v))
-  })()
-  const VIEWS: ViewKey[] = enabledViews.length > 0 ? enabledViews : ALL_VIEWS
+    const filtered = ALL_VIEWS.filter(v => set.has(v))
+    return filtered.length > 0 ? filtered : ALL_VIEWS
+  }, [org?.dashboard_rotation_views])
   const showSick = org?.dashboard_show_sick ?? true
 
-  const { week, year } = getTodayWeekAndYear()
-  const weekDays = getWeekDays(week, year)
-  const dateStrings = weekDays.map(toDateString)
+  // Rebuilds across midnight as `time` ticks past 00:00 — keeps the dashboard
+  // showing today's week without a manual refresh. Stable through the day.
+  const todayKey = toDateString(time)
+  const { weekDays, dateStrings } = useMemo(() => {
+    const { week, year } = getTodayWeekAndYear()
+    const days = getWeekDays(week, year)
+    return { weekDays: days, dateStrings: days.map(toDateString) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todayKey])
 
   // Live clock — pauses while the tab is hidden so we don't rerender the
   // whole dashboard tree once a second for nobody. Resumes immediately on
@@ -182,50 +189,52 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
     return () => clearTimeout(id)
   }, [viewIdx, VIEWS, currentDwellSec, brandOff, pendingViewIdx, orgId, safeIdx])
 
-  // Fetch org + members + offices once
+  // Fetch org + members + offices + customers once. Errors are caught so
+  // the TV never shows React's red overlay; instead a quiet "could not load"
+  // pill appears and aurora + clock keep running so the screen never goes
+  // dark. Realtime subscriptions still try to recover the state.
   const fetchData = useCallback(async () => {
     const supabase = createClient()
-    const [
-      { data: orgData },
-      { data: membersData },
-      { data: officesData },
-      { data: customersData },
-    ] = await Promise.all([
-      supabase
-        .from('organizations')
-        .select('name, timezone, dashboard_show_sick, dashboard_rotation_views, dashboard_view_durations')
-        .eq('id', orgId)
-        .maybeSingle(),
-      supabase
-        .from('members')
-        .select('*')
-        .eq('org_id', orgId)
-        .eq('is_active', true)
-        .order('display_name'),
-      supabase
-        .from('offices')
-        .select('*')
-        .eq('org_id', orgId)
-        .order('sort_order'),
-      supabase
-        .from('customers')
-        .select('*')
-        .eq('org_id', orgId)
-        .order('name'),
-    ])
-    setOrg(
-      orgData ?? {
-        name: 'Offiview',
-        timezone: 'Europe/Oslo',
-        dashboard_show_sick: true,
-        dashboard_rotation_views: ALL_VIEWS,
-        dashboard_view_durations: DEFAULT_VIEW_DURATIONS,
-      }
-    )
-    setMembers(membersData ?? [])
-    setOffices(officesData ?? [])
-    setCustomers(customersData ?? [])
-  }, [orgId])
+    try {
+      const [orgRes, membersRes, officesRes, customersRes] = await Promise.all([
+        supabase
+          .from('organizations')
+          .select('name, timezone, dashboard_show_sick, dashboard_rotation_views, dashboard_view_durations')
+          .eq('id', orgId)
+          .maybeSingle(),
+        supabase
+          .from('members')
+          .select('*')
+          .eq('org_id', orgId)
+          .eq('is_active', true)
+          .order('display_name'),
+        supabase
+          .from('offices')
+          .select('*')
+          .eq('org_id', orgId)
+          .order('sort_order'),
+        supabase
+          .from('customers')
+          .select('*')
+          .eq('org_id', orgId)
+          .order('name'),
+      ])
+      if (orgRes.error) throw orgRes.error
+      if (membersRes.error) throw membersRes.error
+      if (officesRes.error) throw officesRes.error
+      if (customersRes.error) throw customersRes.error
+      setOrg(orgRes.data ?? null)
+      setMembers(membersRes.data ?? [])
+      setOffices(officesRes.data ?? [])
+      setCustomers(customersRes.data ?? [])
+      setLoadError(null)
+      setDataReady(true)
+    } catch (err) {
+      console.error('[dashboard] fetchData failed', err)
+      setLoadError(t.dashboard.loadError)
+      setDataReady(true)
+    }
+  }, [orgId, t])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -262,20 +271,66 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
     return () => { supabase.removeChannel(channel) }
   }, [orgId])
 
+  // Realtime members — without this the TV shows a stale roster until the
+  // next reload when admin (de)activates a member or edits their profile.
+  // is_active=false is treated as a soft delete so headcounts stay honest.
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`members:org:${orgId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'members',
+          filter: `org_id=eq.${orgId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            const deleted = payload.old as Partial<Member>
+            if (!deleted.id) return
+            setMembers(prev => prev.filter(m => m.id !== deleted.id))
+            return
+          }
+          const upserted = payload.new as Member
+          if (!upserted?.id) return
+          setMembers(prev => {
+            const without = prev.filter(m => m.id !== upserted.id)
+            if (!upserted.is_active) return without
+            return [...without, upserted].sort((a, b) =>
+              (a.display_name ?? '').localeCompare(b.display_name ?? '')
+            )
+          })
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [orgId])
+
   // Realtime entries for the current week (includes today)
   const { entries: rawEntries } = useEntries(orgId, dateStrings)
 
   // Privacy: when the org has opted out of exposing sick leave on the public
   // dashboard, collapse sick → off so the display only reveals that someone
   // is away, not why. Keeps the count honest while hiding the health detail.
-  const entries = showSick
-    ? rawEntries
-    : rawEntries.map(e => (e.status === 'sick' ? { ...e, status: 'off' as const } : e))
+  const entries = useMemo(
+    () => showSick
+      ? rawEntries
+      : rawEntries.map(e => (e.status === 'sick' ? { ...e, status: 'off' as const } : e)),
+    [rawEntries, showSick]
+  )
 
   // Today's entries only, deduped to one per member (most recently updated wins)
   const todayStr = toDateString(new Date())
-  const todayEntries = entries.filter(e => e.date === todayStr)
-  const dedupedTodayEntries = dedupeByMember(todayEntries, members)
+  const todayEntries = useMemo(
+    () => entries.filter(e => e.date === todayStr),
+    [entries, todayStr]
+  )
+  const dedupedTodayEntries = useMemo(
+    () => dedupeByMember(todayEntries, members),
+    [todayEntries, members]
+  )
 
   // Fullscreen API
   function toggleFullscreen() {
@@ -312,7 +367,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
 
   const currentView = VIEWS[viewIdx] ?? VIEWS[0]
   const incomingView = pendingViewIdx !== null ? (VIEWS[pendingViewIdx] ?? VIEWS[0]) : null
-  const orgName = org?.name ?? 'CalWin'
+  const orgName = org?.name ?? ''
 
   function renderView(view: ViewKey) {
     switch (view) {
@@ -367,6 +422,10 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
     }
   }
 
+  const dwellMs = Math.max(1, currentDwellSec * 1000)
+  const elapsed = time.getTime() - viewStartedAt
+  const rotationPct = Math.max(0, Math.min(1, elapsed / dwellMs))
+
   return (
     <div
       ref={containerRef}
@@ -381,8 +440,15 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
             It renders both outgoing and incoming views internally and the
             hero mark flies to signaturePos. onComplete commits the index.
           - pendingViewIdx null (idle, manual nav, or ?brand=off): existing
-            AnimatePresence handles the lighter 400ms crossfade. */}
-      <div className="relative flex-1 overflow-hidden">
+            AnimatePresence handles the lighter 400ms crossfade.
+
+          Held at opacity 0 until the initial fetch resolves so the TV
+          doesn't flash empty rosters before data arrives. */}
+      <motion.div
+        className="relative flex-1 overflow-hidden"
+        animate={{ opacity: dataReady ? 1 : 0 }}
+        transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
+      >
         {pendingViewIdx !== null && incomingView !== null ? (
           <BrandTransition
             key={`brand-${viewIdx}-to-${pendingViewIdx}`}
@@ -408,42 +474,30 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
             </motion.div>
           </AnimatePresence>
         )}
-      </div>
+      </motion.div>
 
-      {/* ── Rotation progress hairlines (top + bottom of the control bar) ──
-          Thin Nordlys lines that fill over each view's dwell. Rendered at
-          half strength and mirrored on both edges so the combined weight
-          matches the original single line and frames the control bar like
-          the KUNDEPORTEFØLJE widget's Nordlys rail. */}
-      {(() => {
-        const key = VIEWS[viewIdx] ?? VIEWS[0] ?? 'A'
-        const dwellMs = Math.max(1, resolveViewDuration(key, org?.dashboard_view_durations) * 1000)
-        const elapsed = time.getTime() - viewStartedAt
-        const pct = Math.max(0, Math.min(1, elapsed / dwellMs))
-        const hairlineStyle = {
-          width: `${pct * 100}%`,
-          background:
-            'linear-gradient(90deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%)',
-          backgroundSize: '100vw 100%',
-          backgroundRepeat: 'no-repeat' as const,
-          backgroundPosition: 'left center' as const,
-          opacity: 0.55,
-          boxShadow:
-            '0 0 8px rgba(0, 217, 245, 0.28), 0 0 16px rgba(0, 245, 160, 0.14)',
-        }
-        return (
-          <div className="relative h-[2px] w-full overflow-hidden">
-            <div
-              className="absolute inset-0"
-              style={{ background: 'rgba(255,255,255,0.04)' }}
-            />
-            <div
-              className="absolute left-0 top-0 h-full transition-[width] duration-[950ms] ease-linear"
-              style={hairlineStyle}
-            />
+      {/* Quiet load-error pill — only appears if the initial snapshot failed.
+          Aurora + clock keep running so the TV never goes dark. */}
+      {loadError && (
+        <div className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 z-50">
+          <div
+            className="px-3 py-1.5 rounded-full text-[11px] uppercase tracking-[0.18em]"
+            style={{
+              background: 'rgba(20,22,28,0.72)',
+              backdropFilter: 'blur(18px)',
+              WebkitBackdropFilter: 'blur(18px)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              color: 'rgba(255,255,255,0.78)',
+              fontFamily: 'var(--font-body)',
+            }}
+          >
+            {loadError}
           </div>
-        )
-      })()}
+        </div>
+      )}
+
+      {/* Rotation progress hairline — top edge */}
+      <RotationHairline pct={rotationPct} />
 
       {/* ── Floating control bar (iOS-style segmented glass pill) ── */}
       <div className="relative flex items-center justify-between px-6 pt-2 pb-2 gap-4">
@@ -451,7 +505,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
         <a
           href="/"
           className="text-[12px] transition-colors hover:opacity-80 tabular-nums uppercase tracking-[0.22em] font-semibold"
-          style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
+          style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-body)' }}
         >
           {t.dashboard.back}
         </a>
@@ -509,8 +563,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
                           // Nordlys in toppen på det hvite — aurora tint fades
                           // down into white body, mirroring the KUNDEPORTEFØLJE
                           // hero-number language (inverted direction).
-                          background:
-                            'linear-gradient(180deg, #00F5A0 -20%, #00D9F5 18%, #ffffff 55%, #ffffff 100%)',
+                          background: 'var(--gradient-nordlys-pill)',
                           WebkitBackgroundClip: 'text',
                           WebkitTextFillColor: 'transparent',
                           backgroundClip: 'text',
@@ -529,7 +582,7 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
         <div className="flex items-center gap-4">
           <p
             className="hidden md:block text-[11px] tracking-[0.14em] uppercase"
-            style={{ color: 'rgba(255,255,255,0.32)', fontFamily: 'var(--font-body)' }}
+            style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-body)' }}
           >
             {t.dashboard.hint}
           </p>
@@ -557,40 +610,8 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
         </div>
       </div>
 
-      {/* ── Rotation progress hairline (bottom edge, mirror of the top one) ── */}
-      {(() => {
-        const key = VIEWS[viewIdx] ?? VIEWS[0] ?? 'A'
-        const dwellMs = Math.max(1, resolveViewDuration(key, org?.dashboard_view_durations) * 1000)
-        const elapsed = time.getTime() - viewStartedAt
-        const pct = Math.max(0, Math.min(1, elapsed / dwellMs))
-        return (
-          <div className="relative h-[2px] w-full overflow-hidden">
-            <div
-              className="absolute inset-0"
-              style={{ background: 'rgba(255,255,255,0.04)' }}
-            />
-            <div
-              className="absolute left-0 top-0 h-full transition-[width] duration-[950ms] ease-linear"
-              style={{
-                width: `${pct * 100}%`,
-                background:
-                  'linear-gradient(90deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%)',
-                backgroundSize: '100vw 100%',
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'left center',
-                opacity: 0.55,
-                boxShadow:
-                  '0 0 8px rgba(0, 217, 245, 0.28), 0 0 16px rgba(0, 245, 160, 0.14)',
-              }}
-            />
-          </div>
-        )
-      })()}
-
-      {/* Blink animation for clock colon */}
-      <style>{`
-        @keyframes blink { 0%, 100% { opacity: 0.4 } 50% { opacity: 0.15 } }
-      `}</style>
+      {/* Rotation progress hairline — bottom edge (mirror of top) */}
+      <RotationHairline pct={rotationPct} />
 
       {/* Tidssoneklokker — alltid synlig, ikke en del av view-rotasjonen.
           Skjules under BrandTransition så brand-broa er ren. */}
@@ -602,6 +623,36 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
         ref={signatureRef}
         visible={pendingViewIdx === null}
         controlBarSafeArea
+      />
+    </div>
+  )
+}
+
+/**
+ * Thin Nordlys gradient line that fills with each view's dwell. Rendered at
+ * half strength on both edges of the control bar so the combined weight
+ * matches the original single line and frames the bar like the
+ * KUNDEPORTEFØLJE widget's Nordlys rail.
+ */
+function RotationHairline({ pct }: { pct: number }) {
+  return (
+    <div className="relative h-[2px] w-full overflow-hidden">
+      <div
+        className="absolute inset-0"
+        style={{ background: 'rgba(255,255,255,0.04)' }}
+      />
+      <div
+        className="absolute left-0 top-0 h-full transition-[width] duration-[950ms] ease-linear"
+        style={{
+          width: `${pct * 100}%`,
+          background: 'var(--gradient-nordlys-rail)',
+          backgroundSize: '100vw 100%',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'left center',
+          opacity: 0.55,
+          boxShadow:
+            '0 0 8px rgba(0, 217, 245, 0.28), 0 0 16px rgba(0, 245, 160, 0.14)',
+        }}
       />
     </div>
   )

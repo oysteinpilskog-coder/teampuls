@@ -96,6 +96,14 @@
   --nordlys-b:   #00D9F5;
   --nordlys-c:   #7C3AED;
 
+  /* Canonical Nordlys gradients — referenced by the dashboard hero clock,
+     progress rails and the active-pill text fill so a single token tweak
+     restains the entire signature. Three angles × one palette. */
+  --gradient-nordlys-clock: linear-gradient(120deg, var(--nordlys-a) 0%, var(--nordlys-b) 55%, var(--nordlys-c) 100%);
+  --gradient-nordlys-rail:  linear-gradient(90deg,  var(--nordlys-a) 0%, var(--nordlys-b) 50%, var(--nordlys-c) 100%);
+  --gradient-nordlys-hero:  linear-gradient(180deg, var(--nordlys-a) -12%, var(--nordlys-b) 16%, #ffffff 52%, #ffffff 100%);
+  --gradient-nordlys-pill:  linear-gradient(180deg, var(--nordlys-a) -20%, var(--nordlys-b) 18%, #ffffff 55%, #ffffff 100%);
+
   /* Legacy bg/text mapped to Paper/Ink family */
   --bg-primary:    var(--paper);
   --bg-elevated:   var(--paper-soft);
@@ -470,6 +478,14 @@
     0%   { opacity: 0; }
     30%  { opacity: 1; }
     100% { opacity: 0; }
+  }
+
+  /* Dashboard clock colon — same blink everywhere it appears. Defined here
+     instead of inline so a re-render doesn't remount a <style> tag and the
+     keyframe stays available even when the clock is offscreen. */
+  @keyframes clockBlink {
+    0%, 100% { opacity: 0.35; }
+    50%      { opacity: 0.08; }
   }
 
   /* Reduced motion */

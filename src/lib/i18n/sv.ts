@@ -249,6 +249,18 @@ export const sv: Dictionary = {
     hint: '← → byt · F fullskärm',
     fullscreen: 'Fullskärm',
     viewAriaPrefix: 'Vy',
+    live: 'Live',
+    loadError: 'Kunde inte ladda data',
+    greetings: {
+      night: 'God natt',
+      morning: 'God morgon',
+      forenoon: 'God förmiddag',
+      afternoon: 'God eftermiddag',
+      evening: 'God kväll',
+    },
+    month: {
+      title: 'Veckohorisonten',
+    },
     noRegistrations: 'Inga registreringar.',
     noCustomerVisits: 'Inga kundbesök denna vecka.',
     noOfficesWithCoords: 'Inga kontor med koordinater ännu.',
@@ -263,6 +275,10 @@ export const sv: Dictionary = {
     customer: {
       title: 'Hos kund',
       todayWeekCount: '{today} hos kund nu · {week} denna vecka',
+      portfolio: 'Kundportfölj',
+      visited: 'besökta',
+      customers: 'Kunder',
+      unknownPlaces: 'Okända platser',
     },
   },
   myPlan: {
