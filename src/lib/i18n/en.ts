@@ -249,6 +249,18 @@ export const en: Dictionary = {
     hint: '← → switch · F fullscreen',
     fullscreen: 'Fullscreen',
     viewAriaPrefix: 'View',
+    live: 'Live',
+    loadError: 'Could not load data',
+    greetings: {
+      night: 'Good night',
+      morning: 'Good morning',
+      forenoon: 'Good morning',
+      afternoon: 'Good afternoon',
+      evening: 'Good evening',
+    },
+    month: {
+      title: 'The week ahead',
+    },
     noRegistrations: 'No entries.',
     noCustomerVisits: 'No customer visits this week.',
     noOfficesWithCoords: 'No offices with coordinates yet.',
@@ -263,6 +275,10 @@ export const en: Dictionary = {
     customer: {
       title: 'At customer',
       todayWeekCount: '{today} at customers now · {week} this week',
+      portfolio: 'Customer portfolio',
+      visited: 'visited',
+      customers: 'Customers',
+      unknownPlaces: 'Unknown places',
     },
   },
   myPlan: {

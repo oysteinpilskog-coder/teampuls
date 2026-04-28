@@ -22,16 +22,14 @@ function toYmd(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-const MONTHS_NO = ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des']
-
-function formatRange(startIso: string, endIso: string): string {
+function formatRange(startIso: string, endIso: string, monthsShort: string[]): string {
   const start = new Date(startIso + 'T12:00:00')
   const end   = new Date(endIso   + 'T12:00:00')
   const sameDay = startIso === endIso
   const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()
-  if (sameDay) return `${start.getDate()}. ${MONTHS_NO[start.getMonth()]}`
-  if (sameMonth) return `${start.getDate()}.–${end.getDate()}. ${MONTHS_NO[start.getMonth()]}`
-  return `${start.getDate()}. ${MONTHS_NO[start.getMonth()]} – ${end.getDate()}. ${MONTHS_NO[end.getMonth()]}`
+  if (sameDay) return `${start.getDate()}. ${monthsShort[start.getMonth()]}`
+  if (sameMonth) return `${start.getDate()}.–${end.getDate()}. ${monthsShort[start.getMonth()]}`
+  return `${start.getDate()}. ${monthsShort[start.getMonth()]} – ${end.getDate()}. ${monthsShort[end.getMonth()]}`
 }
 
 export function WheelView({ orgId, orgName, time }: WheelViewProps) {
@@ -46,11 +44,16 @@ export function WheelView({ orgId, orgName, time }: WheelViewProps) {
   // and we want to keep subscription count predictable.
   useEffect(() => {
     const supabase = createClient()
+    // Date overlap with `[year-01-01, year-12-31]`: an event overlaps the
+    // window iff its start is before-or-on the window end AND its end is
+    // after-or-on the window start. The previous OR-query missed events
+    // that straddle Jan 1 / Dec 31 of the wrong year.
     supabase
       .from('events')
       .select('*')
       .eq('org_id', orgId)
-      .or(`start_date.gte.${year}-01-01,end_date.lte.${year}-12-31`)
+      .lte('start_date', `${year}-12-31`)
+      .gte('end_date', `${year}-01-01`)
       .order('start_date')
       .then(({ data }) => setEvents(data ?? []))
 
@@ -190,6 +193,7 @@ function AgendaTile({
   emptyLabel: string
   grow: boolean
 }) {
+  const t = useT()
   return (
     <section
       className={`${grow ? 'flex-1' : 'flex-shrink-0'} min-h-0 rounded-3xl px-5 py-4 flex flex-col gap-3 overflow-hidden`}
@@ -266,7 +270,7 @@ function AgendaTile({
                     letterSpacing: '0.14em',
                   }}
                 >
-                  {formatRange(ev.start_date, ev.end_date)}
+                  {formatRange(ev.start_date, ev.end_date, t.dates.monthsShort)}
                 </p>
               </div>
             </motion.li>

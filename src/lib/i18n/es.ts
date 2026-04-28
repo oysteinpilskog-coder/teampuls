@@ -249,6 +249,18 @@ export const es: Dictionary = {
     hint: '← → cambiar · F pantalla completa',
     fullscreen: 'Pantalla completa',
     viewAriaPrefix: 'Vista',
+    live: 'En vivo',
+    loadError: 'No se pudieron cargar los datos',
+    greetings: {
+      night: 'Buenas noches',
+      morning: 'Buenos días',
+      forenoon: 'Buenos días',
+      afternoon: 'Buenas tardes',
+      evening: 'Buenas noches',
+    },
+    month: {
+      title: 'El horizonte de la semana',
+    },
     noRegistrations: 'Sin entradas.',
     noCustomerVisits: 'Sin visitas a clientes esta semana.',
     noOfficesWithCoords: 'Aún no hay oficinas con coordenadas.',
@@ -263,6 +275,10 @@ export const es: Dictionary = {
     customer: {
       title: 'Con cliente',
       todayWeekCount: '{today} con clientes ahora · {week} esta semana',
+      portfolio: 'Cartera de clientes',
+      visited: 'visitados',
+      customers: 'Clientes',
+      unknownPlaces: 'Lugares desconocidos',
     },
   },
   myPlan: {

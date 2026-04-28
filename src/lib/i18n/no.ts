@@ -247,6 +247,18 @@ export const no = {
     hint: '← → bytt · F fullskjerm',
     fullscreen: 'Fullskjerm',
     viewAriaPrefix: 'Visning',
+    live: 'Live',
+    loadError: 'Kunne ikke laste data',
+    greetings: {
+      night: 'God natt',
+      morning: 'God morgen',
+      forenoon: 'God formiddag',
+      afternoon: 'God ettermiddag',
+      evening: 'God kveld',
+    },
+    month: {
+      title: 'Ukehorisonten',
+    },
     noRegistrations: 'Ingen registreringer.',
     noCustomerVisits: 'Ingen kundebesøk denne uken.',
     noOfficesWithCoords: 'Ingen kontorer med koordinater ennå.',
@@ -261,6 +273,10 @@ export const no = {
     customer: {
       title: 'Hos kunde',
       todayWeekCount: '{today} ute hos kunde nå · {week} denne uken',
+      portfolio: 'Kundeportefølje',
+      visited: 'besøkt',
+      customers: 'Kunder',
+      unknownPlaces: 'Ukjente steder',
     },
   },
   myPlan: {

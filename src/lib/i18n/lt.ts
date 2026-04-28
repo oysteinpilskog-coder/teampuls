@@ -249,6 +249,18 @@ export const lt: Dictionary = {
     hint: '← → keisti · F pilnas ekranas',
     fullscreen: 'Pilnas ekranas',
     viewAriaPrefix: 'Rodinys',
+    live: 'Tiesiogiai',
+    loadError: 'Nepavyko įkelti duomenų',
+    greetings: {
+      night: 'Labos nakties',
+      morning: 'Labas rytas',
+      forenoon: 'Laba diena',
+      afternoon: 'Laba popietė',
+      evening: 'Labas vakaras',
+    },
+    month: {
+      title: 'Savaitės horizontas',
+    },
     noRegistrations: 'Įrašų nėra.',
     noCustomerVisits: 'Šią savaitę vizitų pas klientus nėra.',
     noOfficesWithCoords: 'Dar nėra biurų su koordinatėmis.',
@@ -263,6 +275,10 @@ export const lt: Dictionary = {
     customer: {
       title: 'Pas klientą',
       todayWeekCount: '{today} pas klientus dabar · {week} šią savaitę',
+      portfolio: 'Klientų portfelis',
+      visited: 'aplankyti',
+      customers: 'Klientai',
+      unknownPlaces: 'Nežinomos vietos',
     },
   },
   myPlan: {
