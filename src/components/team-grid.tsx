@@ -1089,14 +1089,6 @@ export function TeamGrid({
             // is never invisible — even when the corresponding members have
             // no entries in the visible week and would otherwise be filtered
             // out of `visibleMembers`.
-            const nonNoCountries: CountryCode[] = []
-            for (const c of allHolidays.keys()) {
-              if (c !== 'NO') nonNoCountries.push(c)
-            }
-            // Any country has a holiday today — drives the red text treatment
-            // on weekday + day-number so a non-NO red day reads at a glance,
-            // not only via flag emoji.
-            const anyHoliday = noHoliday !== null || nonNoCountries.length > 0
             return (
               <div
                 key={date.toISOString()}
@@ -1108,18 +1100,20 @@ export function TeamGrid({
                   style={{
                     // Today's weekday gets Ember-glow warmth — the Nordlys
                     // gradient is reserved for the day-number orb below.
-                    // Any holiday (NO or non-NO) paints the weekday red so
-                    // the column reads as red at a glance.
+                    // Norwegian holidays paint the weekday red since CalWin
+                    // is NO-primary and that day is collectively red. Non-NO
+                    // holidays don't change the header — they're marked
+                    // per-member instead (see cell overlay below).
                     color: today
                       ? 'var(--ember-glow, #FBBF24)'
-                      : anyHoliday
+                      : noHoliday
                         ? '#F43F5E'
                         : 'var(--lg-text-3)',
-                    fontWeight: today || anyHoliday ? 600 : 500,
+                    fontWeight: today || noHoliday ? 600 : 500,
                     letterSpacing: '0.2em',
                     textShadow: today
                       ? '0 0 10px rgba(251, 191, 36, 0.35)'
-                      : anyHoliday
+                      : noHoliday
                         ? '0 0 10px rgba(244, 63, 94, 0.35)'
                         : undefined,
                   }}
@@ -1133,16 +1127,10 @@ export function TeamGrid({
                     fontWeight: today ? 600 : 400,
                     // Nordlys-signature: today's day number sits inside a
                     // gradient orb. Norwegian holidays swap that for a red
-                    // ember-orb (NO is our primary org — earns the orb).
-                    // Non-NO holidays get red TEXT only — clearly a red day
-                    // without diluting the orb signature. If today is also
-                    // a Norwegian holiday we keep the Nordlys gradient (today
-                    // wins visually) but wrap it in a red ring.
-                    color: today || noHoliday
-                      ? '#0E0B08'
-                      : anyHoliday
-                        ? '#F43F5E'
-                        : 'var(--lg-text-1)',
+                    // ember-orb. If today is *also* a Norwegian holiday we
+                    // keep the Nordlys gradient (today wins visually) but
+                    // wrap it in a red ring so the holiday still reads.
+                    color: today || noHoliday ? '#0E0B08' : 'var(--lg-text-1)',
                     width: today || noHoliday ? 40 : 'auto',
                     height: today || noHoliday ? 40 : 'auto',
                     borderRadius: 9999,
@@ -1158,9 +1146,6 @@ export function TeamGrid({
                         : noHoliday
                           ? '0 0 0 3px rgba(244, 63, 94, 0.18), 0 0 28px rgba(244, 63, 94, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
                           : 'none',
-                    textShadow: !today && !noHoliday && anyHoliday
-                      ? '0 0 14px rgba(244, 63, 94, 0.45)'
-                      : undefined,
                     letterSpacing: '-0.02em',
                   }}
                 >
@@ -1198,22 +1183,6 @@ export function TeamGrid({
                     {month}
                   </div>
                 ) : null}
-                {nonNoCountries.length > 0 && (
-                  <div
-                    className="flex items-center justify-center gap-1"
-                    style={{
-                      fontSize: 13,
-                      lineHeight: 1,
-                      filter: 'drop-shadow(0 0 6px rgba(244, 63, 94, 0.45))',
-                    }}
-                  >
-                    {nonNoCountries.map((c) => (
-                      <span key={c} aria-hidden>
-                        {flagFor(c)}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
             )
           })}
@@ -1382,26 +1351,23 @@ export function TeamGrid({
                       })
                     })()}
 
-                    {/* Holiday cell-tint + label — for SE/LT/GB members on
-                        days where their home country has a holiday but
-                        Norway doesn't. NO holidays already paint the whole
-                        column, so we suppress the per-cell signal then to
-                        avoid double-treatment.
-
-                        We tint the whole cell with a subtle red wash and
-                        render the holiday name as a small label at the
-                        bottom-left, so a Lithuanian member's day off on
-                        Joninės reads at a glance — no hover required. The
-                        tint alpha is low enough that any entry bar
-                        underneath is still legible through it. */}
+                    {/* Per-member holiday overlay — when this member's home
+                        country has a public holiday on day X, paint the
+                        whole cell red (kraftig wash + rød kant + flagg-
+                        emoji + helligdag-navn). Simon i UK får tydelig rød
+                        dag på 4. mai (Bank Holiday) mens Øystein/Johan ser
+                        ingenting. NO-medlemmer får også per-celle rød på
+                        NO-helligdager — kolonne-glød er fellesinformasjon,
+                        cellen er individuell bekreftelse. Overlayet er
+                        non-interactive så drag/klikk treffer fortsatt
+                        segmentet under. */}
                     {(() => {
                       const office = member.home_office_id
                         ? officeById.get(member.home_office_id)
                         : undefined
                       const country = office?.country_code
-                      if (!isSupportedCountry(country) || country === 'NO') return null
+                      if (!isSupportedCountry(country)) return null
                       return weekHolidays.map((dh, dayIdx) => {
-                        if (dh.no) return null
                         const name = dh.byCountry.get(country)
                         if (!name) return null
                         const leftCalc = `calc(144px + ${dayIdx} * ((100% - 176px) / 5 + 8px))`
@@ -1409,46 +1375,61 @@ export function TeamGrid({
                         const truncated = name.length > 14 ? name.slice(0, 13) + '…' : name
                         return (
                           <div
-                            key={`hol-tint-${dayIdx}`}
+                            key={`hol-cell-${dayIdx}`}
                             aria-hidden
                             title={`${flagFor(country)} ${name}`}
                             style={{
                               position: 'absolute',
-                              top: 0,
-                              height: 36,
+                              top: -2,
+                              height: 40,
                               left: leftCalc,
                               width: widthCalc,
-                              borderRadius: 8,
+                              borderRadius: 10,
                               pointerEvents: 'none',
                               zIndex: 6,
                               overflow: 'hidden',
+                              boxSizing: 'border-box',
                               background: isDark
-                                ? 'rgba(244, 63, 94, 0.10)'
-                                : 'rgba(244, 63, 94, 0.06)',
-                              boxShadow: 'inset 0 0 0 1px rgba(244, 63, 94, 0.18)',
+                                ? 'rgba(244, 63, 94, 0.20)'
+                                : 'rgba(244, 63, 94, 0.14)',
+                              border: '1.5px solid rgba(244, 63, 94, 0.6)',
+                              boxShadow:
+                                '0 0 14px rgba(244, 63, 94, 0.30), inset 0 0 12px rgba(244, 63, 94, 0.15)',
                             }}
                           >
                             <span
+                              aria-hidden
                               style={{
                                 position: 'absolute',
-                                left: 6,
-                                bottom: 3,
+                                top: 4,
                                 right: 6,
+                                fontSize: 11,
+                                lineHeight: 1,
+                                filter: 'drop-shadow(0 0 4px rgba(244, 63, 94, 0.6))',
+                              }}
+                            >
+                              {flagFor(country)}
+                            </span>
+                            <span
+                              style={{
+                                position: 'absolute',
+                                left: 8,
+                                bottom: 4,
+                                right: 8,
                                 fontSize: 9,
-                                fontWeight: 500,
+                                fontWeight: 600,
                                 color: '#F43F5E',
                                 letterSpacing: '0.02em',
-                                opacity: 0.85,
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 textShadow: isDark
-                                  ? '0 1px 2px rgba(0,0,0,0.45)'
-                                  : '0 1px 1px rgba(255,255,255,0.6)',
+                                  ? '0 1px 2px rgba(0,0,0,0.55)'
+                                  : '0 1px 1px rgba(255,255,255,0.65)',
                                 fontFamily: 'var(--font-body)',
                               }}
                             >
-                              {flagFor(country)} {truncated}
+                              {truncated}
                             </span>
                           </div>
                         )
