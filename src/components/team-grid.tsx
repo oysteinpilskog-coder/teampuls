@@ -382,20 +382,18 @@ export function TeamGrid({
     return map
   }, [offices])
 
-  // Country codes that have at least one active member assigned to an office.
-  // Empty until offices/members load — used to decide which countries to
-  // probe for holidays in the day-header tooltip.
-  const activeCountries = useMemo<CountryCode[]>(() => {
-    const set = new Set<CountryCode>()
-    for (const m of members) {
-      if (!m.home_office_id) continue
-      const office = officeById.get(m.home_office_id)
-      if (office && isSupportedCountry(office.country_code)) {
-        set.add(office.country_code)
-      }
-    }
-    return Array.from(set)
-  }, [members, officeById])
+  // Countries we always probe for the day-header. Filtering down to
+  // "countries with active members" sounds clever but breaks the day-
+  // header signal: if no UK member is in the office data yet, a UK
+  // bank holiday becomes invisible. Surfacing all four CalWin offices
+  // is genuinely useful info — a Norwegian planning a Vilnius meeting
+  // wants to see LT holidays even before any LT member exists in the
+  // member list. Per-cell corner-stripes still only render on real
+  // members, so we don't add noise to rows that aren't there.
+  const activeCountries = useMemo<CountryCode[]>(
+    () => ['NO', 'SE', 'LT', 'GB'],
+    [],
+  )
 
   // Pre-compute holiday data for the visible week. NO drives the column-wide
   // red treatment; the per-country map drives the tooltip and per-member
