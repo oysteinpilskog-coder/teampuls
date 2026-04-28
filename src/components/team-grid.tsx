@@ -907,9 +907,14 @@ export function TeamGrid({
         metrics={todayMetrics ?? null}
       />
 
-      {/* Matrix — dark liquid glass panel */}
+      {/* Matrix — dark liquid glass panel.
+          On small screens the matrix needs more horizontal room than a phone
+          can give it (the calc-driven column geometry assumes ~640px+), so we
+          wrap it in a horizontal scroll container that bleeds to the page
+          edges. ≥ sm we collapse to natural width. */}
+      <div className="-mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto sm:overflow-visible" style={{ WebkitOverflowScrolling: 'touch' }}>
       <div
-        className="relative rounded-2xl overflow-hidden"
+        className="relative rounded-2xl overflow-hidden min-w-[640px] sm:min-w-0"
         style={{
           background: 'var(--lg-surface-1)',
           border: '1px solid var(--lg-divider)',
@@ -1487,6 +1492,7 @@ export function TeamGrid({
             )}
           </motion.div>
         </AnimatePresence>
+      </div>
       </div>
 
       {/* Today Pulse widget — only shown when viewing current week */}

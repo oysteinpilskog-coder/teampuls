@@ -17,7 +17,7 @@ export default async function HomePage() {
   if (!member) {
     const t = await getServerDict()
     return (
-      <div className="mx-auto max-w-7xl px-6 py-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-20">
         <EmptyState
           icon={
             <svg viewBox="0 0 24 24" width="32" height="32" fill="none">
@@ -93,7 +93,7 @@ export default async function HomePage() {
   const showSingleWorkspaceAffordances = !combinedScope
 
   return (
-    <div className="mx-auto max-w-7xl px-6 pt-3 pb-10 space-y-5">
+    <div className="mx-auto max-w-7xl px-3 sm:px-6 pt-3 pb-10 space-y-5">
       {showSingleWorkspaceAffordances && (
         <div className="mx-auto max-w-3xl">
           <AIInput orgId={member.org_id} />

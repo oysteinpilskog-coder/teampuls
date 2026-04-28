@@ -1,6 +1,6 @@
 export default function Loading() {
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8 space-y-8">
+    <div className="mx-auto max-w-7xl px-3 sm:px-6 py-8 space-y-8">
       <div
         className="rounded-2xl h-[64px]"
         style={{

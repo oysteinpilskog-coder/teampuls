@@ -12,7 +12,7 @@ export default async function MinPlanPage() {
 
   if (!member) {
     return (
-      <div className="mx-auto max-w-7xl px-6 py-16">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16">
         <div
           className="rounded-2xl p-8 max-w-md"
           style={{ background: 'var(--bg-elevated)', boxShadow: 'var(--shadow-lg)' }}
@@ -45,7 +45,7 @@ export default async function MinPlanPage() {
   const country: CountryCode = isSupportedCountry(rawCountry) ? rawCountry : 'NO'
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10 md:py-12">
+    <div className="mx-auto max-w-7xl px-3 sm:px-6 py-6 sm:py-10 md:py-12">
       <MyPlan
         orgId={member.org_id}
         memberId={member.id}

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useTransition, useState, useEffect } from 'react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { WorkspaceSwitcher } from '@/components/workspace-switcher'
@@ -17,6 +17,7 @@ export function AppHeader() {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [optimisticHref, setOptimisticHref] = useState<string | null>(null)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const t = useT()
 
   // `t.nav.today` was removed upstream (the /i-dag page was dropped since
@@ -34,14 +35,31 @@ export function AppHeader() {
     if (optimisticHref && pathname === optimisticHref) setOptimisticHref(null)
   }, [pathname, optimisticHref])
 
+  // Close the mobile sheet whenever the route changes
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
+  // Lock body scroll while the mobile sheet is open
+  useEffect(() => {
+    if (!mobileOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [mobileOpen])
+
   const activeHref = optimisticHref ?? pathname
 
   function handleNav(href: string, e: React.MouseEvent<HTMLAnchorElement>) {
     // let cmd/ctrl/middle-click fall through for new-tab behavior
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return
-    if (href === pathname) return
+    if (href === pathname) {
+      setMobileOpen(false)
+      return
+    }
     e.preventDefault()
     setOptimisticHref(href)
+    setMobileOpen(false)
     startTransition(() => {
       router.push(href)
     })
@@ -75,7 +93,7 @@ export function AppHeader() {
             : { duration: 0.2 }
           }
         />
-        <div className="mx-auto max-w-7xl px-6 h-16 flex items-center gap-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 h-16 flex items-center gap-3 sm:gap-6">
           {/* Offiview wordmark — circle + horizon mark + "ffiview" */}
           <Link
             href="/"
@@ -94,9 +112,9 @@ export function AppHeader() {
             </motion.span>
           </Link>
 
-          {/* Nav with animated active pill */}
+          {/* Nav with animated active pill — hidden < md, replaced by hamburger */}
           <nav
-            className="relative flex items-center gap-0.5 flex-1"
+            className="relative hidden md:flex items-center gap-0.5 flex-1"
             aria-label={t.nav.mainNavAria}
           >
             {navLinks.map(({ href, label }) => {
@@ -130,6 +148,9 @@ export function AppHeader() {
               )
             })}
           </nav>
+
+          {/* Mobile spacer — pushes the right side over when nav is hidden */}
+          <div className="flex-1 md:hidden" aria-hidden />
 
           {/* Right side */}
           <div className="flex items-center gap-2 shrink-0">
@@ -174,8 +195,139 @@ export function AppHeader() {
               </span>
             </motion.button>
             <ThemeToggle />
+            {/* Hamburger — only < md, to the right of the theme toggle */}
+            <motion.button
+              type="button"
+              onClick={() => setMobileOpen((v) => !v)}
+              whileTap={{ scale: 0.94 }}
+              transition={spring.snappy}
+              aria-label={mobileOpen ? 'Lukk meny' : 'Åpne meny'}
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-nav-sheet"
+              className="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+              style={{
+                color: 'var(--text-primary)',
+                background: 'color-mix(in oklab, var(--bg-elevated) 70%, transparent)',
+                border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              }}
+            >
+              <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden>
+                <motion.path
+                  d="M3 6h14"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  animate={mobileOpen ? { d: 'M5 5l10 10' } : { d: 'M3 6h14' }}
+                  transition={spring.snappy}
+                />
+                <motion.path
+                  d="M3 14h14"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  animate={mobileOpen ? { d: 'M5 15l10 -10' } : { d: 'M3 14h14' }}
+                  transition={spring.snappy}
+                />
+              </svg>
+            </motion.button>
           </div>
         </div>
+
+        {/* Mobile sheet — drops down under the bar */}
+        <AnimatePresence initial={false}>
+          {mobileOpen && (
+            <>
+              <motion.div
+                key="scrim"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
+                className="md:hidden fixed inset-0 top-16 z-40"
+                style={{
+                  background: 'color-mix(in oklab, var(--bg-primary) 35%, transparent)',
+                  backdropFilter: 'blur(6px)',
+                  WebkitBackdropFilter: 'blur(6px)',
+                }}
+                onClick={() => setMobileOpen(false)}
+                aria-hidden
+              />
+              <motion.nav
+                key="sheet"
+                id="mobile-nav-sheet"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={spring.snappy}
+                className="md:hidden absolute left-0 right-0 z-50 px-4 pt-3 pb-4"
+                style={{
+                  background: 'color-mix(in oklab, var(--bg-primary) 92%, transparent)',
+                  backdropFilter: 'blur(24px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                  borderBottom: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+                  boxShadow: '0 8px 24px -12px rgba(0,0,0,0.18)',
+                }}
+                aria-label={t.nav.mainNavAria}
+              >
+                <ul className="flex flex-col gap-1">
+                  {navLinks.map(({ href, label }) => {
+                    const isActive = activeHref === href
+                    return (
+                      <li key={href}>
+                        <Link
+                          href={href}
+                          onClick={(e) => handleNav(href, e)}
+                          className="flex items-center justify-between px-4 py-3 rounded-xl text-[15px] font-medium transition-colors"
+                          style={{
+                            color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                            background: isActive
+                              ? 'color-mix(in oklab, var(--bg-elevated) 85%, transparent)'
+                              : 'transparent',
+                            boxShadow: isActive
+                              ? '0 1px 2px rgba(0,0,0,0.04), 0 0 0 1px color-mix(in oklab, var(--border-subtle) 60%, transparent)'
+                              : 'none',
+                            fontFamily: 'var(--font-body)',
+                          }}
+                        >
+                          {label}
+                          {isActive && (
+                            <span
+                              aria-hidden
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ background: 'var(--accent-color)' }}
+                            />
+                          )}
+                        </Link>
+                      </li>
+                    )
+                  })}
+                  <li className="mt-1 pt-2" style={{ borderTop: '1px solid color-mix(in oklab, var(--border-subtle) 50%, transparent)' }}>
+                    <button
+                      type="button"
+                      onClick={() => { setMobileOpen(false); openCommandPalette() }}
+                      className="w-full flex items-center gap-2 px-4 py-3 rounded-xl text-[14px] font-medium"
+                      style={{
+                        color: 'var(--text-secondary)',
+                        background: 'color-mix(in oklab, var(--bg-elevated) 60%, transparent)',
+                        border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+                        fontFamily: 'var(--font-body)',
+                      }}
+                    >
+                      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden>
+                        <path
+                          d="M7 2.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Zm0 1.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm3.77 6.47 2.12 2.12a.8.8 0 1 1-1.13 1.13l-2.12-2.12a.8.8 0 1 1 1.13-1.13Z"
+                          fill="currentColor"
+                        />
+                      </svg>
+                      {t.nav.search}
+                    </button>
+                  </li>
+                </ul>
+              </motion.nav>
+            </>
+          )}
+        </AnimatePresence>
       </div>
     </header>
   )
