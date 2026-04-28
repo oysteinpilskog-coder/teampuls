@@ -5,6 +5,10 @@ import { resolveActiveMember } from '@/lib/supabase/session'
 import { parseTeamQuery } from '@/lib/ai/query'
 import { getServerDict } from '@/lib/i18n/server'
 
+// Edge runtime — same rationale as /api/ai/parse: pure fetch-based deps,
+// faster cold-start on the natural-language query path.
+export const runtime = 'edge'
+
 /**
  * POST /api/ai/query { question: string }
  *

@@ -6,6 +6,11 @@ import { parseTeamUpdate } from '@/lib/ai/parse-update'
 import { applyUpdates } from '@/lib/ai/apply-updates'
 import { getServerDict } from '@/lib/i18n/server'
 
+// Edge runtime — Anthropic SDK + Supabase clients are both fetch-based and
+// Edge-compatible. Cuts cold-start on the AI parse path so the moment a user
+// types into the AI box, the model call starts ~250ms sooner.
+export const runtime = 'edge'
+
 /**
  * Confidence threshold below which we bail to a clarification question
  * rather than writing anything. Kept low on purpose — we prefer a written

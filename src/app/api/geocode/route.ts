@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getServerDict } from '@/lib/i18n/server'
 
+// Edge runtime — only fetch + cookies-based Supabase auth, both Edge-safe.
+// First contact with Nominatim happens from a region close to the user.
+export const runtime = 'edge'
+
 // Free, open geocoder. 1 req/s rate limit from a single IP — fine for
 // interactive office editing. We cache via Next's fetch cache (24h).
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search'
