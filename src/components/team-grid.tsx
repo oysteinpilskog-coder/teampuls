@@ -1277,11 +1277,18 @@ export function TeamGrid({
                       })
                     })()}
 
-                    {/* Holiday corner-stripes — for SE/LT/GB members on days
-                        where their home country has a holiday but Norway
-                        doesn't. NO holidays already paint the whole column,
-                        so we suppress the per-cell stripe to avoid double
-                        signal. */}
+                    {/* Holiday cell-tint + label — for SE/LT/GB members on
+                        days where their home country has a holiday but
+                        Norway doesn't. NO holidays already paint the whole
+                        column, so we suppress the per-cell signal then to
+                        avoid double-treatment.
+
+                        We tint the whole cell with a subtle red wash and
+                        render the holiday name as a small label at the
+                        bottom-left, so a Lithuanian member's day off on
+                        Joninės reads at a glance — no hover required. The
+                        tint alpha is low enough that any entry bar
+                        underneath is still legible through it. */}
                     {(() => {
                       const office = member.home_office_id
                         ? officeById.get(member.home_office_id)
@@ -1294,9 +1301,10 @@ export function TeamGrid({
                         if (!name) return null
                         const leftCalc = `calc(144px + ${dayIdx} * ((100% - 176px) / 5 + 8px))`
                         const widthCalc = `calc((100% - 176px) / 5)`
+                        const truncated = name.length > 14 ? name.slice(0, 13) + '…' : name
                         return (
                           <div
-                            key={`hol-stripe-${dayIdx}`}
+                            key={`hol-tint-${dayIdx}`}
                             aria-hidden
                             title={`${flagFor(country)} ${name}`}
                             style={{
@@ -1309,21 +1317,34 @@ export function TeamGrid({
                               pointerEvents: 'none',
                               zIndex: 6,
                               overflow: 'hidden',
+                              background: isDark
+                                ? 'rgba(244, 63, 94, 0.10)'
+                                : 'rgba(244, 63, 94, 0.06)',
+                              boxShadow: 'inset 0 0 0 1px rgba(244, 63, 94, 0.18)',
                             }}
                           >
-                            <div
+                            <span
                               style={{
                                 position: 'absolute',
-                                top: 0,
-                                right: 0,
-                                width: 14,
-                                height: 14,
-                                background:
-                                  'linear-gradient(225deg, #F43F5E 0%, #F43F5E 50%, transparent 50%)',
-                                boxShadow: '0 0 8px rgba(244, 63, 94, 0.45)',
-                                borderTopRightRadius: 8,
+                                left: 6,
+                                bottom: 3,
+                                right: 6,
+                                fontSize: 9,
+                                fontWeight: 500,
+                                color: '#F43F5E',
+                                letterSpacing: '0.02em',
+                                opacity: 0.85,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                textShadow: isDark
+                                  ? '0 1px 2px rgba(0,0,0,0.45)'
+                                  : '0 1px 1px rgba(255,255,255,0.6)',
+                                fontFamily: 'var(--font-body)',
                               }}
-                            />
+                            >
+                              {flagFor(country)} {truncated}
+                            </span>
                           </div>
                         )
                       })
