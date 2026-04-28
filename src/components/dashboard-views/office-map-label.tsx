@@ -21,11 +21,11 @@ interface OfficeMapLabelProps {
 }
 
 // Bounding box for the foreignObject. Generous so long compound names
-// (Newcastle upon Tyne) still fit without horizontal clipping. The
-// content itself is flex-aligned to the correct side, so unused space
-// at either end is invisible.
-const FO_WIDTH = 320
-const FO_HEIGHT = 32
+// (Newcastle upon Tyne) still fit without horizontal clipping. Height
+// is intentionally tall — `<foreignObject>` clips its children by
+// default so we give the inner flex row plenty of breathing room.
+const FO_WIDTH = 360
+const FO_HEIGHT = 44
 
 // Halo: emulates the SVG `paint-order: stroke fill` we used on the old
 // <text> so the label remains legible over both ocean and landmass at
@@ -41,16 +41,26 @@ const META_HALO =
   '-1px 1px 0 rgba(2,4,10,0.7), 1px 1px 0 rgba(2,4,10,0.7)'
 
 /**
- * Composite city + vær label, drawn as a `<foreignObject>` over the
- * SVG map so we can mix Sora display type with the existing
- * lucide-react WeatherInline icons. The label is treated as one
- * cohesive unit — name primary, weather as recessive metadata
- * separated by a hairline middle-dot.
+ * Composite city + vær label drawn as a `<foreignObject>` over the SVG
+ * map so we can mix Sora display type with the lucide-react icons. The
+ * label is one cohesive unit — name primary, weather as recessive
+ * metadata separated by a hairline middle-dot.
  *
  * Side-aware alignment matches the SVG `text-anchor` semantics:
  *   right pin → label flows from labelX outward (justify-start)
  *   left pin  → label flows toward labelX (justify-end)
  *   top/bot   → label centred on labelX (justify-center)
+ *
+ * Implementation notes:
+ *  - We use a *plain* `<foreignObject>` (not `motion.foreignObject`) and
+ *    animate via a child `motion.div`. framer-motion's typed SVG variant
+ *    fights the SVG `y` attribute when given a numeric `y` motion value,
+ *    which silently kills the entire label render in some browsers.
+ *  - No explicit xmlns on the inner div — React 18+ writes the correct
+ *    namespace when an HTML element is nested inside a `<foreignObject>`.
+ *  - Height is tall enough that the descender of "g"/"y" + the icon row
+ *    never clip; the unused vertical space is invisible since the inner
+ *    flex row centres itself.
  */
 export function OfficeMapLabel({
   city, lat, lng, side, labelX, labelY, index,
@@ -62,8 +72,7 @@ export function OfficeMapLabel({
 
   // Vertical centring of the foreignObject around the original baseline.
   // The old <text> sat at `labelY` as its alphabetic baseline; the box
-  // is centred ~9px above and below to keep the visual middle aligned
-  // with the previous design.
+  // is centred ~22px above the baseline so the visual middle stays put.
   const x =
     side === 'left'  ? labelX - FO_WIDTH :
     side === 'right' ? labelX :
@@ -76,34 +85,25 @@ export function OfficeMapLabel({
     'center'
 
   // Cold gets a paper-dim so the temperature recedes against the
-  // primary city name; warm gets Ember at full intensity — the only
-  // accent allowed to bloom out of the labels.
-  const weatherColor = warm ? '#FBBF24' : 'rgba(245, 239, 228, 0.78)'
-  // Cooler glow for warm Ember; transparent halo for cold so it
-  // disappears into the map ink instead of competing with the name.
-  const iconShadow = warm
-    ? `0 0 8px ${weatherColor}55`
-    : 'none'
+  // primary city name; warm gets Ember-glow at full intensity — the
+  // only accent allowed to bloom out of the labels.
+  const weatherColor = warm ? '#FBBF24' : 'rgba(245, 239, 228, 0.82)'
+  const iconShadow = warm ? `0 0 8px ${weatherColor}55` : 'none'
 
   return (
-    <motion.foreignObject
+    <foreignObject
       x={x}
       y={y}
       width={FO_WIDTH}
       height={FO_HEIGHT}
-      initial={{ opacity: 0, y: y + 6 }}
-      animate={{ opacity: 1, y }}
-      transition={{ ...spring.gentle, delay: 0.55 + index * 0.08 }}
-      style={{ overflow: 'visible' }}
     >
-      <div
-        // xmlns is required for foreignObject children in some renderers
-        // (Safari historically) — keeps the HTML tree well-formed.
-        // @ts-expect-error: xmlns is not part of div's type but is valid SVG-HTML interop
-        xmlns="http://www.w3.org/1999/xhtml"
+      <motion.div
+        initial={{ opacity: 0, transform: 'translateY(6px)' }}
+        animate={{ opacity: 1, transform: 'translateY(0px)' }}
+        transition={{ ...spring.gentle, delay: 0.55 + index * 0.08 }}
         style={{
           display: 'flex',
-          alignItems: 'baseline',
+          alignItems: 'center',
           gap: 8,
           width: '100%',
           height: '100%',
@@ -139,13 +139,13 @@ export function OfficeMapLabel({
               fontVariantNumeric: 'tabular-nums',
               letterSpacing: '-0.005em',
               textShadow: META_HALO,
-              opacity: warm ? 1 : 0.92,
+              opacity: warm ? 1 : 0.95,
             }}
           >
             <span
               aria-hidden
               style={{
-                color: 'rgba(245, 239, 228, 0.32)',
+                color: 'rgba(245, 239, 228, 0.4)',
                 fontWeight: 400,
                 marginRight: 1,
                 textShadow: META_HALO,
@@ -154,18 +154,19 @@ export function OfficeMapLabel({
               ·
             </span>
             <Icon
-              size={13}
+              size={14}
               strokeWidth={1.8}
               aria-hidden
               style={{
                 filter: warm ? `drop-shadow(${iconShadow})` : undefined,
                 flexShrink: 0,
+                display: 'block',
               }}
             />
             <span>{formatTemp(snap.tempC)}</span>
           </span>
         )}
-      </div>
-    </motion.foreignObject>
+      </motion.div>
+    </foreignObject>
   )
 }
