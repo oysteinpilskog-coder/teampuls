@@ -85,7 +85,28 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --debug
+          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+
+      # Legacy bootstrap: migrations 001-014 were applied to prod manually
+      # via the SQL Editor before this workflow existed, but Supabase's
+      # `supabase_migrations.schema_migrations` tracking table was never
+      # populated. Without this step, `db push` re-runs migration 003
+      # (CREATE POLICY members_admin_update) which fails with SQLSTATE
+      # 42710 ("policy already exists"). `migration repair --status
+      # applied` UPSERTs the version into schema_migrations without
+      # running the SQL, so subsequent invocations are no-ops. Safe to
+      # leave in place forever, but can be removed once we're confident
+      # no environment is still missing the bootstrap.
+      - name: Bootstrap legacy migration tracking (001-014)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          for ver in 001 002 003 004 005 006 007 008 009 010 011 012 013 014; do
+            echo "::group::repair $ver"
+            supabase migration repair --status applied "$ver" || echo "(repair for $ver failed, continuing)"
+            echo "::endgroup::"
+          done
 
       - name: Push migrations
         env:
