@@ -23,7 +23,13 @@ import { useTheme } from 'next-themes'
 import { MemberAvatar } from '@/components/member-avatar'
 import { MemberHoverCard } from '@/components/member-hover-card'
 import { TodayPulse } from '@/components/today-pulse'
-import { CellEditor } from '@/components/cell-editor'
+import dynamic from 'next/dynamic'
+// CellEditor is a 558-line modal that's invisible until a cell is clicked.
+// Lazy-loading drops ~50-100 KB from the home page's first-load JS.
+const CellEditor = dynamic(
+  () => import('@/components/cell-editor').then(m => ({ default: m.CellEditor })),
+  { ssr: false }
+)
 import { spring } from '@/lib/motion'
 import { useEntries } from '@/hooks/use-entries'
 import { useT } from '@/lib/i18n/context'

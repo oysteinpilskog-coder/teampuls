@@ -40,8 +40,15 @@ import type { Entry, Member, Office, Organization, Customer, DashboardViewKey } 
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 
+type OrgRow = Pick<Organization, 'name' | 'timezone' | 'dashboard_show_sick' | 'dashboard_rotation_views' | 'dashboard_view_durations'>
+
 interface DashboardClientProps {
   orgId: string
+  /** Server-prefetched org row. Skips the first client fetch when present. */
+  initialOrg?: OrgRow | null
+  initialMembers?: Member[]
+  initialOffices?: Office[]
+  initialCustomers?: Customer[]
 }
 
 type ViewKey = DashboardViewKey
@@ -60,7 +67,13 @@ function dedupeByMember(rows: Entry[], members: Member[]): Entry[] {
   return Array.from(map.values())
 }
 
-export function DashboardClient({ orgId }: DashboardClientProps) {
+export function DashboardClient({
+  orgId,
+  initialOrg,
+  initialMembers,
+  initialOffices,
+  initialCustomers,
+}: DashboardClientProps) {
   const t = useT()
   // Memoized so the segmented switcher and aria-labels keep stable refs
   // across the once-per-second clock tick.
@@ -90,12 +103,16 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
   // progress hairline so we can prove the auto-rotate timer is alive.
   const [viewStartedAt, setViewStartedAt] = useState(() => Date.now())
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [members, setMembers] = useState<Member[]>([])
-  const [offices, setOffices] = useState<Office[]>([])
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [org, setOrg] = useState<Pick<Organization, 'name' | 'timezone' | 'dashboard_show_sick' | 'dashboard_rotation_views' | 'dashboard_view_durations'> | null>(null)
-  const [dataReady, setDataReady] = useState(false)
+  const [members, setMembers] = useState<Member[]>(initialMembers ?? [])
+  const [offices, setOffices] = useState<Office[]>(initialOffices ?? [])
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers ?? [])
+  const [org, setOrg] = useState<OrgRow | null>(initialOrg ?? null)
+  const [dataReady, setDataReady] = useState(initialMembers !== undefined)
   const [loadError, setLoadError] = useState<string | null>(null)
+  // Skip the first client fetch when SSR gave us everything — saves four
+  // round-trips on every cold load of the dashboard. Subsequent route
+  // navigations (which bypass SSR via the App Router cache) still fetch.
+  const firstFetchWithSSR = useRef(initialMembers !== undefined)
   const containerRef = useRef<HTMLDivElement>(null)
   const signatureRef = useRef<HTMLDivElement>(null)
 
@@ -194,6 +211,10 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
   // pill appears and aurora + clock keep running so the screen never goes
   // dark. Realtime subscriptions still try to recover the state.
   const fetchData = useCallback(async () => {
+    if (firstFetchWithSSR.current) {
+      firstFetchWithSSR.current = false
+      return
+    }
     const supabase = createClient()
     try {
       const [orgRes, membersRes, officesRes, customersRes] = await Promise.all([
