@@ -562,19 +562,20 @@ export function DashboardClient({
         </div>
       )}
 
-      {/* Rotation progress hairline — top edge */}
-      <RotationHairline pct={rotationPct} />
-
       {/* ── Floating control bar (iOS-style segmented glass pill) ── */}
-      <div className="relative flex items-center justify-between px-6 pt-2 pb-2 gap-4">
-        {/* Left: back link */}
-        <a
-          href="/"
-          className="text-[12px] transition-colors hover:opacity-80 tabular-nums uppercase tracking-[0.22em] font-semibold"
-          style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-body)' }}
-        >
-          {t.dashboard.back}
-        </a>
+      <div className="relative flex items-center justify-between px-6 pt-3 pb-2 gap-4">
+        {/* Left: back link — skjules i fullskjerm så TV-en er ren. */}
+        {isFullscreen ? (
+          <span aria-hidden />
+        ) : (
+          <a
+            href="/"
+            className="text-[12px] transition-colors hover:opacity-80 tabular-nums uppercase tracking-[0.22em] font-semibold"
+            style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-body)' }}
+          >
+            {t.dashboard.back}
+          </a>
+        )}
 
         {/* Centre: segmented view switcher */}
         <motion.div
@@ -644,14 +645,16 @@ export function DashboardClient({
           })}
         </motion.div>
 
-        {/* Right: hint + fullscreen */}
+        {/* Right: hint + fullscreen — hint skjules i fullskjerm. */}
         <div className="flex items-center gap-4">
-          <p
-            className="hidden md:block text-[11px] tracking-[0.14em] uppercase"
-            style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-body)' }}
-          >
-            {t.dashboard.hint}
-          </p>
+          {!isFullscreen && (
+            <p
+              className="hidden md:block text-[11px] tracking-[0.14em] uppercase"
+              style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-body)' }}
+            >
+              {t.dashboard.hint}
+            </p>
+          )}
           <button
             onClick={toggleFullscreen}
             className="flex items-center justify-center w-9 h-9 rounded-full transition-all hover:bg-white/5"
@@ -676,7 +679,9 @@ export function DashboardClient({
         </div>
       </div>
 
-      {/* Rotation progress hairline — bottom edge (mirror of top) */}
+      {/* Rotasjons-progressbar under kontroll-baren. Tidligere var det også
+          en speilet linje på toppen, men den ble fjernet — én linje er nok
+          for å bevise at auto-rotasjonen lever, uten å ramme dashbordet. */}
       <RotationHairline pct={rotationPct} />
 
       {/* Tidssoneklokker — alltid synlig, ikke en del av view-rotasjonen.
@@ -695,10 +700,10 @@ export function DashboardClient({
 }
 
 /**
- * Thin Nordlys gradient line that fills with each view's dwell. Rendered at
- * half strength on both edges of the control bar so the combined weight
- * matches the original single line and frames the bar like the
- * KUNDEPORTEFØLJE widget's Nordlys rail.
+ * Thin Nordlys gradient line that fills with each view's dwell. Sitter
+ * under kontroll-baren som en eneste fin rail à la KUNDEPORTEFØLJE-
+ * widgeten. Tidligere fantes en speilet versjon på toppen — den ble
+ * fjernet, så denne kjører på full opacity igjen.
  */
 function RotationHairline({ pct }: { pct: number }) {
   return (
@@ -715,7 +720,7 @@ function RotationHairline({ pct }: { pct: number }) {
           backgroundSize: '100vw 100%',
           backgroundRepeat: 'no-repeat',
           backgroundPosition: 'left center',
-          opacity: 0.55,
+          opacity: 0.95,
           boxShadow:
             '0 0 8px rgba(0, 217, 245, 0.28), 0 0 16px rgba(0, 245, 160, 0.14)',
         }}
