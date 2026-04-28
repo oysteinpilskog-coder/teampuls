@@ -275,7 +275,7 @@ export const no = {
       other: 'Ingen akkurat nå',
     },
     customer: {
-      title: 'Hos kunde',
+      title: 'Kunder',
       todayWeekCount: '{today} ute hos kunde nå · {week} denne uken',
       portfolio: 'Kundeportefølje',
       visited: 'besøkt',

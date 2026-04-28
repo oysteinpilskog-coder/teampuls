@@ -82,27 +82,19 @@ export function WheelView({ orgIds, logoOrgId, orgName, time }: WheelViewProps) 
     return { todayEvents: ongoing, upcomingEvents: future }
   }, [events, todayYmd])
 
-  const hours = pad(time.getHours())
-  const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)
 
   return (
-    <div className="relative h-full flex flex-col px-10 pt-6 pb-4 gap-6">
-      {/* ── Header ───────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+    <div className="relative h-full flex flex-col px-10 pt-14 pb-4 gap-6">
+      {/* ── Header — org-navn og klokke eies av global topp-bar. */}
+      <div className="flex-shrink-0">
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...spring.gentle, delay: 0.05 }}
         >
           <p
-            className="text-[13px] font-medium tracking-[0.22em] uppercase"
-            style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
-          >
-            {orgName}
-          </p>
-          <p
-            className="text-[30px] font-semibold tracking-tight leading-none mt-1"
+            className="text-[30px] font-semibold tracking-tight leading-none"
             style={{
               fontFamily: 'var(--font-sora)',
               background:
@@ -114,26 +106,6 @@ export function WheelView({ orgIds, logoOrgId, orgName, time }: WheelViewProps) 
           >
             Årshjulet · {year}
           </p>
-        </motion.div>
-        <motion.div
-          className="tabular-nums text-right"
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.gentle, delay: 0.12 }}
-          style={{
-            fontSize: '64px',
-            fontWeight: 700,
-            fontFamily: 'var(--font-sora)',
-            letterSpacing: '-0.04em',
-            background:
-              'linear-gradient(180deg, #00F5A0 -12%, #00D9F5 16%, #ffffff 52%, #ffffff 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            filter: 'drop-shadow(0 0 24px rgba(0,217,245,0.22))',
-          }}
-        >
-          {hours}:{minutes}
         </motion.div>
       </div>
 

@@ -35,8 +35,6 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
     sick: t.status.sick,
     off: t.status.off,
   }
-  const hours   = pad(time.getHours())
-  const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)
   const year    = time.getFullYear()
 
@@ -60,27 +58,21 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
   const weekTotal = entries.length
   const topStatuses = weekTotals.filter(w => w.count > 0).sort((a, b) => b.count - a.count)
 
-  // Donut arithmetic
-  const CIRC = 2 * Math.PI * 96
+  // Donut arithmetic — radius bumped to 140 for TV-wall-readable scale.
+  const CIRC = 2 * Math.PI * 140
   let runningPct = 0
 
   return (
-    <div className="relative h-full flex flex-col px-10 pt-6 pb-4 gap-6">
-      {/* ── Header ───────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+    <div className="relative h-full flex flex-col px-10 pt-14 pb-4 gap-8">
+      {/* ── Header — org-navn og klokke eies av global topp-bar. */}
+      <div className="flex-shrink-0">
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...spring.gentle, delay: 0.05 }}
         >
           <p
-            className="text-[13px] font-medium tracking-[0.22em] uppercase"
-            style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
-          >
-            {orgName}
-          </p>
-          <p
-            className="text-[30px] font-semibold tracking-tight leading-none mt-1"
+            className="text-[30px] font-semibold tracking-tight leading-none"
             style={{
               fontFamily: 'var(--font-sora)',
               background:
@@ -92,26 +84,6 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
           >
             {t.dashboard.month.title}
           </p>
-        </motion.div>
-        <motion.div
-          className="tabular-nums text-right"
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.gentle, delay: 0.12 }}
-          style={{
-            fontSize: '64px',
-            fontWeight: 700,
-            fontFamily: 'var(--font-sora)',
-            letterSpacing: '-0.04em',
-            background:
-              'linear-gradient(180deg, #00F5A0 -12%, #00D9F5 16%, #ffffff 52%, #ffffff 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            filter: 'drop-shadow(0 0 24px rgba(0,217,245,0.22))',
-          }}
-        >
-          {hours}:{minutes}
         </motion.div>
       </div>
 
@@ -131,7 +103,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
           }}
         >
           {/* Decorative concentric orbit rings */}
-          {[420, 320, 220, 120].map((size, i) => (
+          {[600, 460, 320, 180].map((size, i) => (
             <div
               key={i}
               aria-hidden
@@ -148,14 +120,14 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
           ))}
 
           {/* Center donut */}
-          <div className="relative flex items-center justify-center" style={{ width: 280, height: 280 }}>
-            <svg width={280} height={280} viewBox="-140 -140 280 280" className="absolute inset-0">
+          <div className="relative flex items-center justify-center" style={{ width: 400, height: 400 }}>
+            <svg width={400} height={400} viewBox="-200 -200 400 400" className="absolute inset-0">
               {/* Base track */}
               <circle
-                r={96}
+                r={140}
                 fill="none"
                 stroke="rgba(255,255,255,0.06)"
-                strokeWidth={14}
+                strokeWidth={20}
               />
               {/* Stacked status arcs */}
               {weekTotal > 0 && weekTotals.map(({ status, count }) => {
@@ -168,10 +140,10 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                 return (
                   <motion.circle
                     key={status}
-                    r={96}
+                    r={140}
                     fill="none"
                     stroke={STATUS_COLORS[status].icon}
-                    strokeWidth={14}
+                    strokeWidth={20}
                     strokeLinecap="butt"
                     strokeDasharray={`${dash} ${gap}`}
                     initial={{ strokeDashoffset: 0, opacity: 0 }}
@@ -191,7 +163,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
 
             <div className="relative z-10 flex flex-col items-center gap-1 text-center">
               <span
-                className="text-[11px] font-semibold tracking-[0.22em] uppercase"
+                className="text-[13px] font-semibold tracking-[0.22em] uppercase"
                 style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
               >
                 Uke
@@ -202,7 +174,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                 duration={0.9}
                 className="tabular-nums leading-none"
                 style={{
-                  fontSize: '96px',
+                  fontSize: '140px',
                   fontWeight: 700,
                   fontFamily: 'var(--font-sora)',
                   letterSpacing: '-0.05em',
@@ -211,11 +183,11 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
-                  filter: 'drop-shadow(0 0 28px rgba(120,150,255,0.35))',
+                  filter: 'drop-shadow(0 0 36px rgba(120,150,255,0.4))',
                 }}
               />
               <span
-                className="text-[14px] font-medium"
+                className="text-[18px] font-medium"
                 style={{ color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-body)' }}
               >
                 {year}
@@ -224,7 +196,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
           </div>
 
           {/* Week mini-grid */}
-          <div className="relative z-10 flex gap-4">
+          <div className="relative z-10 flex gap-6">
             {weekDays.map((date, di) => {
               const { weekday, day } = getDayLabel(date)
               const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
@@ -236,16 +208,16 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ ...spring.gentle, delay: 0.6 + di * 0.05 }}
-                  className="flex flex-col items-center gap-1.5 min-w-[56px]"
+                  className="flex flex-col items-center gap-1.5 min-w-[80px]"
                 >
                   <span
-                    className="text-[11px] font-semibold uppercase tracking-[0.18em]"
+                    className="text-[13px] font-semibold uppercase tracking-[0.18em]"
                     style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-body)' }}
                   >
                     {weekday}
                   </span>
                   <span
-                    className="tabular-nums text-[20px] font-semibold"
+                    className="tabular-nums text-[26px] font-semibold"
                     style={{ color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-sora)' }}
                   >
                     {day}
@@ -257,14 +229,14 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                       return (
                         <div key={status} className="flex items-center gap-1.5">
                           <span
-                            className="w-1.5 h-1.5 rounded-full"
+                            className="w-2 h-2 rounded-full"
                             style={{
                               backgroundColor: STATUS_COLORS[status].icon,
                               boxShadow: `0 0 6px ${STATUS_COLORS[status].icon}88`,
                             }}
                           />
                           <span
-                            className="text-[10px] tabular-nums font-medium"
+                            className="text-[12px] tabular-nums font-medium"
                             style={{ color: STATUS_COLORS[status].textDark, fontFamily: 'var(--font-body)' }}
                           >
                             {count}
