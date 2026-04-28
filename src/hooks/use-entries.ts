@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Entry } from '@/lib/supabase/types'
+import { useDocumentVisibility } from '@/hooks/use-document-visibility'
 
 /**
  * Fetches entries for the given org + date strings, and subscribes to
@@ -20,6 +21,11 @@ export function useEntries(
 ) {
   const [entries, setEntries] = useState<Entry[]>(opts.initial ?? [])
   const [loading, setLoading] = useState(opts.initial === undefined)
+  const visible = useDocumentVisibility()
+  // Tracks whether the previous render was in the hidden state so we know
+  // when to fire a catch-up fetch on resume — and avoid an extra fetch on
+  // first mount (where the dedicated fetch effect already runs).
+  const wasHiddenRef = useRef(false)
 
   // Record the dateStrings fingerprint of the initial data so we only skip
   // the first fetch when it's actually applicable. Subsequent week
@@ -69,8 +75,15 @@ export function useEntries(
     return () => window.removeEventListener('teampulse:entries-changed', handler)
   }, [fetchEntries])
 
-  // Subscribe to Realtime changes for this org — one subscription per orgId
+  // Subscribe to Realtime changes for this org — one subscription per orgId.
+  // Skipped while the tab is hidden so we don't burn a websocket + decode JSON
+  // on every entry update for a screen no one is looking at. When the tab
+  // becomes visible again the effect re-runs (subscribe + fetch catch-up).
   useEffect(() => {
+    if (!visible) {
+      wasHiddenRef.current = true
+      return
+    }
     const supabase = createClient()
     const channel = supabase
       .channel(`entries:org:${orgId}`)
@@ -101,11 +114,17 @@ export function useEntries(
         }
       )
       .subscribe()
+    // Fire a one-shot catch-up only when resuming from a hidden state;
+    // the initial-mount fetch is handled by the fetch effect above.
+    if (wasHiddenRef.current) {
+      wasHiddenRef.current = false
+      fetchEntries()
+    }
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [orgId])
+  }, [orgId, visible, fetchEntries])
 
   /**
    * Apply an in-memory update to the entries list without touching the DB.

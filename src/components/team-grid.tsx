@@ -317,18 +317,36 @@ export function TeamGrid({
     return members.filter((m) => memberIdsWithEntries.has(m.id))
   }, [members, entries, presenceAssumption])
 
-  // Fetch members once (they rarely change)
-  // On mount 1, honour the SSR-seeded members (no skeletons, no flash) and
-  // only fetch in the background to refresh. Mount 2+ behaves normally.
+  // Fetch supporting data once. When SSR has already seeded `members` we
+  // skip the members query and only fetch the things SSR didn't provide
+  // (offices for the hover card + the org's presence-assumption setting),
+  // saving one round trip on every cold load of the home page.
   const firstFetchWithSSR = useRef(!!initialMembers)
   const fetchMembers = useCallback(async () => {
-    if (!firstFetchWithSSR.current) {
+    const skipMembers = firstFetchWithSSR.current
+    if (!skipMembers) {
       setMembersLoading(true)
     }
     firstFetchWithSSR.current = false
     const supabase = createClient()
-    // Fetch members and offices in parallel — the hover card needs the home
-    // office's name + timezone to show each member's local time.
+    if (skipMembers) {
+      const [{ data: os }, { data: org }] = await Promise.all([
+        supabase
+          .from('offices')
+          .select('*')
+          .eq('org_id', orgId)
+          .order('sort_order'),
+        supabase
+          .from('organizations')
+          .select('default_presence_assumption')
+          .eq('id', orgId)
+          .maybeSingle(),
+      ])
+      setOffices(os ?? [])
+      setPresenceAssumption((org?.default_presence_assumption ?? 'none') as PresenceAssumption)
+      setMembersLoading(false)
+      return
+    }
     const [{ data: ms }, { data: os }, { data: org }] = await Promise.all([
       supabase
         .from('members')

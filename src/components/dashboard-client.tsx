@@ -1,15 +1,34 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEntries } from '@/hooks/use-entries'
-import { TodayView } from '@/components/dashboard-views/today-view'
-import { MonthView } from '@/components/dashboard-views/month-view'
-import { OfficeMapView } from '@/components/dashboard-views/office-map-view'
-import { CustomerMapView } from '@/components/dashboard-views/customer-map-view'
-import { WheelView } from '@/components/dashboard-views/wheel-view'
+// Heavy view bundles (Leaflet, d3-geo, big SVG wheel, …) are split out so the
+// dashboard shell paints fast and each view chunk loads on first use. Aurora
+// stays statically imported because it owns the immediate background.
+const TodayView = dynamic(
+  () => import('@/components/dashboard-views/today-view').then(m => ({ default: m.TodayView })),
+  { ssr: false }
+)
+const MonthView = dynamic(
+  () => import('@/components/dashboard-views/month-view').then(m => ({ default: m.MonthView })),
+  { ssr: false }
+)
+const OfficeMapView = dynamic(
+  () => import('@/components/dashboard-views/office-map-view').then(m => ({ default: m.OfficeMapView })),
+  { ssr: false }
+)
+const CustomerMapView = dynamic(
+  () => import('@/components/dashboard-views/customer-map-view').then(m => ({ default: m.CustomerMapView })),
+  { ssr: false }
+)
+const WheelView = dynamic(
+  () => import('@/components/dashboard-views/wheel-view').then(m => ({ default: m.WheelView })),
+  { ssr: false }
+)
 import { AuroraBackground } from '@/components/dashboard-views/aurora-background'
 import { OffiviewSignature } from '@/components/brand/offiview-signature'
 import { BrandTransition } from '@/components/brand/brand-transition'
@@ -96,10 +115,33 @@ export function DashboardClient({ orgId }: DashboardClientProps) {
   const weekDays = getWeekDays(week, year)
   const dateStrings = weekDays.map(toDateString)
 
-  // Live clock
+  // Live clock — pauses while the tab is hidden so we don't rerender the
+  // whole dashboard tree once a second for nobody. Resumes immediately on
+  // visibility change with a fresh time so the clock doesn't show a frozen
+  // wall-time when the user comes back.
   useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1000)
-    return () => clearInterval(id)
+    let id: ReturnType<typeof setInterval> | null = null
+    const start = () => {
+      if (id !== null) return
+      setTime(new Date())
+      id = setInterval(() => setTime(new Date()), 1000)
+    }
+    const stop = () => {
+      if (id === null) return
+      clearInterval(id)
+      id = null
+    }
+    const onVis = () => (document.hidden ? stop() : start())
+    if (typeof document !== 'undefined') {
+      if (!document.hidden) start()
+      document.addEventListener('visibilitychange', onVis)
+    }
+    return () => {
+      stop()
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVis)
+      }
+    }
   }, [])
 
   // Clamp the active index if the admin just removed the current view from

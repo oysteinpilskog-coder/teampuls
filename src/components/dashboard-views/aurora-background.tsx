@@ -1,8 +1,9 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import type { Entry, EntryStatus } from '@/lib/supabase/types'
 import { useStatusColors } from '@/lib/status-colors/context'
+import { useDocumentVisibility } from '@/hooks/use-document-visibility'
 
 interface AuroraBackgroundProps {
   entries: Entry[]
@@ -61,6 +62,12 @@ const LIGHTS: Array<{
 export function AuroraBackground({ entries }: AuroraBackgroundProps) {
   const total = entries.length || 1
   const STATUS_COLORS = useStatusColors()
+  // Pause the orbit + breathing animations when the tab is hidden or the
+  // user prefers reduced motion. The lights stay painted so the dashboard
+  // never goes dark, but we stop spending GPU on a 90px blur every frame.
+  const visible = useDocumentVisibility()
+  const reduceMotion = useReducedMotion()
+  const animate = visible && !reduceMotion
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
@@ -91,43 +98,56 @@ export function AuroraBackground({ entries }: AuroraBackgroundProps) {
               left: `${light.origin.x}%`,
               top: `${light.origin.y}%`,
             }}
-            animate={{
-              opacity,
-              left: [
-                `${light.origin.x}%`,
-                `${light.origin.x + light.orbit.x}%`,
-                `${light.origin.x - light.orbit.x}%`,
-                `${light.origin.x}%`,
-              ],
-              top: [
-                `${light.origin.y}%`,
-                `${light.origin.y - light.orbit.y}%`,
-                `${light.origin.y + light.orbit.y}%`,
-                `${light.origin.y}%`,
-              ],
-            }}
-            transition={{
-              opacity: { duration: 1.6, delay: light.delay * 0.1, ease: 'easeOut' },
-              left: {
-                duration: light.duration,
-                delay: light.delay,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              },
-              top: {
-                duration: light.duration * 0.82,
-                delay: light.delay,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              },
-            }}
+            animate={
+              animate
+                ? {
+                    opacity,
+                    left: [
+                      `${light.origin.x}%`,
+                      `${light.origin.x + light.orbit.x}%`,
+                      `${light.origin.x - light.orbit.x}%`,
+                      `${light.origin.x}%`,
+                    ],
+                    top: [
+                      `${light.origin.y}%`,
+                      `${light.origin.y - light.orbit.y}%`,
+                      `${light.origin.y + light.orbit.y}%`,
+                      `${light.origin.y}%`,
+                    ],
+                  }
+                : { opacity, left: `${light.origin.x}%`, top: `${light.origin.y}%` }
+            }
+            transition={
+              animate
+                ? {
+                    opacity: { duration: 1.6, delay: light.delay * 0.1, ease: 'easeOut' },
+                    left: {
+                      duration: light.duration,
+                      delay: light.delay,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                    },
+                    top: {
+                      duration: light.duration * 0.82,
+                      delay: light.delay,
+                      repeat: Infinity,
+                      ease: 'easeInOut',
+                    },
+                  }
+                : { duration: 0.4, ease: 'easeOut' }
+            }
             style={{
               width: size,
               height: size,
               marginLeft: -size / 2,
               marginTop: -size / 2,
               background: `radial-gradient(circle, ${color}cc 0%, ${color}55 30%, ${color}00 65%)`,
-              filter: 'blur(90px)',
+              // 90px blur on a fullscreen element is one of the most expensive
+              // operations a GPU can do. Drop to 50px — visually nearly
+              // identical because the gradient already has soft falloff —
+              // and let `will-change` hint the compositor.
+              filter: 'blur(50px)',
+              willChange: animate ? 'left, top' : undefined,
               mixBlendMode: 'screen',
             }}
           />
@@ -138,8 +158,16 @@ export function AuroraBackground({ entries }: AuroraBackgroundProps) {
       <motion.div
         className="absolute rounded-full"
         initial={{ opacity: 0 }}
-        animate={{ opacity: [0.12, 0.22, 0.12], scale: [1, 1.08, 1] }}
-        transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+        animate={
+          animate
+            ? { opacity: [0.12, 0.22, 0.12], scale: [1, 1.08, 1] }
+            : { opacity: 0.18, scale: 1 }
+        }
+        transition={
+          animate
+            ? { duration: 9, repeat: Infinity, ease: 'easeInOut' }
+            : { duration: 0.4, ease: 'easeOut' }
+        }
         style={{
           width: 520,
           height: 520,
@@ -149,7 +177,7 @@ export function AuroraBackground({ entries }: AuroraBackgroundProps) {
           marginTop: -260,
           background:
             'radial-gradient(circle, color-mix(in oklab, var(--accent-color) 38%, transparent) 0%, color-mix(in oklab, var(--accent-color) 8%, transparent) 40%, transparent 70%)',
-          filter: 'blur(60px)',
+          filter: 'blur(36px)',
           mixBlendMode: 'screen',
         }}
       />

@@ -72,28 +72,39 @@ export function EuropeMapCanvas({
       }}
     >
       {/* Ambient star field — separate SVG stretched to fill the container
-          so stars are scattered across ocean, not clustered in the map box. */}
+          so stars are scattered across ocean, not clustered in the map box.
+          One shared CSS keyframe with per-circle `animation-delay`/`-duration`
+          replaces 160 framer-motion tweens — the compositor handles it for
+          free, and the tab pauses animations automatically when hidden. */}
       <svg
-        className="absolute inset-0 w-full h-full"
+        className="absolute inset-0 w-full h-full star-field"
         viewBox="0 0 1000 600"
         preserveAspectRatio="none"
         aria-hidden
       >
+        <style>{`
+          @keyframes star-twinkle { 0%, 100% { opacity: var(--star-min); } 50% { opacity: var(--star-max); } }
+          .star-field circle {
+            animation: star-twinkle var(--star-dur, 6s) ease-in-out infinite;
+            animation-delay: var(--star-delay, 0s);
+            transform-origin: center;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .star-field circle { animation: none; opacity: var(--star-max); }
+          }
+        `}</style>
         {STAR_FIELD.map((s, i) => (
-          <motion.circle
+          <circle
             key={i}
             cx={s.x}
             cy={s.y}
             r={s.r}
             fill="white"
-            opacity={s.o}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [s.o * 0.35, s.o, s.o * 0.35] }}
-            transition={{
-              duration: 4 + (i % 5),
-              delay: (i % 9) * 0.3,
-              repeat: Infinity,
-              ease: 'easeInOut',
+            style={{
+              ['--star-min' as string]: (s.o * 0.35).toFixed(3),
+              ['--star-max' as string]: s.o.toFixed(3),
+              ['--star-dur' as string]: `${4 + (i % 5)}s`,
+              ['--star-delay' as string]: `${(i % 9) * 0.3}s`,
             }}
           />
         ))}

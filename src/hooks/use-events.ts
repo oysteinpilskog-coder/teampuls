@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { OrgEvent } from '@/lib/supabase/types'
+import { useDocumentVisibility } from '@/hooks/use-document-visibility'
 
 /**
  * Fetches org events overlapping the given year, and subscribes to
@@ -11,6 +12,8 @@ import type { OrgEvent } from '@/lib/supabase/types'
 export function useEvents(orgId: string, year: number) {
   const [events, setEvents] = useState<OrgEvent[]>([])
   const [loading, setLoading] = useState(true)
+  const visible = useDocumentVisibility()
+  const wasHiddenRef = useRef(false)
 
   const fetchEvents = useCallback(async () => {
     const supabase = createClient()
@@ -34,6 +37,10 @@ export function useEvents(orgId: string, year: number) {
   }, [fetchEvents])
 
   useEffect(() => {
+    if (!visible) {
+      wasHiddenRef.current = true
+      return
+    }
     const supabase = createClient()
     const yearStart = `${year}-01-01`
     const yearEnd = `${year}-12-31`
@@ -72,11 +79,15 @@ export function useEvents(orgId: string, year: number) {
         setEvents(prev => prev.filter(e => e.id !== deletedId))
       })
       .subscribe()
+    if (wasHiddenRef.current) {
+      wasHiddenRef.current = false
+      fetchEvents()
+    }
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [orgId, year])
+  }, [orgId, year, visible, fetchEvents])
 
   return { events, loading, refetch: fetchEvents }
 }

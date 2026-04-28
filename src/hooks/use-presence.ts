@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import { useDocumentVisibility } from '@/hooks/use-document-visibility'
 
 /**
  * Supabase Realtime presence — broadcasts "who's online" for an org via a
@@ -51,6 +52,7 @@ export interface UsePresenceResult {
 export function usePresence({ orgId, me, page }: UsePresenceParams): UsePresenceResult {
   const [others, setOthers] = useState<PresenceState[]>([])
   const [mine, setMine] = useState<PresenceState | null>(null)
+  const visible = useDocumentVisibility()
 
   const tabKeyRef = useRef<string>('')
   if (!tabKeyRef.current) tabKeyRef.current = cryptoKey()
@@ -65,8 +67,10 @@ export function usePresence({ orgId, me, page }: UsePresenceParams): UsePresence
   useEffect(() => { pageRef.current = page }, [page])
 
   // Subscribe once per org — re-subscribe when orgId or memberId changes.
+  // Skip while the tab is hidden so we drop our own presence broadcast and
+  // stop decoding everyone else's. We re-subscribe (and reappear) on resume.
   useEffect(() => {
-    if (!orgId || !me) return
+    if (!orgId || !me || !visible) return
     const supabase = createClient()
     const tabKey = tabKeyRef.current
     const channel = supabase.channel(`presence:org:${orgId}`, {
@@ -106,7 +110,7 @@ export function usePresence({ orgId, me, page }: UsePresenceParams): UsePresence
       supabase.removeChannel(channel)
       channelRef.current = null
     }
-  }, [orgId, me?.id])
+  }, [orgId, me?.id, visible])
 
   // Re-track whenever the page changes without tearing down the channel.
   useEffect(() => {
