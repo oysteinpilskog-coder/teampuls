@@ -361,7 +361,7 @@ function HoverCardBody({
       {/* Office + local time row */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <Label>Hjemmekontor</Label>
+          <Label>Kontor</Label>
           <div
             className="text-[13px] font-medium truncate"
             style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
