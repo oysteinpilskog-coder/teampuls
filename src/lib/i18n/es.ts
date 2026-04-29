@@ -111,6 +111,8 @@ export const es: Dictionary = {
     clarificationFallback: 'No lo entendí del todo. ¿Puedes formularlo de otra manera?',
     notLinked: 'Tu usuario no está vinculado a un miembro. Contacta con un admin.',
     noActiveMembers: 'No se encontraron miembros activos en tu organización.',
+    rateLimited: 'Un poco demasiado rápido — espera un minuto e inténtalo de nuevo.',
+    sessionExpired: 'Tu sesión ha caducado. Vuelve a iniciar sesión.',
   },
   matrix: {
     thisWeek: 'Esta semana',

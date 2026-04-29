@@ -5,6 +5,7 @@ import { resolveActiveMember } from '@/lib/supabase/session'
 import { parseTeamUpdate } from '@/lib/ai/parse-update'
 import { applyUpdates } from '@/lib/ai/apply-updates'
 import { getServerDict } from '@/lib/i18n/server'
+import { checkAiRateLimit } from '@/lib/ratelimit'
 
 // Edge runtime — Anthropic SDK + Supabase clients are both fetch-based and
 // Edge-compatible. Cuts cold-start on the AI parse path so the moment a user
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
     const userClient = await createClient()
     const { data: { user } } = await userClient.auth.getUser()
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: dict.aiInput.sessionExpired }, { status: 401 })
     }
 
     const admin = createAdminClient()
@@ -35,6 +36,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: dict.aiInput.notLinked },
         { status: 403 }
+      )
+    }
+
+    const limit = await checkAiRateLimit(admin, member.id)
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: dict.aiInput.rateLimited },
+        { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } }
       )
     }
 

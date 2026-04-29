@@ -109,6 +109,8 @@ export const no = {
     clarificationFallback: 'Jeg forstod ikke helt. Kan du formulere deg annerledes?',
     notLinked: 'Din bruker er ikke koblet til et medlem. Kontakt en admin.',
     noActiveMembers: 'Fant ingen aktive medlemmer i organisasjonen din.',
+    rateLimited: 'Litt for fort — vent et minutt og prøv igjen.',
+    sessionExpired: 'Økten din er utløpt. Logg inn igjen.',
   },
   matrix: {
     thisWeek: 'Denne uken',

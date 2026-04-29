@@ -111,6 +111,8 @@ export const sv: Dictionary = {
     clarificationFallback: 'Jag förstod inte riktigt. Kan du formulera dig annorlunda?',
     notLinked: 'Din användare är inte kopplad till en medlem. Kontakta en admin.',
     noActiveMembers: 'Hittade inga aktiva medlemmar i din organisation.',
+    rateLimited: 'Lite för fort — vänta en minut och försök igen.',
+    sessionExpired: 'Din session har gått ut. Logga in igen.',
   },
   matrix: {
     thisWeek: 'Denna vecka',
