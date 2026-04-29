@@ -4,12 +4,13 @@ import { TeamGrid } from '@/components/team-grid'
 import { AIInput } from '@/components/ai-input'
 import { EmptyState } from '@/components/empty-state'
 import { InactivityNudge } from '@/components/inactivity-nudge'
+import { TodaysGuestsRail } from '@/components/todays-guests-rail'
 import { getSessionMember } from '@/lib/supabase/session'
 import { getServerDict } from '@/lib/i18n/server'
 import { createClient } from '@/lib/supabase/server'
 import { getTodayWeekAndYear, getWeekDays, toDateString } from '@/lib/dates'
 import type { CombinedScope } from '@/lib/supabase/session'
-import type { WorkspaceSummary } from '@/lib/supabase/types'
+import type { WorkspaceSummary, Visit } from '@/lib/supabase/types'
 
 export default async function HomePage() {
   const { user, member, workspaces, combinedScope } = await getSessionMember()
@@ -65,6 +66,14 @@ export default async function HomePage() {
         </div>
       )}
 
+      {/* «Dagens gjester» — annonserer Velkomst-modus ved sin egen
+          tilstedeværelse. Empty state forklarer feature, fylt rail blir
+          teamets bulletin board for ventede besøk. SSR-prefetcher dagens
+          rader så raila ikke flasher tom før realtime tar over. */}
+      <Suspense fallback={null}>
+        <TodaysGuestsLoader orgIds={orgIds} />
+      </Suspense>
+
       {/* Stream the matrix in via Suspense — the shell (header, AI input)
           paints immediately while the members + entries queries resolve.
           On cold loads this turns a single blocking-await into FCP-now,
@@ -85,6 +94,22 @@ export default async function HomePage() {
       )}
     </div>
   )
+}
+
+async function TodaysGuestsLoader({ orgIds }: { orgIds: string[] }) {
+  const supabase = await createClient()
+  const todayStr = toDateString(new Date())
+  // RLS on visits enforces org_id ∈ current_user_org_ids() — so this read
+  // is implicitly scoped to the workspaces the user is a member of, even
+  // in combined-mode where orgIds spans multiple sides of «Alle CalWin».
+  const { data } = await supabase
+    .from('visits')
+    .select('*')
+    .in('org_id', orgIds)
+    .eq('date', todayStr)
+    .order('start_time', { ascending: true })
+  const visits: Visit[] = data ?? []
+  return <TodaysGuestsRail orgIds={orgIds} initial={visits} />
 }
 
 interface TeamGridLoaderProps {

@@ -288,6 +288,15 @@ export const no = {
       at: 'kl. {time}',
       from: 'fra {company}',
     },
+    guestChip: {
+      singular: '1 gjest i dag',
+      plural: '{count} gjester i dag',
+    },
+  },
+  guests: {
+    todaysTitle: 'Dagens gjester',
+    empty: 'Ingen ventet i dag. Skriv navn og tid — så hilser TV-en dem velkommen.',
+    at: 'kl. {time}',
   },
   myPlan: {
     title: 'Min plan',

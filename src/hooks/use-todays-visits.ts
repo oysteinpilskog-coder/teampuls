@@ -6,11 +6,11 @@ import type { Visit } from '@/lib/supabase/types'
 import { toDateString } from '@/lib/dates'
 import { useDocumentVisibility } from '@/hooks/use-document-visibility'
 
-// Velkomst-vinduet: 60 minutter før til 15 minutter etter start_time.
-// Avklart med eier — gir nok ledetid for tidlige kunder uten å gjøre
-// slide til konstant bakgrunn på en TV som står hele dagen.
-const PRE_WINDOW_MIN = 60
-const POST_WINDOW_MIN = 15
+// Velkomst-vinduet på TV-en: 60 minutter før til 15 minutter etter start_time.
+// Avklart med eier — gir nok ledetid for tidlige kunder uten å gjøre slide
+// til konstant bakgrunn på en TV som står hele dagen.
+export const WELCOME_PRE_WINDOW_MIN = 60
+export const WELCOME_POST_WINDOW_MIN = 15
 
 /** Parse en postgres TIME-string ('HH:MM:SS' eller 'HH:MM') til minutter siden midnatt. */
 function timeToMinutes(timeStr: string): number {
@@ -24,16 +24,42 @@ function minutesSinceMidnight(now: Date): number {
 }
 
 /**
- * Returnerer alle dagens besøk hvor `now` ligger innenfor velkomstvinduet,
- * sortert etter start_time. Tom array = ingen velkomst-slide skal vises.
+ * Returnerer kun de besøk som er innenfor velkomstvinduet akkurat nå
+ * (60 min før → 15 min etter start_time), sortert etter start_time.
  *
- * Henter dagens visits ved mount, abonnerer på Realtime per workspace, og
- * pauser subscription når fanen er skjult (samme mønster som useEntries).
- * Bruker `time` som et tikkende referansepunkt slik at velkomsten dukker
- * opp i det riktige minuttet uten egen timer her — DashboardClient eier
- * allerede en sekund-klokke vi gjenbruker.
+ * Brukes av Velkomst-slide F på TV-dashbordet til å avgjøre om/hvilke
+ * besøk som skal vises som hero-velkomst akkurat dette minuttet.
  */
-export function useActiveWelcomes(orgIdOrIds: string | string[], time: Date): Visit[] {
+export function filterActiveWelcomes(visits: Visit[], time: Date): Visit[] {
+  const todayStr = toDateString(time)
+  const nowMin = minutesSinceMidnight(time)
+  return visits
+    .filter(v => v.date === todayStr)
+    .filter(v => {
+      const startMin = timeToMinutes(v.start_time)
+      return (
+        nowMin >= startMin - WELCOME_PRE_WINDOW_MIN &&
+        nowMin <= startMin + WELCOME_POST_WINDOW_MIN
+      )
+    })
+    .sort((a, b) => a.start_time.localeCompare(b.start_time))
+}
+
+/**
+ * Henter dagens besøk for orgIds, sortert etter start_time, med live
+ * Realtime-subscription per workspace (samme mønster som useEntries).
+ *
+ * Returnerer HELE dagen — bruk `filterActiveWelcomes(visits, time)`
+ * hvis du vil ha kun de som er innenfor velkomstvinduet (TV-slide F).
+ *
+ * Pauser subscription når fanen er skjult, og catch-up-fetcher ved
+ * resume så TV/forsiden alltid er synkron etter at noen kommer
+ * tilbake. Refetcher også ved midnattskryss.
+ */
+export function useTodaysVisits(
+  orgIdOrIds: string | string[],
+  opts: { initial?: Visit[] } = {},
+): Visit[] {
   const orgIds = useMemo(
     () => (Array.isArray(orgIdOrIds) ? orgIdOrIds : [orgIdOrIds]),
     [orgIdOrIds],
@@ -41,8 +67,12 @@ export function useActiveWelcomes(orgIdOrIds: string | string[], time: Date): Vi
   const orgIdsKey = orgIds.join(',')
   const visible = useDocumentVisibility()
 
-  const [visits, setVisits] = useState<Visit[]>([])
+  const [visits, setVisits] = useState<Visit[]>(opts.initial ?? [])
   const wasHiddenRef = useRef(false)
+  // Track whether we still hold the SSR-seeded value so we can skip the
+  // first client fetch — same trick as useEntries — and avoid a flash
+  // of empty rail before the first realtime payload arrives.
+  const initialSeed = useRef(opts.initial !== undefined)
 
   const fetchToday = useCallback(async () => {
     const supabase = createClient()
@@ -52,20 +82,18 @@ export function useActiveWelcomes(orgIdOrIds: string | string[], time: Date): Vi
       .select('*')
       .in('org_id', orgIds)
       .eq('date', today)
+      .order('start_time', { ascending: true })
     setVisits(data ?? [])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgIdsKey])
 
   useEffect(() => {
+    if (initialSeed.current) {
+      initialSeed.current = false
+      return
+    }
     fetchToday()
   }, [fetchToday])
-
-  // Refetch ved midnattskryss — dagens besøk endrer seg.
-  const dayKey = toDateString(time)
-  useEffect(() => {
-    fetchToday()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dayKey])
 
   useEffect(() => {
     if (!visible) {
@@ -93,8 +121,8 @@ export function useActiveWelcomes(orgIdOrIds: string | string[], time: Date): Vi
             }
             const upserted = payload.new as Visit
             if (!upserted?.id) return
-            // Filtrer bort besøk som ikke er for i dag — vi bryr oss ikke
-            // om historikk eller fremtidige dager på TV-en.
+            // Filtrer bort besøk som ikke er for i dag — historikk og
+            // fremtidige dager er ikke aktuelle for hverken TV eller rail.
             const today = toDateString(new Date())
             if (upserted.date !== today) {
               setVisits(prev => prev.filter(v => v.id !== upserted.id))
@@ -102,7 +130,9 @@ export function useActiveWelcomes(orgIdOrIds: string | string[], time: Date): Vi
             }
             setVisits(prev => {
               const without = prev.filter(v => v.id !== upserted.id)
-              return [...without, upserted]
+              return [...without, upserted].sort((a, b) =>
+                a.start_time.localeCompare(b.start_time)
+              )
             })
           }
         )
@@ -116,18 +146,5 @@ export function useActiveWelcomes(orgIdOrIds: string | string[], time: Date): Vi
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgIdsKey, visible, fetchToday])
 
-  // Filtrer ned til de som er innenfor sitt vindu akkurat nå. Beregnes
-  // hver gang `time` endrer seg (1 Hz fra DashboardClient), slik at slide
-  // dukker opp/forsvinner i riktig minutt uten egen ticker her.
-  return useMemo(() => {
-    const todayStr = toDateString(time)
-    const nowMin = minutesSinceMidnight(time)
-    return visits
-      .filter(v => v.date === todayStr)
-      .filter(v => {
-        const startMin = timeToMinutes(v.start_time)
-        return nowMin >= startMin - PRE_WINDOW_MIN && nowMin <= startMin + POST_WINDOW_MIN
-      })
-      .sort((a, b) => a.start_time.localeCompare(b.start_time))
-  }, [visits, time])
+  return visits
 }
