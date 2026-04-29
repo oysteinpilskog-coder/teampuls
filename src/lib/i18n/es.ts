@@ -290,6 +290,15 @@ export const es: Dictionary = {
       at: 'a las {time}',
       from: 'de {company}',
     },
+    guestChip: {
+      singular: '1 visita hoy',
+      plural: '{count} visitas hoy',
+    },
+  },
+  guests: {
+    todaysTitle: 'Visitas de hoy',
+    empty: 'Sin visitas previstas hoy. Escribe nombre y hora — la TV les dará la bienvenida.',
+    at: 'a las {time}',
   },
   myPlan: {
     title: 'Mi plan',

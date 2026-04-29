@@ -290,6 +290,15 @@ export const sv: Dictionary = {
       at: 'kl. {time}',
       from: 'från {company}',
     },
+    guestChip: {
+      singular: '1 gäst idag',
+      plural: '{count} gäster idag',
+    },
+  },
+  guests: {
+    todaysTitle: 'Dagens gäster',
+    empty: 'Ingen väntad idag. Skriv namn och tid — så hälsar TV:n välkommen.',
+    at: 'kl. {time}',
   },
   myPlan: {
     title: 'Min plan',

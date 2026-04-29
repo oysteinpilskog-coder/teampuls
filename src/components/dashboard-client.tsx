@@ -44,7 +44,7 @@ import type { Entry, Member, Office, Organization, Customer, DashboardViewKey } 
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { seedWeatherCache, type WeatherSnapshot } from '@/lib/weather/use-weather'
-import { useActiveWelcomes } from '@/hooks/use-active-welcomes'
+import { useTodaysVisits, filterActiveWelcomes } from '@/hooks/use-todays-visits'
 
 type OrgRow = Pick<Organization, 'name' | 'timezone' | 'dashboard_show_sick' | 'dashboard_rotation_views' | 'dashboard_view_durations'>
 
@@ -156,10 +156,15 @@ export function DashboardClient({
   const containerRef = useRef<HTMLDivElement>(null)
   const signatureRef = useRef<HTMLDivElement>(null)
 
-  // Aktive velkomstbesøk — drives av `visits`-tabellen + realtime-kanal.
-  // Tom array når ingen er innenfor sitt vindu, så Velkomst-slide F dukker
-  // opp og forsvinner uten å berøre admin-konfigurert rotasjon.
-  const activeWelcomes = useActiveWelcomes(orgIds, time)
+  // Dagens besøk — én realtime-kanal som mater både velkomst-slide F og
+  // gjeste-chip i header. activeWelcomes er den filtrerte delmengden som
+  // er innenfor [start_time − 60min, +15min] akkurat nå; todaysVisits er
+  // hele dagen og brukes til chip-tellingen.
+  const todaysVisits = useTodaysVisits(orgIds)
+  const activeWelcomes = useMemo(
+    () => filterActiveWelcomes(todaysVisits, time),
+    [todaysVisits, time],
+  )
 
   // Active carousel views come from the org setting. Preserve canonical
   // A..E order so the rotation sequence stays predictable, and fall back
@@ -776,6 +781,15 @@ export function DashboardClient({
         </>
       )}
 
+      {/* Gjeste-chip: stille pille som forteller resepsjonen og forbi-passerende
+          at det venter besøk i dag — uten å avsløre hvem. Synlig på alle views,
+          fader bort på Velkomst-slide F (besøkende skal ikke møte sin egen
+          counter idet de hilses) og under BrandTransition. */}
+      <GuestChip
+        count={todaysVisits.length}
+        visible={pendingViewIdx === null && currentView !== 'F'}
+      />
+
       <OffiviewSignature
         ref={signatureRef}
         visible={pendingViewIdx === null}
@@ -833,5 +847,51 @@ function RotationHairline({ pct }: { pct: number }) {
         }}
       />
     </div>
+  )
+}
+
+/**
+ * «X gjester i dag»-chip som flyter sentrert øverst på dashbordet. Liten
+ * pulsene-prikk + count-tekst — aldri navn. Tomt count = chip skjult.
+ *
+ * Er en stille kunngjøringsvektor: passerer noen TV-en og ser «3 GJESTER
+ * I DAG», løftes forventningen uten at noen besøkende blottlegges før sitt
+ * eget velkomstvindu inntreffer (det er da Velkomst-slide F sin jobb).
+ */
+function GuestChip({ count, visible }: { count: number; visible: boolean }) {
+  const t = useT()
+  if (count <= 0) return null
+  const label =
+    count === 1
+      ? t.dashboard.guestChip.singular
+      : t.dashboard.guestChip.plural.replace('{count}', String(count))
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: visible ? 1 : 0, y: visible ? 0 : -6 }}
+      transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+      className="pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 z-50"
+    >
+      <div
+        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-semibold tracking-[0.22em] uppercase"
+        style={{
+          background: 'rgba(20,22,28,0.55)',
+          backdropFilter: 'blur(18px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+          border: '1px solid rgba(255,255,255,0.09)',
+          color: 'rgba(255,255,255,0.78)',
+          fontFamily: 'var(--font-body)',
+        }}
+      >
+        <motion.span
+          className="w-1.5 h-1.5 rounded-full"
+          style={{ backgroundColor: 'var(--accent-color)' }}
+          animate={{ opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <span className="tabular-nums">{label}</span>
+      </div>
+    </motion.div>
   )
 }

@@ -290,6 +290,15 @@ export const lt: Dictionary = {
       at: '{time} val.',
       from: 'iš {company}',
     },
+    guestChip: {
+      singular: '1 svečias šiandien',
+      plural: '{count} svečiai šiandien',
+    },
+  },
+  guests: {
+    todaysTitle: 'Šiandienos svečiai',
+    empty: 'Šiandien niekas nelaukiamas. Įrašyk vardą ir laiką — TV pasveikins juos.',
+    at: '{time} val.',
   },
   myPlan: {
     title: 'Mano planas',

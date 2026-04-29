@@ -290,6 +290,15 @@ export const en: Dictionary = {
       at: 'at {time}',
       from: 'from {company}',
     },
+    guestChip: {
+      singular: '1 guest today',
+      plural: '{count} guests today',
+    },
+  },
+  guests: {
+    todaysTitle: "Today's guests",
+    empty: 'No one expected today. Write a name and time — the TV will welcome them.',
+    at: 'at {time}',
   },
   myPlan: {
     title: 'My plan',

@@ -20,7 +20,7 @@ function trimSeconds(time: string): string {
 
 /**
  * Velkomst-slide for resepsjons-TV. Vises kun mens et besøk er innenfor sitt
- * vindu (60 min før → 15 min etter start_time, sjekket av useActiveWelcomes).
+ * vindu (60 min før → 15 min etter start_time, sjekket av filterActiveWelcomes).
  *
  * Apple-nivå hero:
  *  - Liten Manrope-eyebrow «Velkommen,»
