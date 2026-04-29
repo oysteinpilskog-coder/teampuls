@@ -7,6 +7,7 @@ import { getDayLabel, getISOWeek, isToday } from '@/lib/dates'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import type { Dictionary } from '@/lib/i18n/types'
+import { dedupeEntriesByMemberDate } from '@/lib/entries/dedupe'
 import { HeroBigNumber } from './hero-big-number'
 import { TeamBoard } from './team-board'
 
@@ -37,24 +38,6 @@ function greetingFor(h: number, g: Dictionary['dashboard']['greetings']): string
   return g.night
 }
 
-/**
- * Keep one Entry per member for the target date — the most recently updated.
- * Also drops entries belonging to members not in the active list, so counts
- * stay consistent with the team roster.
- */
-function dedupeForMembers(entries: Entry[], members: Member[]): Map<string, Entry> {
-  const activeIds = new Set(members.map(m => m.id))
-  const map = new Map<string, Entry>()
-  for (const e of entries) {
-    if (!activeIds.has(e.member_id)) continue
-    const existing = map.get(e.member_id)
-    if (!existing || new Date(e.updated_at).getTime() > new Date(existing.updated_at).getTime()) {
-      map.set(e.member_id, e)
-    }
-  }
-  return map
-}
-
 export function TodayView({ members, weekDays, entries, todayEntries, orgName, time }: TodayViewProps) {
   const STATUS_COLORS = useStatusColors()
   const t = useT()
@@ -67,14 +50,14 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
   const greeting = greetingFor(time.getHours(), t.dashboard.greetings)
 
   // Deduplicate: one entry per member, per day. Fixes the "12/5 · 240%" bug.
-  const todayMap = dedupeForMembers(todayEntries, members)
-  const dedupedTodayEntries = Array.from(todayMap.values())
+  const dedupedTodayEntries = dedupeEntriesByMemberDate(todayEntries, members)
+  const todayMap = new Map(dedupedTodayEntries.map(e => [e.member_id, e]))
 
   // Per-day maps for the week strip — same dedup logic per date
   function getDedupedDayEntries(date: Date): Entry[] {
     const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
     const dayRows = entries.filter(e => e.date === dateStr)
-    return Array.from(dedupeForMembers(dayRows, members).values())
+    return dedupeEntriesByMemberDate(dayRows, members)
   }
 
   return (

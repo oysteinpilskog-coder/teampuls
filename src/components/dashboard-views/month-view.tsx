@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useStatusColors } from '@/lib/status-colors/context'
@@ -8,6 +9,7 @@ import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
 import { getDayLabel, getISOWeek } from '@/lib/dates'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
+import { dedupeEntriesByMemberDate } from '@/lib/entries/dedupe'
 import { AnimatedCount } from './animated-count'
 
 interface MonthViewProps {
@@ -38,8 +40,19 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
   const weekNum = getISOWeek(time)
   const year    = time.getFullYear()
 
-  const entryMap = new Map<string, Entry>()
-  entries.forEach(e => entryMap.set(`${e.member_id}_${e.date}`, e))
+  // Dedup: one Entry per (member_id, date) — keeps tallies aligned with
+  // TodayView's HeroBigNumber so «Fordeling denne uken» summerer 100% og
+  // donut-arcer leser eksakt det resepsjonen ser på «Akkurat nå».
+  const weekDeduped = useMemo(
+    () => dedupeEntriesByMemberDate(entries, members),
+    [entries, members],
+  )
+
+  const entryMap = useMemo(() => {
+    const m = new Map<string, Entry>()
+    weekDeduped.forEach(e => m.set(`${e.member_id}_${e.date}`, e))
+    return m
+  }, [weekDeduped])
 
   // Members away at any point this week
   const onVacation = members.filter(m =>
@@ -50,16 +63,19 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
     })
   )
 
-  // Tallies for full week
+  // Tallies for full week — bygd på deduped entries så én ekstra rad
+  // per medlem-dag ikke inflaterer donut/Fordeling.
   const weekTotals = STATUS_ORDER.map(s => ({
     status: s,
-    count: entries.filter(e => e.status === s).length,
+    count: weekDeduped.filter(e => e.status === s).length,
   }))
-  const weekTotal = entries.length
+  const weekTotal = weekDeduped.length
   const topStatuses = weekTotals.filter(w => w.count > 0).sort((a, b) => b.count - a.count)
 
-  // Donut arithmetic — radius bumped to 140 for TV-wall-readable scale.
-  const CIRC = 2 * Math.PI * 140
+  // Donut arithmetic — radius bumped to 170 to frame the larger Fraunces
+  // week-number hero with proper proportional weight.
+  const DONUT_R = 170
+  const CIRC = 2 * Math.PI * DONUT_R
   let runningPct = 0
 
   return (
@@ -94,7 +110,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...spring.gentle, delay: 0.2 }}
-          className="col-span-2 relative rounded-3xl flex flex-col items-center justify-center gap-8 overflow-hidden p-8"
+          className="col-span-2 relative rounded-3xl flex flex-col items-center justify-center gap-8 p-8"
           style={{
             background:
               'linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
@@ -102,12 +118,15 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
           }}
         >
-          {/* Decorative concentric orbit rings */}
-          {[600, 460, 320, 180].map((size, i) => (
+          {/* Decorative concentric orbit rings — skalert ned slik at den
+              ytterste (480px) holder seg innenfor cardet ved alle TV-bredder
+              fra 1280p og oppover. Cardet er ikke lenger overflow-hidden
+              så ringene skal aldri kuttes uansett aspekt. */}
+          {[480, 360, 240, 140].map((size, i) => (
             <div
               key={i}
               aria-hidden
-              className="absolute rounded-full"
+              className="absolute rounded-full pointer-events-none"
               style={{
                 width: size,
                 height: size,
@@ -120,14 +139,14 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
           ))}
 
           {/* Center donut */}
-          <div className="relative flex items-center justify-center" style={{ width: 400, height: 400 }}>
-            <svg width={400} height={400} viewBox="-200 -200 400 400" className="absolute inset-0">
+          <div className="relative flex items-center justify-center" style={{ width: 460, height: 460 }}>
+            <svg width={460} height={460} viewBox="-230 -230 460 460" className="absolute inset-0">
               {/* Base track */}
               <circle
-                r={140}
+                r={DONUT_R}
                 fill="none"
                 stroke="rgba(255,255,255,0.06)"
-                strokeWidth={20}
+                strokeWidth={24}
               />
               {/* Stacked status arcs */}
               {weekTotal > 0 && weekTotals.map(({ status, count }) => {
@@ -140,10 +159,10 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                 return (
                   <motion.circle
                     key={status}
-                    r={140}
+                    r={DONUT_R}
                     fill="none"
                     stroke={STATUS_COLORS[status].icon}
-                    strokeWidth={20}
+                    strokeWidth={24}
                     strokeLinecap="butt"
                     strokeDasharray={`${dash} ${gap}`}
                     initial={{ strokeDashoffset: 0, opacity: 0 }}
@@ -161,33 +180,35 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
               })}
             </svg>
 
-            <div className="relative z-10 flex flex-col items-center gap-1 text-center">
+            <div className="relative z-10 flex flex-col items-center gap-2 text-center">
               <span
                 className="text-[13px] font-semibold tracking-[0.22em] uppercase"
                 style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
               >
                 Uke
               </span>
+              {/* Hero-typografi — Fraunces opsz 144 + Nordlys-gradient,
+                  matcher klokken på TodayView. Lest fra resepsjonsdøra. */}
               <AnimatedCount
                 value={weekNum}
                 delay={0.2}
                 duration={0.9}
-                className="tabular-nums leading-none"
+                className="tabular-nums leading-none week-hero"
                 style={{
-                  fontSize: '140px',
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-sora)',
-                  letterSpacing: '-0.05em',
-                  background:
-                    'linear-gradient(180deg, #ffffff 0%, #a9b4ff 100%)',
+                  fontSize: 'clamp(200px, 22vw, 300px)',
+                  fontWeight: 300,
+                  fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+                  fontVariationSettings: '"opsz" 144, "SOFT" 80',
+                  letterSpacing: '-0.045em',
+                  backgroundImage: 'var(--gradient-nordlys-clock)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text',
-                  filter: 'drop-shadow(0 0 36px rgba(120,150,255,0.4))',
+                  filter: 'drop-shadow(0 0 28px rgba(0,245,160,0.22))',
                 }}
               />
               <span
-                className="text-[18px] font-medium"
+                className="text-[22px] font-medium"
                 style={{ color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-body)' }}
               >
                 {year}
@@ -195,12 +216,14 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
             </div>
           </div>
 
-          {/* Week mini-grid */}
-          <div className="relative z-10 flex gap-6">
+          {/* Week mini-grid — flex-1 cells så ingenting overflower
+              uavhengig av container-bredde. Bruker weekDeduped slik at
+              dagstellingene matcher donut og «Fordeling denne uken». */}
+          <div className="relative z-10 flex gap-6 w-full">
             {weekDays.map((date, di) => {
               const { weekday, day } = getDayLabel(date)
               const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-              const dayEntries = entries.filter(e => e.date === dateStr)
+              const dayEntries = weekDeduped.filter(e => e.date === dateStr)
 
               return (
                 <motion.div
@@ -208,7 +231,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ ...spring.gentle, delay: 0.6 + di * 0.05 }}
-                  className="flex flex-col items-center gap-1.5 min-w-[80px]"
+                  className="flex-1 min-w-0 flex flex-col items-center gap-1.5"
                 >
                   <span
                     className="text-[13px] font-semibold uppercase tracking-[0.18em]"
