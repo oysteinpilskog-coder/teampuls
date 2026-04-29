@@ -27,6 +27,10 @@ import {
   dayOfYear, dateStringToDeg,
   getMonthSegments, getWeekSegments,
 } from '@/lib/wheel-geometry'
+import {
+  computeEventLayout, subRowBounds, calloutRadius,
+  type LayoutInput, type LayoutInfo,
+} from '@/lib/wheel-layout'
 
 // ─── Geometry-derived (event-specific) constants ──────────────────
 
@@ -616,6 +620,26 @@ export function DiskView({
     [events, year],
   )
 
+  // Year-mode collision layout: sub-row per ring + callout row per narrow
+  // event. Solo events keep the full ring; only events that actually
+  // overlap a neighbor get split. See lib/wheel-layout.ts.
+  const yearLayout = useMemo<Map<string, LayoutInfo>>(() => {
+    const items: LayoutInput[] = []
+    for (const ev of events) {
+      const startDeg = dateStringToDeg(ev.start_date, year)
+      const endDeg = dateStringToDeg(ev.end_date, year) + (360 / daysInYear(year))
+      if (endDeg <= startDeg) continue
+      items.push({
+        id: ev.id,
+        ringIdx: ringIdxForCategory(ev.category),
+        startDeg,
+        endDeg,
+        titleLen: ev.title.length,
+      })
+    }
+    return computeEventLayout(items)
+  }, [events, year])
+
   const [hover, setHoverState] = useState<HoverInfo | null>(null)
   const setHover = useCallback((info: HoverInfo | null) => {
     if (tvMode) return
@@ -691,11 +715,19 @@ export function DiskView({
         return arc ? { ev, arc } : null
       })
       .filter((x): x is { ev: OrgEvent; arc: NonNullable<ReturnType<typeof monthEventArc>> } => x !== null)
+    const layoutItems: LayoutInput[] = mEvents.map(({ ev, arc }) => ({
+      id: ev.id,
+      ringIdx: ringIdxForCategory(ev.category),
+      startDeg: arc.startDeg,
+      endDeg: arc.endDeg,
+      titleLen: ev.title.length,
+    }))
     return {
       month: m,
       daySegs,
       weekSegs: weekSegsM,
       events: mEvents,
+      layout: computeEventLayout(layoutItems),
       todayDeg: todayDegInMonth(today, year, m),
     }
   }, [focusedMonth, year, today, events])
@@ -881,21 +913,23 @@ export function DiskView({
               </radialGradient>
             ))}
 
-            {/* Per-event gradients — positioned at the correct ring */}
+            {/* Per-event gradients — positioned at the actual sub-row bounds
+                so colliding events keep their colour saturated even when
+                they only get half the ring's radial width. */}
             {events.map(ev => {
               const base = ev.color ?? CATEGORY_COLORS[ev.category]
               const ri = ringIdxForCategory(ev.category)
-              const rOut = RING_BOUNDS[ri].outer
-              const rIn  = RING_BOUNDS[ri].inner
+              const layoutInfo = focus ? focus.layout.get(ev.id) : yearLayout.get(ev.id)
+              const bounds = subRowBounds(RING_BOUNDS[ri], layoutInfo?.subRow ?? null)
               return (
                 <radialGradient
                   key={ev.id}
                   id={ID.event(ev.id)}
                   cx={CX} cy={CY}
-                  r={rOut}
+                  r={bounds.outer}
                   gradientUnits="userSpaceOnUse"
                 >
-                  <stop offset={rIn / rOut} stopColor={base} stopOpacity="0.62" />
+                  <stop offset={bounds.inner / bounds.outer} stopColor={base} stopOpacity="0.62" />
                   <stop offset="1" stopColor={base} stopOpacity="0.95" />
                 </radialGradient>
               )
@@ -943,17 +977,19 @@ export function DiskView({
               />
             ))}
 
-            {/* Year-mode: event label paths. Tangential arc on the ring for
-                wide events; plus a callout arc just outside the month ring
-                so narrow events (pins) can land their full title in free
-                space without squeezing. */}
+            {/* Year-mode: event label paths. Tangential arc on the event's
+                actual sub-row, callout arc on whichever callout row the
+                layout pre-pass assigned. Narrow events that didn't fit any
+                callout row get no path (rendered as a bare pin instead). */}
             {!focus && events.map(ev => {
               const startDeg = dateStringToDeg(ev.start_date, year)
               const endDeg   = dateStringToDeg(ev.end_date, year) + (360 / daysInYear(year))
               if (endDeg <= startDeg) return null
               const ri = ringIdxForCategory(ev.category)
+              const info = yearLayout.get(ev.id)
+              const bounds = subRowBounds(RING_BOUNDS[ri], info?.subRow ?? null)
               const midDeg = (startDeg + endDeg) / 2
-              const calloutR = R.monthOuter + 14
+              const calloutR = info?.calloutRow != null ? calloutRadius(info.calloutRow) : R.monthOuter + 14
               const calloutChars = Math.min(ev.title.length, 18)
               const calloutArcPx = calloutChars * 6.3 + 12
               const calloutArcDeg = (calloutArcPx / calloutR) * (180 / Math.PI)
@@ -961,7 +997,7 @@ export function DiskView({
                 <Fragment key={`evpath-${ev.id}`}>
                   <path
                     id={ID.eventPath(ev.id)}
-                    d={labelArcPath(RING_BOUNDS[ri].mid, startDeg, endDeg)}
+                    d={labelArcPath(bounds.mid, startDeg, endDeg)}
                     fill="none"
                   />
                   <path
@@ -986,8 +1022,10 @@ export function DiskView({
             {/* Month-mode: event label paths (tangential + callout) */}
             {focus && focus.events.map(({ ev, arc }) => {
               const ri = ringIdxForCategory(ev.category)
+              const info = focus.layout.get(ev.id)
+              const bounds = subRowBounds(RING_BOUNDS[ri], info?.subRow ?? null)
               const midDeg = (arc.startDeg + arc.endDeg) / 2
-              const calloutR = R.monthOuter + 14
+              const calloutR = info?.calloutRow != null ? calloutRadius(info.calloutRow) : R.monthOuter + 14
               const calloutChars = Math.min(ev.title.length, 18)
               const calloutArcPx = calloutChars * 6.3 + 12
               const calloutArcDeg = (calloutArcPx / calloutR) * (180 / Math.PI)
@@ -995,7 +1033,7 @@ export function DiskView({
                 <Fragment key={`evpm-${ev.id}`}>
                   <path
                     id={ID.eventPathM(ev.id)}
-                    d={labelArcPath(RING_BOUNDS[ri].mid, arc.startDeg, arc.endDeg)}
+                    d={labelArcPath(bounds.mid, arc.startDeg, arc.endDeg)}
                     fill="none"
                   />
                   <path
@@ -1198,7 +1236,8 @@ export function DiskView({
                   const endDeg   = dateStringToDeg(ev.end_date, year) + (360 / daysInYear(year))
                   if (endDeg <= startDeg) return null
                   const ri = ringIdxForCategory(ev.category)
-                  const bounds = RING_BOUNDS[ri]
+                  const info = yearLayout.get(ev.id)
+                  const bounds = subRowBounds(RING_BOUNDS[ri], info?.subRow ?? null)
                   const color = ev.color ?? CATEGORY_COLORS[ev.category]
                   const arcSpan = endDeg - startDeg
                   const isSelected = selectedEvent?.id === ev.id
@@ -1213,23 +1252,19 @@ export function DiskView({
                   const pinR = isSelected ? 8 : 7
                   const path = annularArc(bounds.outer, bounds.inner, startDeg, endDeg, isPin ? 0 : 0.35)
 
-                  // Label strategy:
-                  //   • Wide events (arcSpan ≥ 3.5°): tangential label along
-                  //     the arc. Reads straight, fits the full title, centered.
-                  //   • Narrow events (1.6° ≤ arcSpan < 3.5°): radial label.
-                  //     The arc is too short for tangential text, so we turn
-                  //     the text outward along the ring's radial width.
-                  //   • Pins (< 1.6°): no label; the pin + hover tooltip does it.
-                  // Label strategy:
-                  //   • Wide events (arcSpan ≥ 3.5°): tangential label on the
-                  //     event's own ring — plenty of arc to read straight.
-                  //   • Narrow events: callout label on an arc just outside
-                  //     the month ring, connected to the pin with a thin
-                  //     leader line. This replaces the old radial-line label
-                  //     that got cramped between ring edges.
+                  // Label strategy (post layout pass):
+                  //   • Wide events (arcSpan ≥ 3.5°): tangential along the arc.
+                  //   • Narrow events with a callout row assigned: callout label
+                  //     on the layout-chosen row (row 0 at +14, row 1 at +28).
+                  //   • Narrow events that couldn't fit any callout row: just
+                  //     the pin + hover tooltip — happens when 3+ pins cluster
+                  //     in the same week.
                   const labelMode: 'tangential' | 'callout' | null =
-                    arcSpan >= 3.5 ? 'tangential' : 'callout'
-                  const calloutAnchor = polarPoint(R.monthOuter + 4, midDeg)
+                    arcSpan >= 3.5 ? 'tangential'
+                    : info?.calloutRow != null ? 'callout'
+                    : null
+                  const calloutR = info?.calloutRow != null ? calloutRadius(info.calloutRow) : R.monthOuter + 14
+                  const calloutAnchor = polarPoint(calloutR - 10, midDeg)
 
                   return (
                     <motion.g key={ev.id}
@@ -1449,7 +1484,8 @@ export function DiskView({
                 {/* Events (within month) */}
                 {focus.events.map(({ ev, arc }, i) => {
                   const ri = ringIdxForCategory(ev.category)
-                  const bounds = RING_BOUNDS[ri]
+                  const info = focus.layout.get(ev.id)
+                  const bounds = subRowBounds(RING_BOUNDS[ri], info?.subRow ?? null)
                   const color = ev.color ?? CATEGORY_COLORS[ev.category]
                   const path = annularArc(bounds.outer, bounds.inner, arc.startDeg, arc.endDeg, 0.35)
                   const arcSpan = arc.endDeg - arc.startDeg
