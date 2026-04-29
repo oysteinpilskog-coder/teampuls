@@ -88,7 +88,7 @@ export function radialLinePath(rInner: number, rOuter: number, deg: number): str
 // so characters render upright all the way around the wheel.
 export function labelArcPath(r: number, startDeg: number, endDeg: number): string {
   // Normalise: support ranges that cross 0° (e.g. 340° → 20°) by extending endDeg.
-  let s = startDeg
+  const s = startDeg
   let e = endDeg
   if (e < s) e += 360
   const mid = ((s + e) / 2) % 360
@@ -157,7 +157,7 @@ export function monthDayToDeg(month: number, day: number, year: number): {
   deg: number
   clampedLeapDay: boolean
 } {
-  let m = month
+  const m = month
   let d = day
   let clampedLeapDay = false
   if (m === 1 && d === 29 && !isLeapYear(year)) {

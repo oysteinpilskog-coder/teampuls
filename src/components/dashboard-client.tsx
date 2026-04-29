@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -537,7 +538,7 @@ export function DashboardClient({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [VIEWS]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [VIEWS])  
 
   const currentView = VIEWS[viewIdx] ?? VIEWS[0]
   const incomingView = pendingViewIdx !== null ? (VIEWS[pendingViewIdx] ?? VIEWS[0]) : null
@@ -691,13 +692,13 @@ export function DashboardClient({
         {isFullscreen ? (
           <span aria-hidden />
         ) : (
-          <a
+          <Link
             href="/"
             className="text-[12px] transition-colors hover:opacity-80 tabular-nums uppercase tracking-[0.22em] font-semibold"
             style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-body)' }}
           >
             {t.dashboard.back}
-          </a>
+          </Link>
         )}
 
         {/* Centre: segmented view switcher */}

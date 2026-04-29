@@ -25,9 +25,21 @@ export async function POST(req: NextRequest) {
   // ── 1. Verify webhook token ────────────────────────────────────────────────
   const token = req.nextUrl.searchParams.get('token')
   const expectedToken = process.env.CLOUDMAILIN_WEBHOOK_SECRET
-  if (!expectedToken || token !== expectedToken) {
-    console.warn('[email-inbound] Invalid or missing webhook token')
-    // Return 200 so CloudMailin doesn't keep retrying
+
+  // Misconfiguration (no secret set in env) is a server problem — fail loud
+  // with 500 so CloudMailin retries and Vercel logs surface it. Otherwise
+  // every legitimate inbound email gets silently dropped.
+  if (!expectedToken) {
+    console.error('[email-inbound] CLOUDMAILIN_WEBHOOK_SECRET is not configured')
+    return NextResponse.json(
+      { ok: false, reason: 'server_misconfigured' },
+      { status: 500 }
+    )
+  }
+
+  if (token !== expectedToken) {
+    console.warn('[email-inbound] Invalid webhook token')
+    // Return 200 so CloudMailin doesn't keep retrying a genuinely bad request
     return NextResponse.json({ ok: false, reason: 'unauthorized' }, { status: 200 })
   }
 

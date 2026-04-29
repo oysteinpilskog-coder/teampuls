@@ -241,6 +241,14 @@ export const lt: Dictionary = {
     title: 'Puslapis nerastas',
     description: 'Adreso, kurį aplankei, nėra arba jis buvo perkeltas.',
   },
+  errorBoundary: {
+    title: 'Kažkas nepavyko',
+    description: 'Įvyko netikėta klaida. Informacija įrašyta — pabandyk dar kartą po akimirkos.',
+    reload: 'Įkelti iš naujo',
+    backToHome: 'Į pradžią',
+    dashboardTitle: 'Ekranas netrukus grįš',
+    dashboardDescription: 'Automatiškai atsinaujina po kelių sekundžių.',
+  },
   dashboard: {
     back: '← Atgal',
     views: {

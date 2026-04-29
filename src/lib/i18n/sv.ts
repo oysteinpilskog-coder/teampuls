@@ -241,6 +241,14 @@ export const sv: Dictionary = {
     title: 'Sidan finns inte',
     description: 'Adressen du besökte finns inte, eller har flyttats.',
   },
+  errorBoundary: {
+    title: 'Något gick fel',
+    description: 'Ett oväntat fel uppstod. Detaljerna har loggats — försök igen om en stund.',
+    reload: 'Ladda om',
+    backToHome: 'Till översikten',
+    dashboardTitle: 'Skärmen kommer tillbaka',
+    dashboardDescription: 'Uppdaterar automatiskt om några sekunder.',
+  },
   dashboard: {
     back: '← Tillbaka',
     views: {

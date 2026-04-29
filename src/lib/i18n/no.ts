@@ -239,6 +239,14 @@ export const no = {
     title: 'Siden finnes ikke',
     description: 'Adressen du besøkte eksisterer ikke, eller har blitt flyttet.',
   },
+  errorBoundary: {
+    title: 'Noe gikk galt',
+    description: 'En uventet feil oppsto. Vi har logget detaljene — prøv på nytt om litt.',
+    reload: 'Last på nytt',
+    backToHome: 'Til oversikten',
+    dashboardTitle: 'Skjermen kommer tilbake',
+    dashboardDescription: 'Oppdaterer automatisk om noen sekunder.',
+  },
   dashboard: {
     back: '← Tilbake',
     views: {

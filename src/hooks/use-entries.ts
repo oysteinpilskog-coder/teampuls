@@ -49,6 +49,7 @@ export function useEntries(
   })
 
   // Re-fetch whenever the visible date range changes
+  const dateStringsKey = dateStrings.join(',')
   const fetchEntries = useCallback(async () => {
     const supabase = createClient()
     const { data } = await supabase
@@ -59,7 +60,7 @@ export function useEntries(
     setEntries(data ?? [])
     setLoading(false)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orgIdsKey, dateStrings.join(',')])
+  }, [orgIdsKey, dateStringsKey])
 
   useEffect(() => {
     const currentKey = dateStrings.join(',')

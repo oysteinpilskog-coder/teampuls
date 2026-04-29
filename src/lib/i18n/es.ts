@@ -241,6 +241,14 @@ export const es: Dictionary = {
     title: 'La página no existe',
     description: 'La dirección que visitaste no existe o ha sido movida.',
   },
+  errorBoundary: {
+    title: 'Algo salió mal',
+    description: 'Ocurrió un error inesperado. Los detalles se han registrado — vuelve a intentarlo en un momento.',
+    reload: 'Recargar',
+    backToHome: 'Al inicio',
+    dashboardTitle: 'La pantalla volverá pronto',
+    dashboardDescription: 'Se actualiza automáticamente en unos segundos.',
+  },
   dashboard: {
     back: '← Atrás',
     views: {
