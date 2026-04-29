@@ -91,6 +91,11 @@ export interface WorkspaceSummary {
   accent_color: string | null
   logo_url: string | null
   role: MemberRole
+  // Carried alongside the workspace so the SSR layout can read it without a
+  // second round-trip to organizations.status_colors. Shape stays loose
+  // (Json) since the live type lives in @/lib/status-colors/defaults and
+  // pulling it in here would create a cycle.
+  status_colors: Record<string, string> | null
 }
 
 export interface Office {
