@@ -266,9 +266,9 @@ export function AIInput({ orgId }: AIInputProps) {
             {!value && !focused && (
               <motion.span
                 key={placeholderIdx}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: placeholderVisible ? 1 : 0, y: placeholderVisible ? 0 : -4 }}
-                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: placeholderVisible ? 1 : 0 }}
+                transition={{ duration: 0.4, ease: 'easeInOut' }}
                 className="absolute inset-0 flex items-center pointer-events-none select-none"
                 style={{
                   color: 'var(--text-tertiary)',
@@ -282,11 +282,12 @@ export function AIInput({ orgId }: AIInputProps) {
 
             {/* Ghost completion — renders the current input invisibly so
                 the ghost lines up 1:1 with the live text, then paints the
-                completion in a muted tone directly after. Tab or → accepts. */}
+                completion in a muted tone directly after. Tab or → accepts.
+                pr-14 reserves space so the absolute Tab-pill never overlaps. */}
             {ghost && focused && !isLoading && (
               <div
                 aria-hidden
-                className="absolute inset-0 flex items-center pointer-events-none select-none"
+                className="absolute inset-0 flex items-center pointer-events-none select-none pr-14"
                 style={{
                   fontSize: '17px',
                   fontFamily: 'var(--font-body)',
@@ -322,32 +323,32 @@ export function AIInput({ orgId }: AIInputProps) {
               autoComplete="off"
               spellCheck={false}
             />
+
+            {/* Tab hint — absolute so its appearance never reflows the input. */}
+            <AnimatePresence>
+              {ghost && focused && !isLoading && !value.endsWith(' ') && (
+                <motion.span
+                  key="tab-hint"
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.85 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-md flex items-center gap-1 pointer-events-none"
+                  style={{
+                    color: 'var(--text-tertiary)',
+                    background: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-subtle)',
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >
+                  ↹ Tab
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
 
-          {/* Tab hint — small "Tab" pill shown when a ghost completion is available */}
-          <AnimatePresence>
-            {ghost && focused && !isLoading && !value.endsWith(' ') && (
-              <motion.span
-                key="tab-hint"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.15 }}
-                className="text-[10px] font-semibold uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-1"
-                style={{
-                  color: 'var(--text-tertiary)',
-                  background: 'var(--bg-subtle)',
-                  border: '1px solid var(--border-subtle)',
-                  fontFamily: 'var(--font-body)',
-                }}
-              >
-                ↹ Tab
-              </motion.span>
-            )}
-          </AnimatePresence>
-
-          {/* Right side — shortcut hint or send button */}
-          <div className="flex-shrink-0">
+          {/* Right side — fixed 36×36 slot, so swapping shortcut/send never reflows. */}
+          <div className="flex-shrink-0 w-9 h-9 flex items-center justify-center">
             <AnimatePresence mode="wait">
               {value && !isLoading ? (
                 <motion.button
@@ -355,7 +356,7 @@ export function AIInput({ orgId }: AIInputProps) {
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
-                  whileHover={{ scale: 1.06 }}
+                  whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.94 }}
                   transition={spring.snappy}
                   onClick={submit}
