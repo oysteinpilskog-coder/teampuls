@@ -177,6 +177,14 @@ interface TeamGridProps {
   combinedView?: boolean
 }
 
+// Shared grid template — single source of truth for the four call sites
+// (header row, member row, skeleton row). Width is fixed at 136 px because
+// the matrix's decorative overlays (today chord, weekend shading, column
+// dividers) are positioned via inline calc() that bakes in 136 + paddings.
+// On narrow viewports the matrix card has min-w-[640px] + overflow-x-auto,
+// so phones get horizontal scroll instead of squashed cells.
+const GRID_COLS = '136px repeat(5, 1fr)'
+
 // Skeleton row for loading state
 function SkeletonRow({ index = 0 }: { index?: number }) {
   // A content-shaped skeleton: avatar, name bar, and 5 day cells that don't
@@ -190,7 +198,7 @@ function SkeletonRow({ index = 0 }: { index?: number }) {
   return (
     <div
       className="grid gap-2 items-center"
-      style={{ gridTemplateColumns: '136px repeat(5, 1fr)' }}
+      style={{ gridTemplateColumns: GRID_COLS }}
     >
       <div className="flex items-center gap-2 px-1">
         <span
@@ -1075,7 +1083,7 @@ export function TeamGrid({
         <div
           className="relative grid gap-2 px-4 pt-5 pb-4 z-10"
           style={{
-            gridTemplateColumns: '136px repeat(5, 1fr)',
+            gridTemplateColumns: GRID_COLS,
             borderBottom: '1px solid var(--lg-divider-soft)',
           }}
         >
@@ -1264,7 +1272,7 @@ export function TeamGrid({
                   <motion.div
                     key={member.id}
                     className="relative grid gap-2 items-center"
-                    style={{ gridTemplateColumns: '136px repeat(5, 1fr)' }}
+                    style={{ gridTemplateColumns: GRID_COLS }}
                     initial={{ y: 16, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ ...spring.gentle, delay: rowIdx * 0.04 }}
