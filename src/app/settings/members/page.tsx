@@ -16,6 +16,7 @@ export default async function MembersSettingsPage() {
 
   return (
     <MembersClient
+      key={member.org_id}
       orgId={member.org_id}
       currentMemberId={member.id}
       initialMembers={members ?? []}
