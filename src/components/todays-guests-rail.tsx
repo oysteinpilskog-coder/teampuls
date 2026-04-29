@@ -25,10 +25,10 @@ function trimSeconds(time: string): string {
 /**
  * «Dagens gjester»-rail på forsiden.
  *
- * Surface som annonserer Velkomst-modus ved sin egen tilstedeværelse.
- * Empty state forklarer feature: «Skriv navn og tid — så hilser TV-en
- * dem velkommen.» Den dagen et navn dukker opp i raila, vet hele teamet
- * hva funksjonen er for.
+ * Vises kun når det faktisk er forventede besøk i dag — tom dag = ingen
+ * rail i det hele tatt, så forsiden forblir ren. Funksjonen oppdages
+ * gjennom AI-feltets placeholder-eksempler og gjeste-chip på TV-en, ikke
+ * gjennom et permanent tomt kort på forsiden.
  *
  * Skiller seg fra TV-ens Velkomst-slide F:
  * - Viser HELE dagen, ikke bare 60-min-vinduet
@@ -41,6 +41,8 @@ function trimSeconds(time: string): string {
 export function TodaysGuestsRail({ orgIds, initial }: TodaysGuestsRailProps) {
   const t = useT()
   const visits = useTodaysVisits(orgIds, { initial })
+
+  if (visits.length === 0) return null
 
   return (
     <section
@@ -61,29 +63,23 @@ export function TodaysGuestsRail({ orgIds, initial }: TodaysGuestsRailProps) {
         >
           {t.guests.todaysTitle}
         </h3>
-        {visits.length > 0 && (
-          <span
-            className="tabular-nums text-[11px] font-semibold leading-none"
-            style={{
-              color: 'var(--text-secondary)',
-              fontFamily: 'var(--font-body)',
-            }}
-            aria-hidden
-          >
-            {visits.length}
-          </span>
-        )}
+        <span
+          className="tabular-nums text-[11px] font-semibold leading-none"
+          style={{
+            color: 'var(--text-secondary)',
+            fontFamily: 'var(--font-body)',
+          }}
+          aria-hidden
+        >
+          {visits.length}
+        </span>
       </div>
 
-      {visits.length === 0 ? (
-        <EmptyCard hint={t.guests.empty} />
-      ) : (
-        <div className="flex flex-wrap gap-2.5">
-          {visits.map((v, i) => (
-            <GuestCard key={v.id} visit={v} delay={0.05 + i * 0.04} t={t} />
-          ))}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2.5">
+        {visits.map((v, i) => (
+          <GuestCard key={v.id} visit={v} delay={0.05 + i * 0.04} t={t} />
+        ))}
+      </div>
     </section>
   )
 }
@@ -153,31 +149,6 @@ function GuestCard({
           )}
         </span>
       </div>
-    </motion.div>
-  )
-}
-
-function EmptyCard({ hint }: { hint: string }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
-      className="rounded-xl px-4 py-3"
-      style={{
-        background: 'transparent',
-        border: '1px dashed color-mix(in oklab, var(--border-subtle) 75%, transparent)',
-      }}
-    >
-      <p
-        className="text-[13px] leading-relaxed"
-        style={{
-          color: 'var(--text-tertiary)',
-          fontFamily: 'var(--font-body)',
-        }}
-      >
-        {hint}
-      </p>
     </motion.div>
   )
 }

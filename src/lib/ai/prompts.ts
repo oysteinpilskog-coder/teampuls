@@ -199,29 +199,44 @@ VIKTIG: Vi foretrekker å lagre med lav confidence og la brukeren korrigere frem
 
 ## Velkomst-modus (besøk MED klokkeslett)
 
-Når meldingen beskriver en BESØKENDE som kommer til kontoret PÅ ET KLOKKESLETT, returner du et eget felt \`visit\` (i tillegg til, ikke i stedet for, evt. \`updates\`).
+Når meldingen beskriver et MØTE eller BESØK PÅ ET KLOKKESLETT som finner sted på vårt kontor, returner du et eget felt \`visit\` (i tillegg til, ikke i stedet for, evt. \`updates\`).
 
-Dette utløser velkomst-slide på TV-en i resepsjonen. STRENG REGEL: visit-feltet returneres KUN hvis meldingen inneholder et eksplisitt klokkeslett (\`14:00\`, \`14.00\`, \`kl 14\`, \`half past two\`, osv.). Uten klokkeslett → ingen visit, bare vanlig \`updates\` (typisk status=customer for verten).
+Dette utløser velkomst-slide på TV-en i resepsjonen. STRENG REGEL: visit-feltet returneres KUN hvis meldingen inneholder et eksplisitt klokkeslett (\`14:00\`, \`14.00\`, \`kl 14\`, \`8-16\`, \`halv tre\`, osv.). Uten klokkeslett → ingen visit, bare vanlig \`updates\` (typisk status=customer for verten).
 
-Eksempler som utløser visit:
-- "Anna Hansen kommer 14:00 i morgen for møte med Johan"
-- "Vi har besøk av Mats Olsen fra Acme kl 09:30 på fredag — han skal møte Mari"
-- "Diplomat-folkene (Kari Berg) er her 11:30 onsdag"
+### Mønstre som utløser visit
 
-Eksempler som IKKE utløser visit (mangler klokkeslett):
-- "Anna Hansen kommer på møte i morgen" → vanlig entry på Johan, ingen visit
-- "Besøk fra Acme neste uke"
+1. **Navngitt person + klokkeslett:**
+   - "Anna Hansen kommer 14:00 i morgen for møte med Johan"
+   - "Vi har besøk av Mats Olsen fra Acme kl 09:30 på fredag — han skal møte Mari"
+   - "Diplomat-folkene (Kari Berg) er her 11:30 onsdag"
 
-Felter på \`visit\`:
-- \`host_member_id\` / \`host_member_name\`: ansatt som tar imot. Match samme regler som \`updates\`. Hvis avsender selv er verten («kommer hit til meg kl 14»), bruk avsender.
-- \`visitor_name\`: besøkendes fulle navn. Helt påkrevd. Bruk EKSAKT slik det står i meldingen — IKKE forkort.
-- \`visitor_company\`: firma/organisasjon hvis nevnt («fra Acme», «Diplomat-folkene»), ellers null. EKSAKT navn fra meldingen.
+2. **Møte med kjent kunde/firma + klokkeslett (uten persons-navn):**
+   - "Møte med Diplomat kl 8-16 i dag" → \`visitor_name="Diplomat"\`, \`visitor_company=null\`
+   - "Diplomat hit kl 14" → \`visitor_name="Diplomat"\`
+   - "Møte med Acme 09:00–11:30 fredag" → \`visitor_name="Acme"\`
+   - I disse tilfellene fyller du \`visitor_name\` med det navngitte firmaet/kunden EKSAKT slik det står i kundelisten. Det er bedre å vise «Velkommen, Diplomat» på TV-en enn ingenting — laget kan oppdatere med eksakt person-navn senere.
+
+### Mønstre som IKKE utløser visit
+
+- "Anna Hansen kommer på møte i morgen" → mangler klokkeslett → vanlig entry, ingen visit
+- "Besøk fra Acme neste uke" → mangler klokkeslett
+- "Jeg skal til Diplomat kl 14" → avsender drar UT ('skal til', 'reise til') → vanlig customer-entry på avsender, ikke visit
+
+### Disambiguering: «møte med X» — kommer X hit, eller drar vi til X?
+
+Standard-tolkning når kontekst mangler: **X kommer til vårt kontor** (visit). Kun hvis meldingen eksplisitt sier "skal til X", "drar til X", "reiser til X", eller lignende, tolker du det som at avsender drar ut og lager vanlig customer-entry.
+
+### Felter på \`visit\`
+
+- \`host_member_id\` / \`host_member_name\`: ansatt som tar imot. Match samme regler som \`updates\`. Hvis avsender selv er verten ("møte med X kl Y" uten andre navn), bruk avsender.
+- \`visitor_name\`: påkrevd. Person-navn hvis nevnt, ellers EKSAKT firma/kundenavn fra meldingen. Bruk EKSAKT skrivemåte — IKKE forkort.
+- \`visitor_company\`: firma/organisasjon hvis et SEPARAT firma-navn er nevnt i tillegg til personen ("Anna Hansen fra Acme" → visitor_name="Anna Hansen", visitor_company="Acme"). Hvis bare firmaet er nevnt og det ble brukt som visitor_name, sett dette til null (ikke dupliser).
 - \`date\`: én ISO-dato \`YYYY-MM-DD\`. Velkomster gjelder per definisjon én konkret dag.
-- \`start_time\`: \`HH:MM\` (24-timer). Påkrevd. «kl 14» → \`14:00\`, «halv tre» → \`14:30\`.
-- \`end_time\`: \`HH:MM\` hvis nevnt («14:00–15:30»), ellers null.
+- \`start_time\`: \`HH:MM\` (24-timer). Påkrevd. "kl 14" → "14:00", "halv tre" → "14:30", "8-16" → start_time="08:00".
+- \`end_time\`: \`HH:MM\` hvis nevnt ("14:00–15:30", "8-16"), ellers null.
 - \`note\`: eventuell tilleggsinfo, ellers null.
 
-I tillegg: hvis meldingen også impliserer at HOST er på kontoret den dagen (typisk for et fysisk møte), inkluder en vanlig \`updates\`-rad for verten med status=\`office\`. Hvis meldingen i stedet beskriver et kundebesøk hos kunde, ikke legg på office-update.
+I tillegg: når en visit opprettes på vårt kontor, inkluder en \`updates\`-rad for verten med status=\`office\` for samme dato (host er på kontoret den dagen for å ta imot besøket).
 
 ## Output-format
 
