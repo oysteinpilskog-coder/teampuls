@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Member, MemberRole } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { MemberAvatar } from '@/components/member-avatar'
+import { DatePicker } from '@/components/date-picker'
 import { useT } from '@/lib/i18n/context'
 
 interface MembersClientProps {
@@ -369,14 +370,10 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                 </p>
 
                 <Field label={t.settings.members.birthDateLabel} hint={t.settings.members.birthDateHint}>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={form.birth_date}
-                    onChange={e => setForm(f => ({ ...f, birth_date: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
-                    style={inputStyle}
-                    onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
-                    onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                    onChange={d => setForm(f => ({ ...f, birth_date: d }))}
+                    placeholder="Velg fødselsdato"
                   />
                 </Field>
 
@@ -389,14 +386,10 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                 />
 
                 <Field label={t.settings.members.startDateLabel} hint={t.settings.members.startDateHint}>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={form.start_date}
-                    onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
-                    style={inputStyle}
-                    onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
-                    onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                    onChange={d => setForm(f => ({ ...f, start_date: d }))}
+                    placeholder="Velg startdato"
                   />
                 </Field>
 
