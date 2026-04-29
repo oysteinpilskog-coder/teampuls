@@ -20,21 +20,15 @@ import {
 } from './year-wheel-shared'
 import { ListView } from './year-wheel-list'
 import { CalendarView } from './year-wheel-calendar'
+import { WheelAgendaShell, WheelAgendaSection } from './wheel-agenda'
+import {
+  CX, CY, R, MONTH_HSL,
+  polarPoint, f, annularArc, pieSlice, radialLinePath, labelArcPath,
+  dayOfYear, dateStringToDeg,
+  getMonthSegments, getWeekSegments,
+} from '@/lib/wheel-geometry'
 
-// ─── Geometry ─────────────────────────────────────────────────────
-
-const CX = 400
-const CY = 400
-
-const R = {
-  monthOuter: 382, monthInner: 340,
-  weekOuter:  336, weekInner:  310,
-  ring1Outer: 306, ring1Inner: 268,
-  ring2Outer: 264, ring2Inner: 226,
-  ring3Outer: 222, ring3Inner: 184,
-  centerRing: 180,
-  centerGlass: 160,
-}
+// ─── Geometry-derived (event-specific) constants ──────────────────
 
 const RING_BOUNDS = [
   { outer: R.ring1Outer, inner: R.ring1Inner, mid: (R.ring1Outer + R.ring1Inner) / 2 },
@@ -55,89 +49,6 @@ const RING_LABEL_FALLBACK: Array<[number, number]> = [
 // entirely if no gap on the ring is wide enough.
 const RING_LABEL_MIN_SPAN  = 30
 const RING_LABEL_IDEAL_ARC = 56
-
-// ─── Month palette ───────────────────────────────────────────────
-// Smooth seasonal HSL — each month has [lighter outer, darker inner] for radial depth.
-const MONTH_HSL: Array<[string, string]> = [
-  ['hsl(220, 75%, 68%)', 'hsl(220, 70%, 48%)'],
-  ['hsl(200, 70%, 66%)', 'hsl(200, 65%, 46%)'],
-  ['hsl(175, 60%, 58%)', 'hsl(175, 55%, 40%)'],
-  ['hsl(140, 60%, 55%)', 'hsl(140, 55%, 38%)'],
-  ['hsl(115, 55%, 52%)', 'hsl(115, 50%, 36%)'],
-  ['hsl( 80, 65%, 55%)', 'hsl( 80, 60%, 38%)'],
-  ['hsl( 48, 90%, 62%)', 'hsl( 42, 85%, 45%)'],
-  ['hsl( 30, 90%, 60%)', 'hsl( 28, 85%, 42%)'],
-  ['hsl( 18, 80%, 58%)', 'hsl( 15, 75%, 42%)'],
-  ['hsl(  5, 72%, 56%)', 'hsl(  2, 68%, 40%)'],
-  ['hsl(290, 50%, 56%)', 'hsl(285, 45%, 38%)'],
-  ['hsl(250, 60%, 62%)', 'hsl(245, 55%, 44%)'],
-]
-
-// ─── Math helpers ────────────────────────────────────────────────
-
-function polarPoint(r: number, deg: number) {
-  const rad = (deg - 90) * (Math.PI / 180)
-  return { x: CX + r * Math.cos(rad), y: CY + r * Math.sin(rad) }
-}
-
-function f(n: number) { return n.toFixed(2) }
-
-function annularArc(
-  outerR: number, innerR: number,
-  startDeg: number, endDeg: number,
-  gap = 0.5,
-): string {
-  const s = startDeg + gap
-  const e = endDeg - gap
-  if (e <= s) return ''
-  const o1 = polarPoint(outerR, s)
-  const o2 = polarPoint(outerR, e)
-  const i1 = polarPoint(innerR, e)
-  const i2 = polarPoint(innerR, s)
-  const large = (e - s) > 180 ? 1 : 0
-  return `M${f(o1.x)},${f(o1.y)} A${outerR},${outerR},0,${large},1,${f(o2.x)},${f(o2.y)} L${f(i1.x)},${f(i1.y)} A${innerR},${innerR},0,${large},0,${f(i2.x)},${f(i2.y)} Z`
-}
-
-function pieSlice(r: number, startDeg: number, endDeg: number): string {
-  const o1 = polarPoint(r, startDeg)
-  const o2 = polarPoint(r, endDeg)
-  const large = (endDeg - startDeg) > 180 ? 1 : 0
-  return `M${CX},${CY} L${f(o1.x)},${f(o1.y)} A${r},${r},0,${large},1,${f(o2.x)},${f(o2.y)} Z`
-}
-
-// A straight radial line at `midDeg` between two radii, usable as a textPath
-// target so an event label can read outward (or inward in the bottom half
-// so the glyphs stay upright for the viewer). This is the "Plandisc look":
-// short events no longer lose their label to the tangential arc being too
-// narrow — the radial width of the ring (~32 px) is always available.
-function radialLinePath(rInner: number, rOuter: number, deg: number): string {
-  // Top half (330°..30° roughly): read inner → outer so letters climb outward.
-  // Bottom half: read outer → inner so letters remain upright for the viewer.
-  const normalized = ((deg % 360) + 360) % 360
-  const flip = normalized > 90 && normalized < 270
-  const pFrom = polarPoint(flip ? rOuter : rInner, deg)
-  const pTo   = polarPoint(flip ? rInner : rOuter, deg)
-  return `M${f(pFrom.x)},${f(pFrom.y)} L${f(pTo.x)},${f(pTo.y)}`
-}
-
-// An arc path for textPath placement. Direction reverses in bottom half
-// so characters render upright all the way around the wheel.
-function labelArcPath(r: number, startDeg: number, endDeg: number): string {
-  // Normalise: support ranges that cross 0° (e.g. 340° → 20°) by extending endDeg.
-  let s = startDeg
-  let e = endDeg
-  if (e < s) e += 360
-  const mid = ((s + e) / 2) % 360
-  const reverse = mid > 90 && mid < 270
-  const pad = 0.4
-  const a = reverse ? e - pad : s + pad
-  const b = reverse ? s + pad : e - pad
-  const p1 = polarPoint(r, a)
-  const p2 = polarPoint(r, b)
-  const sweep = reverse ? 0 : 1
-  const large = Math.abs(b - a) > 180 ? 1 : 0
-  return `M${f(p1.x)},${f(p1.y)} A${r},${r},0,${large},${sweep},${f(p2.x)},${f(p2.y)}`
-}
 
 // Find the largest event-free arc on a given ring and return a centered
 // label range inside it. Returns null when no gap is wide enough to fit
@@ -184,48 +95,6 @@ function computeRingLabelRange(
   const half   = Math.min(RING_LABEL_IDEAL_ARC, bestSpan - 4) / 2
   const norm   = (deg: number) => ((deg % 360) + 360) % 360
   return [norm(center - half), norm(center + half)]
-}
-
-function dayOfYear(date: Date): number {
-  const start = new Date(date.getFullYear(), 0, 0)
-  return Math.floor((date.getTime() - start.getTime()) / 86400000)
-}
-
-function dateStringToDeg(dateStr: string, year: number): number {
-  const d = new Date(dateStr + 'T12:00:00')
-  if (d.getFullYear() < year) return 0
-  if (d.getFullYear() > year) return 360
-  return (dayOfYear(d) / daysInYear(year)) * 360
-}
-
-function getMonthSegments(year: number) {
-  const days = [...MONTH_DAYS_COMMON]
-  if (isLeapYear(year)) days[1] = 29
-  const total = daysInYear(year)
-  let acc = 0
-  return MONTH_NAMES.map((name, i) => {
-    const start = (acc / total) * 360
-    acc += days[i]
-    return { name, start, end: (acc / total) * 360, idx: i }
-  })
-}
-
-function getWeekSegments(year: number) {
-  const total = daysInYear(year)
-  const lastWeek = getLastISOWeek(year)
-  const segs: Array<{ weekNum: number; start: number; end: number }> = []
-  for (let w = 1; w <= lastWeek; w++) {
-    const mon = getWeekStart(w, year)
-    const nextMon = getWeekStart(w + 1, year)
-    const startDay = mon.getFullYear() < year ? 0 : dayOfYear(mon)
-    const endDay = nextMon.getFullYear() > year ? total : dayOfYear(nextMon)
-    segs.push({
-      weekNum: w,
-      start: (startDay / total) * 360,
-      end: (endDay / total) * 360,
-    })
-  }
-  return segs
 }
 
 // ─── Month-focus math ─────────────────────────────────────────────
@@ -2042,13 +1911,8 @@ function Agenda({
   }, [events, todayYmd])
 
   return (
-    <motion.aside
-      initial={{ opacity: 0, x: 16 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ ...spring.gentle, delay: 0.3 }}
-      className="w-full xl:w-[320px] flex-shrink-0 flex flex-col gap-3"
-    >
-      <AgendaSection
+    <WheelAgendaShell>
+      <WheelAgendaSection
         title="I dag"
         meta={formatAgendaMeta(today, t)}
         empty={t.wheel.noEventsToday}
@@ -2056,17 +1920,17 @@ function Agenda({
         {todayEvents.map(ev => (
           <AgendaRow key={ev.id} event={ev} onSelect={onSelect} />
         ))}
-      </AgendaSection>
+      </WheelAgendaSection>
 
-      <AgendaSection
+      <WheelAgendaSection
         title="Kommende"
         empty={t.wheel.noUpcoming}
       >
         {futureEvents.map(ev => (
           <AgendaRow key={ev.id} event={ev} onSelect={onSelect} />
         ))}
-      </AgendaSection>
-    </motion.aside>
+      </WheelAgendaSection>
+    </WheelAgendaShell>
   )
 }
 
@@ -2074,60 +1938,6 @@ function formatAgendaMeta(d: Date, t: Dictionary): string {
   const day = d.getDate()
   const wd = weekdayAbbrT(d, t)
   return `${day}. ${wd}.`
-}
-
-function AgendaSection({
-  title, meta, empty, children,
-}: {
-  title: string
-  meta?: string
-  empty: string
-  children: React.ReactNode
-}) {
-  const hasChildren = Array.isArray(children) ? children.length > 0 : !!children
-  return (
-    <section
-      className="rounded-2xl p-4 flex flex-col gap-2"
-      style={{
-        background: 'color-mix(in oklab, var(--bg-elevated) 70%, transparent)',
-        backdropFilter: 'blur(18px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(18px) saturate(180%)',
-        border: '1px solid var(--border-subtle)',
-        boxShadow: 'var(--shadow-sm)',
-      }}
-    >
-      <header className="flex items-baseline justify-between">
-        <h3
-          className="text-[11px] font-bold uppercase"
-          style={{
-            color: 'var(--text-tertiary)',
-            fontFamily: 'var(--font-body)',
-            letterSpacing: '0.22em',
-          }}
-        >
-          {title}
-        </h3>
-        {meta && (
-          <span
-            className="text-[11px] font-medium tabular-nums"
-            style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-          >
-            {meta}
-          </span>
-        )}
-      </header>
-      {hasChildren ? (
-        <ul className="flex flex-col gap-1.5">{children}</ul>
-      ) : (
-        <p
-          className="text-[13px] py-1"
-          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-        >
-          {empty}
-        </p>
-      )}
-    </section>
-  )
 }
 
 function AgendaRow({
