@@ -40,13 +40,14 @@ import { TimezoneStrip } from '@/components/dashboard/timezone-strip'
 import { applyQuietHours, resolveViewDuration, welcomeDwellSec } from '@/lib/dashboard-defaults'
 import { trackBrandImpression } from '@/lib/analytics'
 import { getDayPhase, getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
-import type { Entry, Member, Office, Organization, Customer, DashboardViewKey } from '@/lib/supabase/types'
+import type { Entry, Member, Office, Organization, Customer, DashboardViewKey, PresenceAssumption } from '@/lib/supabase/types'
+import { inferStatus } from '@/lib/presence'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { seedWeatherCache, type WeatherSnapshot } from '@/lib/weather/use-weather'
 import { useTodaysVisits, filterActiveWelcomes } from '@/hooks/use-todays-visits'
 
-type OrgRow = Pick<Organization, 'name' | 'timezone' | 'dashboard_show_sick' | 'dashboard_rotation_views' | 'dashboard_view_durations'>
+type OrgRow = Pick<Organization, 'name' | 'timezone' | 'dashboard_show_sick' | 'dashboard_rotation_views' | 'dashboard_view_durations' | 'default_presence_assumption'>
 
 interface DashboardClientProps {
   /** All workspace org_ids the dashboard scopes to. Single-workspace
@@ -184,6 +185,11 @@ export function DashboardClient({
     return activeWelcomes.length > 0 ? (['F', ...baseList] as ViewKey[]) : baseList
   }, [org?.dashboard_rotation_views, activeWelcomes.length])
   const showSick = org?.dashboard_show_sick ?? true
+  // Mirror Oversikt: når org-en lener seg på en presence-antakelse skal
+  // hero-tallet og strip-buckets på TV-en telle medlemmer uten registrering
+  // på samme måte som «Akkurat nå» gjør på Oversikt-siden. 'none' betyr
+  // ingen antakelse — kun ekte rader teller.
+  const presenceAssumption: PresenceAssumption = org?.default_presence_assumption ?? 'none'
 
   // Rebuilds across midnight as `time` ticks past 00:00 — keeps the dashboard
   // showing today's week without a manual refresh. Stable through the day.
@@ -303,7 +309,7 @@ export function DashboardClient({
       const [orgRes, membersRes, officesRes, customersRes] = await Promise.all([
         supabase
           .from('organizations')
-          .select('name, timezone, dashboard_show_sick, dashboard_rotation_views, dashboard_view_durations')
+          .select('name, timezone, dashboard_show_sick, dashboard_rotation_views, dashboard_view_durations, default_presence_assumption')
           .eq('id', headerOrgId)
           .maybeSingle(),
         supabase
@@ -451,6 +457,55 @@ export function DashboardClient({
     [todayEntries, members]
   )
 
+  // «Display»-utgaven brukes av Akkurat nå-flaten (HeroBigNumber + TeamBoard)
+  // og må speile Oversikt sin «Akkurat nå»-stripe: ekte rader + antatte
+  // rader for medlemmer uten registrering, basert på org-en sin
+  // default_presence_assumption. Uten dette står hero-tallet på 0 selv om
+  // Oversikt teller medlemmer via per_member/office-antakelser. Vi
+  // syntetiserer en Entry-form per antatt medlem så konsumentene som bare
+  // leser status + member_id ikke trenger å vite om antakelsen.
+  const displayTodayEntries = useMemo<Entry[]>(() => {
+    const realByMember = new Map<string, Entry>()
+    const memberIds = new Set(members.map(m => m.id))
+    for (const e of todayEntries) {
+      if (!memberIds.has(e.member_id)) continue
+      const existing = realByMember.get(e.member_id)
+      if (!existing || new Date(e.updated_at).getTime() > new Date(existing.updated_at).getTime()) {
+        realByMember.set(e.member_id, e)
+      }
+    }
+    const nowIso = new Date().toISOString()
+    const out: Entry[] = []
+    for (const m of members) {
+      const real = realByMember.get(m.id)
+      if (real) {
+        out.push(real)
+        continue
+      }
+      const assumed = inferStatus({ default_status: m.default_status }, presenceAssumption)
+      if (!assumed) continue
+      // Syntetisk ID med 'assumed:'-prefix kan ikke kollidere med Postgres-uuid-er,
+      // så CustomerMapView sin id-match fortsatt avviser disse hvis de skulle gå
+      // forbi (vi sender den ikke dit, men forsvar i dybden).
+      out.push({
+        id: `assumed:${m.id}:${todayStr}`,
+        org_id: m.org_id,
+        member_id: m.id,
+        date: todayStr,
+        status: assumed,
+        location_label: null,
+        note: null,
+        source: 'manual',
+        source_text: null,
+        confidence: null,
+        created_by: null,
+        created_at: nowIso,
+        updated_at: nowIso,
+      })
+    }
+    return out
+  }, [todayEntries, members, presenceAssumption, todayStr])
+
   // Fullscreen API
   function toggleFullscreen() {
     if (!document.fullscreenElement) {
@@ -499,7 +554,7 @@ export function DashboardClient({
             members={members}
             weekDays={weekDays}
             entries={entries}
-            todayEntries={todayEntries}
+            todayEntries={displayTodayEntries}
             orgName={orgName}
             time={time}
           />
