@@ -20,12 +20,14 @@ interface OfficeMapLabelProps {
   index: number
 }
 
-// Bounding box for the foreignObject. Generous so long compound names
-// (Newcastle upon Tyne) still fit without horizontal clipping. Height
-// is intentionally tall — `<foreignObject>` clips its children by
-// default so we give the inner flex row plenty of breathing room.
-const FO_WIDTH = 360
-const FO_HEIGHT = 44
+// Bounding box for the foreignObject. Smal nok til å hugge pinnen tett
+// horisontalt (kontorpinnen skal alltid kjennes som «over/under navnet»),
+// men bred nok til at lange sammensatte navn («Newcastle upon Tyne»,
+// «Stockholm-Bromma») ikke klippes. Stablet layout — by-navn øverst, vær
+// som dempet caption rett under — gir definitivt null kollisjon mellom
+// navn og vær-chip.
+const FO_WIDTH = 200
+const FO_HEIGHT = 40
 
 // Halo: emulates the SVG `paint-order: stroke fill` we used on the old
 // <text> so the label remains legible over both ocean and landmass at
@@ -42,25 +44,24 @@ const META_HALO =
 
 /**
  * Composite city + vær label drawn as a `<foreignObject>` over the SVG
- * map so we can mix Sora display type with the lucide-react icons. The
- * label is one cohesive unit — name primary, weather as recessive
- * metadata separated by a hairline middle-dot.
+ * map. By-navn på første linje (primær), vær-ikon + grader stablet rett
+ * under som dempet metadata-caption. Stable-layoutet sikrer at navn og
+ * vær aldri kan kollidere visuelt, og lar boksen være smal nok til at
+ * pinnen alltid kjennes som «over» navnet.
  *
- * Side-aware alignment matches the SVG `text-anchor` semantics:
- *   right pin → label flows from labelX outward (justify-start)
- *   left pin  → label flows toward labelX (justify-end)
- *   top/bot   → label centred on labelX (justify-center)
+ * Side-aware alignment:
+ *   right pin → label flows from labelX outward (align-items: flex-start)
+ *   left pin  → label flows toward labelX (align-items: flex-end)
+ *   top/bot   → label centred on labelX (align-items: center)
  *
  * Implementation notes:
  *  - We use a *plain* `<foreignObject>` (not `motion.foreignObject`) and
  *    animate via a child `motion.div`. framer-motion's typed SVG variant
  *    fights the SVG `y` attribute when given a numeric `y` motion value,
  *    which silently kills the entire label render in some browsers.
- *  - No explicit xmlns on the inner div — React 18+ writes the correct
- *    namespace when an HTML element is nested inside a `<foreignObject>`.
- *  - Height is tall enough that the descender of "g"/"y" + the icon row
- *    never clip; the unused vertical space is invisible since the inner
- *    flex row centres itself.
+ *  - Vertikal sentrering: y = labelY - FO_HEIGHT * 0.5. Boksens midte
+ *    ligger på ankeret. Må holdes i sync med `verticalAnchor: 0.5` i
+ *    `placeLabels`-kallet i office-map-view.tsx.
  */
 export function OfficeMapLabel({
   city, lat, lng, side, labelX, labelY, index,
@@ -70,16 +71,13 @@ export function OfficeMapLabel({
   const Icon = desc?.icon
   const warm = desc?.warm ?? false
 
-  // Vertical centring of the foreignObject around the original baseline.
-  // The old <text> sat at `labelY` as its alphabetic baseline; the box
-  // is centred ~22px above the baseline so the visual middle stays put.
   const x =
     side === 'left'  ? labelX - FO_WIDTH :
     side === 'right' ? labelX :
     labelX - FO_WIDTH / 2
-  const y = labelY - FO_HEIGHT * 0.62
+  const y = labelY - FO_HEIGHT * 0.5
 
-  const justify: 'flex-start' | 'flex-end' | 'center' =
+  const align: 'flex-start' | 'flex-end' | 'center' =
     side === 'left'  ? 'flex-end' :
     side === 'right' ? 'flex-start' :
     'center'
@@ -103,11 +101,12 @@ export function OfficeMapLabel({
         transition={{ ...spring.gentle, delay: 0.55 + index * 0.08 }}
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 8,
+          flexDirection: 'column',
+          alignItems: align,
+          justifyContent: 'center',
+          gap: 3,
           width: '100%',
           height: '100%',
-          justifyContent: justify,
           fontFamily: 'var(--font-sora), "Iowan Old Style", Georgia, serif',
           letterSpacing: '0.3px',
           lineHeight: 1,
@@ -131,30 +130,19 @@ export function OfficeMapLabel({
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 5,
+              gap: 4,
               color: weatherColor,
               fontFamily: 'var(--font-manrope), system-ui, sans-serif',
               fontWeight: 500,
-              fontSize: 13,
+              fontSize: 12,
               fontVariantNumeric: 'tabular-nums',
               letterSpacing: '-0.005em',
               textShadow: META_HALO,
               opacity: warm ? 1 : 0.95,
             }}
           >
-            <span
-              aria-hidden
-              style={{
-                color: 'rgba(245, 239, 228, 0.4)',
-                fontWeight: 400,
-                marginRight: 1,
-                textShadow: META_HALO,
-              }}
-            >
-              ·
-            </span>
             <Icon
-              size={14}
+              size={13}
               strokeWidth={1.8}
               aria-hidden
               style={{

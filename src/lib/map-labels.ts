@@ -53,6 +53,11 @@ interface PlaceOptions {
   /** Høyde på label-boksen i px. Må gis sammen med `labelWidth` for at
    *  AABB-modus skal aktiveres. */
   labelHeight?: number
+  /** Hvor stor andel av label-høyden som ligger OVER ankerpunktet (labelY).
+   *  0.62 (default) beholder gammel <text>-baseline-geometri. 0.5 sentrerer
+   *  boksen rundt ankeret — brukes når innholdet er stablet vertikalt slik
+   *  at visuell midte sammenfaller med boksens midte. */
+  verticalAnchor?: number
 }
 
 interface Rect {
@@ -81,6 +86,7 @@ export function placeLabels<T extends LabeledPoint>(
     typeof opts.labelWidth === 'number' && typeof opts.labelHeight === 'number'
   const labelWidth = opts.labelWidth ?? 0
   const labelHeight = opts.labelHeight ?? 0
+  const verticalAnchor = opts.verticalAnchor ?? 0.62
 
   // Sort by y so "upper" pins resolve first — gives a stable ordering.
   const sorted = [...points].sort((a, b) => a.y - b.y)
@@ -132,11 +138,11 @@ export function placeLabels<T extends LabeledPoint>(
         // Bygg label-rektangel for denne kandidaten og sjekk overlapp mot
         // hver allerede-plasserte nabos label-boks samt naboens pin.
         // Score = -totalOverlap så høyere er bedre (ingen overlapp = 0).
-        const myRect = labelRectFor(c.side, labelX, labelY, labelWidth, labelHeight)
+        const myRect = labelRectFor(c.side, labelX, labelY, labelWidth, labelHeight, verticalAnchor)
         let totalOverlap = 0
         let pinHit = false
         for (const n of neighbours) {
-          const nRect = labelRectFor(n.side, n.labelX, n.labelY, labelWidth, labelHeight)
+          const nRect = labelRectFor(n.side, n.labelX, n.labelY, labelWidth, labelHeight, verticalAnchor)
           totalOverlap += rectOverlap(myRect, nRect)
           // Treat the neighbour pin as a small forbidden disc — labelet
           // skal aldri dekke en nabo-pin.
@@ -200,9 +206,10 @@ function labelRectFor(
   labelY: number,
   width: number,
   height: number,
+  verticalAnchor = 0.62,
 ): Rect {
-  const top = labelY - height * 0.62
-  const bottom = labelY + height * 0.38
+  const top = labelY - height * verticalAnchor
+  const bottom = labelY + height * (1 - verticalAnchor)
   let left: number
   let right: number
   if (side === 'left') {
