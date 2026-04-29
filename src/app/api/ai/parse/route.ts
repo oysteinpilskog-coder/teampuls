@@ -112,8 +112,11 @@ export async function POST(req: NextRequest) {
       })
       .then(() => {})
 
-    // Really-uncertain → clarification only, no write.
-    if (result.confidence < CLARIFICATION_CEILING || result.updates.length === 0) {
+    // Really-uncertain → clarification only, no write. Et besøk uten
+    // tilhørende updates teller også som «noe å skrive» — uten dette
+    // ville velkomst-only-meldinger («Anna kommer 14:00») falle igjennom.
+    const hasSomethingToWrite = result.updates.length > 0 || result.visit != null
+    if (result.confidence < CLARIFICATION_CEILING || !hasSomethingToWrite) {
       return NextResponse.json({
         success: false,
         clarification: result.clarification ?? dict.aiInput.clarificationFallback,

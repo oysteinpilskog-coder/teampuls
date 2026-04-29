@@ -249,6 +249,7 @@ export const lt: Dictionary = {
       offices: 'Biurai',
       customers: 'Klientai',
       wheel: 'Metų ratas',
+      welcome: 'Sveiki',
     },
     hint: '← → keisti · F pilnas ekranas',
     fullscreen: 'Pilnas ekranas',
@@ -283,6 +284,11 @@ export const lt: Dictionary = {
       visited: 'aplankyti',
       customers: 'Klientai',
       unknownPlaces: 'Nežinomos vietos',
+    },
+    welcome: {
+      eyebrow: 'Sveiki,',
+      at: '{time} val.',
+      from: 'iš {company}',
     },
   },
   myPlan: {
@@ -348,7 +354,17 @@ export const lt: Dictionary = {
     prevMonth: 'Praeitas mėnuo',
     nextMonth: 'Kitas mėnuo',
     pickDates: 'Pasirink datas',
-    helpText: 'Spausk pradžios datą, tada pabaigos · Tempk kraštus, kad pakeistum · Tempk vidurį, kad perkeltum',
+    helpText: 'Įvesk arba spausk pradžios / pabaigos datą · Tempk kraštus, kad pakeistum · Tempk vidurį, kad perkeltum',
+    fromLabel: 'Nuo',
+    toLabel: 'Iki',
+  },
+  dateInput: {
+    placeholder: 'mmmm-mm-dd',
+    invalid: 'Neatpažintas datos formatas',
+  },
+  datePicker: {
+    clear: 'Išvalyti',
+    today: 'Šiandien',
   },
   statusSegment: {
     dragStart: 'Tempk, kad pakeistum pradžios datą',

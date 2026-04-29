@@ -197,6 +197,32 @@ Returner \`confidence\` mellom 0.0 og 1.0:
 
 VIKTIG: Vi foretrekker å lagre med lav confidence og la brukeren korrigere fremfor å bare spørre. Kun spør hvis det er helt uklart hva meldingen betyr.
 
+## Velkomst-modus (besøk MED klokkeslett)
+
+Når meldingen beskriver en BESØKENDE som kommer til kontoret PÅ ET KLOKKESLETT, returner du et eget felt \`visit\` (i tillegg til, ikke i stedet for, evt. \`updates\`).
+
+Dette utløser velkomst-slide på TV-en i resepsjonen. STRENG REGEL: visit-feltet returneres KUN hvis meldingen inneholder et eksplisitt klokkeslett (\`14:00\`, \`14.00\`, \`kl 14\`, \`half past two\`, osv.). Uten klokkeslett → ingen visit, bare vanlig \`updates\` (typisk status=customer for verten).
+
+Eksempler som utløser visit:
+- "Anna Hansen kommer 14:00 i morgen for møte med Johan"
+- "Vi har besøk av Mats Olsen fra Acme kl 09:30 på fredag — han skal møte Mari"
+- "Diplomat-folkene (Kari Berg) er her 11:30 onsdag"
+
+Eksempler som IKKE utløser visit (mangler klokkeslett):
+- "Anna Hansen kommer på møte i morgen" → vanlig entry på Johan, ingen visit
+- "Besøk fra Acme neste uke"
+
+Felter på \`visit\`:
+- \`host_member_id\` / \`host_member_name\`: ansatt som tar imot. Match samme regler som \`updates\`. Hvis avsender selv er verten («kommer hit til meg kl 14»), bruk avsender.
+- \`visitor_name\`: besøkendes fulle navn. Helt påkrevd. Bruk EKSAKT slik det står i meldingen — IKKE forkort.
+- \`visitor_company\`: firma/organisasjon hvis nevnt («fra Acme», «Diplomat-folkene»), ellers null. EKSAKT navn fra meldingen.
+- \`date\`: én ISO-dato \`YYYY-MM-DD\`. Velkomster gjelder per definisjon én konkret dag.
+- \`start_time\`: \`HH:MM\` (24-timer). Påkrevd. «kl 14» → \`14:00\`, «halv tre» → \`14:30\`.
+- \`end_time\`: \`HH:MM\` hvis nevnt («14:00–15:30»), ellers null.
+- \`note\`: eventuell tilleggsinfo, ellers null.
+
+I tillegg: hvis meldingen også impliserer at HOST er på kontoret den dagen (typisk for et fysisk møte), inkluder en vanlig \`updates\`-rad for verten med status=\`office\`. Hvis meldingen i stedet beskriver et kundebesøk hos kunde, ikke legg på office-update.
+
 ## Output-format
 
 Returner KUN gyldig JSON, ingen annen tekst, ingen markdown-kodeblokker.
@@ -212,11 +238,25 @@ Returner KUN gyldig JSON, ingen annen tekst, ingen markdown-kodeblokker.
       "note": "messe"
     }
   ],
+  "visit": null,
   "action": "create",
   "confidence": 0.85,
   "clarification": null,
   "original_period": null
 }
+
+Ved besøk med klokkeslett, sett \`visit\` slik (eksempel «Anna Hansen kommer 14:00 i morgen for møte med Johan» når i dag er 2026-04-29):
+
+  "visit": {
+    "host_member_id": "uuid-johan",
+    "host_member_name": "Johan",
+    "visitor_name": "Anna Hansen",
+    "visitor_company": null,
+    "date": "2026-04-30",
+    "start_time": "14:00",
+    "end_time": null,
+    "note": null
+  }
 
 For "update"-action, inkluder original_period med datoene som skal fjernes.
 For "delete", sett status/location/note til null.
