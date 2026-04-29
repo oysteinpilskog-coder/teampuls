@@ -31,10 +31,14 @@ export async function proxy(request: NextRequest) {
   // /offline is the SW fallback shell — must render for unauthenticated
   // clients too (it's what shows when there's no network at all, before
   // Supabase can even attempt session recovery).
+  // /opengraph-image and /twitter-image must be reachable by social-media
+  // crawlers (Slack, Teams, X, LinkedIn) which are never logged in.
   const isPublicRoute =
     pathname.startsWith('/login') ||
     pathname.startsWith('/auth') ||
-    pathname === '/offline'
+    pathname === '/offline' ||
+    pathname === '/opengraph-image' ||
+    pathname === '/twitter-image'
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()

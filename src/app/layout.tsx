@@ -44,7 +44,9 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: LOCALE_META[locale].intl.replace('-', '_'),
     },
     twitter: {
-      card: 'summary',
+      // summary_large_image lets the auto-generated opengraph-image render
+      // full-width on Twitter/X and most chat-platform previews.
+      card: 'summary_large_image',
       title: dict.app.name,
       description: dict.app.tagline,
     },
