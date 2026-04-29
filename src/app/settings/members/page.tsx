@@ -8,11 +8,19 @@ export default async function MembersSettingsPage() {
   if (!member) redirect('/')
 
   const supabase = await createClient()
-  const { data: members } = await supabase
-    .from('members')
-    .select('*')
-    .eq('org_id', member.org_id)
-    .order('display_name')
+  const [{ data: members }, { data: offices }] = await Promise.all([
+    supabase
+      .from('members')
+      .select('*')
+      .eq('org_id', member.org_id)
+      .order('display_name'),
+    supabase
+      .from('offices')
+      .select('*')
+      .eq('org_id', member.org_id)
+      .order('sort_order')
+      .order('created_at'),
+  ])
 
   return (
     <MembersClient
@@ -20,6 +28,7 @@ export default async function MembersSettingsPage() {
       orgId={member.org_id}
       currentMemberId={member.id}
       initialMembers={members ?? []}
+      initialOffices={offices ?? []}
     />
   )
 }
