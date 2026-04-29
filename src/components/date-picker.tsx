@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   addDays, addMonths, differenceInDays, endOfISOWeek, endOfMonth,
@@ -10,6 +10,7 @@ import {
 import { toDateString } from '@/lib/dates'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
+import { TypeableDateInput } from '@/components/typeable-date-input'
 
 interface DatePickerProps {
   value: string
@@ -34,7 +35,7 @@ export function DatePicker({
   )
 
   // Keep the visible month in sync when value changes externally (e.g. opening
-  // the modal in edit mode with an existing date).
+  // the modal in edit mode, or typing a date that lands in another month).
   useEffect(() => {
     if (selected) setAnchorMonth(startOfMonth(selected))
   }, [value])
@@ -57,11 +58,6 @@ export function DatePicker({
     }
   }, [open])
 
-  const triggerLabel = useMemo(() => {
-    if (!selected) return placeholder ?? t.dateRangePicker.pickDates
-    return `${selected.getDate()}. ${t.dates.monthsShort[selected.getMonth()]} ${selected.getFullYear()}`
-  }, [selected, placeholder, t])
-
   function selectDay(d: Date) {
     onChange(toDateString(d))
     setOpen(false)
@@ -81,36 +77,13 @@ export function DatePicker({
 
   return (
     <div ref={wrapperRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none flex items-center justify-between gap-2 transition-[border-color] duration-150"
-        style={{
-          backgroundColor: 'var(--bg-subtle)',
-          color: selected ? 'var(--text-primary)' : 'var(--text-tertiary)',
-          fontFamily: 'var(--font-body)',
-          border: `1.5px solid ${open ? accentColor : 'transparent'}`,
-          textAlign: 'left',
-        }}
-      >
-        <span className="flex items-center gap-2 min-w-0">
-          <CalendarIcon className="w-4 h-4 shrink-0" strokeWidth={1.75} style={{ color: 'var(--text-tertiary)' }} />
-          <span className="truncate tabular-nums">{triggerLabel}</span>
-        </span>
-        {selected && (
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={e => { e.stopPropagation(); clear() }}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); clear() } }}
-            aria-label={t.common.cancel}
-            className="p-0.5 rounded-md transition-colors hover:bg-[var(--bg-elevated)] cursor-pointer inline-flex"
-            style={{ color: 'var(--text-tertiary)' }}
-          >
-            <X className="w-3.5 h-3.5" strokeWidth={1.75} />
-          </span>
-        )}
-      </button>
+      <TypeableDateInput
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        accentColor={accentColor}
+        onFocus={() => setOpen(true)}
+      />
 
       <AnimatePresence>
         {open && (
@@ -119,6 +92,10 @@ export function DatePicker({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={spring.snappy}
+            // Keep focus on the typeable input when interacting with the
+            // popover (clicks here would otherwise pull focus and trigger
+            // the input's blur formatting before the day-click registers).
+            onMouseDown={e => e.preventDefault()}
             className="absolute left-0 right-0 z-30 mt-2 rounded-2xl p-3"
             style={{
               backgroundColor: 'var(--bg-elevated)',
@@ -149,7 +126,7 @@ export function DatePicker({
                 className="px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
                 style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
               >
-                Tøm
+                {t.datePicker.clear}
               </button>
               <button
                 type="button"
@@ -161,7 +138,7 @@ export function DatePicker({
                   fontFamily: 'var(--font-body)',
                 }}
               >
-                I dag
+                {t.datePicker.today}
               </button>
             </div>
           </motion.div>
