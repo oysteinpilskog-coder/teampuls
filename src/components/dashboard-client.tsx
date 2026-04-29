@@ -724,29 +724,50 @@ export function DashboardClient({
 }
 
 /**
- * Thin Nordlys gradient line that fills with each view's dwell. Sitter
- * under kontroll-baren som en eneste fin rail à la KUNDEPORTEFØLJE-
- * widgeten. Tidligere fantes en speilet versjon på toppen — den ble
- * fjernet, så denne kjører på full opacity igjen.
+ * Thin Nordlys gradient line that fills with each view's dwell. Speiler
+ * KUNDEPORTEFØLJE-rail-en (customer-map-view.tsx) med samme to-lags-
+ * oppskrift — myk halo + crisp filament — slik at all progress-grafikk i
+ * produktet snakker samme visuelle språk. Glødens *form* (blur-radii) er
+ * identisk; *intensiteten* (alpha) er halvert siden denne rail-en sitter
+ * rett under kontrollbaren og ikke skal konkurrere med innholdet bak.
+ * Wrapperen er bevisst IKKE clipped — gløden skal blø utenfor selve
+ * rail-en for at to-lags-effekten skal lese.
  */
 function RotationHairline({ pct }: { pct: number }) {
+  const fillWidth = `${pct * 100}%`
   return (
-    <div className="relative h-[2px] w-full overflow-hidden">
+    <div className="relative h-[2px] w-full">
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 rounded-full"
         style={{ background: 'rgba(255,255,255,0.04)' }}
       />
+      {/* Blurred halo — samme atmosfæriske bloom som KUNDEPORTEFØLJE,
+          men halv opacity. */}
       <div
-        className="absolute left-0 top-0 h-full transition-[width] duration-[950ms] ease-linear"
+        aria-hidden
+        className="absolute left-0 top-0 h-full rounded-full pointer-events-none transition-[width] duration-[950ms] ease-linear"
         style={{
-          width: `${pct * 100}%`,
-          background: 'var(--gradient-nordlys-rail)',
-          backgroundSize: '100vw 100%',
+          width: fillWidth,
+          background:
+            'linear-gradient(90deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%)',
+          filter: 'blur(7px) saturate(140%)',
+          opacity: 0.475,
+          transform: 'scaleY(4)',
+          transformOrigin: 'center',
+        }}
+      />
+      {/* Crisp filament — samme fem-stegs box-shadow som
+          KUNDEPORTEFØLJE, men hver alpha halvert. */}
+      <div
+        className="absolute left-0 top-0 h-full rounded-full transition-[width] duration-[950ms] ease-linear"
+        style={{
+          width: fillWidth,
+          background:
+            'linear-gradient(90deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%)',
+          backgroundSize: '100% 100%',
           backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'left center',
-          opacity: 0.95,
           boxShadow:
-            '0 0 8px rgba(0, 217, 245, 0.28), 0 0 16px rgba(0, 245, 160, 0.14)',
+            '0 0 4px 1px rgba(255,255,255,0.45), 0 0 10px 2px rgba(0,245,160,0.5), 0 0 24px 4px rgba(0,217,245,0.475), 0 0 48px 6px rgba(0,217,245,0.35), 0 0 80px 10px rgba(124,58,237,0.275)',
         }}
       />
     </div>
