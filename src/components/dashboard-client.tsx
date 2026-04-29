@@ -39,6 +39,7 @@ import { getDayPhase, getWeekDays, getTodayWeekAndYear, toDateString } from '@/l
 import type { Entry, Member, Office, Organization, Customer, DashboardViewKey } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
+import { seedWeatherCache, type WeatherSnapshot } from '@/lib/weather/use-weather'
 
 type OrgRow = Pick<Organization, 'name' | 'timezone' | 'dashboard_show_sick' | 'dashboard_rotation_views' | 'dashboard_view_durations'>
 
@@ -62,6 +63,10 @@ interface DashboardClientProps {
   initialMembers?: Member[]
   initialOffices?: Office[]
   initialCustomers?: Customer[]
+  /** Server-prefetched vær per kontor-koordinat (key = `lat.toFixed(2),lng.toFixed(2)`).
+   *  Seedes inn i `useWeather`-cachen ved første render så TV-en aldri viser
+   *  bynavn uten ikon+grader på cold load. */
+  initialWeather?: Record<string, WeatherSnapshot>
 }
 
 type ViewKey = DashboardViewKey
@@ -89,7 +94,14 @@ export function DashboardClient({
   initialMembers,
   initialOffices,
   initialCustomers,
+  initialWeather,
 }: DashboardClientProps) {
+  // Seed klient-cachen FØR noen `OfficeMapLabel` monterer. Idempotent
+  // (skriver kun nøkler som ikke alt finnes) så det er trygt å kalle
+  // synkront i render-kroppen. Uten dette ville første frame av
+  // `Kontorene`-visningen hatt navn-uten-vær i 1–3 s.
+  if (initialWeather) seedWeatherCache(initialWeather)
+
   // Stable join key so effects/memos can depend on the list contents
   // without re-running on every render of an inline array literal.
   const orgIdsKey = orgIds.join(',')

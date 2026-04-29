@@ -121,6 +121,7 @@ const CITY_TABLE: Record<string, CityCoord> = {
   helsingborg:     { lat: 56.0465, lng: 12.6945, display: 'Helsingborg' },
   jonkoping:       { lat: 57.7826, lng: 14.1618, display: 'Jönköping' },
   umea:            { lat: 63.8258, lng: 20.2630, display: 'Umeå' },
+  uddevalla:       { lat: 58.3486, lng: 11.9389, display: 'Uddevalla' },
 
   // Danmark
   kobenhavn:       { lat: 55.6761, lng: 12.5683, display: 'København' },

@@ -31,6 +31,21 @@ async function fetchWeather(lat: number, lng: number): Promise<WeatherSnapshot |
 }
 
 /**
+ * Sett en server-prefetched seed inn i klient-cachen før hvilken som
+ * helst `useWeather`-komponent monterer. Brukes av `DashboardClient`
+ * etter at server-komponenten har gitt oss `initialWeather`-mappen —
+ * da rendres første frame med ferdig vær uten å vente på et fetch.
+ *
+ * Idempotent: skriver kun nøkler som ikke alt finnes, så et live in-
+ * flight-fetch ikke overstyres av eldre seed-data.
+ */
+export function seedWeatherCache(snapshots: Record<string, WeatherSnapshot>): void {
+  for (const [k, snap] of Object.entries(snapshots)) {
+    if (!memCache.has(k)) memCache.set(k, snap)
+  }
+}
+
+/**
  * useWeather(lat, lng) — returnerer { tempC, code } eller null mens vi
  * laster / ved feil. Konsumeren forventes å rendre `null` når hooken
  * gir `null`, så TV-en aldri viser delvis lastet UI.

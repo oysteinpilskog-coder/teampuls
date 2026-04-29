@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { DashboardClient } from '@/components/dashboard-client'
 import { getSessionMember } from '@/lib/supabase/session'
 import { createClient } from '@/lib/supabase/server'
+import { resolveLocation } from '@/lib/geo'
+import { fetchOfficeWeatherMap } from '@/lib/weather/fetch-weather'
 
 export default async function DashboardPage() {
   const { user, member, activeWorkspace, combinedScope } = await getSessionMember()
@@ -46,6 +48,24 @@ export default async function DashboardPage() {
       .order('name'),
   ])
 
+  // Server-prefetch vær for hver kontor-koordinat. Speiler `office-map-view.tsx`-
+  // logikken: bydict-treff vinner over lagret lat/lng, så vi cacher med samme
+  // (rundede) koordinat som klient-hooken slår opp på. Resultatet sendes som
+  // `initialWeather` til DashboardClient og seedes inn i `useWeather`-cachen
+  // før første render — TV-en viser navn + ikon + grader fra første frame
+  // i stedet for et 1–3 s vær-vindu.
+  const offices = officesRes.data ?? []
+  const officeCoords = offices
+    .map(o => {
+      const cityHit = resolveLocation(o.city ?? o.name)
+      const lat = cityHit?.lat ?? o.latitude
+      const lng = cityHit?.lng ?? o.longitude
+      if (typeof lat !== 'number' || typeof lng !== 'number') return null
+      return { lat, lng }
+    })
+    .filter((c): c is { lat: number; lng: number } => c !== null)
+  const initialWeather = await fetchOfficeWeatherMap(officeCoords)
+
   return (
     <DashboardClient
       orgIds={orgIds}
@@ -54,8 +74,9 @@ export default async function DashboardPage() {
       combinedName={combinedName}
       initialOrg={orgRes.data ?? null}
       initialMembers={membersRes.data ?? []}
-      initialOffices={officesRes.data ?? []}
+      initialOffices={offices}
       initialCustomers={customersRes.data ?? []}
+      initialWeather={initialWeather}
     />
   )
 }
