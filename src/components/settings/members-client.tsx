@@ -5,16 +5,19 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { Plus, Pencil, X, Trash2, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { Member, MemberRole } from '@/lib/supabase/types'
+import type { Member, MemberRole, Office } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { MemberAvatar } from '@/components/member-avatar'
 import { DatePicker } from '@/components/date-picker'
+import { CountryCombobox } from '@/components/ui/country-combobox'
+import { flagFor, isSupportedCountry } from '@/lib/holidays'
 import { useT } from '@/lib/i18n/context'
 
 interface MembersClientProps {
   orgId: string
   currentMemberId: string
   initialMembers: Member[]
+  initialOffices: Office[]
 }
 
 interface MemberFormState {
@@ -23,6 +26,10 @@ interface MemberFormState {
   initials: string
   email: string
   role: MemberRole
+  // ISO 3166-1 alpha-2. Tom string = ingen overstyring (faller tilbake til
+  // e-postdomene-backfill i migration 018). Lagres ikke direkte — løses
+  // til home_office_id ved save.
+  country_code: string
   birth_date: string
   birthday_visible: boolean
   start_date: string
@@ -35,14 +42,18 @@ const EMPTY_FORM: MemberFormState = {
   initials: '',
   email: '',
   role: 'member',
+  country_code: '',
   birth_date: '',
   birthday_visible: false,
   start_date: '',
   anniversary_visible: true,
 }
 
-export function MembersClient({ orgId, currentMemberId, initialMembers }: MembersClientProps) {
+const COUNTRY_FAVORITES = ['NO', 'SE', 'LT', 'GB'] as const
+
+export function MembersClient({ orgId, currentMemberId, initialMembers, initialOffices }: MembersClientProps) {
   const [members, setMembers] = useState<Member[]>(initialMembers)
+  const [offices] = useState<Office[]>(initialOffices)
   const [modalMode, setModalMode] = useState<'closed' | 'add' | 'edit'>('closed')
   const [editTarget, setEditTarget] = useState<Member | null>(null)
   const [form, setForm] = useState<MemberFormState>(EMPTY_FORM)
@@ -51,6 +62,18 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null)
   const [deleting, setDeleting] = useState(false)
   const t = useT()
+
+  function countryCodeFor(officeId: string | null | undefined): string {
+    if (!officeId) return ''
+    return offices.find(o => o.id === officeId)?.country_code ?? ''
+  }
+
+  function resolveOfficeId(countryCode: string): string | null | { error: true } {
+    if (!countryCode) return null
+    const match = offices.find(o => o.country_code === countryCode)
+    if (!match) return { error: true }
+    return match.id
+  }
 
   const ROLE_LABELS: Record<MemberRole, string> = {
     admin: t.settings.members.roleAdmin,
@@ -71,6 +94,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
       initials: m.initials ?? '',
       email: m.email,
       role: m.role,
+      country_code: countryCodeFor(m.home_office_id),
       birth_date: m.birth_date ?? '',
       birthday_visible: m.birthday_visible ?? false,
       start_date: m.start_date ?? '',
@@ -85,6 +109,14 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
 
   async function handleSave() {
     if (!form.display_name.trim() || !form.email.trim() || saving) return
+
+    const officeIdResult = resolveOfficeId(form.country_code)
+    if (officeIdResult && typeof officeIdResult === 'object' && 'error' in officeIdResult) {
+      toast.error(t.settings.members.errorNoOfficeForCountry)
+      return
+    }
+    const home_office_id = officeIdResult as string | null
+
     setSaving(true)
     const supabase = createClient()
 
@@ -97,6 +129,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
       initials,
       email: form.email.trim().toLowerCase(),
       role: form.role,
+      home_office_id,
       birth_date: form.birth_date || null,
       birthday_visible: form.birthday_visible,
       start_date: form.start_date || null,
@@ -209,6 +242,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
               isSelf={m.id === currentMemberId}
               isLast={i === active.length - 1}
               roleLabel={ROLE_LABELS[m.role]}
+              countryCode={countryCodeFor(m.home_office_id)}
               onEdit={() => openEdit(m)}
               onToggle={() => toggleActive(m)}
               onDelete={() => setDeleteTarget(m)}
@@ -237,6 +271,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                 isSelf={false}
                 isLast={i === inactive.length - 1}
                 roleLabel={ROLE_LABELS[m.role]}
+                countryCode={countryCodeFor(m.home_office_id)}
                 onEdit={() => openEdit(m)}
                 onToggle={() => toggleActive(m)}
                 onDelete={() => setDeleteTarget(m)}
@@ -329,6 +364,16 @@ export function MembersClient({ orgId, currentMemberId, initialMembers }: Member
                     style={inputStyle}
                     onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
                     onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                  />
+                </Field>
+
+                <Field label={t.settings.members.countryLabel} hint={t.settings.members.countryHint}>
+                  <CountryCombobox
+                    value={form.country_code}
+                    onChange={code => setForm(f => ({ ...f, country_code: code }))}
+                    favorites={COUNTRY_FAVORITES}
+                    ariaLabel={t.settings.members.countryLabel}
+                    placeholder={t.settings.members.countryPlaceholder}
                   />
                 </Field>
               </div>
@@ -653,6 +698,7 @@ function MemberRow({
   isSelf,
   isLast,
   roleLabel,
+  countryCode,
   onEdit,
   onToggle,
   onDelete,
@@ -661,10 +707,12 @@ function MemberRow({
   isSelf: boolean
   isLast: boolean
   roleLabel: string
+  countryCode: string
   onEdit: () => void
   onToggle: () => void
   onDelete: () => void
 }) {
+  const flag = isSupportedCountry(countryCode) ? flagFor(countryCode) : null
   return (
     <div
       className="flex items-center gap-4 px-5 py-4"
@@ -688,6 +736,15 @@ function MemberRow({
           >
             {member.display_name}
           </span>
+          {flag && (
+            <span
+              className="text-[14px] leading-none shrink-0"
+              aria-label={`Land: ${countryCode}`}
+              title={countryCode}
+            >
+              {flag}
+            </span>
+          )}
           {member.initials && (
             <span
               className="text-[10px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded-md font-mono"
