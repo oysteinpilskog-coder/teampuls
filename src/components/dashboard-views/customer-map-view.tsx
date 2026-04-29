@@ -3,16 +3,14 @@
 import { motion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { CustomerPin, type CustomerPinState } from './customer-pin'
-import { project, resolveLocation } from '@/lib/geo'
+import { project } from '@/lib/geo'
 import { resolveCustomer } from '@/lib/customer-resolver'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
 import { useStatusColors, useAuroraColors } from '@/lib/status-colors/context'
 import { spring } from '@/lib/motion'
 import type { Member, Entry, Customer } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
-import { useResolvedLocations } from '@/hooks/use-resolved-locations'
 import { useT } from '@/lib/i18n/context'
-import { useMemo } from 'react'
 import { WeatherInline } from '@/components/weather/weather-inline'
 
 interface CustomerMapViewProps {
@@ -32,11 +30,10 @@ interface CustomerCluster {
   lng: number
   radius: number
   display: string
-  isKnownCustomer: boolean
-  /** The customer.id when the cluster resolved via the registry — lets us
-   *  subtract visited customers from the registry list and avoid rendering
-   *  a ghost pin on top of a live pin at the same coordinates. */
-  customerId: string | null
+  /** The customer.id this cluster resolved to — lets us subtract visited
+   *  customers from the registry list and avoid rendering a ghost pin on
+   *  top of a live pin at the same coordinates. */
+  customerId: string
   memberIdsToday: Set<string>
   memberIdsWeek: Set<string>
   daysThisWeek: number
@@ -58,25 +55,10 @@ export function CustomerMapView({
   const memberById = new Map(members.map(m => [m.id, m]))
   const customerColor = STATUS_COLORS.customer.icon
 
-  // Resolution priority: customer registry → city dictionary → Nominatim.
-  // Anything the customer registry handles skips Nominatim entirely, which
-  // is how "Diplomat" gets onto Skøyen instead of a random foreign city.
-  const unknownLabels = useMemo(() => {
-    const set = new Set<string>()
-    for (const e of entries) {
-      if (e.status !== 'customer' && e.status !== 'event' && e.status !== 'travel') continue
-      const label = (e.location_label ?? '').trim()
-      if (!label) continue
-      if (resolveCustomer(label, customers)) continue
-      if (resolveLocation(label)) continue
-      set.add(label)
-    }
-    return Array.from(set)
-  }, [entries, customers])
-  const dynamicResolved = useResolvedLocations(unknownLabels)
-
-  // Cluster by resolved lat/lng. Unresolved labels are collected for a sidebar.
-  const byKey = new Map<string, CustomerCluster & { lat: number; lng: number; isKnownCustomer: boolean }>()
+  // Pins reflect the customer portfolio — only labels that match a row in
+  // the customer registry become pins. Unmatched labels go into the
+  // "Ukjente steder" sidebar so the admin can register them or ignore them.
+  const byKey = new Map<string, CustomerCluster>()
   const unresolved = new Map<string, Set<string>>()  // label → member ids
 
   for (const e of entries) {
@@ -84,26 +66,9 @@ export function CustomerMapView({
     if (!memberById.has(e.member_id)) continue
 
     const label = (e.location_label ?? '').trim()
-    let resolved: { lat: number; lng: number; display: string } | null = null
-    let isKnownCustomer = false
-    let customerId: string | null = null
-
-    // 1) Customer registry (authoritative)
     const asCustomer = resolveCustomer(label, customers)
-    if (asCustomer) {
-      resolved = { lat: asCustomer.lat, lng: asCustomer.lng, display: asCustomer.display }
-      isKnownCustomer = true
-      customerId = asCustomer.customer.id
-    }
-    // 2) Static city dictionary
-    if (!resolved) resolved = resolveLocation(label)
-    // 3) Nominatim fallback
-    if (!resolved && label) {
-      const dyn = dynamicResolved.get(label)
-      if (dyn) resolved = { lat: dyn.lat, lng: dyn.lng, display: dyn.display }
-    }
 
-    if (!resolved) {
+    if (!asCustomer) {
       if (!label) continue
       const set = unresolved.get(label) ?? new Set<string>()
       set.add(e.member_id)
@@ -111,31 +76,23 @@ export function CustomerMapView({
       continue
     }
 
-    const key = `${resolved.lat.toFixed(3)},${resolved.lng.toFixed(3)}`
+    const key = `${asCustomer.lat.toFixed(3)},${asCustomer.lng.toFixed(3)}`
     let cluster = byKey.get(key)
     if (!cluster) {
-      const { x, y } = project(resolved.lat, resolved.lng, MAP_WIDTH, MAP_HEIGHT)
+      const { x, y } = project(asCustomer.lat, asCustomer.lng, MAP_WIDTH, MAP_HEIGHT)
       cluster = {
         id: key,
         x, y,
         radius: 10,
-        lat: resolved.lat,
-        lng: resolved.lng,
-        display: resolved.display,
-        isKnownCustomer,
-        customerId,
+        lat: asCustomer.lat,
+        lng: asCustomer.lng,
+        display: asCustomer.display,
+        customerId: asCustomer.customer.id,
         memberIdsToday: new Set(),
         memberIdsWeek: new Set(),
         daysThisWeek: 0,
       }
       byKey.set(key, cluster)
-    }
-    // A cluster that resolves via any known customer is marked as such —
-    // we show a subtle visual distinction between "real customer" and
-    // "looked-up city" markers.
-    if (isKnownCustomer) {
-      cluster.isKnownCustomer = true
-      if (customerId) cluster.customerId = customerId
     }
     cluster.memberIdsWeek.add(e.member_id)
     cluster.daysThisWeek += 1
@@ -145,29 +102,13 @@ export function CustomerMapView({
   }
 
   const clusters = Array.from(byKey.values())
-    .map<CustomerCluster>(c => ({
-      id: c.id,
-      x: c.x,
-      y: c.y,
-      lat: c.lat,
-      lng: c.lng,
-      radius: 11,
-      display: c.display,
-      isKnownCustomer: c.isKnownCustomer,
-      customerId: c.customerId,
-      memberIdsToday: c.memberIdsToday,
-      memberIdsWeek: c.memberIdsWeek,
-      daysThisWeek: c.daysThisWeek,
-    }))
     .sort((a, b) => b.memberIdsWeek.size - a.memberIdsWeek.size)
 
   // Portfolio: every registered customer with coords shows on the map with
   // the same base design — the visit state (idle/week/today) just dials up
   // brightness and adds a soft single-pulse ring. One visual language, no
   // loud heartbeat competing with the city labels.
-  const visitedCustomerIds = new Set(
-    clusters.map(c => c.customerId).filter((id): id is string => !!id)
-  )
+  const visitedCustomerIds = new Set(clusters.map(c => c.customerId))
   const unvisitedCustomers = customers
     .filter(c =>
       c.latitude != null &&
