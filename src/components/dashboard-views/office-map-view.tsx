@@ -65,18 +65,18 @@ export function OfficeMapView({
   const officeColor = STATUS_COLORS.office.icon
 
   // labelWidth/Height matcher FO_WIDTH/FO_HEIGHT i `office-map-label.tsx`.
-  // Når begge er satt aktiveres AABB-overlapp-modus i `placeLabels`, så
-  // brede 360 px-bokser ikke kan ende opp på toppen av hverandre selv om
-  // pin-ankrene er ~350 px fra hverandre (Lyngdal vs. Uddevalla).
-  // collisionRadius økes tilsvarende — anker ~170 px var nok for ren
-  // anker-distanse, men AABB trenger større radius for å fange brede
-  // labels før de plasseres.
+  // Smal stablet boks (200 × 40) gjør at pinnen alltid sitter visuelt
+  // koblet til navnet — gamle 360 px brede inline-bokser sentrerte hele
+  // gruppen «By · ☀ 14°» rundt pinnen og dyttet bynavnet langt til siden.
+  // verticalAnchor: 0.5 må matche y-offsetet i office-map-label.tsx (også
+  // 0.5 — boksens midte ligger på labelY-ankeret).
   const placedLabels = placeLabels(placed, {
-    gap: 18,
-    collisionRadius: 240,
-    lineHeight: 30,
-    labelWidth: 360,
-    labelHeight: 44,
+    gap: 12,
+    collisionRadius: 160,
+    lineHeight: 20,
+    labelWidth: 200,
+    labelHeight: 40,
+    verticalAnchor: 0.5,
   })
 
   return (
