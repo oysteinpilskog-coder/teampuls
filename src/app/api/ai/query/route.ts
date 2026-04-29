@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { resolveActiveMember } from '@/lib/supabase/session'
 import { parseTeamQuery } from '@/lib/ai/query'
 import { getServerDict } from '@/lib/i18n/server'
+import { checkAiRateLimit } from '@/lib/ratelimit'
 
 // Edge runtime — same rationale as /api/ai/parse: pure fetch-based deps,
 // faster cold-start on the natural-language query path.
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
     const userClient = await createClient()
     const { data: { user } } = await userClient.auth.getUser()
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: dict.aiInput.sessionExpired }, { status: 401 })
     }
 
     const admin = createAdminClient()
@@ -30,6 +31,14 @@ export async function POST(req: NextRequest) {
     const member = await resolveActiveMember(admin, user.id, user.email)
     if (!member) {
       return NextResponse.json({ error: dict.ai.notLinkedToOrg }, { status: 403 })
+    }
+
+    const limit = await checkAiRateLimit(admin, member.id)
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: dict.aiInput.rateLimited },
+        { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } }
+      )
     }
 
     const { question } = (await req.json()) as { question?: string }

@@ -111,6 +111,8 @@ export const lt: Dictionary = {
     clarificationFallback: 'Nelabai supratau. Gal gali suformuluoti kitaip?',
     notLinked: 'Tavo vartotojas nesusietas su nariu. Susisiek su administratoriumi.',
     noActiveMembers: 'Organizacijoje nerasta aktyvių narių.',
+    rateLimited: 'Šiek tiek per greitai — palauk minutę ir bandyk dar kartą.',
+    sessionExpired: 'Tavo sesija pasibaigė. Prisijunk dar kartą.',
   },
   matrix: {
     thisWeek: 'Ši savaitė',

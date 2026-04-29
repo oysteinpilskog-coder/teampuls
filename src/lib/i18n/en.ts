@@ -111,6 +111,8 @@ export const en: Dictionary = {
     clarificationFallback: "I didn't quite understand. Could you phrase it differently?",
     notLinked: 'Your user is not linked to a member. Contact an admin.',
     noActiveMembers: 'No active members found in your organization.',
+    rateLimited: 'A little too fast — wait a minute and try again.',
+    sessionExpired: 'Your session has expired. Please log in again.',
   },
   matrix: {
     thisWeek: 'This week',
