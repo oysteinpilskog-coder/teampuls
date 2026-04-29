@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { TeamGrid } from '@/components/team-grid'
 import { AIInput } from '@/components/ai-input'
@@ -7,6 +8,8 @@ import { getSessionMember } from '@/lib/supabase/session'
 import { getServerDict } from '@/lib/i18n/server'
 import { createClient } from '@/lib/supabase/server'
 import { getTodayWeekAndYear, getWeekDays, toDateString } from '@/lib/dates'
+import type { CombinedScope } from '@/lib/supabase/session'
+import type { WorkspaceSummary } from '@/lib/supabase/types'
 
 export default async function HomePage() {
   const { user, member, workspaces, combinedScope } = await getSessionMember()
@@ -45,17 +48,65 @@ export default async function HomePage() {
     )
   }
 
-  // Warm the grid with the current week's members + entries server-side so
-  // the page hydrates into its populated state.
-  const supabase = await createClient()
+  // In combined view we hide the AI input — Claude can't disambiguate
+  // which workspace to write into when several share members ("Johan"
+  // could resolve to either side). The user picks a single workspace
+  // first if they want to log a status. The InactivityNudge is also
+  // workspace-scoped so we hide it.
+  const showSingleWorkspaceAffordances = !combinedScope
   const { week, year } = getTodayWeekAndYear()
+  const orgIds = combinedScope?.org_ids ?? [member.org_id]
+
+  return (
+    <div className="mx-auto max-w-7xl px-3 sm:px-6 pt-3 pb-10 space-y-5">
+      {showSingleWorkspaceAffordances && (
+        <div className="mx-auto max-w-3xl">
+          <AIInput orgId={member.org_id} />
+        </div>
+      )}
+
+      {/* Stream the matrix in via Suspense — the shell (header, AI input)
+          paints immediately while the members + entries queries resolve.
+          On cold loads this turns a single blocking-await into FCP-now,
+          matrix-soon-after. */}
+      <Suspense fallback={<TeamGridSkeleton />}>
+        <TeamGridLoader
+          orgIds={orgIds}
+          memberOrgId={member.org_id}
+          week={week}
+          year={year}
+          workspaces={workspaces}
+          combinedScope={combinedScope}
+        />
+      </Suspense>
+
+      {showSingleWorkspaceAffordances && (
+        <InactivityNudge orgId={member.org_id} memberId={member.id} />
+      )}
+    </div>
+  )
+}
+
+interface TeamGridLoaderProps {
+  orgIds: string[]
+  memberOrgId: string
+  week: number
+  year: number
+  workspaces: WorkspaceSummary[]
+  combinedScope: CombinedScope | null
+}
+
+async function TeamGridLoader({
+  orgIds,
+  memberOrgId,
+  week,
+  year,
+  workspaces,
+  combinedScope,
+}: TeamGridLoaderProps) {
+  const supabase = await createClient()
   const weekDays = getWeekDays(week, year)
   const dateStrings = weekDays.map(toDateString)
-
-  // Combined "Alle CalWin"-mode broadens the scope to every workspace
-  // the user belongs to under the same account; otherwise we stay
-  // scoped to the active workspace's org_id like before.
-  const orgIds = combinedScope?.org_ids ?? [member.org_id]
 
   const [membersRes, entriesRes] = await Promise.all([
     supabase
@@ -85,42 +136,69 @@ export default async function HomePage() {
 
   const memberCount = membersRes.data?.length ?? 0
 
-  // In combined view we hide the AI input — Claude can't disambiguate
-  // which workspace to write into when several share members ("Johan"
-  // could resolve to either side). The user picks a single workspace
-  // first if they want to log a status. The InactivityNudge is also
-  // workspace-scoped so we hide it.
-  const showSingleWorkspaceAffordances = !combinedScope
-
   return (
-    <div className="mx-auto max-w-7xl px-3 sm:px-6 pt-3 pb-10 space-y-5">
-      {showSingleWorkspaceAffordances && (
-        <div className="mx-auto max-w-3xl">
-          <AIInput orgId={member.org_id} />
-        </div>
-      )}
+    <TeamGrid
+      orgId={memberOrgId}
+      initialMembers={membersRes.data ?? []}
+      initialEntries={entriesRes.data ?? []}
+      initialWeek={week}
+      initialYear={year}
+      todayMetrics={{
+        memberCount,
+        registeredToday: todayMemberIds.size,
+        distinctLocations,
+      }}
+      workspaces={workspaces}
+      combinedView={!!combinedScope}
+    />
+  )
+}
 
-      {/* Week grid + compact meta strip. The WeekNav inside TeamGrid carries
-          everything on one line: weekday+date · uke · range · NÅ · metrics
-          · month-picker · prev/denne uken/next. */}
-      <TeamGrid
-        orgId={member.org_id}
-        initialMembers={membersRes.data ?? []}
-        initialEntries={entriesRes.data ?? []}
-        initialWeek={week}
-        initialYear={year}
-        todayMetrics={{
-          memberCount,
-          registeredToday: todayMemberIds.size,
-          distinctLocations,
+/**
+ * Matches the loading.tsx skeleton style so the Suspense fallback reads as
+ * the same surface — only the WeekNav + AI input header (already painted
+ * by the shell) is missing here. Six placeholder rows match the typical
+ * 5-15 member roster CalWin uses today.
+ */
+function TeamGridSkeleton() {
+  return (
+    <div className="space-y-10">
+      <div className="flex items-center justify-between">
+        <div className="h-8 w-48 rounded-xl bg-[var(--bg-subtle)] animate-pulse" />
+        <div className="h-8 w-24 rounded-xl bg-[var(--bg-subtle)] animate-pulse" />
+      </div>
+
+      <div
+        className="rounded-3xl p-4"
+        style={{
+          background: 'color-mix(in oklab, var(--bg-elevated) 78%, transparent)',
+          border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
         }}
-        workspaces={workspaces}
-        combinedView={!!combinedScope}
-      />
-
-      {showSingleWorkspaceAffordances && (
-        <InactivityNudge orgId={member.org_id} memberId={member.id} />
-      )}
+      >
+        <div className="grid gap-2 px-4 py-4" style={{ gridTemplateColumns: '88px repeat(5, 1fr)' }}>
+          <div />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-14 rounded-lg bg-[var(--bg-subtle)] animate-pulse" />
+          ))}
+        </div>
+        <div className="space-y-2 p-2">
+          {Array.from({ length: 6 }).map((_, r) => (
+            <div
+              key={r}
+              className="grid gap-2 items-center"
+              style={{ gridTemplateColumns: '88px repeat(5, 1fr)' }}
+            >
+              <div className="flex flex-col items-center gap-1.5 py-1">
+                <div className="w-9 h-9 rounded-full bg-[var(--bg-subtle)] animate-pulse" />
+                <div className="h-2.5 w-12 rounded bg-[var(--bg-subtle)] animate-pulse" />
+              </div>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-[84px] rounded-2xl bg-[var(--bg-subtle)] animate-pulse" />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

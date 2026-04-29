@@ -96,6 +96,7 @@ async function resolveSession() {
     accent_color?: string | null
     logo_url?: string | null
     archived_at?: string | null
+    status_colors?: Record<string, string> | null
   }
   type Row = {
     id: string
@@ -240,6 +241,7 @@ async function resolveSession() {
         accent_color: o.accent_color,
         logo_url: o.logo_url,
         role: r.role,
+        status_colors: o.status_colors ?? null,
       }
     })
     .filter((w): w is WorkspaceSummary => w !== null)
@@ -293,6 +295,10 @@ async function resolveSession() {
       accent_color: '#7C3AED',
       logo_url: null,
       role: adminRow.role,
+      // Combined view falls back to default status palette — see
+      // getOrgStatusColors() for the rationale (avoid favouring one
+      // workspace's overrides when the combined surface spans many).
+      status_colors: null,
     }
 
     return {

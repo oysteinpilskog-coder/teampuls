@@ -564,6 +564,26 @@
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
+  /* Hold off on painting the 90px-blur backdrop until well past FCP.
+     The blur is the single most expensive paint on first frame; deferring
+     it ~280ms lets the matrix and AI input render first without competing
+     for the compositor. The fade itself is short enough that the user
+     reads the surface as "always there", just settling in. */
+  opacity: 0;
+  animation: aurora-fade-in 700ms ease-out 280ms forwards;
+}
+
+@keyframes aurora-fade-in {
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-aurora {
+    /* Skip the fade entirely — reduced-motion users get the aurora
+       immediately so nothing appears to "appear". */
+    animation: none;
+    opacity: 1;
+  }
 }
 
 .ambient-aurora::before,
