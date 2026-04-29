@@ -12,6 +12,7 @@ import { toDateString } from '@/lib/dates'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import type { Dictionary } from '@/lib/i18n/types'
+import { TypeableDateInput } from '@/components/typeable-date-input'
 
 type DragMode =
   | { kind: 'idle' }
@@ -34,14 +35,6 @@ export function DateRangePicker({
   accentColor = 'var(--accent-color)',
 }: DateRangePickerProps) {
   const t = useT()
-  // Monday-first weekday initials for the two-letter column header.
-  // t.dates.weekdaysShort is Sunday-first; reorder to Mon…Sun and trim to 2 chars.
-  const ws = t.dates.weekdaysShort
-  const WEEKDAY_SHORT = [ws[1], ws[2], ws[3], ws[4], ws[5], ws[6], ws[0]].map(s => s.slice(0, 2))
-  // Capitalized long month names (Januar, …).
-  const MONTH_LONG = t.dates.monthsLongCap
-  // Long weekday names (Sunday-first, as JS getDay()).
-  const WEEKDAY_LONG = t.dates.weekdaysLong
   const start = startDate ? parseISO(startDate) : null
   const end = endDate ? parseISO(endDate) : null
 
@@ -154,19 +147,33 @@ export function DateRangePicker({
     pointerMovedRef.current = false
   }
 
-  const rangeLabel = useMemo(() => {
-    if (!start || !end) return t.dateRangePicker.pickDates
-    const sameDay = isSameDay(start, end)
-    const fmt = (d: Date) =>
-      `${d.getDate()}. ${MONTH_LONG[d.getMonth()].slice(0, 3)}`
-    const sameYear = start.getFullYear() === end.getFullYear()
-    if (sameDay) {
-      return `${WEEKDAY_LONG[start.getDay()]} ${fmt(start)} ${start.getFullYear()}`
-    }
+  const dayCountLabel = useMemo(() => {
+    if (!start || !end) return null
     const days = differenceInDays(end, start) + 1
-    const endText = sameYear ? fmt(end) : `${fmt(end)} ${end.getFullYear()}`
-    return `${fmt(start)} – ${endText} · ${days} dager`
-  }, [start, end, t, MONTH_LONG, WEEKDAY_LONG])
+    return `${days} ${t.editor.days}`
+  }, [start, end, t])
+
+  function commitStart(iso: string) {
+    if (!iso) return
+    if (end && parseISO(iso) > end) {
+      // Typed Fra past Til → swap.
+      onChange(toDateString(end), iso)
+      setAnchorMonth(startOfMonth(end))
+    } else {
+      onChange(iso, endDate || iso)
+      setAnchorMonth(startOfMonth(parseISO(iso)))
+    }
+  }
+
+  function commitEnd(iso: string) {
+    if (!iso) return
+    if (start && parseISO(iso) < start) {
+      onChange(iso, toDateString(start))
+      setAnchorMonth(startOfMonth(parseISO(iso)))
+    } else {
+      onChange(startDate || iso, iso)
+    }
+  }
 
   const isDragging = drag.kind !== 'idle'
 
@@ -180,8 +187,58 @@ export function DateRangePicker({
       onPointerLeave={() => { /* keep drag alive; release handled by capture */ }}
       style={{ touchAction: 'none' }}
     >
-      {/* Summary + nav */}
-      <div className="flex items-center justify-between mb-3">
+      {/* Typeable Fra/Til + day-count pill */}
+      <div className="flex items-end gap-2 mb-3">
+        <div className="flex-1">
+          <label
+            className="block text-[10px] font-semibold uppercase tracking-widest mb-1"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            {t.dateRangePicker.fromLabel}
+          </label>
+          <TypeableDateInput
+            value={startDate}
+            onChange={commitStart}
+            ariaLabel={t.dateRangePicker.fromLabel}
+            accentColor={accentColor}
+            compact
+            showIcon={false}
+            showClear={false}
+          />
+        </div>
+        <div className="flex-1">
+          <label
+            className="block text-[10px] font-semibold uppercase tracking-widest mb-1"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            {t.dateRangePicker.toLabel}
+          </label>
+          <TypeableDateInput
+            value={endDate}
+            onChange={commitEnd}
+            ariaLabel={t.dateRangePicker.toLabel}
+            accentColor={accentColor}
+            compact
+            showIcon={false}
+            showClear={false}
+          />
+        </div>
+        {dayCountLabel && (
+          <div
+            className="px-2.5 py-1.5 rounded-lg text-[12px] font-semibold tabular-nums whitespace-nowrap"
+            style={{
+              backgroundColor: `color-mix(in oklab, ${accentColor} 14%, transparent)`,
+              color: accentColor,
+              fontFamily: 'var(--font-body)',
+            }}
+          >
+            {dayCountLabel}
+          </div>
+        )}
+      </div>
+
+      {/* Month nav */}
+      <div className="flex items-center justify-between mb-2">
         <motion.button
           type="button"
           onClick={() => setAnchorMonth(addMonths(anchorMonth, -1))}
@@ -197,12 +254,7 @@ export function DateRangePicker({
           <ChevronLeft className="w-4 h-4" strokeWidth={1.75} />
         </motion.button>
 
-        <div
-          className="text-[13px] font-semibold tabular-nums"
-          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
-        >
-          {rangeLabel}
-        </div>
+        <div className="flex-1" />
 
         <motion.button
           type="button"
