@@ -31,7 +31,7 @@ export function track(event: string, props: Props = {}): void {
   if (typeof window === 'undefined') return
   try {
     if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
+       
       console.log(`[analytics] ${event}`, props)
     }
     window.posthog?.capture?.(event, props)

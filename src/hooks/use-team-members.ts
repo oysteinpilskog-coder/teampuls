@@ -69,7 +69,7 @@ function nextOccurrence(month: number, day: number, today: Date): {
 } {
   const todayKey = startOfDay(today)
   const tryYear = (y: number) => {
-    let m = month
+    const m = month
     let d = day
     let clampedLeapDay = false
     if (m === 1 && d === 29 && !isLeapYear(y)) {

@@ -241,6 +241,14 @@ export const en: Dictionary = {
     title: "Page doesn't exist",
     description: "The address you visited doesn't exist, or has been moved.",
   },
+  errorBoundary: {
+    title: 'Something went wrong',
+    description: 'An unexpected error occurred. The details have been logged — try again in a moment.',
+    reload: 'Reload',
+    backToHome: 'Back to home',
+    dashboardTitle: 'The screen will be back shortly',
+    dashboardDescription: 'Refreshing automatically in a few seconds.',
+  },
   dashboard: {
     back: '← Back',
     views: {
