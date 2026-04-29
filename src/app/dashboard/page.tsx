@@ -55,18 +55,7 @@ export default async function DashboardPage() {
   // før første render — TV-en viser navn + ikon + grader fra første frame
   // i stedet for et 1–3 s vær-vindu.
   const offices = officesRes.data ?? []
-  const dashboardMembers = membersRes.data ?? []
-  // Speil "ghost-kontor"-filteret fra OfficeMapView: kun kontor med minst
-  // ett aktivt medlem tilknyttet får vær-prefetch. Uten dette ville vi
-  // pinget Open-Meteo for London hver gang dashboardet hydrer, selv om
-  // pinnen aldri rendres.
-  const activeOfficeIds = new Set(
-    dashboardMembers
-      .filter(m => m.is_active && m.home_office_id)
-      .map(m => m.home_office_id as string),
-  )
   const officeCoords = offices
-    .filter(o => activeOfficeIds.has(o.id))
     .map(o => {
       const cityHit = resolveLocation(o.city ?? o.name)
       const lat = cityHit?.lat ?? o.latitude
