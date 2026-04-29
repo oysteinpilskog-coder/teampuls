@@ -3,6 +3,8 @@ export const spring = {
   snappy: { type: 'spring', stiffness: 400, damping: 25 },
   bouncy: { type: 'spring', stiffness: 500, damping: 20 },
   smooth: { type: 'spring', stiffness: 200, damping: 40 },
+  // Near-critical damping — modals land calmly with no visible bounce.
+  modal:  { type: 'spring', stiffness: 360, damping: 36, mass: 0.9 },
 } as const
 
 export const ease = {

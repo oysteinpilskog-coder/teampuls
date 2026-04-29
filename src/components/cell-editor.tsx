@@ -308,10 +308,10 @@ export function CellEditor({
           {/* Editor card — flex wrapper centers, dialog sits higher (iOS-style) */}
           <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-4 pt-[6vh] sm:pt-[8vh] pointer-events-none">
           <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 14 }}
+            initial={{ opacity: 0, scale: 0.97, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 14 }}
-            transition={spring.bouncy}
+            exit={{ opacity: 0, scale: 0.97, y: 8 }}
+            transition={spring.modal}
             className="glass-panel pointer-events-auto w-[560px] max-w-full max-h-[calc(100vh-10vh-1rem)] sm:max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col gap-4 sm:gap-5"
           >
             {/* Header */}

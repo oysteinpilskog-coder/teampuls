@@ -361,10 +361,10 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
             />
             <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-4 pt-[6vh] sm:pt-[8vh] pointer-events-none">
             <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              initial={{ opacity: 0, scale: 0.97, y: 8 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: 16 }}
-              transition={spring.bouncy}
+              exit={{ opacity: 0, scale: 0.97, y: 8 }}
+              transition={spring.modal}
               className="tp-modal pointer-events-auto w-[520px] max-w-full max-h-[calc(100vh-10vh-1rem)] sm:max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl p-4 sm:p-6 flex flex-col gap-4"
             >
               <div className="flex items-center justify-between">
