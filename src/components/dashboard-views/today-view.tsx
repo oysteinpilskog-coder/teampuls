@@ -170,7 +170,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
                 animation: 'clockBlink 1.2s ease-in-out infinite',
                 WebkitTextFillColor: 'rgba(245,239,228,0.75)',
                 backgroundImage: 'none',
-                margin: '0 -0.04em',
+                margin: '0 0.12em',
               }}
             >
               :
