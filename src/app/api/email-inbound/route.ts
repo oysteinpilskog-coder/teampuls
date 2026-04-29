@@ -159,7 +159,11 @@ export async function POST(req: NextRequest) {
   // Medium-confidence parses get written with a "?" marker so the recipient
   // can see and correct them, rather than silently dropped.
   const CLARIFICATION_CEILING = 0.45
-  const shouldWrite = result.confidence >= CLARIFICATION_CEILING && result.updates.length > 0
+  // Inkluder besøk-only meldinger («Anna kommer 14:00 fredag») som
+  // gyldige skrivinger selv om det ikke er noen updates på personell.
+  const shouldWrite =
+    result.confidence >= CLARIFICATION_CEILING &&
+    (result.updates.length > 0 || result.visit != null)
 
   // ── 7. Log request ────────────────────────────────────────────────────────
   supabase.from('ai_messages').insert({

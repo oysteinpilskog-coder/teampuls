@@ -29,17 +29,22 @@ const WheelView = dynamic(
   () => import('@/components/dashboard-views/wheel-view').then(m => ({ default: m.WheelView })),
   { ssr: false }
 )
+const WelcomeView = dynamic(
+  () => import('@/components/dashboard-views/welcome-view').then(m => ({ default: m.WelcomeView })),
+  { ssr: false }
+)
 import { AuroraBackground } from '@/components/dashboard-views/aurora-background'
 import { OffiviewSignature } from '@/components/brand/offiview-signature'
 import { BrandTransition } from '@/components/brand/brand-transition'
 import { TimezoneStrip } from '@/components/dashboard/timezone-strip'
-import { applyQuietHours, resolveViewDuration } from '@/lib/dashboard-defaults'
+import { applyQuietHours, resolveViewDuration, welcomeDwellSec } from '@/lib/dashboard-defaults'
 import { trackBrandImpression } from '@/lib/analytics'
 import { getDayPhase, getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
 import type { Entry, Member, Office, Organization, Customer, DashboardViewKey } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { seedWeatherCache, type WeatherSnapshot } from '@/lib/weather/use-weather'
+import { useActiveWelcomes } from '@/hooks/use-active-welcomes'
 
 type OrgRow = Pick<Organization, 'name' | 'timezone' | 'dashboard_show_sick' | 'dashboard_rotation_views' | 'dashboard_view_durations'>
 
@@ -71,6 +76,9 @@ interface DashboardClientProps {
 
 type ViewKey = DashboardViewKey
 const ALL_VIEWS: ViewKey[] = ['A', 'B', 'C', 'D', 'E']
+// View F (Velkomst) er IKKE i ALL_VIEWS — den injiseres dynamisk når et
+// besøk er innenfor sitt vindu (60 min før → 15 min etter start_time).
+// Den lagres aldri i organizations.dashboard_rotation_views.
 
 function dedupeByMember(rows: Entry[], members: Member[]): Entry[] {
   const activeIds = new Set(members.map(m => m.id))
@@ -114,6 +122,7 @@ export function DashboardClient({
     C: t.dashboard.views.offices,
     D: t.dashboard.views.customers,
     E: t.dashboard.views.wheel,
+    F: t.dashboard.views.welcome,
   }), [t])
   const searchParams = useSearchParams()
   // ?brand=off disables the 3.2s brand-transition moment for the entire
@@ -147,17 +156,28 @@ export function DashboardClient({
   const containerRef = useRef<HTMLDivElement>(null)
   const signatureRef = useRef<HTMLDivElement>(null)
 
+  // Aktive velkomstbesøk — drives av `visits`-tabellen + realtime-kanal.
+  // Tom array når ingen er innenfor sitt vindu, så Velkomst-slide F dukker
+  // opp og forsvinner uten å berøre admin-konfigurert rotasjon.
+  const activeWelcomes = useActiveWelcomes(orgIds, time)
+
   // Active carousel views come from the org setting. Preserve canonical
   // A..E order so the rotation sequence stays predictable, and fall back
   // to the full set if the setting is missing or empty (shouldn't happen,
   // but we never want a blank TV).
+  //
+  // Velkomst-view F injiseres dynamisk i toppen av rotasjonen kun når et
+  // besøk er innenfor sitt vindu. Aldri lagret i admin-konfigurasjonen.
   const VIEWS = useMemo<ViewKey[]>(() => {
     const raw = org?.dashboard_rotation_views
-    if (!raw || raw.length === 0) return ALL_VIEWS
-    const set = new Set(raw)
-    const filtered = ALL_VIEWS.filter(v => set.has(v))
-    return filtered.length > 0 ? filtered : ALL_VIEWS
-  }, [org?.dashboard_rotation_views])
+    const baseList = (() => {
+      if (!raw || raw.length === 0) return ALL_VIEWS
+      const set = new Set(raw)
+      const filtered = ALL_VIEWS.filter(v => set.has(v))
+      return filtered.length > 0 ? filtered : ALL_VIEWS
+    })()
+    return activeWelcomes.length > 0 ? (['F', ...baseList] as ViewKey[]) : baseList
+  }, [org?.dashboard_rotation_views, activeWelcomes.length])
   const showSick = org?.dashboard_show_sick ?? true
 
   // Rebuilds across midnight as `time` ticks past 00:00 — keeps the dashboard
@@ -205,6 +225,20 @@ export function DashboardClient({
     if (viewIdx >= VIEWS.length) setViewIdx(0)
   }, [VIEWS.length, viewIdx])
 
+  // Når et velkomst-besøk dukker opp innenfor sitt vindu, avbryt pågående
+  // rotasjon og hopp umiddelbart til Velkomst-slide F. Uten dette ville TV
+  // måttet vente på at gjeldende view skulle telle ferdig før velkomsten
+  // dukker opp — kunden er kanskje allerede gjennom døra. F sitter på
+  // index 0 i VIEWS når activeWelcomes.length > 0.
+  const prevWelcomeCountRef = useRef(0)
+  useEffect(() => {
+    if (activeWelcomes.length > 0 && prevWelcomeCountRef.current === 0) {
+      setPendingViewIdx(null)
+      setViewIdx(0)
+    }
+    prevWelcomeCountRef.current = activeWelcomes.length
+  }, [activeWelcomes.length])
+
   // Auto-rotate views with per-view durations from Settings. When the timer
   // fires we either jump straight to the next view (?brand=off, or during
   // an in-flight transition) or capture the signature position and arm
@@ -213,8 +247,17 @@ export function DashboardClient({
   // empty reception breathes slower instead of marching at the same pace
   // as a Tuesday lunch.
   const safeIdx = viewIdx % VIEWS.length
-  const baseDwell = resolveViewDuration(VIEWS[safeIdx], org?.dashboard_view_durations)
-  const currentDwellSec = applyQuietHours(baseDwell, time.getHours())
+  const currentViewKey = VIEWS[safeIdx]
+  // Velkomst-slide har dynamisk varighet basert på antall samtidige besøk
+  // (ca. 12 s per besøkende) så cycling rekker minst én runde før vi
+  // går videre. quiet-hours-stretch hopper vi over for F siden velkomster
+  // er forretningskritiske selv etter 18:00.
+  const baseDwell = currentViewKey === 'F'
+    ? welcomeDwellSec(activeWelcomes.length)
+    : resolveViewDuration(currentViewKey, org?.dashboard_view_durations)
+  const currentDwellSec = currentViewKey === 'F'
+    ? baseDwell
+    : applyQuietHours(baseDwell, time.getHours())
   useEffect(() => {
     // Pause the rotation timer while a brand transition is mid-flight —
     // BrandTransition.onComplete advances the index itself.
@@ -494,6 +537,13 @@ export function DashboardClient({
             time={time}
           />
         )
+      case 'F':
+        // Velkomst-slide. Returnerer null hvis vinduet akkurat er passert
+        // (mellom render og tilstand-cleanup) — VIEWS-arrayen vil oppdateres
+        // og BrandTransition spiller crossfade ut til neste view.
+        return activeWelcomes.length > 0 ? (
+          <WelcomeView visits={activeWelcomes} orgName={orgName} />
+        ) : null
     }
   }
 

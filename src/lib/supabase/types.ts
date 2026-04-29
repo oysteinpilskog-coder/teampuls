@@ -20,8 +20,13 @@ export type PresenceAssumption = 'none' | 'office' | 'remote' | 'per_member'
  * Keys for the rotating dashboard views shown on the public TV surface.
  * A = Nå (today), B = Uken (week), C = Kontorer (offices map),
  * D = Kunder (customers map), E = Årshjul (wheel).
+ *
+ * F = Velkomst — injiseres dynamisk i rotasjonen kun når et besøk er
+ * innenfor sitt aktive vindu (60 min før → 15 min etter start_time).
+ * F konfigureres ALDRI i organizations.dashboard_rotation_views; den
+ * dukker opp og forsvinner basert på `visits`-tabellen.
  */
-export type DashboardViewKey = 'A' | 'B' | 'C' | 'D' | 'E'
+export type DashboardViewKey = 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
 
 export interface Account {
   id: string
@@ -169,6 +174,35 @@ export interface Entry {
   source: EntrySource
   source_text: string | null
   /** AI parser confidence 0..1. NULL for manual edits. UI shows a "?" when < 0.7. */
+  confidence: number | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * En forventet besøkende på kontoret. Fyrer av Velkomst-slide F på
+ * TV-dashboardet når `now()` er innenfor [start_time - 60min, start_time + 15min]
+ * på `date`. start_time er NOT NULL i DB — det er ingen velkomst uten klokkeslett.
+ */
+export interface Visit {
+  id: string
+  org_id: string
+  /** Ansatt som tar imot besøket. */
+  host_member_id: string
+  /** Besøkendes fulle navn — vises stort på velkomst-slide. */
+  visitor_name: string
+  /** Valgfritt firmanavn. Vises som «fra Acme AS» kun når satt. */
+  visitor_company: string | null
+  /** ISO 'YYYY-MM-DD'. */
+  date: string
+  /** ISO 'HH:MM:SS' (postgres TIME). */
+  start_time: string
+  /** ISO 'HH:MM:SS' eller null. */
+  end_time: string | null
+  note: string | null
+  source: EntrySource
+  source_text: string | null
   confidence: number | null
   created_by: string | null
   created_at: string

@@ -249,6 +249,7 @@ export const en: Dictionary = {
       offices: 'Offices',
       customers: 'Customers',
       wheel: 'Year',
+      welcome: 'Welcome',
     },
     hint: '← → switch · F fullscreen',
     fullscreen: 'Fullscreen',
@@ -283,6 +284,11 @@ export const en: Dictionary = {
       visited: 'visited',
       customers: 'Customers',
       unknownPlaces: 'Unknown places',
+    },
+    welcome: {
+      eyebrow: 'Welcome,',
+      at: 'at {time}',
+      from: 'from {company}',
     },
   },
   myPlan: {
@@ -348,7 +354,17 @@ export const en: Dictionary = {
     prevMonth: 'Previous month',
     nextMonth: 'Next month',
     pickDates: 'Pick dates',
-    helpText: 'Click the start date, then the end · Drag the edges to resize · Drag the middle to move',
+    helpText: 'Type or click start / end · Drag the edges to resize · Drag the middle to move',
+    fromLabel: 'From',
+    toLabel: 'To',
+  },
+  dateInput: {
+    placeholder: 'dd/mm/yyyy',
+    invalid: 'Unrecognised date',
+  },
+  datePicker: {
+    clear: 'Clear',
+    today: 'Today',
   },
   statusSegment: {
     dragStart: 'Drag to change start date',

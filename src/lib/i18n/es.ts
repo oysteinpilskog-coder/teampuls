@@ -249,6 +249,7 @@ export const es: Dictionary = {
       offices: 'Oficinas',
       customers: 'Clientes',
       wheel: 'Año',
+      welcome: 'Bienvenida',
     },
     hint: '← → cambiar · F pantalla completa',
     fullscreen: 'Pantalla completa',
@@ -283,6 +284,11 @@ export const es: Dictionary = {
       visited: 'visitados',
       customers: 'Clientes',
       unknownPlaces: 'Lugares desconocidos',
+    },
+    welcome: {
+      eyebrow: 'Bienvenido,',
+      at: 'a las {time}',
+      from: 'de {company}',
     },
   },
   myPlan: {
@@ -348,7 +354,17 @@ export const es: Dictionary = {
     prevMonth: 'Mes anterior',
     nextMonth: 'Mes siguiente',
     pickDates: 'Elegir fechas',
-    helpText: 'Haz clic en la fecha inicial, luego en la final · Arrastra los bordes para redimensionar · Arrastra el centro para mover',
+    helpText: 'Escribe o haz clic en la fecha inicial / final · Arrastra los bordes para redimensionar · Arrastra el centro para mover',
+    fromLabel: 'Desde',
+    toLabel: 'Hasta',
+  },
+  dateInput: {
+    placeholder: 'dd/mm/aaaa',
+    invalid: 'Formato de fecha no reconocido',
+  },
+  datePicker: {
+    clear: 'Borrar',
+    today: 'Hoy',
   },
   statusSegment: {
     dragStart: 'Arrastra para cambiar la fecha de inicio',

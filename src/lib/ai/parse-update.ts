@@ -20,8 +20,31 @@ export interface ParsedUpdate {
   note: string | null
 }
 
+/**
+ * En forventet besøkende. AI-en returnerer dette KUN når meldingen
+ * inkluderer eksplisitt klokkeslett — uten tid blir det en vanlig
+ * `updates`-rad for verten i stedet (typisk status=customer).
+ *
+ * Lagres i `visits`-tabellen og driver Velkomst-slide F på TV-en.
+ */
+export interface ParsedVisit {
+  host_member_id: string
+  host_member_name: string
+  visitor_name: string
+  visitor_company: string | null
+  /** ISO 'YYYY-MM-DD'. */
+  date: string
+  /** 'HH:MM' (24h). */
+  start_time: string
+  /** 'HH:MM' eller null. */
+  end_time: string | null
+  note: string | null
+}
+
 export interface ParseResult {
   updates: ParsedUpdate[]
+  /** Sett kun når meldingen beskriver et besøk MED klokkeslett. */
+  visit?: ParsedVisit | null
   action: 'create' | 'update' | 'delete'
   confidence: number
   clarification: string | null

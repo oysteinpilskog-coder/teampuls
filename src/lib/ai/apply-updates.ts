@@ -15,6 +15,30 @@ export async function applyUpdates(
   const source = opts.source ?? 'ai_web'
   const sourceText = opts.sourceText ?? null
 
+  // Velkomst-besøk: AI returnerer `visit` kun når meldingen inneholder
+  // et eksplisitt klokkeslett. INSERT (ikke upsert) — to forskjellige
+  // besøk samme dag/host skal kunne sameksistere; det er ikke en
+  // unique key her. delete-action har ingen visit-versjon foreløpig.
+  if (result.visit && result.action !== 'delete') {
+    const v = result.visit
+    const { error } = await supabase
+      .from('visits')
+      .insert({
+        org_id: orgId,
+        host_member_id: v.host_member_id,
+        visitor_name: v.visitor_name,
+        visitor_company: v.visitor_company,
+        date: v.date,
+        start_time: v.start_time,
+        end_time: v.end_time,
+        note: v.note,
+        source,
+        source_text: sourceText,
+        confidence: result.confidence,
+      })
+    if (error) throw new Error(`applyUpdates visit insert failed: ${error.message}`)
+  }
+
   // Delete original_period entries for "update" action
   if (result.action === 'update' && result.original_period) {
     const { error } = await supabase

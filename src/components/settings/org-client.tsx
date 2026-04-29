@@ -20,7 +20,10 @@ import { useT } from '@/lib/i18n/context'
 
 const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
 
-const DASHBOARD_VIEW_KEYS: DashboardViewKey[] = ['A', 'B', 'C', 'D', 'E']
+// Bare A–E er konfigurerbare i Settings — Velkomst-view F injiseres
+// dynamisk på dashboardet og skal aldri lagres til
+// organizations.dashboard_rotation_views.
+const DASHBOARD_VIEW_KEYS = ['A', 'B', 'C', 'D', 'E'] as const
 
 function sameSet(a: DashboardViewKey[], b: DashboardViewKey[]): boolean {
   if (a.length !== b.length) return false
@@ -66,7 +69,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
   const [dashboardRotationViews, setDashboardRotationViews] = useState<DashboardViewKey[]>(
     initialOrg.dashboard_rotation_views && initialOrg.dashboard_rotation_views.length > 0
       ? initialOrg.dashboard_rotation_views
-      : DASHBOARD_VIEW_KEYS
+      : [...DASHBOARD_VIEW_KEYS]
   )
   const savedViewDurations: Record<DashboardViewKey, number> = (() => {
     const out = { ...DEFAULT_VIEW_DURATIONS }
@@ -94,10 +97,10 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
   const savedStatusColors = mergeHexColors(org.status_colors)
   const statusColorsDirty = STATUS_ORDER.some(s => statusColors[s] !== savedStatusColors[s])
 
-  const savedRotationViews =
+  const savedRotationViews: DashboardViewKey[] =
     org.dashboard_rotation_views && org.dashboard_rotation_views.length > 0
       ? org.dashboard_rotation_views
-      : DASHBOARD_VIEW_KEYS
+      : [...DASHBOARD_VIEW_KEYS]
   const rotationDirty = !sameSet(dashboardRotationViews, savedRotationViews)
 
   const durationsDirty = DASHBOARD_VIEW_KEYS.some(k => viewDurations[k] !== savedViewDurations[k])
@@ -849,7 +852,7 @@ function DashboardRotationPicker({
 }: {
   selected: DashboardViewKey[]
   onToggle: (v: DashboardViewKey) => void
-  labels: Record<DashboardViewKey, string>
+  labels: Record<'A' | 'B' | 'C' | 'D' | 'E', string>
   minHint: string
 }) {
   const isLastOne = selected.length === 1
@@ -917,7 +920,7 @@ function DashboardDurationsEditor({
 }: {
   durations: Record<DashboardViewKey, number>
   onChange: (view: DashboardViewKey, value: number) => void
-  labels: Record<DashboardViewKey, string>
+  labels: Record<'A' | 'B' | 'C' | 'D' | 'E', string>
   secondsSuffix: string
   onReset: () => void
   resetLabel: string

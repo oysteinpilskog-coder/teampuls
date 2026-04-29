@@ -247,6 +247,7 @@ export const no = {
       offices: 'Kontorer',
       customers: 'Kunder',
       wheel: 'Årshjul',
+      welcome: 'Velkomst',
     },
     hint: '← → bytt · F fullskjerm',
     fullscreen: 'Fullskjerm',
@@ -281,6 +282,11 @@ export const no = {
       visited: 'besøkt',
       customers: 'Kunder',
       unknownPlaces: 'Ukjente steder',
+    },
+    welcome: {
+      eyebrow: 'Velkommen,',
+      at: 'kl. {time}',
+      from: 'fra {company}',
     },
   },
   myPlan: {
@@ -346,7 +352,17 @@ export const no = {
     prevMonth: 'Forrige måned',
     nextMonth: 'Neste måned',
     pickDates: 'Velg datoer',
-    helpText: 'Klikk fra-dato, så til-dato · Dra kantene for å endre · Dra midten for å flytte',
+    helpText: 'Skriv eller klikk fra-/til-dato · Dra kantene for å endre · Dra midten for å flytte',
+    fromLabel: 'Fra',
+    toLabel: 'Til',
+  },
+  dateInput: {
+    placeholder: 'dd.mm.åååå',
+    invalid: 'Ukjent datoformat',
+  },
+  datePicker: {
+    clear: 'Tøm',
+    today: 'I dag',
   },
   statusSegment: {
     dragStart: 'Dra for å endre startdato',

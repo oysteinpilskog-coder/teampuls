@@ -48,7 +48,7 @@ export function track(event: string, props: Props = {}): void {
 }
 
 export interface BrandImpressionProps extends Props {
-  view_key: 'A' | 'B' | 'C' | 'D' | 'E'
+  view_key: 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
   dwell_sec: number
   org_id: string
 }

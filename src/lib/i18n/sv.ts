@@ -249,6 +249,7 @@ export const sv: Dictionary = {
       offices: 'Kontor',
       customers: 'Kunder',
       wheel: 'Årshjul',
+      welcome: 'Välkommen',
     },
     hint: '← → byt · F fullskärm',
     fullscreen: 'Fullskärm',
@@ -283,6 +284,11 @@ export const sv: Dictionary = {
       visited: 'besökta',
       customers: 'Kunder',
       unknownPlaces: 'Okända platser',
+    },
+    welcome: {
+      eyebrow: 'Välkommen,',
+      at: 'kl. {time}',
+      from: 'från {company}',
     },
   },
   myPlan: {
@@ -348,7 +354,17 @@ export const sv: Dictionary = {
     prevMonth: 'Föregående månad',
     nextMonth: 'Nästa månad',
     pickDates: 'Välj datum',
-    helpText: 'Klicka första datumet, sedan det sista · Dra kanterna för att ändra · Dra mitten för att flytta',
+    helpText: 'Skriv eller klicka första/sista datum · Dra kanterna för att ändra · Dra mitten för att flytta',
+    fromLabel: 'Från',
+    toLabel: 'Till',
+  },
+  dateInput: {
+    placeholder: 'åååå-mm-dd',
+    invalid: 'Okänt datumformat',
+  },
+  datePicker: {
+    clear: 'Rensa',
+    today: 'Idag',
   },
   statusSegment: {
     dragStart: 'Dra för att ändra startdatum',

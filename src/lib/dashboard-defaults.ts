@@ -8,6 +8,11 @@ import type { DashboardViewKey } from './supabase/types'
  * Wheel (E) reads slower than the operational boards, so it gets longer.
  * Nå (A) is the headline view and benefits from a longer hold so visitors
  * can read it without rushing.
+ *
+ * Velkomst (F) er ikke konfigurerbar i Settings — den injiseres dynamisk
+ * når et besøk er innenfor sitt vindu. Default på 30 sek; ved flere
+ * samtidige besøk skalerer welcomeDwellSec() varigheten så hver person
+ * får sin sykling før vi går videre.
  */
 export const DEFAULT_VIEW_DURATIONS: Record<DashboardViewKey, number> = {
   A: 30,
@@ -15,6 +20,16 @@ export const DEFAULT_VIEW_DURATIONS: Record<DashboardViewKey, number> = {
   C: 15,
   D: 15,
   E: 20,
+  F: 30,
+}
+
+/**
+ * Velkomst-modusen cycler gjennom n besøk på ~12 s per besøkende; vi gir
+ * minst 30 s totalt så animasjonene rekker å slutte selv ved ett besøk.
+ */
+export function welcomeDwellSec(visitCount: number): number {
+  if (visitCount <= 1) return DEFAULT_VIEW_DURATIONS.F
+  return Math.max(DEFAULT_VIEW_DURATIONS.F, visitCount * 12)
 }
 
 /**
