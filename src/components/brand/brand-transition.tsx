@@ -202,12 +202,22 @@ function HeroMark({
               <stop offset="55%" stopColor="#00D9F5" />
               <stop offset="100%" stopColor="#7C3AED" />
             </linearGradient>
+            {/*
+             * filterUnits="userSpaceOnUse" + konkrete viewBox-koordinater.
+             * Default `objectBoundingBox` kollapser på en horisontal <line>
+             * (y1=y2 → bbox-høyde 0) og klipper hele feMerge-utgangen —
+             * inkludert SourceGraphic — til en zero-region. Samme rotårsak
+             * som gradient-fixen rett over og OffiviewMark-glow-fixen.
+             * 12 enheters padding gir trygg plass til glow-haloen
+             * (stdDev=1.6 → bleed ~5) og strek-tykkelsen.
+             */}
             <filter
               id="brand-transition-glow"
-              x="-30%"
-              y="-30%"
-              width="160%"
-              height="160%"
+              filterUnits="userSpaceOnUse"
+              x={3}
+              y={50}
+              width={94}
+              height={24}
             >
               <feGaussianBlur stdDeviation="1.6" result="b" />
               <feMerge>
