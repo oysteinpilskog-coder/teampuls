@@ -475,7 +475,7 @@ export function CustomerMapView({
                     background:
                       'linear-gradient(90deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%)',
                     filter: 'blur(7px) saturate(140%)',
-                    opacity: 0.95,
+                    opacity: 0.475,
                     transform: 'scaleY(4)',
                     transformOrigin: 'center',
                   }}
@@ -492,7 +492,7 @@ export function CustomerMapView({
                     backgroundSize: '100% 100%',
                     backgroundRepeat: 'no-repeat',
                     boxShadow:
-                      '0 0 4px 1px rgba(255,255,255,0.9), 0 0 10px 2px rgba(0,245,160,1), 0 0 24px 4px rgba(0,217,245,0.95), 0 0 48px 6px rgba(0,217,245,0.7), 0 0 80px 10px rgba(124,58,237,0.55)',
+                      '0 0 4px 1px rgba(255,255,255,0.45), 0 0 10px 2px rgba(0,245,160,0.5), 0 0 24px 4px rgba(0,217,245,0.475), 0 0 48px 6px rgba(0,217,245,0.35), 0 0 80px 10px rgba(124,58,237,0.275)',
                   }}
                 />
               </div>
