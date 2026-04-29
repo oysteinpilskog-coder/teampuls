@@ -112,12 +112,23 @@ export function OffiviewMark({
               <stop offset="55%" stopColor="#00D9F5" />
               <stop offset="100%" stopColor="#7C3AED" />
             </linearGradient>
+            {/*
+             * filterUnits="userSpaceOnUse" + konkrete viewBox-koordinater.
+             * Default `objectBoundingBox` kollapser på en horisontal <line>
+             * (y1=y2 → bbox-høyde 0) og klipper hele feMerge-utgangen —
+             * inkludert SourceGraphic — til en zero-region. Samme rotårsak
+             * som gradient-fixen rett over; filteret ble bare glemt i den
+             * runden. 12 enheters padding rundt linja gir trygg plass til
+             * glow-haloen (stdDev=2.2 → bleed ~7) og den ×1.4 tykkere
+             * streken.
+             */}
             <filter
               id={`${gradientId}-glow`}
-              x="-20%"
-              y="-20%"
-              width="140%"
-              height="140%"
+              filterUnits="userSpaceOnUse"
+              x={hx1 - 12}
+              y={hy - 12}
+              width={hx2 - hx1 + 24}
+              height={24}
             >
               <feGaussianBlur stdDeviation="2.2" result="blur" />
               <feMerge>
