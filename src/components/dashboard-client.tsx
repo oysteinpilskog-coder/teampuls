@@ -574,7 +574,6 @@ export function DashboardClient({
         return (
           <OfficeMapView
             offices={offices}
-            members={members}
             orgName={orgName}
             time={time}
           />

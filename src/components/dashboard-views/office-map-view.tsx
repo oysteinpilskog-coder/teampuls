@@ -7,14 +7,13 @@ import { project, resolveLocation } from '@/lib/geo'
 import { placeLabels } from '@/lib/map-labels'
 import { useStatusColors, useAuroraColors } from '@/lib/status-colors/context'
 import { spring } from '@/lib/motion'
-import type { Member, Office } from '@/lib/supabase/types'
+import type { Office } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
 import { useT } from '@/lib/i18n/context'
 import { OfficeMapLabel } from './office-map-label'
 
 interface OfficeMapViewProps {
   offices: Office[]
-  members: Member[]
   orgName: string
   time: Date
 }
@@ -31,7 +30,6 @@ interface PlacedOffice {
 
 export function OfficeMapView({
   offices,
-  members,
   orgName,
   time,
 }: OfficeMapViewProps) {
@@ -40,23 +38,12 @@ export function OfficeMapView({
   const t = useT()
   const weekNum = getISOWeek(time)
 
-  // Skjul "ghost-kontor" — offices uten et eneste aktivt medlem tilknyttet
-  // via home_office_id. London i CalWin er det klassiske tilfellet: rad i
-  // offices-tabellen, men ingen ansatt registrert der. Settings-siden
-  // viser fortsatt alle kontor slik at admin kan rydde opp.
-  const activeOfficeIds = new Set(
-    members
-      .filter(m => m.is_active && m.home_office_id)
-      .map(m => m.home_office_id as string),
-  )
-
   // Project each office. City-dictionary match wins over stored lat/lng so
   // the continent-scale view stays robust against bad geocoder results
   // (e.g. "Newcastle, GB" → Newcastle, Co. Down instead of upon Tyne). For
   // a 1400×900 map of Europe, ±20 km from a city centre is invisible — we
   // trade pin precision for consistency and immunity to data drift.
   const placed: PlacedOffice[] = offices
-    .filter(o => activeOfficeIds.has(o.id))
     .map<PlacedOffice | null>(office => {
       const cityHit = resolveLocation(office.city ?? office.name)
       const lat: number | null = cityHit?.lat ?? office.latitude
