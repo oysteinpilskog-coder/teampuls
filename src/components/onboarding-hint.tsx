@@ -1,8 +1,9 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { spring } from '@/lib/motion'
+import { useT } from '@/lib/i18n/context'
 
 const STORAGE_KEY = 'teampulse.onboarding.cmdk.dismissed'
 const SHOW_DELAY_MS = 2200
@@ -16,6 +17,8 @@ const AUTO_HIDE_MS = 12_000
  */
 export function OnboardingHint() {
   const [show, setShow] = useState(false)
+  const t = useT()
+  const prefersReducedMotion = useReducedMotion()
 
   useEffect(() => {
     // SSR-safe: only check localStorage on the client.
@@ -60,11 +63,11 @@ export function OnboardingHint() {
             window.dispatchEvent(new CustomEvent('teampulse:palette:open'))
             dismiss()
           }}
-          initial={{ opacity: 0, y: 14, scale: 0.96 }}
+          initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 14, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 10, scale: 0.96 }}
+          exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.96 }}
           transition={spring.gentle}
-          whileHover={{ y: -2 }}
+          whileHover={prefersReducedMotion ? undefined : { y: -2 }}
           className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 px-4 py-2.5 rounded-2xl text-[13px] font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
           style={{
             background: 'color-mix(in oklab, var(--bg-elevated) 88%, transparent)',
@@ -92,17 +95,26 @@ export function OnboardingHint() {
               />
             </svg>
           </span>
-          <span>Trykk</span>
+          <span>{t.onboardingHint.pre}</span>
           <Kbd>⌘</Kbd>
           <Kbd>K</Kbd>
-          <span>for å søke eller navigere raskt</span>
+          <span>{t.onboardingHint.post}</span>
           <span
-            aria-hidden
-            className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full cursor-pointer"
+            role="button"
+            tabIndex={0}
+            aria-label={t.onboardingHint.dismiss}
+            className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full cursor-pointer hover:bg-[color-mix(in_oklab,var(--text-tertiary)_15%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
             style={{ color: 'var(--text-tertiary)' }}
             onClick={(e) => {
               e.stopPropagation()
               dismiss()
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                e.stopPropagation()
+                dismiss()
+              }
             }}
           >
             <svg viewBox="0 0 10 10" width="10" height="10" fill="none">

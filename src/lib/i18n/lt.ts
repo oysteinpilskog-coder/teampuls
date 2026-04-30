@@ -169,6 +169,18 @@ export const lt: Dictionary = {
     accountNotLinkedSuffix: 'Supabase SQL redaktoriuje.',
     accountNotLinkedEmailLabel: 'El. paštas',
   },
+  inactivityNudge: {
+    title: 'Ar šią savaitę buvai biure?',
+    desc: 'Įrašyk savo būseną, kad komanda žinotų, iš kur dirbi.',
+    cta: 'Įrašyti dabar',
+    later: 'Vėliau',
+    close: 'Uždaryti',
+  },
+  onboardingHint: {
+    pre: 'Spausk',
+    post: 'norėdamas greitai ieškoti ar judėti',
+    dismiss: 'Slėpti patarimą',
+  },
   palette: {
     placeholder: 'Ieškok, eik į, arba rašyk komandą…',
     empty: 'Nieko nerasta',

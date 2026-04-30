@@ -169,6 +169,18 @@ export const es: Dictionary = {
     accountNotLinkedSuffix: 'en el Editor SQL de Supabase.',
     accountNotLinkedEmailLabel: 'El correo',
   },
+  inactivityNudge: {
+    title: '¿Has estado en la oficina esta semana?',
+    desc: 'Registra tu estado para que el equipo sepa dónde trabajas.',
+    cta: 'Registrar ahora',
+    later: 'Más tarde',
+    close: 'Cerrar',
+  },
+  onboardingHint: {
+    pre: 'Pulsa',
+    post: 'para buscar o navegar rápido',
+    dismiss: 'Ocultar consejo',
+  },
   palette: {
     placeholder: 'Busca, navega o escribe un comando…',
     empty: 'Sin resultados',

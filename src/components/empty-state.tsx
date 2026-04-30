@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { spring } from '@/lib/motion'
 
 interface EmptyStateProps {
@@ -18,9 +18,10 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon, title, description, action, tone, compact }: EmptyStateProps) {
   const accent = tone ?? 'var(--accent-color)'
+  const prefersReducedMotion = useReducedMotion()
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={spring.gentle}
       className={`relative mx-auto text-center ${compact ? 'py-8' : 'py-14'}`}
@@ -37,8 +38,8 @@ export function EmptyState({ icon, title, description, action, tone, compact }: 
           background: `radial-gradient(closest-side, color-mix(in oklab, ${accent} 25%, transparent), transparent 70%)`,
           filter: 'blur(22px)',
         }}
-        animate={{ opacity: [0.55, 0.85, 0.55] }}
-        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+        animate={prefersReducedMotion ? undefined : { opacity: [0.55, 0.85, 0.55] }}
+        transition={prefersReducedMotion ? undefined : { duration: 5, repeat: Infinity, ease: 'easeInOut' }}
       />
 
       {icon && (

@@ -2,7 +2,9 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
+import { motion, useReducedMotion } from 'framer-motion'
 import { no } from '@/lib/i18n/no'
+import { ease } from '@/lib/motion'
 
 // Error boundary doesn't render through the I18nProvider reliably (the error
 // might be in the layout itself), so fall back to the Norwegian dictionary
@@ -16,25 +18,35 @@ export default function GlobalError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const prefersReducedMotion = useReducedMotion()
+
   useEffect(() => {
     console.error('[error-boundary]', error)
   }, [error])
 
   return (
-    <div className="min-h-[60vh] flex flex-col items-center justify-center px-6 text-center">
-      <p
-        className="text-[96px] font-bold leading-none mb-4 select-none"
+    <motion.div
+      className="min-h-[60vh] flex flex-col items-center justify-center px-6 text-center"
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: ease.horizon }}
+    >
+      <span
+        aria-hidden
+        className="text-[120px] leading-none mb-6 select-none italic"
         style={{
           fontFamily: 'var(--font-fraunces)',
-          color: 'var(--border-strong)',
+          fontWeight: 300,
+          fontVariationSettings: '"opsz" 144, "SOFT" 80',
+          color: 'var(--accent-color)',
           letterSpacing: '-0.04em',
         }}
       >
         !
-      </p>
+      </span>
       <h1
         className="text-[24px] font-semibold mb-2"
-        style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
+        style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)', letterSpacing: '-0.02em' }}
       >
         {t.title}
       </h1>
@@ -48,18 +60,22 @@ export default function GlobalError({
         <button
           type="button"
           onClick={reset}
-          className="px-6 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
-          style={{ backgroundColor: 'var(--accent-color)', fontFamily: 'var(--font-body)' }}
+          className="px-6 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-transform active:scale-[0.98]"
+          style={{
+            backgroundColor: 'var(--accent-color)',
+            boxShadow: 'var(--shadow-accent)',
+            fontFamily: 'var(--font-body)',
+          }}
         >
           {t.reload}
         </button>
         <Link
           href="/"
-          className="px-6 py-2.5 rounded-xl text-[13px] font-semibold transition-opacity hover:opacity-80"
+          className="px-6 py-2.5 rounded-xl text-[13px] font-semibold transition-colors hover:bg-[color-mix(in_oklab,var(--bg-subtle)_70%,transparent)]"
           style={{
             color: 'var(--text-secondary)',
             fontFamily: 'var(--font-body)',
-            border: '1px solid var(--border-default)',
+            border: '1px solid color-mix(in oklab, var(--border-subtle) 70%, transparent)',
           }}
         >
           {t.backToHome}
@@ -73,6 +89,6 @@ export default function GlobalError({
           ref: {error.digest}
         </p>
       )}
-    </div>
+    </motion.div>
   )
 }

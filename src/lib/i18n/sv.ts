@@ -169,6 +169,18 @@ export const sv: Dictionary = {
     accountNotLinkedSuffix: 'i Supabase SQL Editor.',
     accountNotLinkedEmailLabel: 'E-posten',
   },
+  inactivityNudge: {
+    title: 'Har du varit på kontoret denna vecka?',
+    desc: 'Logga din status så vet teamet var du jobbar ifrån.',
+    cta: 'Logga nu',
+    later: 'Senare',
+    close: 'Stäng',
+  },
+  onboardingHint: {
+    pre: 'Tryck',
+    post: 'för att söka eller navigera snabbt',
+    dismiss: 'Dölj tips',
+  },
   palette: {
     placeholder: 'Sök, navigera eller skriv ett kommando…',
     empty: 'Inga träffar',

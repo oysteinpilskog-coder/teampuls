@@ -1,12 +1,14 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { X, PenSquare } from 'lucide-react'
 import { addDays, subDays } from 'date-fns'
 import { createClient } from '@/lib/supabase/client'
 import { toDateString, getWeekStart } from '@/lib/dates'
 import { getISOWeek, getISOWeekYear } from 'date-fns'
+import { useT } from '@/lib/i18n/context'
+import { ease } from '@/lib/motion'
 
 interface InactivityNudgeProps {
   orgId: string
@@ -26,6 +28,8 @@ const MIN_MISSING_DAYS = 5
  */
 export function InactivityNudge({ orgId, memberId }: InactivityNudgeProps) {
   const [visible, setVisible] = useState(false)
+  const t = useT()
+  const prefersReducedMotion = useReducedMotion()
 
   useEffect(() => {
     let cancelled = false
@@ -108,19 +112,19 @@ export function InactivityNudge({ orgId, memberId }: InactivityNudgeProps) {
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ opacity: 0, y: 8, scale: 0.98 }}
+          initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 4, scale: 0.98 }}
-          transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+          exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 4, scale: 0.98 }}
+          transition={{ duration: 0.25, ease: ease.horizon }}
           className="fixed bottom-6 right-6 z-40 max-w-[340px]"
           style={{
             background: 'var(--lg-panel-bg)',
             backdropFilter: 'blur(20px) saturate(180%)',
             WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-            border: '1px solid rgba(139, 92, 246, 0.28)',
+            border: '1px solid color-mix(in oklab, var(--accent-color) 28%, transparent)',
             borderRadius: 14,
             boxShadow:
-              '0 0 0 3px rgba(139, 92, 246, 0.10), 0 20px 40px -12px rgba(0,0,0,0.45), 0 0 24px -6px var(--lg-accent-glow)',
+              '0 0 0 3px color-mix(in oklab, var(--accent-color) 10%, transparent), 0 20px 40px -12px rgba(0,0,0,0.45), 0 0 24px -6px var(--accent-glow)',
           }}
           role="status"
           aria-live="polite"
@@ -131,8 +135,8 @@ export function InactivityNudge({ orgId, memberId }: InactivityNudgeProps) {
               style={{
                 width: 32,
                 height: 32,
-                background: 'rgba(139, 92, 246, 0.14)',
-                color: 'var(--lg-accent)',
+                background: 'color-mix(in oklab, var(--accent-color) 14%, transparent)',
+                color: 'var(--accent-color)',
               }}
             >
               <PenSquare className="w-4 h-4" strokeWidth={1.75} />
@@ -142,13 +146,13 @@ export function InactivityNudge({ orgId, memberId }: InactivityNudgeProps) {
                 className="text-[13px] font-medium mb-0.5"
                 style={{ color: 'var(--lg-text-1)', fontFamily: 'var(--font-body)' }}
               >
-                Har du vært på kontoret denne uken?
+                {t.inactivityNudge.title}
               </div>
               <div
                 className="text-[12px] leading-snug"
                 style={{ color: 'var(--lg-text-2)', fontFamily: 'var(--font-body)' }}
               >
-                Logg statusen din så teamet vet hvor du jobber fra.
+                {t.inactivityNudge.desc}
               </div>
               <div className="flex items-center gap-2 mt-2.5">
                 <button
@@ -156,13 +160,13 @@ export function InactivityNudge({ orgId, memberId }: InactivityNudgeProps) {
                   onClick={focusAIInput}
                   className="px-2.5 py-1 rounded-full text-[11.5px] font-medium transition-[background] duration-150"
                   style={{
-                    background: 'var(--lg-accent)',
+                    background: 'var(--accent-color)',
                     color: '#ffffff',
                     fontFamily: 'var(--font-body)',
-                    boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 14px var(--lg-accent-glow)',
+                    boxShadow: '0 0 0 3px color-mix(in oklab, var(--accent-color) 18%, transparent), 0 0 14px var(--accent-glow)',
                   }}
                 >
-                  Logg nå
+                  {t.inactivityNudge.cta}
                 </button>
                 <button
                   type="button"
@@ -170,14 +174,14 @@ export function InactivityNudge({ orgId, memberId }: InactivityNudgeProps) {
                   className="text-[11.5px] transition-colors duration-150"
                   style={{ color: 'var(--lg-text-3)', fontFamily: 'var(--font-body)' }}
                 >
-                  Senere
+                  {t.inactivityNudge.later}
                 </button>
               </div>
             </div>
             <button
               type="button"
               onClick={dismiss}
-              aria-label="Lukk"
+              aria-label={t.inactivityNudge.close}
               className="rounded-lg w-7 h-7 -m-1 inline-flex items-center justify-center transition-colors duration-150 shrink-0 hover:bg-[color-mix(in_oklab,var(--lg-text-3)_15%,transparent)]"
               style={{ color: 'var(--lg-text-3)' }}
             >

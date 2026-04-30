@@ -167,6 +167,18 @@ export const no = {
     accountNotLinkedSuffix: 'i Supabase SQL Editor.',
     accountNotLinkedEmailLabel: 'E-posten',
   },
+  inactivityNudge: {
+    title: 'Har du vært på kontoret denne uken?',
+    desc: 'Logg statusen din så teamet vet hvor du jobber fra.',
+    cta: 'Logg nå',
+    later: 'Senere',
+    close: 'Lukk',
+  },
+  onboardingHint: {
+    pre: 'Trykk',
+    post: 'for å søke eller navigere raskt',
+    dismiss: 'Skjul tipset',
+  },
   palette: {
     placeholder: 'Søk, gå til, eller skriv en kommando…',
     empty: 'Ingen treff',

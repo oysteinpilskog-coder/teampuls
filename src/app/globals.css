@@ -445,6 +445,46 @@
     box-shadow: none;
   }
 
+  /* Text selection — Ember-tinted instead of the OS default. Stays inside
+     the brand even on long-form text, dashboard tickers, and the AI input. */
+  ::selection {
+    background: color-mix(in oklab, var(--accent-color) 28%, transparent);
+    color: var(--text-primary);
+  }
+  ::-moz-selection {
+    background: color-mix(in oklab, var(--accent-color) 28%, transparent);
+    color: var(--text-primary);
+  }
+
+  /* Scrollbars — slim, autohide-feel, Ember on hover. WebKit (Chrome,
+     Safari, Edge) gets pixel-precise control; Firefox falls back to
+     `scrollbar-color` which is the closest equivalent it supports. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--text-tertiary) 35%, transparent) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--text-tertiary) 30%, transparent);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 200ms ease;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--accent-color) 55%, transparent);
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
   /* Sonner toasts — own our material instead of the default styling */
   .tp-toast {
     display: flex;
@@ -486,20 +526,20 @@
   }
   .tp-toast-success {
     box-shadow:
-      0 0 0 1px color-mix(in oklab, #10B981 35%, transparent),
-      0 20px 40px -12px color-mix(in oklab, #10B981 35%, transparent),
+      0 0 0 1px color-mix(in oklab, var(--success) 35%, transparent),
+      0 20px 40px -12px color-mix(in oklab, var(--success) 35%, transparent),
       0 10px 18px -12px rgba(14, 11, 8, 0.14),
       inset 0 1px 0 rgba(255, 255, 255, 0.55);
   }
-  .tp-toast-success .tp-toast-icon { color: #10B981; }
+  .tp-toast-success .tp-toast-icon { color: var(--success); }
   .tp-toast-error {
     box-shadow:
-      0 0 0 1px color-mix(in oklab, #EF4444 35%, transparent),
-      0 20px 40px -12px color-mix(in oklab, #EF4444 35%, transparent),
+      0 0 0 1px color-mix(in oklab, var(--error) 35%, transparent),
+      0 20px 40px -12px color-mix(in oklab, var(--error) 35%, transparent),
       0 10px 18px -12px rgba(14, 11, 8, 0.14),
       inset 0 1px 0 rgba(255, 255, 255, 0.55);
   }
-  .tp-toast-error .tp-toast-icon { color: #EF4444; }
+  .tp-toast-error .tp-toast-icon { color: var(--error); }
   .tp-toast-info {
     box-shadow:
       0 0 0 1px color-mix(in oklab, var(--accent-color) 35%, transparent),
@@ -509,11 +549,11 @@
   .tp-toast-info .tp-toast-icon { color: var(--accent-color); }
   .tp-toast-warning {
     box-shadow:
-      0 0 0 1px color-mix(in oklab, #F59E0B 35%, transparent),
-      0 20px 40px -12px color-mix(in oklab, #F59E0B 35%, transparent),
+      0 0 0 1px color-mix(in oklab, var(--accent-color) 35%, transparent),
+      0 20px 40px -12px color-mix(in oklab, var(--accent-color) 35%, transparent),
       inset 0 1px 0 rgba(255, 255, 255, 0.55);
   }
-  .tp-toast-warning .tp-toast-icon { color: #F59E0B; }
+  .tp-toast-warning .tp-toast-icon { color: var(--accent-color); }
 
   /* Premium skeleton shimmer */
   .tp-shimmer {
