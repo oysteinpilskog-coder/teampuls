@@ -72,9 +72,10 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
   const weekTotal = weekDeduped.length
   const topStatuses = weekTotals.filter(w => w.count > 0).sort((a, b) => b.count - a.count)
 
-  // Donut arithmetic — radius bumped to 170 to frame the larger Fraunces
-  // week-number hero with proper proportional weight.
-  const DONUT_R = 170
+  // Donut arithmetic — radius bumped to 195 to give the Fraunces week-number
+  // hero ~66px breathing room on each side so the glyph never visually
+  // collides with the ring (was 170 → tall klippet av ringen ved 1920p).
+  const DONUT_R = 195
   const CIRC = 2 * Math.PI * DONUT_R
   let runningPct = 0
 
@@ -110,7 +111,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...spring.gentle, delay: 0.2 }}
-          className="col-span-2 relative rounded-3xl flex flex-col items-center justify-center gap-8 p-8"
+          className="col-span-2 relative rounded-3xl flex flex-col items-center justify-center gap-6 p-8"
           style={{
             background:
               'linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
@@ -118,11 +119,12 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
           }}
         >
-          {/* Decorative concentric orbit rings — skalert ned slik at den
-              ytterste (480px) holder seg innenfor cardet ved alle TV-bredder
-              fra 1280p og oppover. Cardet er ikke lenger overflow-hidden
-              så ringene skal aldri kuttes uansett aspekt. */}
-          {[480, 360, 240, 140].map((size, i) => (
+          {/* Decorative concentric orbit rings — skalert opp i takt med
+              donut-radius bump (170→195). Den ytterste (540px) holder seg
+              fortsatt innenfor cardet ved alle TV-bredder fra 1280p og
+              oppover. Cardet er ikke overflow-hidden så ringene skal aldri
+              kuttes uansett aspekt. */}
+          {[540, 410, 280, 160].map((size, i) => (
             <div
               key={i}
               aria-hidden
@@ -130,7 +132,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
               style={{
                 width: size,
                 height: size,
-                border: '1px solid rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.07)',
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
@@ -139,14 +141,14 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
           ))}
 
           {/* Center donut */}
-          <div className="relative flex items-center justify-center" style={{ width: 460, height: 460 }}>
-            <svg width={460} height={460} viewBox="-230 -230 460 460" className="absolute inset-0">
+          <div className="relative flex items-center justify-center" style={{ width: 520, height: 520 }}>
+            <svg width={520} height={520} viewBox="-260 -260 520 520" className="absolute inset-0">
               {/* Base track */}
               <circle
                 r={DONUT_R}
                 fill="none"
                 stroke="rgba(255,255,255,0.06)"
-                strokeWidth={24}
+                strokeWidth={28}
               />
               {/* Stacked status arcs */}
               {weekTotal > 0 && weekTotals.map(({ status, count }) => {
@@ -162,7 +164,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                     r={DONUT_R}
                     fill="none"
                     stroke={STATUS_COLORS[status].icon}
-                    strokeWidth={24}
+                    strokeWidth={28}
                     strokeLinecap="butt"
                     strokeDasharray={`${dash} ${gap}`}
                     initial={{ strokeDashoffset: 0, opacity: 0 }}
@@ -195,7 +197,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                 duration={0.9}
                 className="tabular-nums leading-none week-hero"
                 style={{
-                  fontSize: 'clamp(200px, 22vw, 300px)',
+                  fontSize: 'clamp(160px, 18vw, 256px)',
                   fontWeight: 300,
                   fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
                   fontVariationSettings: '"opsz" 144, "SOFT" 80',
