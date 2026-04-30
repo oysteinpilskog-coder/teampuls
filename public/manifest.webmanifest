@@ -1,14 +1,17 @@
 {
+  "id": "/?source=pwa",
   "name": "Offiview",
   "short_name": "Offiview",
   "description": "Dagen, lagt på bordet. Hele teamet som ett klart landskap.",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
   "background_color": "#15110E",
   "theme_color": "#15110E",
   "lang": "nb-NO",
+  "dir": "ltr",
   "categories": ["productivity", "business"],
   "icons": [
     {
@@ -22,6 +25,12 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "monochrome"
     }
   ],
   "shortcuts": [
@@ -36,6 +45,12 @@
       "short_name": "Min plan",
       "url": "/min-plan?source=shortcut",
       "description": "Min personlige plan"
+    },
+    {
+      "name": "Årshjul",
+      "short_name": "Årshjul",
+      "url": "/wheel?source=shortcut",
+      "description": "Året i ett blikk"
     },
     {
       "name": "Dashboard",

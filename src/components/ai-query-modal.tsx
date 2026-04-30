@@ -211,7 +211,12 @@ export function AIQueryModal() {
                 {loading && <Shimmer />}
 
                 {response && !loading && (
-                  <Results response={response} colors={colors} onHighlight={highlightInGrid} />
+                  <Results
+                    response={response}
+                    question={question}
+                    colors={colors}
+                    onHighlight={highlightInGrid}
+                  />
                 )}
               </div>
 
@@ -299,12 +304,31 @@ function Shimmer() {
   )
 }
 
+/**
+ * Maps the AI's 0..1 confidence score to a human label and a tint level.
+ * Three buckets matches what the user can actually act on:
+ * - very confident (≥0.85): treat the answer as authoritative
+ * - likely (0.55..0.85): probably right, but skim the matches to confirm
+ * - unsure (<0.55): user should re-phrase or check the source rows
+ *
+ * Returns null when the score is missing or zero (e.g. error fallback)
+ * so we don't surface a chip that says "0% confident".
+ */
+function confidenceLabel(c: number | undefined): { label: string; level: 'high' | 'mid' | 'low' } | null {
+  if (typeof c !== 'number' || c <= 0) return null
+  if (c >= 0.85) return { label: 'Trygg', level: 'high' }
+  if (c >= 0.55) return { label: 'Trolig', level: 'mid' }
+  return { label: 'Usikker', level: 'low' }
+}
+
 function Results({
   response,
+  question,
   colors,
   onHighlight,
 }: {
   response: QueryResponse
+  question: string
   colors: ReturnType<typeof useStatusColors>
   onHighlight: () => void
 }) {
@@ -313,10 +337,12 @@ function Results({
       <div
         className="rounded-xl p-4 text-[14px]"
         style={{
-          background: 'color-mix(in oklab, #EF4444 10%, transparent)',
-          color: '#EF4444',
+          background: 'var(--error-tint)',
+          color: 'var(--error)',
+          border: '1px solid color-mix(in oklab, var(--error) 28%, transparent)',
           fontFamily: 'var(--font-body)',
         }}
+        role="alert"
       >
         {response.error}
       </div>
@@ -344,8 +370,32 @@ function Results({
     )
   }
 
+  const confidence = confidenceLabel(response.confidence)
+  const trimmedQuestion = question.trim()
+
   return (
     <div className="space-y-4">
+      {/* Question echo — confirms what the AI actually processed.
+          Italic Fraunces so it reads as a quoted utterance, distinct from
+          the answer's display weight. Only shown when there's a question
+          (not when modal opened without input, which can't happen but
+          guards future flows). */}
+      {trimmedQuestion && (
+        <p
+          className="text-[13.5px] leading-snug"
+          style={{
+            color: 'var(--text-tertiary)',
+            fontFamily: 'var(--font-fraunces), Georgia, serif',
+            fontStyle: 'italic',
+            fontWeight: 300,
+            fontVariationSettings: '"opsz" 24, "SOFT" 80',
+            letterSpacing: '-0.005em',
+          }}
+        >
+          «{trimmedQuestion}»
+        </p>
+      )}
+
       {/* Answer banner */}
       <div
         className="rounded-xl p-4"
@@ -355,11 +405,14 @@ function Results({
           boxShadow: '0 10px 24px -12px color-mix(in oklab, var(--accent-color) 28%, transparent)',
         }}
       >
-        <div
-          className="text-[10px] font-bold uppercase tracking-[0.16em] mb-1.5"
-          style={{ color: 'var(--accent-color)', fontFamily: 'var(--font-body)' }}
-        >
-          Svar
+        <div className="flex items-center justify-between mb-1.5">
+          <div
+            className="text-[10px] font-bold uppercase tracking-[0.16em]"
+            style={{ color: 'var(--accent-color)', fontFamily: 'var(--font-body)' }}
+          >
+            Svar
+          </div>
+          {confidence && <ConfidenceChip label={confidence.label} level={confidence.level} />}
         </div>
         <p
           className="font-semibold"
@@ -477,6 +530,38 @@ function Results({
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * Small chip that signals AI confidence next to the "Svar" eyebrow.
+ *
+ * - `high` (Trygg): success-tinted, calm. The answer is reliable.
+ * - `mid`  (Trolig): accent-tinted. Likely correct, scan the matches.
+ * - `low`  (Usikker): mist-tinted hairline. Take with a pinch.
+ *
+ * Pure color tokens so it flips between light/dark and follows workspace
+ * accent. Stays small (h-5, 9.5px caps) to never compete with the answer.
+ */
+function ConfidenceChip({ label, level }: { label: string; level: 'high' | 'mid' | 'low' }) {
+  const tone =
+    level === 'high'
+      ? { bg: 'var(--success-tint)', border: 'color-mix(in oklab, var(--success) 35%, transparent)', text: 'var(--success)' }
+      : level === 'mid'
+        ? { bg: 'color-mix(in oklab, var(--accent-color) 12%, transparent)', border: 'color-mix(in oklab, var(--accent-color) 32%, transparent)', text: 'var(--accent-color)' }
+        : { bg: 'color-mix(in oklab, var(--text-tertiary) 14%, transparent)', border: 'color-mix(in oklab, var(--text-tertiary) 30%, transparent)', text: 'var(--text-tertiary)' }
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 h-5 rounded-md text-[9.5px] font-semibold uppercase tracking-[0.16em]"
+      style={{
+        background: tone.bg,
+        border: `1px solid ${tone.border}`,
+        color: tone.text,
+        fontFamily: 'var(--font-body)',
+      }}
+    >
+      {label}
+    </span>
   )
 }
 
