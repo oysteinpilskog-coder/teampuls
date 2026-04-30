@@ -6,9 +6,11 @@ import type { Visit } from '@/lib/supabase/types'
 import { toDateString } from '@/lib/dates'
 import { useDocumentVisibility } from '@/hooks/use-document-visibility'
 
-// Velkomst-vinduet på TV-en: 60 minutter før til 15 minutter etter start_time.
-// Avklart med eier — gir nok ledetid for tidlige kunder uten å gjøre slide
-// til konstant bakgrunn på en TV som står hele dagen.
+// Velkomst-vinduet på TV-en: 60 minutter før start_time → 15 minutter etter
+// (end_time hvis satt, ellers start_time). For lange besøk («kl 11–16»)
+// betyr det at velkomsten holdes oppe gjennom hele besøket — ikke bare de
+// første 15 minuttene — siden gjester kan komme inn dropvis. Uten end_time
+// faller vi tilbake til den gamle 15-minutters bufferen etter start.
 export const WELCOME_PRE_WINDOW_MIN = 60
 export const WELCOME_POST_WINDOW_MIN = 15
 
@@ -25,7 +27,8 @@ function minutesSinceMidnight(now: Date): number {
 
 /**
  * Returnerer kun de besøk som er innenfor velkomstvinduet akkurat nå
- * (60 min før → 15 min etter start_time), sortert etter start_time.
+ * (60 min før start → 15 min etter end_time, eller etter start_time hvis
+ * end_time mangler), sortert etter start_time.
  *
  * Brukes av Velkomst-slide F på TV-dashbordet til å avgjøre om/hvilke
  * besøk som skal vises som hero-velkomst akkurat dette minuttet.
@@ -37,9 +40,10 @@ export function filterActiveWelcomes(visits: Visit[], time: Date): Visit[] {
     .filter(v => v.date === todayStr)
     .filter(v => {
       const startMin = timeToMinutes(v.start_time)
+      const endMin = v.end_time ? timeToMinutes(v.end_time) : startMin
       return (
         nowMin >= startMin - WELCOME_PRE_WINDOW_MIN &&
-        nowMin <= startMin + WELCOME_POST_WINDOW_MIN
+        nowMin <= endMin + WELCOME_POST_WINDOW_MIN
       )
     })
     .sort((a, b) => a.start_time.localeCompare(b.start_time))
