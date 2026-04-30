@@ -196,7 +196,29 @@ export function CustomerMapView({
   // siblings fold in and surface via the rotating ticker label.
   const points = clusterMapPoints(rawPoints, 24)
 
-  const placedLabels = placeLabels(points, { gap: 14, collisionRadius: 140, lineHeight: 26 })
+  // Per-pin label-dimensjoner så placeLabels kan kjøre AABB-kollisjon
+  // med faktisk tekstbredde. Sora er en bredt-tegnet display-font;
+  // målte snitt ~9.0 px/tegn ved fontSize 16 (visited) og ~7.2 px/tegn
+  // ved fontSize 13 (idle). Lengste navn i clusteret bestemmer bredden
+  // siden tickeren roterer gjennom dem alle. +14 px padding rommer
+  // stroke-paint-order og litt visuell pust.
+  const pointsWithDims = points.map(p => {
+    const visited = p.state !== 'idle'
+    const charWidth = visited ? 9.0 : 7.2
+    const longest = p.members.reduce((n, m) => Math.max(n, m.name.length), 1)
+    return {
+      ...p,
+      labelWidth: longest * charWidth + 14,
+      labelHeight: 22,
+    }
+  })
+
+  const placedLabels = placeLabels(pointsWithDims, {
+    gap: 14,
+    collisionRadius: 220,
+    lineHeight: 26,
+    verticalAnchor: 0.62,
+  })
 
   // ── US inset points ─────────────────────────────────────────────
   // Same three-tier vocabulary as the main canvas. Visited US clusters
@@ -321,6 +343,56 @@ export function CustomerMapView({
                   )}
                 </motion.g>
               ))}
+
+            {/* Leader-linjer — tegnes etter pinnene, før labels, så de
+             *  ligger BAK label-tekst men OVER pin-aurae. Bare for pins
+             *  som er forskjøvet fra slot:0 (ellers ligger label-en
+             *  allerede tett inntil pin-en). Hårtynn, stiplet, dempet
+             *  hvit — Apple Maps-estetikk: navnet er borte fra pin, men
+             *  linjen forteller nøyaktig hvilket merke det tilhører. */}
+            {placedLabels.map(pl => {
+              if (!pl.needsLeader) return null
+              const c = pl.point
+              const visited = c.state !== 'idle'
+              // Endepunkt = nærmeste kant av label-rammen, ikke selve
+              // ankeret. For top/bottom-sider er rammen sentrert om
+              // labelX, så vi treffer topp- eller bunn-kanten avhengig
+              // av om label-en ligger under eller over pin-en. For
+              // venstre/høyre er rammen vertikal-sentrert om labelY,
+              // og vi treffer nærmeste vertikale kant.
+              let lx = pl.labelX
+              let ly = pl.labelY
+              if (pl.side === 'top' || pl.side === 'bottom') {
+                const ascent = pl.labelHeight * 0.62
+                const descent = pl.labelHeight * 0.38
+                ly = pl.labelY > c.y ? pl.labelY - ascent : pl.labelY + descent
+              }
+              // Trekk start-punktet ut til pin-edge så lederen ikke
+              // "spikres" i crystal dot-en.
+              const dx = lx - c.x
+              const dy = ly - c.y
+              const dist = Math.hypot(dx, dy) || 1
+              const startOffset = c.radius + 3
+              const sx = c.x + (dx / dist) * startOffset
+              const sy = c.y + (dy / dist) * startOffset
+              return (
+                <motion.line
+                  key={`leader-${c.id}`}
+                  x1={sx}
+                  y1={sy}
+                  x2={lx}
+                  y2={ly}
+                  stroke={visited ? 'rgba(255,255,255,0.32)' : 'rgba(255,255,255,0.18)'}
+                  strokeWidth={0.7}
+                  strokeDasharray="2 3"
+                  strokeLinecap="round"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.6, delay: 0.55 }}
+                  style={{ pointerEvents: 'none' }}
+                />
+              )
+            })}
 
             {/* Labels — every pin gets a name. Visited are crisper, idle are
              *  softer. Multi-member clusters cycle through their member
