@@ -25,7 +25,7 @@ export default async function WelcomePreviewPage() {
   const today = toDateString(new Date())
 
   const supabase = await createClient()
-  const [orgRes, visitsRes] = await Promise.all([
+  const [orgRes, visitsRes, entriesRes] = await Promise.all([
     supabase
       .from('organizations')
       .select('name')
@@ -39,12 +39,21 @@ export default async function WelcomePreviewPage() {
       .order('date', { ascending: true })
       .order('start_time', { ascending: true })
       .limit(50),
+    // Aurora-bakgrunnen får sine glow-posisjoner fra dagens entries — uten
+    // dem blir bakgrunnen flatere enn TV-en. Hentes server-side så preview-en
+    // matcher live fra første frame.
+    supabase
+      .from('entries')
+      .select('*')
+      .in('org_id', orgIds)
+      .eq('date', today),
   ])
 
   return (
     <WelcomePreviewClient
       orgName={orgRes.data?.name ?? ''}
       visits={visitsRes.data ?? []}
+      entries={entriesRes.data ?? []}
     />
   )
 }

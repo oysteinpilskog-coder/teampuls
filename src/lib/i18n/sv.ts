@@ -317,6 +317,7 @@ export const sv: Dictionary = {
         company: 'Företag',
         start: 'Från kl.',
         end: 'Till kl.',
+        subtitle: 'Rad 2 (valfri)',
       },
     },
   },
