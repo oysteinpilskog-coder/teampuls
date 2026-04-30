@@ -3,9 +3,11 @@
 import { motion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { CustomerPin, type CustomerPinState } from './customer-pin'
+import { MapLabelTicker } from './map-label-ticker'
 import { project } from '@/lib/geo'
 import { resolveCustomer } from '@/lib/customer-resolver'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
+import { clusterMapPoints } from '@/lib/map-clusters'
 import { useStatusColors, useAuroraColors } from '@/lib/status-colors/context'
 import { spring } from '@/lib/motion'
 import type { Member, Entry, Customer } from '@/lib/supabase/types'
@@ -118,9 +120,10 @@ export function CustomerMapView({
   const visitedCount = visitedCustomerIds.size
   const portfolioPct = registeredCount === 0 ? 0 : visitedCount / registeredCount
 
-  // Unified pin model — one list for rendering + label placement so the
-  // collision solver treats visited/unvisited names equally and no pair of
-  // labels ever overlaps.
+  // Raw point list — every visited cluster + every registered idle customer.
+  // Feeds the proximity-clusterer which folds nearby points (same city,
+  // same business district) into a single nucleus pin so the map never
+  // turns into a soup of overlapping auras.
   interface MapPoint {
     id: string
     x: number
@@ -130,10 +133,10 @@ export function CustomerMapView({
     state: CustomerPinState
     visitCount: number
   }
-  const points: MapPoint[] = []
+  const rawPoints: MapPoint[] = []
   for (const c of clusters) {
     const state: CustomerPinState = c.memberIdsToday.size > 0 ? 'today' : 'week'
-    points.push({
+    rawPoints.push({
       id: c.id,
       x: c.x,
       y: c.y,
@@ -144,7 +147,7 @@ export function CustomerMapView({
     })
   }
   for (const c of unvisitedCustomers) {
-    points.push({
+    rawPoints.push({
       id: `idle-${c.id}`,
       x: c.x,
       y: c.y,
@@ -154,6 +157,12 @@ export function CustomerMapView({
       visitCount: 0,
     })
   }
+
+  // Proximity-cluster on render. Threshold ≈ 24 SVG units on the 1400×900
+  // canvas — roughly the visual aura overlap zone for our pin radii. The
+  // anchor stays on the highest-priority customer's coordinates; nearby
+  // siblings fold in and surface via the rotating ticker label.
+  const points = clusterMapPoints(rawPoints, 24)
 
   const placedLabels = placeLabels(points, { gap: 14, collisionRadius: 140, lineHeight: 26 })
 
@@ -220,7 +229,8 @@ export function CustomerMapView({
           <EuropeMapCanvas accent="#FF8A3D">
             {/* Pins — single unified component, intensity tier driven by
              *  visit state. Idle first so visited sit on top when coords
-             *  collide. */}
+             *  collide. Multi-member clusters get a small count chip so
+             *  the eye reads "more here" even before the ticker cycles. */}
             {points
               .slice()
               .sort((a, b) => {
@@ -241,12 +251,20 @@ export function CustomerMapView({
                     index={i}
                     state={p.state}
                   />
+                  {p.members.length > 1 && (
+                    <ClusterCountChip
+                      count={p.members.length}
+                      color={customerColor}
+                      visited={p.state !== 'idle'}
+                    />
+                  )}
                 </motion.g>
               ))}
 
             {/* Labels — every pin gets a name. Visited are crisper, idle are
-             *  softer so the eye still lands on "what we're doing this week"
-             *  first without hiding the portfolio footprint. */}
+             *  softer. Multi-member clusters cycle through their member
+             *  names with a quiet crossfade — ticker phase is desynced
+             *  per pin so the map never ticks in lockstep. */}
             {placedLabels.map((pl, i) => {
               const anchor = textAnchorFor(pl.side)
               const c = pl.point
@@ -258,24 +276,14 @@ export function CustomerMapView({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ ...spring.gentle, delay: 0.45 + i * 0.05 }}
                 >
-                  <text
+                  <MapLabelTicker
+                    names={c.members.map(m => m.name)}
                     x={pl.labelX}
                     y={pl.labelY}
                     textAnchor={anchor}
-                    fontSize={visited ? 16 : 13}
-                    fontWeight={visited ? 600 : 500}
-                    fontFamily="var(--font-sora)"
-                    fill={visited ? 'white' : 'rgba(255,255,255,0.62)'}
-                    letterSpacing={0.3}
-                    style={{
-                      paintOrder: 'stroke',
-                      stroke: 'rgba(2,4,10,0.78)',
-                      strokeWidth: visited ? 4.5 : 3.5,
-                      strokeLinejoin: 'round',
-                    }}
-                  >
-                    {c.display}
-                  </text>
+                    visited={visited}
+                    index={i}
+                  />
                 </motion.g>
               )
             })}
@@ -566,6 +574,53 @@ export function CustomerMapView({
         </motion.div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Tiny chip floating off the upper-right of a cluster pin showing how
+ * many customers fold into that nucleus. Subtle dark capsule, hairline
+ * customer-hue border, tabular digits — reads as "+N here" without
+ * shouting over the pin itself.
+ */
+function ClusterCountChip({
+  count,
+  color,
+  visited,
+}: {
+  count: number
+  color: string
+  visited: boolean
+}) {
+  // Offset diagonally up-right so the chip sits in the pin's "negative
+  // space" rather than the label corridor below.
+  const cx = 6
+  const cy = -7
+  const r = 6.5
+  const fillAlpha = visited ? 0.92 : 0.78
+  const strokeAlpha = visited ? 0.85 : 0.45
+  return (
+    <g transform={`translate(${cx} ${cy})`} pointerEvents="none">
+      <circle
+        r={r}
+        fill="rgba(2,4,10,1)"
+        fillOpacity={fillAlpha}
+        stroke={color}
+        strokeWidth={0.7}
+        strokeOpacity={strokeAlpha}
+      />
+      <text
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={8.5}
+        fontWeight={700}
+        fontFamily="var(--font-sora)"
+        fill={visited ? color : 'rgba(255,255,255,0.78)'}
+        style={{ letterSpacing: '0.02em' }}
+      >
+        {count}
+      </text>
+    </g>
   )
 }
 
