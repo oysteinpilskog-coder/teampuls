@@ -317,6 +317,7 @@ export const lt: Dictionary = {
         company: 'Įmonė',
         start: 'Nuo',
         end: 'Iki',
+        subtitle: '2-oji eilutė (neprivaloma)',
       },
     },
   },

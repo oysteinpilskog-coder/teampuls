@@ -315,6 +315,7 @@ export const no = {
         company: 'Firma',
         start: 'Fra kl.',
         end: 'Til kl.',
+        subtitle: 'Linje 2 (valgfri)',
       },
     },
   },

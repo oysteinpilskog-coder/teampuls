@@ -175,6 +175,30 @@ export function WelcomeView({ visits, orgName }: WelcomeViewProps) {
                 </>
               )}
             </motion.p>
+
+            {/* Valgfri linje 2 — italic Fraunces så den snakker samme tonale
+                språk som org-wordmarken på toppen og ikke konkurrerer med
+                meta-linjens uppercase tracking. Brukes til kontekst som
+                «Demo av nye produkter» eller «Møte med Johan». */}
+            {current.note && (
+              <motion.p
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...spring.gentle, delay: 0.85 }}
+                className="leading-snug mt-5 max-w-[78vw]"
+                style={{
+                  fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+                  fontWeight: 300,
+                  fontStyle: 'italic',
+                  fontVariationSettings: '"opsz" 32, "SOFT" 80',
+                  fontSize: 'clamp(20px, 1.6vw, 32px)',
+                  letterSpacing: '-0.01em',
+                  color: 'rgba(245,239,228,0.62)',
+                }}
+              >
+                {current.note}
+              </motion.p>
+            )}
           </motion.div>
         </AnimatePresence>
       </div>

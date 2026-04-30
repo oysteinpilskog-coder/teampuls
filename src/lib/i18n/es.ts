@@ -317,6 +317,7 @@ export const es: Dictionary = {
         company: 'Empresa',
         start: 'Desde',
         end: 'Hasta',
+        subtitle: 'Línea 2 (opcional)',
       },
     },
   },

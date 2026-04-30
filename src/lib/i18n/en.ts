@@ -317,6 +317,7 @@ export const en: Dictionary = {
         company: 'Company',
         start: 'From',
         end: 'Until',
+        subtitle: 'Line 2 (optional)',
       },
     },
   },

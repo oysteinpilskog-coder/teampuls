@@ -1,18 +1,21 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, EyeOff, Eye, Sparkles } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AuroraBackground } from '@/components/dashboard-views/aurora-background'
 import { WelcomeView } from '@/components/dashboard-views/welcome-view'
-import type { Visit } from '@/lib/supabase/types'
+import { TimezoneStrip } from '@/components/dashboard/timezone-strip'
+import { OffiviewSignature } from '@/components/brand/offiview-signature'
+import type { Visit, Entry } from '@/lib/supabase/types'
 import { useT } from '@/lib/i18n/context'
 import { toDateString, getDayPhase } from '@/lib/dates'
 
 interface WelcomePreviewClientProps {
   orgName: string
   visits: Visit[]
+  entries: Entry[]
 }
 
 /** «14:00» → «14:00:00». Postgres TIME-form, samme som i `visits`-tabellen. */
@@ -26,6 +29,7 @@ const DEFAULT_CUSTOM = {
   visitor_company: 'Acme AS',
   start_hhmm: '14:00',
   end_hhmm: '15:30',
+  subtitle: '',
 }
 
 /**
@@ -36,7 +40,7 @@ const DEFAULT_CUSTOM = {
  * Ved å bruke ekte `WelcomeView` får man designsannhet (samme typografi,
  * Nordlys-strek og animasjoner som live), så et OK her = OK på skjermen.
  */
-export function WelcomePreviewClient({ orgName, visits }: WelcomePreviewClientProps) {
+export function WelcomePreviewClient({ orgName, visits, entries }: WelcomePreviewClientProps) {
   const t = useT()
   const [chooserMode, setChooserMode] = useState<'real' | 'custom'>(
     visits.length > 0 ? 'real' : 'custom',
@@ -47,6 +51,16 @@ export function WelcomePreviewClient({ orgName, visits }: WelcomePreviewClientPr
   const [custom, setCustom] = useState({ ...DEFAULT_CUSTOM })
   const [showControls, setShowControls] = useState(true)
 
+  // Live klokke — driver getDayPhase + TimezoneStrip på samme måte som
+  // dashboard-client, så preview-et endrer aurora-tonene gjennom dagen
+  // akkurat slik den gjør live.
+  const [time, setTime] = useState<Date | null>(null)
+  useEffect(() => {
+    setTime(new Date())
+    const id = setInterval(() => setTime(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
   const previewVisit: Visit = useMemo(() => {
     if (chooserMode === 'real' && selectedVisitId) {
       const real = visits.find(v => v.id === selectedVisitId)
@@ -56,8 +70,9 @@ export function WelcomePreviewClient({ orgName, visits }: WelcomePreviewClientPr
     // så WelcomeView's AnimatePresence cross-fader når brukeren endrer dem.
     const start = toTimeStr(custom.start_hhmm) ?? '14:00:00'
     const end = toTimeStr(custom.end_hhmm)
+    const subtitle = custom.subtitle.trim() || null
     return {
-      id: `preview:${custom.visitor_name}:${start}:${end ?? ''}`,
+      id: `preview:${custom.visitor_name}:${start}:${end ?? ''}:${subtitle ?? ''}`,
       org_id: '',
       host_member_id: '',
       visitor_name: custom.visitor_name.trim() || 'Forventet gjest',
@@ -65,7 +80,7 @@ export function WelcomePreviewClient({ orgName, visits }: WelcomePreviewClientPr
       date: toDateString(new Date()),
       start_time: start,
       end_time: end,
-      note: null,
+      note: subtitle,
       source: 'manual',
       source_text: null,
       confidence: null,
@@ -77,19 +92,45 @@ export function WelcomePreviewClient({ orgName, visits }: WelcomePreviewClientPr
 
   // Phase ved nåværende tid — så preview-et speiler hvordan det ser ut
   // akkurat nå om kunden hadde kommet inn døra dette sekundet.
-  const phase = getDayPhase(new Date())
+  const phase = time ? getDayPhase(time) : 'day'
 
   return (
     <div
       className="relative h-screen w-screen overflow-hidden"
       style={{ backgroundColor: '#050507', color: 'white' }}
     >
-      <AuroraBackground entries={[]} phase={phase} />
+      {/* Aurora med ekte entries fra i dag — samme glow-posisjoner som
+          AuroraBackground tegner på live-dashbordet. */}
+      <AuroraBackground entries={entries} phase={phase} />
 
       {/* Fullskjerms-canvas — ekte WelcomeView, samme komponent som TV-en. */}
       <div className="absolute inset-0">
         <WelcomeView visits={[previewVisit]} orgName={orgName} />
       </div>
+
+      {/* ── Dashboard-chrome: tiny org-label top-left + TimezoneStrip top-right
+          + OffiviewSignature bottom-right. Speiler 1:1 hva DashboardClient
+          tegner rundt view F (welcome). Uten dette manglet preview-et
+          klokkene, signaturen og det dempede top-merket — så samme visit
+          så ulik ut på preview vs. live. */}
+      <div className="pointer-events-none absolute top-4 left-6 z-50">
+        <span
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: 13,
+            fontWeight: 500,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color: 'var(--mist)',
+          }}
+        >
+          {orgName}
+        </span>
+      </div>
+      <div className="pointer-events-none absolute top-4 right-6 z-50">
+        <TimezoneStrip visible={true} />
+      </div>
+      <OffiviewSignature visible={true} />
 
       <AnimatePresence>
         {showControls && (
@@ -228,6 +269,12 @@ export function WelcomePreviewClient({ orgName, visits }: WelcomePreviewClientPr
                       type="time"
                     />
                   </div>
+                  <Field
+                    label={t.dashboard.preview.fields.subtitle}
+                    value={custom.subtitle}
+                    onChange={v => setCustom(c => ({ ...c, subtitle: v }))}
+                    placeholder="Demo av nye produkter"
+                  />
                 </div>
               )}
 
