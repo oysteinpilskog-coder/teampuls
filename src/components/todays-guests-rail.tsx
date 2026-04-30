@@ -114,7 +114,7 @@ function GuestCard({
           background: 'color-mix(in oklab, var(--accent-color) 18%, transparent)',
           border: '1px solid color-mix(in oklab, var(--accent-color) 35%, transparent)',
           color: 'color-mix(in oklab, var(--accent-color) 60%, var(--text-primary))',
-          fontFamily: 'var(--font-sora)',
+          fontFamily: 'var(--font-fraunces)',
           letterSpacing: '0.04em',
         }}
         aria-hidden

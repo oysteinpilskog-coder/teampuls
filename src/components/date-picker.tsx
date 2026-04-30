@@ -177,7 +177,7 @@ function MonthNav({ onPrev, onNext, monthLabel, prevLabel, nextLabel }: MonthNav
 
       <div
         className="text-[13px] font-semibold"
-        style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+        style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
       >
         {monthLabel}
       </div>

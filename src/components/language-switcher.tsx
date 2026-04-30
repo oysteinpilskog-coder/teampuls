@@ -42,7 +42,7 @@ export function LanguageGrid() {
             <div className="flex-1 min-w-0">
               <div
                 className="text-[15px] font-semibold"
-                style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+                style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
               >
                 {meta.nativeName}
               </div>

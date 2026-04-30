@@ -365,7 +365,7 @@ function Results({
           className="font-semibold"
           style={{
             color: 'var(--text-primary)',
-            fontFamily: 'var(--font-sora)',
+            fontFamily: 'var(--font-fraunces)',
             fontSize: 17,
             letterSpacing: '-0.02em',
             lineHeight: 1.35,

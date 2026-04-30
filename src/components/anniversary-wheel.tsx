@@ -484,7 +484,7 @@ function AnniversaryRow({ entry, t }: { entry: DerivedAnniversary; t: Dictionary
       <div className="flex flex-col items-center justify-center w-10 flex-shrink-0 pt-0.5 gap-0.5">
         <span
           className="text-[17px] font-semibold tabular-nums leading-none"
-          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)', letterSpacing: '-0.02em' }}
+          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)', letterSpacing: '-0.02em' }}
         >
           {entry.nextDate.getDate()}
         </span>
@@ -567,7 +567,7 @@ function UpcomingHireRow({
       <div className="flex flex-col items-center justify-center w-10 flex-shrink-0 pt-0.5 gap-0.5">
         <span
           className="text-[17px] font-semibold tabular-nums leading-none"
-          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)', letterSpacing: '-0.02em' }}
+          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)', letterSpacing: '-0.02em' }}
         >
           {entry.startDate.getDate()}
         </span>

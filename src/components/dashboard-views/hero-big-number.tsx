@@ -133,7 +133,7 @@ export function HeroBigNumber({ members, todayEntries }: HeroBigNumberProps) {
               className="tabular-nums text-[15px] font-semibold leading-none"
               style={{
                 color: 'rgba(255,255,255,0.85)',
-                fontFamily: 'var(--font-sora)',
+                fontFamily: 'var(--font-fraunces)',
               }}
             >
               {registered}
@@ -187,7 +187,7 @@ function BreakdownChip({
       <span
         className="tabular-nums font-semibold"
         style={{
-          fontFamily: 'var(--font-sora)',
+          fontFamily: 'var(--font-fraunces)',
           color: 'rgba(255,255,255,0.92)',
         }}
       >
@@ -254,7 +254,7 @@ function RegisteredRing({ pct }: { pct: number }) {
           style={{
             fontSize: 14,
             fontWeight: 600,
-            fontFamily: 'var(--font-sora)',
+            fontFamily: 'var(--font-fraunces)',
             color: 'rgba(255,255,255,0.85)',
             letterSpacing: '-0.02em',
           }}

@@ -75,7 +75,7 @@ export function MapLabelTicker({
         textAnchor={textAnchor}
         fontSize={fontSize}
         fontWeight={fontWeight}
-        fontFamily="var(--font-sora)"
+        fontFamily="var(--font-fraunces)"
         fill={fill}
         letterSpacing={0.3}
         style={{
@@ -109,7 +109,7 @@ export function MapLabelTicker({
           textAnchor={textAnchor}
           fontSize={fontSize}
           fontWeight={fontWeight}
-          fontFamily="var(--font-sora)"
+          fontFamily="var(--font-fraunces)"
           fill={fill}
           letterSpacing={0.3}
           style={{

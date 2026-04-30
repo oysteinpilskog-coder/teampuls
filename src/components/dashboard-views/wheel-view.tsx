@@ -96,7 +96,7 @@ export function WheelView({ orgIds, logoOrgId, orgName, time }: WheelViewProps) 
           <p
             className="text-[30px] font-semibold tracking-tight leading-none"
             style={{
-              fontFamily: 'var(--font-sora)',
+              fontFamily: 'var(--font-fraunces)',
               background:
                 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.7) 100%)',
               WebkitBackgroundClip: 'text',
@@ -238,7 +238,7 @@ function AgendaTile({
               <div className="min-w-0 flex-1">
                 <p
                   className="text-[14px] font-medium leading-tight truncate"
-                  style={{ color: 'rgba(255,255,255,0.92)', fontFamily: 'var(--font-sora)' }}
+                  style={{ color: 'rgba(255,255,255,0.92)', fontFamily: 'var(--font-fraunces)' }}
                 >
                   {ev.title}
                 </p>

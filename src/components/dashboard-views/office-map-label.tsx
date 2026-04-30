@@ -107,7 +107,7 @@ export function OfficeMapLabel({
           gap: 3,
           width: '100%',
           height: '100%',
-          fontFamily: 'var(--font-sora), "Iowan Old Style", Georgia, serif',
+          fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
           letterSpacing: '0.3px',
           lineHeight: 1,
           whiteSpace: 'nowrap',

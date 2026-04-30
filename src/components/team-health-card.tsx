@@ -109,7 +109,7 @@ export function TeamHealthCard({ orgId, weeks = 6 }: TeamHealthCardProps) {
             className="font-bold leading-none"
             style={{
               color: 'var(--text-primary)',
-              fontFamily: 'var(--font-sora)',
+              fontFamily: 'var(--font-fraunces)',
               fontSize: 'clamp(24px, 3vw, 34px)',
               letterSpacing: '-0.035em',
             }}
@@ -240,7 +240,7 @@ function ScoreDial({ report, tone }: { report: HealthReport; tone: Tone }) {
         <span
           className="font-bold tabular-nums leading-none"
           style={{
-            fontFamily: 'var(--font-sora)',
+            fontFamily: 'var(--font-fraunces)',
             color: 'var(--text-primary)',
             fontSize: 52,
             letterSpacing: '-0.055em',
@@ -251,7 +251,7 @@ function ScoreDial({ report, tone }: { report: HealthReport; tone: Tone }) {
         <span
           className="mt-0.5 font-bold"
           style={{
-            fontFamily: 'var(--font-sora)',
+            fontFamily: 'var(--font-fraunces)',
             color: tone.accent,
             fontSize: 14,
             letterSpacing: '-0.015em',
@@ -293,7 +293,7 @@ function MetricBlock({
         <span
           className="text-[15px] font-bold tabular-nums"
           style={{
-            fontFamily: 'var(--font-sora)',
+            fontFamily: 'var(--font-fraunces)',
             color: 'var(--text-primary)',
             letterSpacing: '-0.02em',
           }}

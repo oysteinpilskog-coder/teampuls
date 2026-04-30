@@ -331,7 +331,7 @@ export function CellEditor({
               </p>
               <h2
                 className="text-[20px] font-semibold"
-                style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+                style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
               >
                 {memberName}
               </h2>

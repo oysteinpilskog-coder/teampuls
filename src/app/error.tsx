@@ -25,7 +25,7 @@ export default function GlobalError({
       <p
         className="text-[96px] font-bold leading-none mb-4 select-none"
         style={{
-          fontFamily: 'var(--font-sora)',
+          fontFamily: 'var(--font-fraunces)',
           color: 'var(--border-strong)',
           letterSpacing: '-0.04em',
         }}
@@ -34,7 +34,7 @@ export default function GlobalError({
       </p>
       <h1
         className="text-[24px] font-semibold mb-2"
-        style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+        style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
       >
         {t.title}
       </h1>

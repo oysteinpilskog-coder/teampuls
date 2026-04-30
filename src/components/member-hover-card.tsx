@@ -333,7 +333,7 @@ function HoverCardBody({
           <div
             className="font-bold truncate"
             style={{
-              fontFamily: 'var(--font-sora)',
+              fontFamily: 'var(--font-fraunces)',
               color: 'var(--text-primary)',
               fontSize: 16,
               letterSpacing: '-0.02em',
@@ -383,7 +383,7 @@ function HoverCardBody({
             <div
               className="font-bold tabular-nums"
               style={{
-                fontFamily: 'var(--font-sora)',
+                fontFamily: 'var(--font-fraunces)',
                 color: 'var(--text-primary)',
                 fontSize: 16,
                 letterSpacing: '-0.02em',

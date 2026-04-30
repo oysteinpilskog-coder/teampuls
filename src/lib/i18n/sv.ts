@@ -179,6 +179,7 @@ export const sv: Dictionary = {
       close: 'Stäng',
     },
     group: {
+      recent: 'Senast använt',
       nav: 'Gå till',
       actions: 'Åtgärder',
       theme: 'Utseende',

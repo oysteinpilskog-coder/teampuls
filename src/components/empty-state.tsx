@@ -66,7 +66,7 @@ export function EmptyState({ icon, title, description, action, tone, compact }: 
       <h2
         className="font-bold"
         style={{
-          fontFamily: 'var(--font-sora)',
+          fontFamily: 'var(--font-fraunces)',
           color: 'var(--text-primary)',
           fontSize: compact ? 18 : 22,
           letterSpacing: '-0.028em',

@@ -91,7 +91,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
           <p
             className="text-[30px] font-semibold tracking-tight leading-none"
             style={{
-              fontFamily: 'var(--font-sora)',
+              fontFamily: 'var(--font-fraunces)',
               background:
                 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.7) 100%)',
               WebkitBackgroundClip: 'text',
@@ -249,7 +249,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                   </span>
                   <span
                     className="tabular-nums text-[26px] font-semibold"
-                    style={{ color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-sora)' }}
+                    style={{ color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-fraunces)' }}
                   >
                     {day}
                   </span>
@@ -377,7 +377,7 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
               {onVacation.length > 0 && (
                 <span
                   className="tabular-nums text-[11px] font-semibold"
-                  style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-sora)' }}
+                  style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-fraunces)' }}
                 >
                   {onVacation.length}
                 </span>

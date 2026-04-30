@@ -206,7 +206,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
         <div>
           <h1
             className="text-[24px] font-semibold"
-            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
           >
             {t.settings.members.title}
           </h1>
@@ -303,7 +303,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
               <div className="flex items-center justify-between">
                 <h2
                   className="text-[20px] font-semibold"
-                  style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+                  style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
                 >
                   {modalMode === 'add' ? t.settings.members.modalAddTitle : t.settings.members.modalEditTitle}
                 </h2>
@@ -533,7 +533,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
                 <div className="flex-1">
                   <h2
                     className="text-[18px] font-semibold"
-                    style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+                    style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
                   >
                     Slett {deleteTarget.display_name}?
                   </h2>

@@ -179,6 +179,7 @@ export const lt: Dictionary = {
       close: 'Uždaryk',
     },
     group: {
+      recent: 'Neseniai naudota',
       nav: 'Eiti į',
       actions: 'Veiksmai',
       theme: 'Išvaizda',

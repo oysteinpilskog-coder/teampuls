@@ -446,7 +446,7 @@ function BirthdayRow({
           className="text-[17px] font-semibold tabular-nums leading-none"
           style={{
             color: 'var(--text-primary)',
-            fontFamily: 'var(--font-sora)',
+            fontFamily: 'var(--font-fraunces)',
             letterSpacing: '-0.02em',
           }}
         >

@@ -154,7 +154,7 @@ export function BillingClient({ orgName, createdAt, currentPlanId, seatsUsed }: 
               <h2
                 className="font-bold leading-none"
                 style={{
-                  fontFamily: 'var(--font-sora)',
+                  fontFamily: 'var(--font-fraunces)',
                   color: 'var(--text-primary)',
                   fontSize: 'clamp(28px, 4vw, 40px)',
                   letterSpacing: '-0.035em',
@@ -278,7 +278,7 @@ function SeatUsage({ used, limit }: { used: number; limit: number | null }) {
         <span
           className="font-bold tabular-nums leading-none"
           style={{
-            fontFamily: 'var(--font-sora)',
+            fontFamily: 'var(--font-fraunces)',
             color: over ? '#EF4444' : 'var(--text-primary)',
             fontSize: 28,
             letterSpacing: '-0.03em',
@@ -374,7 +374,7 @@ function PlanCard({
       <h3
         className="font-bold leading-none"
         style={{
-          fontFamily: 'var(--font-sora)',
+          fontFamily: 'var(--font-fraunces)',
           color: 'var(--text-primary)',
           fontSize: 24,
           letterSpacing: '-0.03em',
@@ -395,7 +395,7 @@ function PlanCard({
             <div
               className="font-bold leading-none"
               style={{
-                fontFamily: 'var(--font-sora)',
+                fontFamily: 'var(--font-fraunces)',
                 color: 'var(--text-primary)',
                 fontSize: 32,
                 letterSpacing: '-0.03em',
@@ -415,7 +415,7 @@ function PlanCard({
             <div
               className="font-bold leading-none"
               style={{
-                fontFamily: 'var(--font-sora)',
+                fontFamily: 'var(--font-fraunces)',
                 color: 'var(--text-primary)',
                 fontSize: 32,
                 letterSpacing: '-0.03em',
@@ -435,7 +435,7 @@ function PlanCard({
             <span
               className="font-bold tabular-nums leading-none"
               style={{
-                fontFamily: 'var(--font-sora)',
+                fontFamily: 'var(--font-fraunces)',
                 color: 'var(--text-primary)',
                 fontSize: 40,
                 letterSpacing: '-0.04em',

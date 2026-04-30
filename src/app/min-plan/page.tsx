@@ -19,7 +19,7 @@ export default async function MinPlanPage() {
         >
           <h1
             className="text-[24px] font-semibold text-[var(--text-primary)] mb-2"
-            style={{ fontFamily: 'var(--font-sora)' }}
+            style={{ fontFamily: 'var(--font-fraunces)' }}
           >
             Konto ikke koblet
           </h1>

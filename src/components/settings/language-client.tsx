@@ -11,7 +11,7 @@ export function LanguageClient() {
       <div className="mb-6">
         <h1
           className="text-[24px] font-semibold flex items-center gap-2"
-          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
         >
           <Languages className="w-5 h-5" strokeWidth={1.5} style={{ color: 'var(--accent-color)' }} />
           {t.settings.language.title}

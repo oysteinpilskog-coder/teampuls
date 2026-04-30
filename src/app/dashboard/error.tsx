@@ -29,7 +29,7 @@ export default function DashboardError({
     >
       <h1
         className="text-[36px] font-semibold mb-3"
-        style={{ fontFamily: 'var(--font-sora)', letterSpacing: '-0.02em' }}
+        style={{ fontFamily: 'var(--font-fraunces)', letterSpacing: '-0.02em' }}
       >
         {t.dashboardTitle}
       </h1>

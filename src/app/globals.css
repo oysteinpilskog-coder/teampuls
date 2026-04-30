@@ -14,12 +14,11 @@
   --font-body:    var(--font-manrope);
   --font-sans:    var(--font-manrope);
 
-  /* Legacy aliases — keep so components that reference the old variable
-     names (--font-sora, --font-inter-tight, --font-serif) still resolve
-     to the new faces without mass rewrite. --font-mono falls back to the
-     system mono stack via .lg-mono. */
-  --font-sora:         var(--font-fraunces);
-  --font-inter-tight:  var(--font-manrope);
+  /* Legacy alias for the serif slot. fonts.ts still exports `fontSerif`
+     pointing at Fraunces; keep this var so any consumer that reads
+     `var(--font-serif)` resolves predictably. The --font-sora and
+     --font-inter-tight aliases were removed once consumers moved to
+     --font-fraunces / --font-manrope. */
   --font-serif:        var(--font-fraunces);
 
   /* Brand colors (shadcn semantic mapping) */

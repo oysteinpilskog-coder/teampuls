@@ -175,7 +175,7 @@ function Strip({
             fontSize: '28px',
             fontWeight: 700,
             lineHeight: 0.9,
-            fontFamily: 'var(--font-sora)',
+            fontFamily: 'var(--font-fraunces)',
             letterSpacing: '-0.04em',
             background: `linear-gradient(180deg, ${textTint} 0%, ${accent} 100%)`,
             WebkitBackgroundClip: 'text',

@@ -88,7 +88,7 @@ export function RegionalInset({ kicker, title, points, delay = 0 }: RegionalInse
             className="text-[12px] font-semibold tracking-tight"
             style={{
               color: 'rgba(255,255,255,0.85)',
-              fontFamily: 'var(--font-sora)',
+              fontFamily: 'var(--font-fraunces)',
               letterSpacing: '-0.01em',
             }}
           >
@@ -99,7 +99,7 @@ export function RegionalInset({ kicker, title, points, delay = 0 }: RegionalInse
           className="text-[10px] tabular-nums"
           style={{
             color: customerColor,
-            fontFamily: 'var(--font-sora)',
+            fontFamily: 'var(--font-fraunces)',
             fontWeight: 600,
             opacity: sorted.length === 0 ? 0.35 : 0.85,
           }}

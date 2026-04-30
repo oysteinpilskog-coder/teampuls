@@ -91,7 +91,7 @@ export function OfficeMapView({
           <p
             className="text-[30px] font-semibold tracking-tight leading-none"
             style={{
-              fontFamily: 'var(--font-sora)',
+              fontFamily: 'var(--font-fraunces)',
               background:
                 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.7) 100%)',
               WebkitBackgroundClip: 'text',

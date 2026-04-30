@@ -285,7 +285,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       <div className="mb-6">
         <h1
           className="text-[24px] font-semibold"
-          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
         >
           Organisasjon
         </h1>

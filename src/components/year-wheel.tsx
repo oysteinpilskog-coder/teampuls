@@ -302,7 +302,7 @@ export function YearWheel({ orgId }: YearWheelProps) {
             <p
               className="text-[32px] font-semibold tracking-tight leading-none mt-1"
               style={{
-                fontFamily: 'var(--font-sora)',
+                fontFamily: 'var(--font-fraunces)',
                 color: 'var(--text-primary)',
                 letterSpacing: '-0.015em',
               }}
@@ -327,7 +327,7 @@ export function YearWheel({ orgId }: YearWheelProps) {
               style={{
                 fontSize: '56px',
                 fontWeight: 700,
-                fontFamily: 'var(--font-sora)',
+                fontFamily: 'var(--font-fraunces)',
                 letterSpacing: '-0.04em',
                 color: 'var(--text-primary)',
                 lineHeight: 1,
@@ -1216,7 +1216,7 @@ export function DiskView({
                           fontWeight={isCurrent ? 800 : 600}
                           fill={isCurrent ? 'white' : 'var(--text-secondary)'}
                           style={{
-                            fontFamily: 'var(--font-sora)',
+                            fontFamily: 'var(--font-fraunces)',
                             userSelect: 'none',
                             pointerEvents: 'none',
                             fontVariantNumeric: 'tabular-nums',
@@ -1416,7 +1416,7 @@ export function DiskView({
                         fill="white"
                         fillOpacity={d.isWeekend ? 0.78 : 0.98}
                         style={{
-                          fontFamily: 'var(--font-sora)',
+                          fontFamily: 'var(--font-fraunces)',
                           fontVariantNumeric: 'tabular-nums',
                           userSelect: 'none',
                           pointerEvents: 'none',
@@ -1468,7 +1468,7 @@ export function DiskView({
                         fontWeight={isCurrent ? 700 : 600}
                         fill={isCurrent ? 'white' : 'var(--text-secondary)'}
                         style={{
-                          fontFamily: 'var(--font-sora)',
+                          fontFamily: 'var(--font-fraunces)',
                           userSelect: 'none',
                           pointerEvents: 'none',
                           fontVariantNumeric: 'tabular-nums',
@@ -2002,7 +2002,7 @@ function AgendaRow({
           className="text-[17px] font-semibold tabular-nums leading-none"
           style={{
             color: 'var(--text-primary)',
-            fontFamily: 'var(--font-sora)',
+            fontFamily: 'var(--font-fraunces)',
             letterSpacing: '-0.02em',
           }}
         >

@@ -26,7 +26,7 @@ import {
   MessageSquare,
 } from 'lucide-react'
 
-type CommandGroup = 'nav' | 'actions' | 'theme' | 'workspace'
+type CommandGroup = 'recent' | 'nav' | 'actions' | 'theme' | 'workspace'
 
 interface Command {
   id: string
@@ -36,6 +36,43 @@ interface Command {
   shortcut?: string[]
   keywords?: string
   run: () => void
+}
+
+// ─── Recent commands (Spotlight-style) ──────────────────────────────────────
+// Persisted in localStorage so the palette feels smarter on every open. Only
+// the IDs are stored (label/icons reattach from the live Command list); that
+// keeps storage tiny and means a removed/renamed command silently disappears
+// instead of throwing or rendering a stub.
+const RECENTS_KEY = 'teampulse.palette.recent'
+const RECENTS_MAX = 5
+// Workspace switches are intentionally excluded — they're already shown in
+// their own section near the top of the workspace list and don't earn a
+// shortcut place in "Recent" (they're seldom what you opened the palette
+// to do twice in a row).
+const RECENTS_EXCLUDE_PREFIX = 'workspace-'
+
+function readRecents(): string[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(RECENTS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((x): x is string => typeof x === 'string').slice(0, RECENTS_MAX)
+  } catch {
+    return []
+  }
+}
+
+function pushRecent(id: string): string[] {
+  if (typeof window === 'undefined' || !id || id.startsWith(RECENTS_EXCLUDE_PREFIX)) return readRecents()
+  const next = [id, ...readRecents().filter((x) => x !== id)].slice(0, RECENTS_MAX)
+  try {
+    window.localStorage.setItem(RECENTS_KEY, JSON.stringify(next))
+  } catch {
+    /* private mode / storage full — silently degrade */
+  }
+  return next
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,12 +93,21 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [activeIdx, setActiveIdx] = useState(0)
+  const [recents, setRecents] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const { resolvedTheme, setTheme } = useTheme()
   const t = useT()
   const prefersReducedMotion = useReducedMotion()
+
+  // Hydrate recents from localStorage on the first open of each mount —
+  // doing it lazily avoids touching storage during SSR and on every render.
+  useEffect(() => {
+    if (open && recents.length === 0) {
+      setRecents(readRecents())
+    }
+  }, [open, recents.length])
 
   // Listen for programmatic open events
   useEffect(() => {
@@ -122,7 +168,7 @@ export function CommandPalette() {
     t,
   })
 
-  const filtered = useMemo(() => filterCommands(commands, query), [commands, query])
+  const filtered = useMemo(() => filterCommands(commands, query, recents), [commands, query, recents])
 
   // Clamp the active index whenever filtered list size changes
   useEffect(() => {
@@ -136,13 +182,16 @@ export function CommandPalette() {
     el?.scrollIntoView({ block: 'nearest' })
   }, [activeIdx])
 
+  const recordAndRun = useCallback((cmd: Command) => {
+    setRecents(pushRecent(cmd.id))
+    cmd.run()
+    setOpen(false)
+  }, [])
+
   const runActive = useCallback(() => {
     const cmd = filtered[activeIdx]
-    if (cmd) {
-      cmd.run()
-      setOpen(false)
-    }
-  }, [filtered, activeIdx])
+    if (cmd) recordAndRun(cmd)
+  }, [filtered, activeIdx, recordAndRun])
 
   function onInputKey(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'ArrowDown') {
@@ -163,8 +212,13 @@ export function CommandPalette() {
     }
   }
 
-  // Group for rendering
-  const grouped = useMemo(() => groupByHeading(filtered, t), [filtered, t])
+  // Group for rendering. When the query is empty, the filter has already
+  // promoted the recent commands to the top — group them under their own
+  // "Recent" heading so the user sees a Spotlight-style memory.
+  const grouped = useMemo(
+    () => groupByHeading(filtered, t, query.trim() === '' ? recents : []),
+    [filtered, t, query, recents],
+  )
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -284,10 +338,7 @@ export function CommandPalette() {
                           cmd={cmd}
                           selected={filtered[activeIdx]?.id === cmd.id}
                           index={filtered.indexOf(cmd)}
-                          onSelect={() => {
-                            cmd.run()
-                            setOpen(false)
-                          }}
+                          onSelect={() => recordAndRun(cmd)}
                           onHover={() => setActiveIdx(filtered.indexOf(cmd))}
                         />
                       ))}
@@ -568,11 +619,34 @@ function useCommands({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fuzzy filter: rank by prefix match, then substring, then keywords.
+// Fuzzy filter: rank by prefix match, then substring, then keywords. When the
+// query is empty, recent commands are bubbled to the front of the list (the
+// renderer slices them off into a "Recent" section). When the query is
+// non-empty, recent IDs add a small score boost so a near-tie resolves toward
+// what the user actually uses.
 
-function filterCommands(commands: Command[], query: string): Command[] {
+function filterCommands(commands: Command[], query: string, recents: string[]): Command[] {
   const q = query.trim().toLowerCase()
-  if (!q) return commands
+  if (!q) {
+    if (recents.length === 0) return commands
+    const seen = new Set<string>()
+    const ordered: Command[] = []
+    for (const id of recents) {
+      const cmd = commands.find((c) => c.id === id)
+      if (cmd && !seen.has(cmd.id)) {
+        ordered.push(cmd)
+        seen.add(cmd.id)
+      }
+    }
+    for (const cmd of commands) {
+      if (!seen.has(cmd.id)) ordered.push(cmd)
+    }
+    return ordered
+  }
+  const recentBoost = (id: string) => {
+    const idx = recents.indexOf(id)
+    return idx === -1 ? 0 : (RECENTS_MAX - idx) * 8
+  }
   const scored: Array<{ cmd: Command; score: number }> = []
   for (const cmd of commands) {
     const label = cmd.label.toLowerCase()
@@ -583,21 +657,41 @@ function filterCommands(commands: Command[], query: string): Command[] {
     else if (label.includes(q)) score = 200
     else if (kw.split(/\s+/).some((k) => k.startsWith(q))) score = 120
     else if (kw.includes(q)) score = 60
-    if (score > 0) scored.push({ cmd, score })
+    if (score > 0) scored.push({ cmd, score: score + recentBoost(cmd.id) })
   }
   scored.sort((a, b) => b.score - a.score)
   return scored.map((x) => x.cmd)
 }
 
-function groupByHeading(cmds: Command[], t: ReturnType<typeof useT>): Array<{ group: CommandGroup; label: string; items: Command[] }> {
-  const order: CommandGroup[] = ['workspace', 'nav', 'actions', 'theme']
+function groupByHeading(
+  cmds: Command[],
+  t: ReturnType<typeof useT>,
+  recentIds: readonly string[],
+): Array<{ group: CommandGroup; label: string; items: Command[] }> {
+  const order: CommandGroup[] = ['recent', 'workspace', 'nav', 'actions', 'theme']
   const labels: Record<CommandGroup, string> = {
+    recent: t.palette.group.recent,
     nav: t.palette.group.nav,
     actions: t.palette.group.actions,
     theme: t.palette.group.theme,
     workspace: t.palette.group.workspace,
   }
+  // Recent commands keep their original group, but we render them in a
+  // dedicated "Recent" section first so the typing-less open feels like a
+  // memory of what the user actually does.
+  const recentSet = new Set(recentIds)
+  const recentItems = recentIds
+    .map((id) => cmds.find((c) => c.id === id))
+    .filter((c): c is Command => Boolean(c))
+
   return order
-    .map((group) => ({ group, label: labels[group], items: cmds.filter((c) => c.group === group) }))
+    .map((group) => {
+      if (group === 'recent') return { group, label: labels.recent, items: recentItems }
+      return {
+        group,
+        label: labels[group],
+        items: cmds.filter((c) => c.group === group && !recentSet.has(c.id)),
+      }
+    })
     .filter((s) => s.items.length > 0)
 }

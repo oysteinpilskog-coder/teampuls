@@ -100,7 +100,7 @@ export function KeyboardHelp() {
                 <Dialog.Title
                   className="font-bold"
                   style={{
-                    fontFamily: 'var(--font-sora)',
+                    fontFamily: 'var(--font-fraunces)',
                     color: 'var(--text-primary)',
                     fontSize: 20,
                     letterSpacing: '-0.028em',

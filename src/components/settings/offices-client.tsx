@@ -237,7 +237,7 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
         <div>
           <h1
             className="text-[24px] font-semibold"
-            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
           >
             {t.settings.offices.title}
           </h1>
@@ -370,7 +370,7 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
               <div className="flex items-center justify-between">
                 <h2
                   className="text-[20px] font-semibold"
-                  style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+                  style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
                 >
                   {modalMode === 'add' ? t.settings.offices.modalAddTitle : t.settings.offices.modalEditTitle}
                 </h2>
@@ -539,7 +539,7 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
                       {form.latitude && form.longitude && (
                         <p
                           className="text-[11px] mt-1 tabular-nums"
-                          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-sora)' }}
+                          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-fraunces)' }}
                         >
                           {parseFloat(form.latitude).toFixed(4)}°N, {parseFloat(form.longitude).toFixed(4)}°E
                         </p>

@@ -311,7 +311,7 @@ export function WelcomeClient({
         <div className="min-w-0">
           <h1
             className="text-[24px] font-semibold"
-            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
           >
             {t.settings.welcome.title}
           </h1>
@@ -424,7 +424,7 @@ export function WelcomeClient({
                           className="w-14 shrink-0 flex flex-col items-start"
                           style={{
                             color: 'var(--text-primary)',
-                            fontFamily: 'var(--font-sora)',
+                            fontFamily: 'var(--font-fraunces)',
                           }}
                         >
                           <span className="text-[15px] font-semibold tabular-nums leading-none">
@@ -528,7 +528,7 @@ export function WelcomeClient({
                 <div className="flex items-center justify-between">
                   <h2
                     className="text-[20px] font-semibold"
-                    style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+                    style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
                   >
                     {modalMode === 'add'
                       ? t.settings.welcome.modalAddTitle
@@ -779,30 +779,19 @@ function StatusPill({
       ? {
           bg: 'var(--success-tint)',
           color: 'var(--success)',
-          dot: 'var(--success)',
           label: t.settings.welcome.statusWindow,
-          pulse: true,
         }
       : status === 'upcoming'
         ? {
             bg: 'color-mix(in oklab, var(--accent-color) 12%, transparent)',
             color: 'var(--accent-color)',
-            dot: 'var(--accent-color)',
             label: t.settings.welcome.statusUpcoming,
-            pulse: false,
           }
         : {
             bg: 'color-mix(in oklab, var(--text-tertiary) 12%, transparent)',
             color: 'var(--text-tertiary)',
-            dot: 'var(--text-tertiary)',
             label: t.settings.welcome.statusPast,
-            pulse: false,
           }
-
-  const animate =
-    cfg.pulse && !prefersReducedMotion
-      ? { opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }
-      : undefined
 
   return (
     <span
@@ -813,13 +802,59 @@ function StatusPill({
         fontFamily: 'var(--font-body)',
       }}
     >
-      <motion.span
-        className="w-1.5 h-1.5 rounded-full"
-        style={{ backgroundColor: cfg.dot }}
-        animate={animate}
-        transition={animate ? { duration: 2.4, repeat: Infinity, ease: 'easeInOut' } : undefined}
-      />
+      <StatusGlyph status={status} reducedMotion={!!prefersReducedMotion} />
       {cfg.label}
     </span>
+  )
+}
+
+/**
+ * Tiny inline SVG that replaces the generic dot — gives each visit-state a
+ * distinct silhouette (DESIGN_SYSTEM §8 mandates SVG, never emoji). All three
+ * glyphs sit on the same 10×10 viewBox so the pill width stays steady.
+ *
+ * - `window` keeps a pulse ring (live broadcast feel) at the same 2.4s
+ *   cadence as before, with the inner dot solid
+ * - `upcoming` shows a clock face with a forward-leaning hand
+ * - `past` shows a calm checkmark
+ */
+function StatusGlyph({ status, reducedMotion }: { status: VisitStatus; reducedMotion: boolean }) {
+  const stroke = 'currentColor'
+  if (status === 'window') {
+    return (
+      <span
+        className="inline-flex items-center justify-center"
+        style={{ width: 10, height: 10 }}
+        aria-hidden
+      >
+        <span className="relative inline-flex" style={{ width: 6, height: 6 }}>
+          <span
+            className="absolute inset-0 rounded-full"
+            style={{ backgroundColor: 'currentColor' }}
+          />
+          {!reducedMotion && (
+            <motion.span
+              className="absolute inset-0 rounded-full"
+              style={{ backgroundColor: 'currentColor' }}
+              animate={{ opacity: [0.45, 0, 0.45], scale: [1, 2.1, 1] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          )}
+        </span>
+      </span>
+    )
+  }
+  if (status === 'upcoming') {
+    return (
+      <svg viewBox="0 0 10 10" width="10" height="10" fill="none" aria-hidden>
+        <circle cx="5" cy="5" r="3.6" stroke={stroke} strokeWidth="1.2" />
+        <path d="M5 3.2v2l1.4 0.9" stroke={stroke} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+  return (
+    <svg viewBox="0 0 10 10" width="10" height="10" fill="none" aria-hidden>
+      <path d="M2 5.4 4 7.5 8 3" stroke={stroke} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   )
 }

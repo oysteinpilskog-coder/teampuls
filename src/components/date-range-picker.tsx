@@ -334,7 +334,7 @@ function MonthView({
       {/* Month header */}
       <div
         className="text-center text-[12px] font-semibold uppercase tracking-widest mb-2"
-        style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-sora)' }}
+        style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-fraunces)' }}
       >
         {MONTH_LONG[month.getMonth()]} {month.getFullYear()}
       </div>

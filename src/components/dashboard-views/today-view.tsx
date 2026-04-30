@@ -243,7 +243,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
               <span
                 className="tabular-nums text-[18px] font-semibold leading-none"
                 style={{
-                  fontFamily: 'var(--font-sora)',
+                  fontFamily: 'var(--font-fraunces)',
                   color: today ? '#ffffff' : 'rgba(255,255,255,0.5)',
                 }}
               >
@@ -273,7 +273,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
                   className="tabular-nums text-[12px] font-semibold"
                   style={{
                     color: today ? '#ffffff' : 'rgba(255,255,255,0.55)',
-                    fontFamily: 'var(--font-sora)',
+                    fontFamily: 'var(--font-fraunces)',
                   }}
                 >
                   {registered}

@@ -151,7 +151,7 @@ export function EventEditor({ open, onClose, orgId, event, onMutated }: EventEdi
             >
             <h2
               className="text-[20px] font-semibold"
-              style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+              style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
             >
               {isEdit ? t.eventEditor.titleEdit : t.eventEditor.titleNew}
             </h2>

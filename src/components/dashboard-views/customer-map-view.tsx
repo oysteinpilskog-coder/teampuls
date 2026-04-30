@@ -262,7 +262,7 @@ export function CustomerMapView({
           <p
             className="text-[30px] font-semibold tracking-tight leading-none"
             style={{
-              fontFamily: 'var(--font-sora)',
+              fontFamily: 'var(--font-fraunces)',
               background:
                 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.7) 100%)',
               WebkitBackgroundClip: 'text',
@@ -506,7 +506,7 @@ export function CustomerMapView({
                 <span
                   className="tabular-nums leading-none"
                   style={{
-                    fontFamily: 'var(--font-sora)',
+                    fontFamily: 'var(--font-fraunces)',
                     fontSize: 54,
                     fontWeight: 700,
                     letterSpacing: '-0.04em',
@@ -521,7 +521,7 @@ export function CustomerMapView({
                 <span
                   className="tabular-nums pb-2"
                   style={{
-                    fontFamily: 'var(--font-sora)',
+                    fontFamily: 'var(--font-fraunces)',
                     fontSize: 20,
                     fontWeight: 500,
                     color: 'rgba(255,255,255,0.45)',
@@ -737,7 +737,7 @@ export function CustomerMapView({
                           className="text-[11px] tabular-nums flex-shrink-0"
                           style={{
                             color: r.state === 'today' ? customerColor : 'rgba(255,255,255,0.55)',
-                            fontFamily: 'var(--font-sora)',
+                            fontFamily: 'var(--font-fraunces)',
                             fontWeight: 600,
                           }}
                           title={r.members.join(', ')}
@@ -794,7 +794,7 @@ function ClusterCountChip({
         dominantBaseline="central"
         fontSize={8.5}
         fontWeight={700}
-        fontFamily="var(--font-sora)"
+        fontFamily="var(--font-fraunces)"
         fill={visited ? color : 'rgba(255,255,255,0.78)'}
         style={{ letterSpacing: '0.02em' }}
       >

@@ -260,7 +260,7 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
           </motion.button>
           <span
             className="text-[15px] font-semibold tabular-nums"
-            style={{ fontFamily: 'var(--font-sora)', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}
+            style={{ fontFamily: 'var(--font-fraunces)', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}
           >
             {viewYear}
           </span>

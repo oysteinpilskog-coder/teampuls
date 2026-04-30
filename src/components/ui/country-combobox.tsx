@@ -232,7 +232,7 @@ export function CountryCombobox({
                             style={{
                               backgroundColor: 'var(--bg-subtle)',
                               color: 'var(--text-tertiary)',
-                              fontFamily: 'var(--font-sora)',
+                              fontFamily: 'var(--font-fraunces)',
                               border: isActive ? '1px solid var(--border-subtle)' : '1px solid transparent',
                             }}
                           >

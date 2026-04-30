@@ -120,7 +120,7 @@ export function MapColorsClient({ org: initialOrg }: MapColorsClientProps) {
         <div>
           <h1
             className="text-[24px] font-semibold flex items-center gap-2"
-            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
           >
             <MapPinIcon className="w-5 h-5" strokeWidth={1.5} style={{ color: 'var(--accent-color)' }} />
             Kart
@@ -217,7 +217,7 @@ function PinColorCard({
         <div>
           <h3
             className="text-[15px] font-semibold"
-            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-sora)' }}
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
           >
             {title}
           </h3>

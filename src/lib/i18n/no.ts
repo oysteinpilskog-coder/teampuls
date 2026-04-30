@@ -177,6 +177,7 @@ export const no = {
       close: 'Lukk',
     },
     group: {
+      recent: 'Sist brukt',
       nav: 'Gå til',
       actions: 'Handlinger',
       theme: 'Visning',

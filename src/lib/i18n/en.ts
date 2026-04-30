@@ -179,6 +179,7 @@ export const en: Dictionary = {
       close: 'Close',
     },
     group: {
+      recent: 'Recently used',
       nav: 'Go to',
       actions: 'Actions',
       theme: 'Appearance',
