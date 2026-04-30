@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { StatusIcon } from '@/components/icons/status-icons'
@@ -78,6 +78,7 @@ export function CellEditor({
   const STATUS_COLORS = useStatusColors()
   const t = useT()
   const { setEditing } = usePresenceCtx()
+  const prefersReducedMotion = useReducedMotion()
 
   // Broadcast "editing this cell" to other sessions while the dialog is open
   // so they can see a presence badge in the grid. Clear on close.
@@ -308,16 +309,16 @@ export function CellEditor({
           {/* Editor card — flex wrapper centers, dialog sits higher (iOS-style) */}
           <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-4 pt-[6vh] sm:pt-[8vh] pointer-events-none">
           <motion.div
-            initial={{ opacity: 0, scale: 0.97, y: 8 }}
+            initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 8 }}
-            transition={spring.modal}
+            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 8 }}
+            transition={prefersReducedMotion ? { duration: 0.12 } : spring.modal}
             className="glass-panel pointer-events-auto w-[560px] max-w-full max-h-[calc(100vh-10vh-1rem)] sm:max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col gap-4 sm:gap-5"
           >
             {/* Header */}
             <div>
               <p
-                className="text-[13px] font-medium uppercase tracking-widest mb-0.5"
+                className="text-[13px] font-medium uppercase tracking-[0.16em] mb-0.5"
                 style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
               >
                 {(() => {
@@ -340,7 +341,7 @@ export function CellEditor({
             {/* Date range picker */}
             <div className="flex flex-col gap-1.5">
               <label
-                className="text-[11px] font-semibold uppercase tracking-widest"
+                className="text-[11px] font-semibold uppercase tracking-[0.16em]"
                 style={{ color: 'var(--text-secondary)' }}
               >
                 {t.editor.period}
@@ -363,7 +364,7 @@ export function CellEditor({
             {/* Status picker */}
             <div className="flex flex-col gap-2">
               <span
-                className="text-[11px] font-semibold uppercase tracking-widest"
+                className="text-[11px] font-semibold uppercase tracking-[0.16em]"
                 style={{ color: 'var(--text-secondary)' }}
               >
                 {t.editor.status}
@@ -428,7 +429,7 @@ export function CellEditor({
             {/* Location field */}
             <div className="flex flex-col gap-1.5">
               <label
-                className="text-[11px] font-semibold uppercase tracking-widest"
+                className="text-[11px] font-semibold uppercase tracking-[0.16em]"
                 style={{ color: 'var(--text-secondary)' }}
               >
                 {t.editor.location}
@@ -461,7 +462,7 @@ export function CellEditor({
             {/* Note field */}
             <div className="flex flex-col gap-1.5">
               <label
-                className="text-[11px] font-semibold uppercase tracking-widest"
+                className="text-[11px] font-semibold uppercase tracking-[0.16em]"
                 style={{ color: 'var(--text-secondary)' }}
               >
                 {t.editor.note}

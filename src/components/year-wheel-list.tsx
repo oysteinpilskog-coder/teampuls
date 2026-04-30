@@ -74,10 +74,10 @@ export function ListView({ year, today, events, onSelect }: ListViewProps) {
               <span
                 className="lg-mono ml-auto px-2 py-0.5 rounded-full text-[9.5px] font-medium uppercase"
                 style={{
-                  backgroundColor: 'rgba(139, 92, 246, 0.12)',
-                  color: 'var(--lg-accent)',
-                  border: '1px solid rgba(139, 92, 246, 0.28)',
-                  letterSpacing: '0.2em',
+                  backgroundColor: 'color-mix(in oklab, var(--accent-color) 12%, transparent)',
+                  color: 'var(--accent-color)',
+                  border: '1px solid color-mix(in oklab, var(--accent-color) 28%, transparent)',
+                  letterSpacing: '0.16em',
                 }}
               >
                 {t.dashboard.views.now}
@@ -128,9 +128,9 @@ function EventRow({
       className="flex items-stretch gap-4 px-4 py-3 rounded-xl cursor-pointer transition-[background,border-color] duration-200"
       style={{
         background: 'var(--lg-surface-1)',
-        border: `1px solid ${isToday ? 'rgba(139, 92, 246, 0.28)' : 'var(--lg-divider)'}`,
+        border: `1px solid ${isToday ? 'color-mix(in oklab, var(--accent-color) 32%, transparent)' : 'var(--lg-divider)'}`,
         boxShadow: isToday
-          ? 'inset 2px 0 0 var(--lg-accent), 0 0 18px -10px var(--lg-accent-glow)'
+          ? 'inset 2px 0 0 var(--accent-color), 0 0 18px -10px var(--accent-glow)'
           : `inset 2px 0 0 ${color}`,
       }}
     >
@@ -138,7 +138,7 @@ function EventRow({
         <span
           className="lg-mono text-[22px] leading-none"
           style={{
-            color: isToday ? 'var(--lg-accent)' : 'var(--lg-text-1)',
+            color: isToday ? 'var(--accent-color)' : 'var(--lg-text-1)',
             fontWeight: 500,
           }}
         >

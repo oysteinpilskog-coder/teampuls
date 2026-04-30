@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation'
 import { AIInput } from '@/components/ai-input'
 import { MyPlan } from '@/components/my-plan'
+import { EmptyState } from '@/components/empty-state'
 import { getSessionMember } from '@/lib/supabase/session'
 import { createClient } from '@/lib/supabase/server'
 import { isSupportedCountry, type CountryCode } from '@/lib/holidays'
+import { getServerDict } from '@/lib/i18n/server'
 
 export default async function MinPlanPage() {
   const { user, member } = await getSessionMember()
@@ -11,22 +13,27 @@ export default async function MinPlanPage() {
   if (!user) redirect('/login')
 
   if (!member) {
+    const t = await getServerDict()
     return (
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16">
-        <div
-          className="rounded-2xl p-8 max-w-md"
-          style={{ background: 'var(--bg-elevated)', boxShadow: 'var(--shadow-lg)' }}
-        >
-          <h1
-            className="text-[24px] font-semibold text-[var(--text-primary)] mb-2"
-            style={{ fontFamily: 'var(--font-fraunces)' }}
-          >
-            Konto ikke koblet
-          </h1>
-          <p className="text-[15px] text-[var(--text-secondary)]">
-            E-posten <strong>{user.email}</strong> er ikke lagt til som teammedlem ennå.
-          </p>
-        </div>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-20">
+        <EmptyState
+          icon={
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none">
+              <path
+                d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm0 2.25c-3.75 0-7.5 2.25-7.5 5.25V21h15v-1.5c0-3-3.75-5.25-7.5-5.25Z"
+                fill="currentColor"
+              />
+            </svg>
+          }
+          title={t.auth.accountNotLinkedTitle}
+          description={
+            <>
+              {t.auth.accountNotLinkedEmailLabel}{' '}
+              <strong style={{ color: 'var(--text-primary)' }}>{user.email}</strong>{' '}
+              {t.auth.accountNotLinkedDescription}
+            </>
+          }
+        />
       </div>
     )
   }
