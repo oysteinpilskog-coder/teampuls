@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -84,6 +85,12 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
   const [deleting, setDeleting] = useState<string | null>(null)
   const [geo, setGeo] = useState<GeocodeStatus>({ state: 'idle' })
   const t = useT()
+  // Skriv direkte til Supabase fra klienten oppdaterer DB, men ikke Next-sin
+  // Router Cache — dashbordets Kunder-visning ville derfor servere stale
+  // initialCustomers ved neste navigering, og realtime-abonnementet kobler
+  // til *etter* mutasjonen så den hendelsen kommer aldri frem. router.refresh()
+  // invaliderer cachen så fersk SSR kjøres på neste route-besøk.
+  const router = useRouter()
 
   function openAdd() {
     setForm(EMPTY_FORM)
@@ -240,6 +247,7 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
         return
       }
       setCustomers(prev => prev.map(c => c.id === editTarget.id ? { ...c, ...row } : c))
+      router.refresh()
       toast.success(t.settings.customers.toastUpdated)
     } else {
       const { data, error } = await supabase.from('customers').insert(row).select().single()
@@ -249,6 +257,7 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
         return
       }
       setCustomers(prev => [...prev, data])
+      router.refresh()
       toast.success(`${row.name} ${t.settings.customers.toastAddedSuffix}`)
     }
     closeModal()
@@ -261,6 +270,7 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
     setDeleting(null)
     if (error) { toast.error(t.common.errorShort); return }
     setCustomers(prev => prev.filter(c => c.id !== id))
+    router.refresh()
     toast.success(t.settings.customers.toastDeleted)
   }
 
