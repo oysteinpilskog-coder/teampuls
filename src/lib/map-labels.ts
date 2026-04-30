@@ -24,6 +24,16 @@ export interface LabeledPoint {
   y: number
   /** Size of the dot in px — labels are placed outside the halo. */
   radius: number
+  /** Optional per-point label box dimensions. When supplied (with
+   *  `labelHeight`), AABB-mode kollisjon bruker disse i stedet for de
+   *  globale `labelWidth/Height` fra `PlaceOptions`. Lar et kart med
+   *  varierende navnelengder (Førre vs Lyssand-Frekhaug AS) få en
+   *  korrekt overlapp-sjekk per label.
+   *
+   *  Aktiverer AABB-modus for hele kallet: hvis ÉN punkt har dim, går
+   *  vi i AABB-modus og bruker fallback-globalene for resten. */
+  labelWidth?: number
+  labelHeight?: number
 }
 
 export type LabelSide = 'top' | 'bottom' | 'left' | 'right'
@@ -35,8 +45,19 @@ export interface PlacedLabel<T> {
   labelY: number
   /** Which side of the pin the label sits on (used for text-anchor). */
   side: LabelSide
-  /** Vertical slot index (0 = aligned, 1/-1 = nudged). */
+  /** Vertical slot index (0 = aligned, ±1/±2 = nudged). */
   slot: number
+  /** True når label-en måtte forskyves fra sitt naturlige slot:0 for å
+   *  unngå kollisjon — leder-linjen i renderer-en lyttes på dette så vi
+   *  bare tegner en linje når den faktisk knytter pin til en displaced
+   *  label. */
+  needsLeader: boolean
+  /** Faktiske dimensjoner brukt for kollisjon (per-punkt eller global
+   *  fallback). Eksponert så renderer-en kan beregne label-rektangel-
+   *  geometri (f.eks. start-/endepunkt for leader-linjer). 0 i ren
+   *  anker-modus. */
+  labelWidth: number
+  labelHeight: number
 }
 
 interface PlaceOptions {
@@ -82,8 +103,14 @@ export function placeLabels<T extends LabeledPoint>(
   const gap = opts.gap ?? 14
   const lineHeight = opts.lineHeight ?? 22
   const collisionRadius = opts.collisionRadius ?? 90
+  // AABB-modus aktiveres når enten globalene er satt ELLER minst ett
+  // punkt har egne dimensjoner. Per-punkt-vinner over global fallback.
+  const hasPerPointDims = points.some(
+    p => typeof p.labelWidth === 'number' && typeof p.labelHeight === 'number',
+  )
   const aabbMode =
-    typeof opts.labelWidth === 'number' && typeof opts.labelHeight === 'number'
+    hasPerPointDims ||
+    (typeof opts.labelWidth === 'number' && typeof opts.labelHeight === 'number')
   const labelWidth = opts.labelWidth ?? 0
   const labelHeight = opts.labelHeight ?? 0
   const verticalAnchor = opts.verticalAnchor ?? 0.62
@@ -92,16 +119,26 @@ export function placeLabels<T extends LabeledPoint>(
   const sorted = [...points].sort((a, b) => a.y - b.y)
   const placed: PlacedLabel<T>[] = []
 
-  // Kandidatene prøves i prioritetsrekkefølge. `slot:2` for top/bottom er
-  // siste utvei når både normal og slot:1 er tatt — sikrer at to pins som
-  // ligger nær hverandre **alltid** finner et ikke-overlappende slot.
+  // Kandidatene prøves i prioritetsrekkefølge. Bottom/top slot:0 er det
+  // estetisk fineste; deretter sider, så vifter vi vertikalt langs sidene
+  // (slot ±1, ±2) for å pakke ut tette pin-kolonner uten at en label
+  // klatrer langt opp/ned i naturlig retning. Slot:2 for top/bottom er
+  // siste utvei.
   const candidates: Array<{ side: LabelSide; slot: number }> = [
     { side: 'bottom', slot: 0 },
     { side: 'top', slot: 0 },
     { side: 'right', slot: 0 },
     { side: 'left', slot: 0 },
+    { side: 'right', slot: -1 },
+    { side: 'left', slot: -1 },
+    { side: 'right', slot: 1 },
+    { side: 'left', slot: 1 },
     { side: 'bottom', slot: 1 },
     { side: 'top', slot: 1 },
+    { side: 'right', slot: -2 },
+    { side: 'left', slot: -2 },
+    { side: 'right', slot: 2 },
+    { side: 'left', slot: 2 },
     { side: 'bottom', slot: 2 },
     { side: 'top', slot: 2 },
   ]
@@ -117,6 +154,12 @@ export function placeLabels<T extends LabeledPoint>(
       const dy = pl.point.y - p.y
       return Math.sqrt(dx * dx + dy * dy) < collisionRadius
     })
+
+    // Per-punkt-dimensjoner vinner over globalene. Et idle-punkt kan
+    // være 90 px bredt mens en today-cluster er 190 — kollisjonen må
+    // bruke RIKTIG bredde for hver part.
+    const myW = p.labelWidth ?? labelWidth
+    const myH = p.labelHeight ?? labelHeight
 
     type Resolved = {
       side: LabelSide
@@ -138,11 +181,11 @@ export function placeLabels<T extends LabeledPoint>(
         // Bygg label-rektangel for denne kandidaten og sjekk overlapp mot
         // hver allerede-plasserte nabos label-boks samt naboens pin.
         // Score = -totalOverlap så høyere er bedre (ingen overlapp = 0).
-        const myRect = labelRectFor(c.side, labelX, labelY, labelWidth, labelHeight, verticalAnchor)
+        const myRect = labelRectFor(c.side, labelX, labelY, myW, myH, verticalAnchor)
         let totalOverlap = 0
         let pinHit = false
         for (const n of neighbours) {
-          const nRect = labelRectFor(n.side, n.labelX, n.labelY, labelWidth, labelHeight, verticalAnchor)
+          const nRect = labelRectFor(n.side, n.labelX, n.labelY, n.labelWidth, n.labelHeight, verticalAnchor)
           totalOverlap += rectOverlap(myRect, nRect)
           // Treat the neighbour pin as a small forbidden disc — labelet
           // skal aldri dekke en nabo-pin.
@@ -154,8 +197,7 @@ export function placeLabels<T extends LabeledPoint>(
         safe = totalOverlap === 0 && !pinHit
       } else {
         // Eldre anker-distanse-modus, beholdt for kall-sider som ikke
-        // gir labelWidth/labelHeight (customer-map-view bruker enkle
-        // <text>-labels uten kjent bredde).
+        // gir labelWidth/labelHeight på noen av punktene.
         let minDist = Infinity
         for (const n of neighbours) {
           const dPin = Math.hypot(n.point.x - labelX, n.point.y - labelY)
@@ -187,6 +229,13 @@ export function placeLabels<T extends LabeledPoint>(
       labelY: pick.labelY,
       side: pick.side,
       slot: pick.slot,
+      // Forskyvninger fra slot:0 fortjener en leder-linje så øyet alltid
+      // klarer å koble label tilbake til pin-en. side:bottom/top på
+      // slot:0 er den naturlige posisjonen rett under/over pin-en og
+      // trenger ingen leder. left/right på slot:0 er også naturlig.
+      needsLeader: pick.slot !== 0,
+      labelWidth: myW,
+      labelHeight: myH,
     })
   }
 
