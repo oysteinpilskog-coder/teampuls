@@ -563,6 +563,7 @@ export const sv: Dictionary = {
       subtitleOne: 'plats',
       subtitleMany: 'platser',
       empty: 'Inga kontor ännu',
+      emptyHint: 'Lägg till företagets platser — de dyker upp som autoförslag när någon loggar närvaro, och som pins på dashboarden.',
       modalAddTitle: 'Nytt kontor',
       modalEditTitle: 'Redigera kontor',
       toastAddedSuffix: 'tillagt',

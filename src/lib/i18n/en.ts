@@ -563,6 +563,7 @@ export const en: Dictionary = {
       subtitleOne: 'location',
       subtitleMany: 'locations',
       empty: 'No offices yet',
+      emptyHint: "Add your company's locations — they'll surface as autocomplete suggestions when someone logs presence, and as pins on the dashboard.",
       modalAddTitle: 'New office',
       modalEditTitle: 'Edit office',
       toastAddedSuffix: 'added',

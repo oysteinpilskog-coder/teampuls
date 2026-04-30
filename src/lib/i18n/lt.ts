@@ -563,6 +563,7 @@ export const lt: Dictionary = {
       subtitleOne: 'vieta',
       subtitleMany: 'vietos',
       empty: 'Dar nėra biurų',
+      emptyHint: 'Pridėk įmonės vietas — pasirodys kaip automatiniai pasiūlymai, kai kas nors fiksuos buvimą, ir kaip ženkleliai prietaisų skydelyje.',
       modalAddTitle: 'Naujas biuras',
       modalEditTitle: 'Redaguoti biurą',
       toastAddedSuffix: 'pridėtas',

@@ -11,6 +11,7 @@ import type { Office } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { CountryCombobox } from '@/components/ui/country-combobox'
+import { EmptyState } from '@/components/empty-state'
 
 // Leaflet leser `window` ved import — må lastes klient-side etter mount.
 const CoordsMapPicker = dynamic(
@@ -258,23 +259,11 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
 
       {/* Office list */}
       {offices.length === 0 ? (
-        <div
-          className="rounded-2xl p-12 text-center flex flex-col items-center gap-3"
-          style={{ border: '2px dashed var(--border-subtle)' }}
-        >
-          <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center"
-            style={{ backgroundColor: 'var(--bg-subtle)' }}
-          >
-            <MapPin className="w-6 h-6" strokeWidth={1.5} style={{ color: 'var(--text-tertiary)' }} />
-          </div>
-          <p className="text-[15px] font-medium" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}>
-            {t.settings.offices.empty}
-          </p>
-          <p className="text-[13px]" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
-            Legg til firmaets lokasjoner for autokomplett og statistikk
-          </p>
-        </div>
+        <EmptyState
+          icon={<MapPin className="w-6 h-6" strokeWidth={1.5} />}
+          title={t.settings.offices.empty}
+          description={t.settings.offices.emptyHint}
+        />
       ) : (
         <div
           className="rounded-2xl overflow-hidden"

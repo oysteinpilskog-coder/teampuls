@@ -563,6 +563,7 @@ export const es: Dictionary = {
       subtitleOne: 'ubicación',
       subtitleMany: 'ubicaciones',
       empty: 'Aún no hay oficinas',
+      emptyHint: 'Añade las ubicaciones de la empresa — aparecen como sugerencias automáticas cuando alguien registra presencia, y como pines en el panel.',
       modalAddTitle: 'Nueva oficina',
       modalEditTitle: 'Editar oficina',
       toastAddedSuffix: 'añadida',

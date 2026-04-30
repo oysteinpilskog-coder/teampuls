@@ -561,6 +561,7 @@ export const no = {
       subtitleOne: 'lokasjon',
       subtitleMany: 'lokasjoner',
       empty: 'Ingen kontorer ennå',
+      emptyHint: 'Legg til firmaets lokasjoner — dukker opp som autoforslag når noen logger oppmøte, og blir til pinner på dashbordet.',
       modalAddTitle: 'Nytt kontor',
       modalEditTitle: 'Rediger kontor',
       toastAddedSuffix: 'lagt til',
