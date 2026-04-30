@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { MapPin } from './map-pin'
 import { project, resolveLocation } from '@/lib/geo'
@@ -37,6 +37,7 @@ export function OfficeMapView({
   const auroras = useAuroraColors()
   const t = useT()
   const weekNum = getISOWeek(time)
+  const reduce = useReducedMotion()
 
   // Project each office. City-dictionary match wins over stored lat/lng so
   // the continent-scale view stays robust against bad geocoder results
@@ -103,7 +104,7 @@ export function OfficeMapView({
           </p>
           <div className="mt-2 flex items-center gap-2">
             <span
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-[0.16em] uppercase"
               style={{
                 background: 'rgba(0,102,255,0.12)',
                 border: '1px solid rgba(0,102,255,0.25)',
@@ -114,8 +115,8 @@ export function OfficeMapView({
               <motion.span
                 className="w-1.5 h-1.5 rounded-full"
                 style={{ backgroundColor: officeColor }}
-                animate={{ opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                animate={reduce ? undefined : { opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
+                transition={reduce ? undefined : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
               />
               Uke {weekNum}
             </span>

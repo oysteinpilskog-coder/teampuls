@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useId } from 'react'
 import { spring } from '@/lib/motion'
 import { complement } from '@/lib/color'
@@ -47,6 +47,7 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
   const uid = useId().replace(/:/g, '')
   const filterOuter = `mp-f-outer-${uid}`
   const filterInner = `mp-f-inner-${uid}`
+  const reduce = useReducedMotion()
 
   return (
     <g>
@@ -65,13 +66,13 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
         r={radius * 1.2}
         fill={color}
         filter={`url(#${filterInner})`}
-        initial={{ cx: 0, cy: 0, opacity: 0 }}
-        animate={{
+        initial={{ cx: 0, cy: 0, opacity: reduce ? 0.62 : 0 }}
+        animate={reduce ? { cx: 0, cy: 0, opacity: 0.62 } : {
           cx: [-3, 3, -3],
           cy: [-2, 2, -2],
           opacity: [0.5, 0.75, 0.5],
         }}
-        transition={{
+        transition={reduce ? undefined : {
           cx: {
             duration: 9 + (index % 4) * 1.4,
             delay: (index % 5) * 0.8,
@@ -100,13 +101,13 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
         r={radius * 2.4}
         fill={companion}
         filter={`url(#${filterOuter})`}
-        initial={{ cx: 0, cy: 0, opacity: 0 }}
-        animate={{
+        initial={{ cx: 0, cy: 0, opacity: reduce ? 0.81 : 0 }}
+        animate={reduce ? { cx: 0, cy: 0, opacity: 0.81 } : {
           cx: [3, -3, 3],
           cy: [2, -2, 2],
           opacity: [0.7, 0.92, 0.7],
         }}
-        transition={{
+        transition={reduce ? undefined : {
           cx: {
             duration: 11 + (index % 3) * 1.7,
             delay: (index % 5) * 0.5 + 1.2,
@@ -128,23 +129,27 @@ export function MapPin({ radius, color, auroraCompanion, index }: MapPinProps) {
         }}
       />
 
-      {/* Crisp expanding ring — heartbeat */}
-      <motion.circle
-        r={radius + 4}
-        fill="none"
-        stroke={color}
-        strokeWidth={1.2}
-        animate={{
-          r: [radius + 4, radius + 26, radius + 4],
-          opacity: [0.55, 0, 0.55],
-        }}
-        transition={{
-          duration: 4.2,
-          delay: (index % 5) * 0.6,
-          repeat: Infinity,
-          ease: 'easeOut',
-        }}
-      />
+      {/* Crisp expanding ring — heartbeat. Gates entirely on reduced-motion;
+       *  static fallback skips the ring since "no heartbeat" is more honest
+       *  than "frozen mid-pulse". */}
+      {!reduce && (
+        <motion.circle
+          r={radius + 4}
+          fill="none"
+          stroke={color}
+          strokeWidth={1.2}
+          animate={{
+            r: [radius + 4, radius + 26, radius + 4],
+            opacity: [0.55, 0, 0.55],
+          }}
+          transition={{
+            duration: 4.2,
+            delay: (index % 5) * 0.6,
+            repeat: Infinity,
+            ease: 'easeOut',
+          }}
+        />
+      )}
 
       {/* Dot base */}
       <motion.circle

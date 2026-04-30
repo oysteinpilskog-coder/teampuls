@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { CustomerPin, type CustomerPinState } from './customer-pin'
 import { MapLabelTicker } from './map-label-ticker'
@@ -55,6 +55,7 @@ export function CustomerMapView({
   const auroras = useAuroraColors()
   const t = useT()
   const weekNum = getISOWeek(time)
+  const reduce = useReducedMotion()
 
   const memberById = new Map(members.map(m => [m.id, m]))
   const customerColor = STATUS_COLORS.customer.icon
@@ -274,7 +275,7 @@ export function CustomerMapView({
           </p>
           <div className="mt-2 flex items-center gap-2">
             <span
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-[0.16em] uppercase"
               style={{
                 background: 'rgba(255,122,26,0.12)',
                 border: '1px solid rgba(255,122,26,0.28)',
@@ -285,8 +286,8 @@ export function CustomerMapView({
               <motion.span
                 className="w-1.5 h-1.5 rounded-full"
                 style={{ backgroundColor: customerColor }}
-                animate={{ opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                animate={reduce ? undefined : { opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
+                transition={reduce ? undefined : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
               />
               {t.matrix.weekLabel} {weekNum}
             </span>
@@ -811,6 +812,7 @@ function ClusterCountChip({
  * reads as the map's caption rather than a separate widget.
  */
 function SidePanelDot({ state, color }: { state: CustomerPinState; color: string }) {
+  const reduce = useReducedMotion()
   const baseOpacity = state === 'today' ? 1 : state === 'week' ? 0.85 : 0.45
   const glowAlpha = state === 'today' ? 'aa' : state === 'week' ? '66' : '22'
 
@@ -821,7 +823,7 @@ function SidePanelDot({ state, color }: { state: CustomerPinState; color: string
       style={{ width: 14, height: 14 }}
     >
       {/* Single soft pulse ring — only for visited tiers so idle stays still. */}
-      {state !== 'idle' && (
+      {state !== 'idle' && !reduce && (
         <motion.span
           className="absolute inset-0 rounded-full"
           style={{ border: `1px solid ${color}` }}

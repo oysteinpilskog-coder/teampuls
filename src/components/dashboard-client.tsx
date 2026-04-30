@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEntries } from '@/hooks/use-entries'
@@ -916,6 +916,7 @@ function RotationHairline({ pct }: { pct: number }) {
  */
 function GuestChip({ count, visible }: { count: number; visible: boolean }) {
   const t = useT()
+  const reduce = useReducedMotion()
   if (count <= 0) return null
   const label =
     count === 1
@@ -943,8 +944,8 @@ function GuestChip({ count, visible }: { count: number; visible: boolean }) {
         <motion.span
           className="w-1.5 h-1.5 rounded-full"
           style={{ backgroundColor: 'var(--accent-color)' }}
-          animate={{ opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
-          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+          animate={reduce ? undefined : { opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
+          transition={reduce ? undefined : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
         />
         <span className="tabular-nums">{label}</span>
       </div>

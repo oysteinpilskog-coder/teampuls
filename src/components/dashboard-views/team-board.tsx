@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { MemberAvatar } from '@/components/member-avatar'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useStatusColors } from '@/lib/status-colors/context'
@@ -100,6 +100,7 @@ function Strip({
   const bg = colors.bgDark
   const count = members.length
   const hasPeople = count > 0
+  const reduce = useReducedMotion()
 
   const emptyCopy =
     stripKey === 'away'       ? 'Ingen er borte 🎉' :
@@ -134,8 +135,8 @@ function Strip({
         <motion.div
           aria-hidden
           className="absolute -inset-24 pointer-events-none"
-          animate={{ opacity: [0.45, 0.75, 0.45] }}
-          transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+          animate={reduce ? undefined : { opacity: [0.45, 0.75, 0.45] }}
+          transition={reduce ? undefined : { duration: 7, repeat: Infinity, ease: 'easeInOut' }}
           style={{
             background: `radial-gradient(circle at 10% 50%, ${accent}1a 0%, transparent 55%)`,
             filter: 'blur(32px)',

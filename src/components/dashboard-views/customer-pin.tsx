@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useId } from 'react'
 
 export type CustomerPinState = 'idle' | 'week' | 'today'
@@ -36,6 +36,7 @@ export function CustomerPin({ color, auroraCompanion, index, state }: CustomerPi
   const uid = useId().replace(/:/g, '')
   const filterId = `cp-blur-${uid}`
   const auraColor = auroraCompanion ?? color
+  const reduce = useReducedMotion()
 
   // Tier-specific tunables. Kept in a local const so the JSX stays legible.
   const visited = state !== 'idle'
@@ -72,9 +73,9 @@ export function CustomerPin({ color, auroraCompanion, index, state }: CustomerPi
         r={auraRadius}
         fill={auraColor}
         filter={`url(#${filterId})`}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: auraOpacityRange }}
-        transition={{
+        initial={{ opacity: reduce ? auraOpacityRange[1] : 0 }}
+        animate={reduce ? { opacity: auraOpacityRange[1] } : { opacity: auraOpacityRange }}
+        transition={reduce ? undefined : {
           duration: breathDur,
           delay: breathDelay,
           repeat: Infinity,
@@ -85,7 +86,7 @@ export function CustomerPin({ color, auroraCompanion, index, state }: CustomerPi
       {/* Visited: gentle single-pulse ring. Subtle — one soft wave, not a
        *  heartbeat. Only rendered for week/today so idle stays completely
        *  still. */}
-      {visited && (
+      {visited && !reduce && (
         <motion.circle
           r={radius + 3}
           fill="none"

@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useStatusColors } from '@/lib/status-colors/context'
 import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
 import { getDayLabel, getISOWeek, isToday } from '@/lib/dates'
@@ -41,6 +41,7 @@ function greetingFor(h: number, g: Dictionary['dashboard']['greetings']): string
 export function TodayView({ members, weekDays, entries, todayEntries, orgName, time }: TodayViewProps) {
   const STATUS_COLORS = useStatusColors()
   const t = useT()
+  const reduce = useReducedMotion()
   const hours   = pad(time.getHours())
   const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)
@@ -92,7 +93,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
           )}
           <div className="mt-2.5 flex items-center gap-2 flex-wrap">
             <span
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase whitespace-nowrap flex-shrink-0"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-[0.16em] uppercase whitespace-nowrap flex-shrink-0"
               style={{
                 background: 'color-mix(in oklab, var(--accent-color) 16%, transparent)',
                 border: '1px solid color-mix(in oklab, var(--accent-color) 35%, transparent)',
@@ -103,8 +104,8 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
               <motion.span
                 className="w-1.5 h-1.5 rounded-full"
                 style={{ backgroundColor: 'var(--accent-color)' }}
-                animate={{ opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                animate={reduce ? undefined : { opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
+                transition={reduce ? undefined : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
               />
               {t.dashboard.live} · {t.matrix.weekLabel} {weekNum}
             </span>
