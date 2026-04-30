@@ -38,7 +38,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/auth') ||
     pathname === '/offline' ||
     pathname === '/opengraph-image' ||
-    pathname === '/twitter-image'
+    pathname === '/twitter-image' ||
+    (process.env.NODE_ENV !== 'production' && pathname === '/api/dev-login')
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()

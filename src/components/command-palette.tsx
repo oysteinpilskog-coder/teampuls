@@ -1,7 +1,7 @@
 'use client'
 
 import { Dialog } from '@base-ui/react/dialog'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -61,6 +61,7 @@ export function CommandPalette() {
   const router = useRouter()
   const { resolvedTheme, setTheme } = useTheme()
   const t = useT()
+  const prefersReducedMotion = useReducedMotion()
 
   // Listen for programmatic open events
   useEffect(() => {
@@ -189,10 +190,10 @@ export function CommandPalette() {
             <Dialog.Popup
               render={
                 <motion.div
-                  initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                  initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                  transition={spring.snappy}
+                  exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.97 }}
+                  transition={prefersReducedMotion ? { duration: 0.12 } : spring.snappy}
                   className="fixed left-1/2 top-[14vh] -translate-x-1/2 z-[101] w-[min(92vw,640px)] rounded-2xl overflow-hidden outline-none"
                   style={{
                     background: 'color-mix(in oklab, var(--bg-elevated) 88%, transparent)',
@@ -269,7 +270,7 @@ export function CommandPalette() {
                   grouped.map((section) => (
                     <div key={section.group} className="mb-1.5">
                       <div
-                        className="px-5 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-[0.2em]"
+                        className="px-5 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-[0.16em]"
                         style={{
                           color: 'var(--text-tertiary)',
                           fontFamily: 'var(--font-body)',

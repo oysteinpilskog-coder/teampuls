@@ -124,6 +124,14 @@
   --accent-color: var(--ember);
   --accent-glow:  rgba(180, 83, 9, 0.28);
 
+  /* Semantic feedback colors — theme-aware so success/error pills don't
+     read as flat lights against Paper or hot bursts against Espresso.
+     Light mode: deeper hues with low-alpha tints for backgrounds. */
+  --success:        #16A362;
+  --success-tint:   color-mix(in oklab, #16A362 12%, transparent);
+  --error:          #C8323D;
+  --error-tint:     color-mix(in oklab, #C8323D 14%, transparent);
+
   /* Ambient aurora — restrained Ember-tint, lifted slightly so it actually
      warms the deeper canvas instead of disappearing into it. */
   --aurora-a: rgba(180, 83, 9, 0.18);
@@ -255,6 +263,14 @@
   --accent-color: #FBBF24;
   --accent-glow:  rgba(251, 191, 36, 0.28);
 
+  /* Semantic feedback (dark) — lift hues so they read on Espresso while
+     keeping the Ember-warmth of the palette. Tints are looser so the
+     glass surface peeks through. */
+  --success:        #5BD391;
+  --success-tint:   color-mix(in oklab, #5BD391 16%, transparent);
+  --error:          #FF8A93;
+  --error-tint:     color-mix(in oklab, #FF8A93 18%, transparent);
+
   /* Aurora (dark) — espresso + ember, subtle */
   --aurora-a: rgba(180, 83, 9, 0.18);
   --aurora-b: rgba(0, 245, 160, 0.08); /* whisper of Nordlys */
@@ -340,6 +356,10 @@
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "ss01", "ss02";
     letter-spacing: -0.011em;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
@@ -371,6 +391,21 @@
   /* Tabular numbers everywhere for clocks, dates, counts */
   .tabular-nums {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Loading spinner keyframes — used by the wheel-fallback. Linear spin
+     was replaced with these; the timing function on the consumer
+     controls the rhythm so the motion can breathe (DESIGN_SYSTEM §7). */
+  @keyframes wheel-spin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes wheel-spin-rev {
+    to { transform: rotate(-360deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [style*="wheel-spin"] {
+      animation-duration: 6s !important;
+    }
   }
 
   /* Inputs use tabular numerals so width stays steady when the user types

@@ -11,4 +11,7 @@ export const ease = {
   inOut: [0.4, 0, 0.2, 1] as const,
   out: [0, 0, 0.2, 1] as const,
   in: [0.4, 0, 1, 1] as const,
+  // The Offiview house-easing — referenced as the default for everything
+  // that isn't a spring. Calm-in, decisive-out. DESIGN_SYSTEM §7.
+  horizon: [0.2, 0.8, 0.3, 1] as const,
 }

@@ -178,7 +178,7 @@ export function InactivityNudge({ orgId, memberId }: InactivityNudgeProps) {
               type="button"
               onClick={dismiss}
               aria-label="Lukk"
-              className="rounded-lg p-1 -m-1 transition-colors duration-150 shrink-0"
+              className="rounded-lg w-7 h-7 -m-1 inline-flex items-center justify-center transition-colors duration-150 shrink-0 hover:bg-[color-mix(in_oklab,var(--lg-text-3)_15%,transparent)]"
               style={{ color: 'var(--lg-text-3)' }}
             >
               <X className="w-3.5 h-3.5" strokeWidth={1.75} />

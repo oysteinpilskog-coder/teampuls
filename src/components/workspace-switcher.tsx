@@ -24,12 +24,12 @@ function regionLabel(r: WorkspaceSummary['region'], t: Dictionary): string {
   }
 }
 
-/** Country code → emoji flag (used as a soft hint, not authoritative). */
-function countryFlag(cc: string | null): string | null {
+/** Country code as a tabular-mono pill — replaces the emoji flag.
+ * DESIGN_SYSTEM §8/11: never emoji. Two-letter caps reads cleaner on
+ * the glass pill anyway and stays crisp at any DPR. */
+function countryCode(cc: string | null): string | null {
   if (!cc || cc.length !== 2) return null
-  const base = 127397
-  const chars = cc.toUpperCase().split('').map((c) => base + c.charCodeAt(0))
-  return String.fromCodePoint(...chars)
+  return cc.toUpperCase()
 }
 
 export function WorkspaceSwitcher() {
@@ -94,7 +94,7 @@ export function WorkspaceSwitcher() {
   if (!active || workspaces.length === 0) return null
 
   const accent = safeHex(active.accent_color)
-  const flag = isCombined ? null : countryFlag(active.country_code)
+  const cc = isCombined ? null : countryCode(active.country_code)
   const badge = active.short_name || active.name.slice(0, 2).toUpperCase()
 
   return (
@@ -131,7 +131,20 @@ export function WorkspaceSwitcher() {
         )}
         <span className="hidden md:inline max-w-[140px] truncate">{active.name}</span>
         <span className="md:hidden">{badge}</span>
-        {flag && <span aria-hidden className="text-[13px] leading-none">{flag}</span>}
+        {cc && (
+          <span
+            aria-hidden
+            className="text-[10px] font-semibold tabular-nums leading-none px-1.5 py-0.5 rounded-md"
+            style={{
+              color: 'var(--text-tertiary)',
+              background: 'color-mix(in oklab, var(--bg-subtle) 70%, transparent)',
+              border: '1px solid color-mix(in oklab, var(--border-subtle) 50%, transparent)',
+              letterSpacing: '0.06em',
+            }}
+          >
+            {cc}
+          </span>
+        )}
         <ChevronsUpDown
           className="w-3 h-3 opacity-60 transition-transform"
           style={{ transform: open ? 'rotate(180deg)' : 'none' }}

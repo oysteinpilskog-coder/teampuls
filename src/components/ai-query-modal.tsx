@@ -1,7 +1,7 @@
 'use client'
 
 import { Dialog } from '@base-ui/react/dialog'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Sparkles, ArrowRight, Send } from 'lucide-react'
 import { spring } from '@/lib/motion'
@@ -55,6 +55,7 @@ export function AIQueryModal() {
   const inputRef = useRef<HTMLInputElement>(null)
   const haptic = useHaptic()
   const colors = useStatusColors()
+  const prefersReducedMotion = useReducedMotion()
 
   useEffect(() => {
     const onOpen = () => setOpen(true)
@@ -137,10 +138,10 @@ export function AIQueryModal() {
             <Dialog.Popup
               render={
                 <motion.div
-                  initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                  initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                  transition={spring.snappy}
+                  exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.97 }}
+                  transition={prefersReducedMotion ? { duration: 0.12 } : spring.snappy}
                   className="fixed left-1/2 top-[12vh] -translate-x-1/2 z-[101] w-[min(94vw,680px)] rounded-2xl overflow-hidden outline-none"
                   style={{
                     background: 'color-mix(in oklab, var(--bg-elevated) 92%, transparent)',
@@ -249,7 +250,7 @@ function Examples({ onPick }: { onPick: (q: string) => void }) {
   return (
     <div>
       <div
-        className="text-[10px] font-bold uppercase tracking-[0.22em] mb-3"
+        className="text-[10px] font-bold uppercase tracking-[0.16em] mb-3"
         style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
       >
         Eksempler
@@ -333,7 +334,7 @@ function Results({
         }}
       >
         <div
-          className="text-[10px] font-bold uppercase tracking-[0.22em] mb-1"
+          className="text-[10px] font-bold uppercase tracking-[0.16em] mb-1"
           style={{ color: 'var(--accent-color)' }}
         >
           Trenger avklaring
@@ -355,7 +356,7 @@ function Results({
         }}
       >
         <div
-          className="text-[10px] font-bold uppercase tracking-[0.22em] mb-1.5"
+          className="text-[10px] font-bold uppercase tracking-[0.16em] mb-1.5"
           style={{ color: 'var(--accent-color)', fontFamily: 'var(--font-body)' }}
         >
           Svar
@@ -379,7 +380,7 @@ function Results({
         <>
           <div className="flex items-center justify-between">
             <div
-              className="text-[10px] font-bold uppercase tracking-[0.22em]"
+              className="text-[10px] font-bold uppercase tracking-[0.16em]"
               style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
             >
               Treff · {response.matches.length}

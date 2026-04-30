@@ -1,7 +1,7 @@
 'use client'
 
 import { Dialog } from '@base-ui/react/dialog'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
@@ -19,6 +19,7 @@ interface Section {
 export function KeyboardHelp() {
   const [open, setOpen] = useState(false)
   const t = useT()
+  const prefersReducedMotion = useReducedMotion()
 
   const SECTIONS: Section[] = [
     {
@@ -67,8 +68,8 @@ export function KeyboardHelp() {
                   className="fixed inset-0 z-[100]"
                   style={{
                     background: 'color-mix(in oklab, var(--bg-primary) 55%, rgba(5,8,18,0.55))',
-                    backdropFilter: 'blur(14px) saturate(160%)',
-                    WebkitBackdropFilter: 'blur(14px) saturate(160%)',
+                    backdropFilter: 'blur(18px) saturate(160%)',
+                    WebkitBackdropFilter: 'blur(18px) saturate(160%)',
                   }}
                 />
               }
@@ -76,10 +77,10 @@ export function KeyboardHelp() {
             <Dialog.Popup
               render={
                 <motion.div
-                  initial={{ opacity: 0, y: 12, scale: 0.97 }}
+                  initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 12, scale: 0.97 }}
-                  transition={spring.snappy}
+                  exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.97 }}
+                  transition={prefersReducedMotion ? { duration: 0.12 } : spring.snappy}
                   className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-[min(92vw,540px)] rounded-2xl overflow-hidden outline-none"
                   style={{
                     background: 'color-mix(in oklab, var(--bg-elevated) 92%, transparent)',
@@ -123,7 +124,7 @@ export function KeyboardHelp() {
                 {SECTIONS.map((sec) => (
                   <div key={sec.title}>
                     <div
-                      className="text-[10px] font-bold uppercase tracking-[0.2em] mb-2"
+                      className="text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
                       style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
                     >
                       {sec.title}

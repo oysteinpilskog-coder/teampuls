@@ -35,15 +35,27 @@ export default async function WheelPage() {
 }
 
 function WheelFallback() {
+  // Two concentric rings rotate in opposite directions — feels intentional,
+  // never mechanical. Horizon ease (cubic-bezier) instead of linear so the
+  // motion breathes like the rest of the app. DESIGN_SYSTEM §7.
   return (
     <div className="w-full flex items-center justify-center py-32">
-      <div
-        className="w-12 h-12 rounded-full"
-        style={{
-          background: 'conic-gradient(from 0deg, transparent, var(--accent-color))',
-          animation: 'spin 1.2s linear infinite',
-        }}
-      />
+      <div className="relative w-14 h-14" aria-label="Laster" role="status">
+        <div
+          className="absolute inset-0 rounded-full opacity-90"
+          style={{
+            background: 'conic-gradient(from 0deg, transparent, var(--accent-color))',
+            animation: 'wheel-spin 1.4s cubic-bezier(0.2, 0.8, 0.3, 1) infinite',
+          }}
+        />
+        <div
+          className="absolute inset-2 rounded-full opacity-60"
+          style={{
+            background: 'conic-gradient(from 180deg, transparent, color-mix(in oklab, var(--accent-color) 70%, transparent))',
+            animation: 'wheel-spin-rev 2.0s cubic-bezier(0.2, 0.8, 0.3, 1) infinite',
+          }}
+        />
+      </div>
     </div>
   )
 }

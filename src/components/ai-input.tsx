@@ -5,12 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { useT } from '@/lib/i18n/context'
-import { spring } from '@/lib/motion'
+import { spring, ease } from '@/lib/motion'
 import { useHaptic } from '@/hooks/use-haptic'
 // Plain box-shadow values — driven by a CSS transition instead of Framer
 // Motion so re-renders during typing don't re-evaluate the spring.
 const GLOW_FOCUS  = '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 24px var(--lg-accent-glow)'
-const GLOW_OK     = '0 0 0 3px rgba(52, 211, 153, 0.18), 0 0 24px rgba(52, 211, 153, 0.25)'
+const GLOW_OK     = '0 0 0 3px color-mix(in oklab, var(--success) 22%, transparent), 0 0 24px color-mix(in oklab, var(--success) 30%, transparent)'
 const GLOW_NONE   = 'none'
 
 const ROTATE_INTERVAL = 3500
@@ -173,7 +173,7 @@ export function AIInput({ orgId }: AIInputProps) {
     ? isLoading
       ? 'var(--lg-accent)'
       : isSuccess
-        ? '#34D399'
+        ? 'var(--success)'
         : 'var(--lg-accent)'
     : 'var(--lg-divider)'
 
@@ -228,13 +228,13 @@ export function AIInput({ orgId }: AIInputProps) {
                 >
                   <motion.path
                     d="M4 10l4.5 4.5L16 6"
-                    stroke="#16A362"
+                    stroke="var(--success)"
                     strokeWidth={2.5}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     initial={{ pathLength: 0 }}
                     animate={{ pathLength: 1 }}
-                    transition={{ duration: 0.3, ease: 'easeOut' }}
+                    transition={{ duration: 0.3, ease: ease.horizon }}
                   />
                 </motion.svg>
               ) : (
@@ -273,7 +273,7 @@ export function AIInput({ orgId }: AIInputProps) {
                 key={placeholderIdx}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: placeholderVisible ? 1 : 0 }}
-                transition={{ duration: 0.4, ease: 'easeInOut' }}
+                transition={{ duration: 0.32, ease: ease.horizon }}
                 className="absolute inset-0 flex items-center pointer-events-none select-none"
                 style={{
                   color: 'var(--text-tertiary)',
@@ -371,6 +371,7 @@ export function AIInput({ orgId }: AIInputProps) {
                     boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 18px var(--lg-accent-glow)',
                   }}
                   title={t.aiInput.sendTitle}
+                  aria-label={t.aiInput.sendTitle}
                 >
                   <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
                     <path

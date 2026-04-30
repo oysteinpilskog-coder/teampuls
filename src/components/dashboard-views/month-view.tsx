@@ -195,9 +195,15 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                 value={weekNum}
                 delay={0.2}
                 duration={0.9}
-                className="tabular-nums leading-none week-hero"
+                className="tabular-nums week-hero"
                 style={{
                   fontSize: 'clamp(160px, 18vw, 256px)',
+                  // leading-none klipper bunnen av Fraunces-glypher (særlig
+                  // 8/3/9) når background-clip:text — line-box-en er da kun
+                  // font-size høy, så kurvene som faller under baseline blir
+                  // umalt. 1.15 gir nok plass og holder fortsatt komposisjonen
+                  // tett rundt donut-senter.
+                  lineHeight: 1.15,
                   fontWeight: 300,
                   fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
                   fontVariationSettings: '"opsz" 144, "SOFT" 80',

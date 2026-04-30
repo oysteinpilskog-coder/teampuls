@@ -60,6 +60,9 @@ export function InstallPrompt() {
           className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[60] max-w-[min(92vw,420px)] w-full px-4"
         >
           <div
+            role="dialog"
+            aria-labelledby="pwa-install-title"
+            aria-describedby="pwa-install-desc"
             className="flex items-start gap-3 rounded-2xl p-3.5"
             style={{
               background: 'color-mix(in oklab, var(--bg-elevated) 92%, transparent)',
@@ -87,16 +90,18 @@ export function InstallPrompt() {
             </span>
             <div className="flex-1 min-w-0">
               <div
+                id="pwa-install-title"
                 className="text-[13.5px] font-semibold"
                 style={{ color: 'var(--text-primary)' }}
               >
                 Legg til Offiview på Hjem-skjermen
               </div>
               <p
+                id="pwa-install-desc"
                 className="text-[12.5px] mt-0.5 leading-snug"
                 style={{ color: 'var(--text-secondary)' }}
               >
-                Trykk <ShareIcon /> Del, og velg <strong style={{ color: 'var(--text-primary)' }}>"Legg til på Hjem-skjerm"</strong>.
+                Trykk <ShareIcon /> Del, og velg <strong style={{ color: 'var(--text-primary)' }}>«Legg til på Hjem-skjerm»</strong>.
                 Du får en app-opplevelse uten Safari-linja.
               </p>
             </div>

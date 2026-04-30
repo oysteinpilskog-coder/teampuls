@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { toast } from 'sonner'
 import {
   Plus,
@@ -773,34 +773,40 @@ function StatusPill({
   status: VisitStatus
   t: ReturnType<typeof useT>
 }) {
+  const prefersReducedMotion = useReducedMotion()
   const cfg =
     status === 'window'
       ? {
-          bg: 'rgba(10,160,104,0.12)',
-          color: '#0aa068',
-          dot: '#0aa068',
+          bg: 'var(--success-tint)',
+          color: 'var(--success)',
+          dot: 'var(--success)',
           label: t.settings.welcome.statusWindow,
           pulse: true,
         }
       : status === 'upcoming'
         ? {
-            bg: 'rgba(255,122,26,0.10)',
-            color: '#FF7A1A',
-            dot: '#FF7A1A',
+            bg: 'color-mix(in oklab, var(--accent-color) 12%, transparent)',
+            color: 'var(--accent-color)',
+            dot: 'var(--accent-color)',
             label: t.settings.welcome.statusUpcoming,
             pulse: false,
           }
         : {
-            bg: 'rgba(120,120,120,0.10)',
+            bg: 'color-mix(in oklab, var(--text-tertiary) 12%, transparent)',
             color: 'var(--text-tertiary)',
             dot: 'var(--text-tertiary)',
             label: t.settings.welcome.statusPast,
             pulse: false,
           }
 
+  const animate =
+    cfg.pulse && !prefersReducedMotion
+      ? { opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }
+      : undefined
+
   return (
     <span
-      className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider shrink-0"
+      className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-[0.16em] shrink-0"
       style={{
         backgroundColor: cfg.bg,
         color: cfg.color,
@@ -810,8 +816,8 @@ function StatusPill({
       <motion.span
         className="w-1.5 h-1.5 rounded-full"
         style={{ backgroundColor: cfg.dot }}
-        animate={cfg.pulse ? { opacity: [1, 0.35, 1], scale: [1, 1.25, 1] } : undefined}
-        transition={cfg.pulse ? { duration: 2.4, repeat: Infinity, ease: 'easeInOut' } : undefined}
+        animate={animate}
+        transition={animate ? { duration: 2.4, repeat: Infinity, ease: 'easeInOut' } : undefined}
       />
       {cfg.label}
     </span>
