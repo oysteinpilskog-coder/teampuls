@@ -1,10 +1,11 @@
 export default function Loading() {
-  // Stays on the deep-space backdrop the dashboard itself owns, so the
-  // transition into the rotating views never flashes light → dark.
+  // Stays on the same warm-Espresso backdrop the dashboard itself owns
+  // (DESIGN_SYSTEM §4: "varm espresso, ikke kald SaaS-bakgrunn"), so the
+  // transition into the rotating views never flashes a colder hue.
   return (
     <div
       className="relative h-screen w-screen overflow-hidden flex items-center justify-center"
-      style={{ backgroundColor: '#050507', color: 'white' }}
+      style={{ backgroundColor: '#15110E', color: '#F5EFE4' }}
     >
       <div
         className="rounded-full"
