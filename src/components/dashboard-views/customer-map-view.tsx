@@ -4,7 +4,9 @@ import { motion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { CustomerPin, type CustomerPinState } from './customer-pin'
 import { MapLabelTicker } from './map-label-ticker'
-import { project } from '@/lib/geo'
+import { RegionalInset, type InsetPoint } from './regional-inset'
+import { project, EUROPE_BOUNDS, isInBounds } from '@/lib/geo'
+import { US_BOUNDS } from '@/lib/us-projection'
 import { resolveCustomer } from '@/lib/customer-resolver'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
 import { clusterMapPoints } from '@/lib/map-clusters'
@@ -57,10 +59,21 @@ export function CustomerMapView({
   const memberById = new Map(members.map(m => [m.id, m]))
   const customerColor = STATUS_COLORS.customer.icon
 
+  // Region routing — anything outside Europe's bounding box that fits in
+  // the US bounds gets diverted to the inset card. Other-region outliers
+  // (e.g. Singapore) are silently dropped for now; revisit when a second
+  // inset region is needed.
+  function regionFor(lat: number, lng: number): 'europe' | 'us' | null {
+    if (isInBounds(lat, lng, EUROPE_BOUNDS)) return 'europe'
+    if (isInBounds(lat, lng, US_BOUNDS)) return 'us'
+    return null
+  }
+
   // Pins reflect the customer portfolio — only labels that match a row
   // in the customer registry become pins. Unmatched labels are silently
   // dropped from the dashboard view; admin handles them elsewhere.
   const byKey = new Map<string, CustomerCluster>()
+  const usByKey = new Map<string, CustomerCluster>()
 
   for (const e of entries) {
     if (e.status !== 'customer' && e.status !== 'event' && e.status !== 'travel') continue
@@ -71,13 +84,22 @@ export function CustomerMapView({
 
     if (!asCustomer) continue
 
+    const region = regionFor(asCustomer.lat, asCustomer.lng)
+    if (region == null) continue
+
+    const targetMap = region === 'us' ? usByKey : byKey
     const key = `${asCustomer.lat.toFixed(3)},${asCustomer.lng.toFixed(3)}`
-    let cluster = byKey.get(key)
+    let cluster = targetMap.get(key)
     if (!cluster) {
-      const { x, y } = project(asCustomer.lat, asCustomer.lng, MAP_WIDTH, MAP_HEIGHT)
+      // Europe coords drive the main canvas; US coords are projected later
+      // by the inset component, so x/y here is only meaningful for Europe.
+      const xy = region === 'europe'
+        ? project(asCustomer.lat, asCustomer.lng, MAP_WIDTH, MAP_HEIGHT)
+        : { x: 0, y: 0 }
       cluster = {
         id: key,
-        x, y,
+        x: xy.x,
+        y: xy.y,
         radius: 10,
         lat: asCustomer.lat,
         lng: asCustomer.lng,
@@ -87,7 +109,7 @@ export function CustomerMapView({
         memberIdsWeek: new Set(),
         daysThisWeek: 0,
       }
-      byKey.set(key, cluster)
+      targetMap.set(key, cluster)
     }
     cluster.memberIdsWeek.add(e.member_id)
     cluster.daysThisWeek += 1
@@ -98,23 +120,33 @@ export function CustomerMapView({
 
   const clusters = Array.from(byKey.values())
     .sort((a, b) => b.memberIdsWeek.size - a.memberIdsWeek.size)
+  const usClusters = Array.from(usByKey.values())
+    .sort((a, b) => b.memberIdsWeek.size - a.memberIdsWeek.size)
 
   // Portfolio: every registered customer with coords shows on the map with
   // the same base design — the visit state (idle/week/today) just dials up
   // brightness and adds a soft single-pulse ring. One visual language, no
   // loud heartbeat competing with the city labels.
-  const visitedCustomerIds = new Set(clusters.map(c => c.customerId))
-  const unvisitedCustomers = customers
+  const visitedCustomerIds = new Set([
+    ...clusters.map(c => c.customerId),
+    ...usClusters.map(c => c.customerId),
+  ])
+  const allUnvisitedCustomers = customers
     .filter(c =>
       c.latitude != null &&
       c.longitude != null &&
       !visitedCustomerIds.has(c.id)
     )
+  const unvisitedCustomers = allUnvisitedCustomers
+    .filter(c => regionFor(c.latitude!, c.longitude!) === 'europe')
     .map(c => {
       const { x, y } = project(c.latitude!, c.longitude!, MAP_WIDTH, MAP_HEIGHT)
       return { id: c.id, name: c.name, city: c.city, x, y }
     })
     .filter(c => Number.isFinite(c.x) && Number.isFinite(c.y))
+  const usUnvisitedCustomers = allUnvisitedCustomers
+    .filter(c => regionFor(c.latitude!, c.longitude!) === 'us')
+    .map(c => ({ id: c.id, name: c.name, lat: c.latitude!, lng: c.longitude! }))
 
   const registeredCount = customers.filter(c => c.latitude != null && c.longitude != null).length
   const visitedCount = visitedCustomerIds.size
@@ -165,6 +197,35 @@ export function CustomerMapView({
   const points = clusterMapPoints(rawPoints, 24)
 
   const placedLabels = placeLabels(points, { gap: 14, collisionRadius: 140, lineHeight: 26 })
+
+  // ── US inset points ─────────────────────────────────────────────
+  // Same three-tier vocabulary as the main canvas. Visited US clusters
+  // first, then idle (registered, no visits this week). The inset only
+  // appears when at least one US row exists; otherwise it stays hidden
+  // so the corner doesn't carry a "ghost" widget for Europe-only weeks.
+  const usInsetPoints: InsetPoint[] = []
+  for (const c of usClusters) {
+    const state: CustomerPinState = c.memberIdsToday.size > 0 ? 'today' : 'week'
+    usInsetPoints.push({
+      id: c.id,
+      lat: c.lat,
+      lng: c.lng,
+      display: c.display,
+      state,
+      visitCount: c.memberIdsWeek.size,
+    })
+  }
+  for (const c of usUnvisitedCustomers) {
+    usInsetPoints.push({
+      id: `idle-${c.id}`,
+      lat: c.lat,
+      lng: c.lng,
+      display: c.name,
+      state: 'idle',
+      visitCount: 0,
+    })
+  }
+  const showUsInset = usInsetPoints.length > 0
 
   return (
     <div className="relative h-full flex flex-col px-10 pt-14 pb-4 gap-4">
@@ -307,6 +368,21 @@ export function CustomerMapView({
             className="absolute inset-x-0 top-0 h-[1px]"
             style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0) 100%)' }}
           />
+
+          {/* US inset — picture-in-picture for customers outside Europe.
+           *  Only mounts when at least one US-bound customer exists, so
+           *  Europe-only weeks stay clean. Top-left sits over the
+           *  Atlantic in our projection — no important Europe geometry
+           *  is occluded. */}
+          {showUsInset && (
+            <div className="absolute top-3 left-3 z-10">
+              <RegionalInset
+                title="USA"
+                points={usInsetPoints}
+                delay={0.3}
+              />
+            </div>
+          )}
         </motion.div>
 
         {/* ── Side panel: portfolio → visited → unvisited ──────────── */}
@@ -445,7 +521,8 @@ export function CustomerMapView({
            *  map. Each row's leading dot mirrors the pin's state (today /
            *  week / idle), using the same animation and opacity as the
            *  svg pin so the list and the map feel like one object. */}
-          {(clusters.length > 0 || unvisitedCustomers.length > 0) && (() => {
+          {(clusters.length > 0 || unvisitedCustomers.length > 0 ||
+            usClusters.length > 0 || usUnvisitedCustomers.length > 0) && (() => {
             // Sort rows by engagement tier → alphabetical within tier.
             // `lat`/`lng` carries forward only on visited rows so the
             // weather badge knows where to fetch from. Idle rows omit
@@ -478,6 +555,37 @@ export function CustomerMapView({
               })
             }
             for (const c of unvisitedCustomers) {
+              rows.push({
+                key: c.id,
+                name: c.name,
+                state: 'idle',
+                visitCount: 0,
+                members: [],
+                lat: null,
+                lng: null,
+              })
+            }
+            // Mirror US clusters/idle into the unified list so users without
+            // a sharp eye on the inset still find them at a glance.
+            for (const c of usClusters) {
+              const state: CustomerPinState = c.memberIdsToday.size > 0 ? 'today' : 'week'
+              const members = Array.from(c.memberIdsWeek)
+                .map(id => {
+                  const m = memberById.get(id)
+                  return m ? (m.full_name || m.display_name) : ''
+                })
+                .filter(Boolean)
+              rows.push({
+                key: c.id,
+                name: c.display,
+                state,
+                visitCount: c.memberIdsWeek.size,
+                members,
+                lat: c.lat,
+                lng: c.lng,
+              })
+            }
+            for (const c of usUnvisitedCustomers) {
               rows.push({
                 key: c.id,
                 name: c.name,
