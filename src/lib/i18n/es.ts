@@ -304,6 +304,21 @@ export const es: Dictionary = {
       singular: '1 visita hoy',
       plural: '{count} visitas hoy',
     },
+    preview: {
+      title: 'Vista previa',
+      back: 'Volver',
+      realVisits: 'Programadas',
+      custom: 'Personalizado',
+      noVisits: 'No hay visitas programadas próximamente. Usa «Personalizado» para probar.',
+      hideControls: 'Ocultar controles',
+      showControls: 'Mostrar controles',
+      fields: {
+        name: 'Nombre',
+        company: 'Empresa',
+        start: 'Desde',
+        end: 'Hasta',
+      },
+    },
   },
   guests: {
     todaysTitle: 'Visitas de hoy',
@@ -447,6 +462,7 @@ export const es: Dictionary = {
       map: 'Mapa',
       theme: 'Tema',
       language: 'Idioma',
+      welcomePreview: 'Vista previa de bienvenida',
     },
     org: {
       title: 'Organización',

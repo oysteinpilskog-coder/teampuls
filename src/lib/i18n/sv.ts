@@ -304,6 +304,21 @@ export const sv: Dictionary = {
       singular: '1 gäst idag',
       plural: '{count} gäster idag',
     },
+    preview: {
+      title: 'Förhandsvisning',
+      back: 'Tillbaka',
+      realVisits: 'Planerat',
+      custom: 'Anpassat',
+      noVisits: 'Inga planerade besök de närmaste dagarna. Använd «Anpassat» för att testa.',
+      hideControls: 'Dölj kontroller',
+      showControls: 'Visa kontroller',
+      fields: {
+        name: 'Namn',
+        company: 'Företag',
+        start: 'Från kl.',
+        end: 'Till kl.',
+      },
+    },
   },
   guests: {
     todaysTitle: 'Dagens gäster',
@@ -447,6 +462,7 @@ export const sv: Dictionary = {
       map: 'Karta',
       theme: 'Tema',
       language: 'Språk',
+      welcomePreview: 'Förhandsvisa välkomst',
     },
     org: {
       title: 'Organisation',

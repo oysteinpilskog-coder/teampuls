@@ -304,6 +304,21 @@ export const lt: Dictionary = {
       singular: '1 svečias šiandien',
       plural: '{count} svečiai šiandien',
     },
+    preview: {
+      title: 'Peržiūra',
+      back: 'Atgal',
+      realVisits: 'Suplanuota',
+      custom: 'Pasirinktinis',
+      noVisits: 'Artimiausiomis dienomis nėra planuojamų svečių. Naudokite „Pasirinktinis" testavimui.',
+      hideControls: 'Slėpti valdiklius',
+      showControls: 'Rodyti valdiklius',
+      fields: {
+        name: 'Vardas',
+        company: 'Įmonė',
+        start: 'Nuo',
+        end: 'Iki',
+      },
+    },
   },
   guests: {
     todaysTitle: 'Šiandienos svečiai',
@@ -447,6 +462,7 @@ export const lt: Dictionary = {
       map: 'Žemėlapis',
       theme: 'Tema',
       language: 'Kalba',
+      welcomePreview: 'Pasveikinimo peržiūra',
     },
     org: {
       title: 'Organizacija',

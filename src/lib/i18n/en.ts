@@ -304,6 +304,21 @@ export const en: Dictionary = {
       singular: '1 guest today',
       plural: '{count} guests today',
     },
+    preview: {
+      title: 'Preview',
+      back: 'Back',
+      realVisits: 'Scheduled',
+      custom: 'Custom',
+      noVisits: 'No upcoming visits in the next few days. Use "Custom" to test.',
+      hideControls: 'Hide controls',
+      showControls: 'Show controls',
+      fields: {
+        name: 'Name',
+        company: 'Company',
+        start: 'From',
+        end: 'Until',
+      },
+    },
   },
   guests: {
     todaysTitle: "Today's guests",
@@ -447,6 +462,7 @@ export const en: Dictionary = {
       map: 'Map',
       theme: 'Theme',
       language: 'Language',
+      welcomePreview: 'Welcome preview',
     },
     org: {
       title: 'Organization',
