@@ -196,6 +196,29 @@
   --sidebar-accent-foreground:  #0E0B08;
   --sidebar-border:             #C7BAA0;
   --sidebar-ring:               #B45309;
+
+  /* Liquid-glass surface stack — light mode mirror.
+     Originally only defined in .dark; without these, components like the
+     AI input, week-nav pill, my-plan rail and the year-wheel calendar fell
+     back to "transparent / inherit" on Paper and read as washed-out dark
+     blobs. Light surfaces sit on Paper-soft (brighter than canvas) so cards
+     pop, dividers are warm Ink at low alpha, and text steps Ink → Dusk → Mist
+     to match the body palette. */
+  --lg-bg:          var(--paper);
+  --lg-surface-1:   var(--paper-soft);
+  --lg-surface-2:   var(--stone-soft);
+  --lg-surface-3:   #DCD0B7;
+  --lg-divider:     rgba(14, 11, 8, 0.12);
+  --lg-divider-soft:rgba(14, 11, 8, 0.06);
+
+  --lg-text-1:     var(--ink);
+  --lg-text-2:     var(--dusk);
+  --lg-text-3:     var(--mist);
+
+  /* Glass-pill / floating-panel material — was hardcoded as
+     rgba(22, 22, 27, 0.5/0.7) across nine components, which read as black
+     blobs on cream Paper. Now tokenized so a single switch flips light/dark. */
+  --lg-panel-bg:   color-mix(in oklab, var(--paper-soft) 88%, transparent);
 }
 
 /* ============================================================
@@ -294,6 +317,11 @@
   --sidebar-accent-foreground:  #F5EFE4;
   --sidebar-border:             rgba(245, 239, 228, 0.08);
   --sidebar-ring:               #FBBF24;
+
+  /* Glass-pill / floating-panel material (dark) — preserves the existing
+     espresso translucency so the AI input, week-nav and my-plan rails read
+     the same as before this token existed. */
+  --lg-panel-bg:   rgba(22, 22, 27, 0.55);
 }
 
 /* ============================================================
@@ -875,7 +903,7 @@
 
 .lg-panel {
   position: relative;
-  background: rgba(22, 22, 27, 0.5);
+  background: var(--lg-panel-bg);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--lg-divider);
