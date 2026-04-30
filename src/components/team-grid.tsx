@@ -1610,7 +1610,7 @@ function WeeklySummaryToast({
     <div
       className="flex items-center gap-3 px-4 py-3 rounded-2xl"
       style={{
-        background: 'rgba(22, 22, 27, 0.5)',
+        background: 'var(--lg-panel-bg)',
         backdropFilter: 'blur(20px) saturate(180%)',
         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
         border: '1px solid var(--lg-divider)',

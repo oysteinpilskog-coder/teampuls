@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useTheme } from 'next-themes'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { MemberAvatar } from '@/components/member-avatar'
 import type { EntryStatus } from '@/lib/supabase/types'
@@ -78,6 +79,8 @@ export function StatusSegment({
 }: StatusSegmentProps) {
   const palettes = useStatusColors()
   const t = useT()
+  const { resolvedTheme } = useTheme()
+  const isLight = resolvedTheme === 'light'
 
   const span = days.length
   const todayIdx = days.findIndex((d) => d.isToday)
@@ -88,8 +91,23 @@ export function StatusSegment({
 
   const palette = status ? palettes[status] : null
   const tone = palette?.icon ?? ''        // primary category color
-  const tint = palette?.textDark ?? '#fff' // lighter pastel — used for text/icon
+  // Text/icon tint flips with theme. The lightened-towards-white `textDark`
+  // reads great on dark espresso but disappears on cream Paper; in light mode
+  // we use the darkened-towards-black `text` so the label stays legible
+  // against the soft tinted fill.
+  const tint = palette
+    ? (isLight ? palette.text : palette.textDark)
+    : (isLight ? '#0E0B08' : '#fff')
   const glow = palette?.glow ?? tone
+
+  // Tile fill alpha — dark mode reads at 13/8% over espresso, but on warm
+  // Paper that vanishes. Lift to 28/18% so the category tint is actually
+  // legible without going opaque (which would kill the glass feel).
+  const fillTopAlpha    = isLight ? '47' : '22' // 0x47 ≈ 28% / 0x22 ≈ 13%
+  const fillBottomAlpha = isLight ? '2E' : '14' // 0x2E ≈ 18% / 0x14 ≈ 8%
+  const fillTopAlphaAssumed    = isLight ? '24' : '11'
+  const fillBottomAlphaAssumed = isLight ? '18' : '08'
+  const innerRimAlpha   = isLight ? '4D' : '30' // 0x4D ≈ 30%
 
   // Assumed bars: diminished fill + a dashed rim, so the viewer can tell
   // "inferred" from "registered" at a glance without a second label.
@@ -104,12 +122,12 @@ export function StatusSegment({
         // NOT a solid painted fill. Tone comes from the rim + soft glow.
         background: status
           ? assumed
-            ? `linear-gradient(180deg, ${tone}11 0%, ${tone}08 100%)`
-            : `linear-gradient(180deg, ${tone}22 0%, ${tone}14 100%)`
+            ? `linear-gradient(180deg, ${tone}${fillTopAlphaAssumed} 0%, ${tone}${fillBottomAlphaAssumed} 100%)`
+            : `linear-gradient(180deg, ${tone}${fillTopAlpha} 0%, ${tone}${fillBottomAlpha} 100%)`
           : 'transparent',
         boxShadow: status && !assumed
           ? `inset 3px 0 0 ${tone},
-             inset 0 0 0 1px ${tone}30,
+             inset 0 0 0 1px ${tone}${innerRimAlpha},
              0 0 14px -4px ${glow}66`
           : undefined,
         // Dashed 1.5px rim for assumed — no inner solid rim, no outer glow.

@@ -604,7 +604,7 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
         <div
           className="flex items-center gap-1 rounded-full p-1"
           style={{
-            background: 'rgba(22, 22, 27, 0.5)',
+            background: 'var(--lg-panel-bg)',
             backdropFilter: 'blur(20px) saturate(180%)',
             WebkitBackdropFilter: 'blur(20px) saturate(180%)',
             border: '1px solid var(--lg-divider)',

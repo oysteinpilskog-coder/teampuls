@@ -92,7 +92,7 @@ function MiniMonth({
       transition={{ duration: 0.25, delay: month * 0.025, ease: [0.4, 0, 0.2, 1] }}
       className="relative rounded-2xl p-5 flex flex-col overflow-hidden"
       style={{
-        background: isCurrentMonth ? 'rgba(22, 22, 27, 0.55)' : 'var(--lg-surface-1)',
+        background: isCurrentMonth ? 'var(--lg-panel-bg)' : 'var(--lg-surface-1)',
         backdropFilter: isCurrentMonth ? 'blur(20px) saturate(180%)' : undefined,
         WebkitBackdropFilter: isCurrentMonth ? 'blur(20px) saturate(180%)' : undefined,
         border: `1px solid ${isCurrentMonth

@@ -114,7 +114,7 @@ export function InactivityNudge({ orgId, memberId }: InactivityNudgeProps) {
           transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
           className="fixed bottom-6 right-6 z-40 max-w-[340px]"
           style={{
-            background: 'rgba(22, 22, 27, 0.7)',
+            background: 'var(--lg-panel-bg)',
             backdropFilter: 'blur(20px) saturate(180%)',
             WebkitBackdropFilter: 'blur(20px) saturate(180%)',
             border: '1px solid rgba(139, 92, 246, 0.28)',

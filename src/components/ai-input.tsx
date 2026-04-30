@@ -193,7 +193,7 @@ export function AIInput({ orgId }: AIInputProps) {
         <div
           className="relative flex items-center gap-3 px-5 py-[16px] rounded-2xl border transition-colors duration-200"
           style={{
-            background: 'rgba(22, 22, 27, 0.7)',
+            background: 'var(--lg-panel-bg)',
             // Lightened from blur(20px) saturate(180%): the wrapper paints on
             // every keystroke as the input text changes, and 20px+saturate is
             // one of the most expensive composite ops the browser can do.

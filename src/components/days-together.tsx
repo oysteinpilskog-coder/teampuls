@@ -91,7 +91,7 @@ export function DaysTogether() {
           aria-label={t.daysTogether.refresh}
           className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-medium focus:outline-none disabled:opacity-60"
           style={{
-            background: 'rgba(22, 22, 27, 0.5)',
+            background: 'var(--lg-panel-bg)',
             backdropFilter: 'blur(20px) saturate(180%)',
             WebkitBackdropFilter: 'blur(20px) saturate(180%)',
             border: '1px solid var(--lg-divider)',
@@ -143,7 +143,7 @@ function SuggestionCard({ day, index }: { day: SuggestedDay; index: number }) {
       transition={{ ...spring.gentle, delay: 0.05 + index * 0.06 }}
       className="relative rounded-2xl p-5 overflow-hidden"
       style={{
-        background: isTop ? 'rgba(22, 22, 27, 0.55)' : 'var(--lg-surface-1)',
+        background: isTop ? 'var(--lg-panel-bg)' : 'var(--lg-surface-1)',
         backdropFilter: isTop ? 'blur(20px) saturate(180%)' : undefined,
         WebkitBackdropFilter: isTop ? 'blur(20px) saturate(180%)' : undefined,
         border: isTop
