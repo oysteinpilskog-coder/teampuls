@@ -7,6 +7,11 @@ import { createClient } from '@/lib/supabase/client'
 import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
 import { useHaptic } from '@/hooks/use-haptic'
+// Plain box-shadow values — driven by a CSS transition instead of Framer
+// Motion so re-renders during typing don't re-evaluate the spring.
+const GLOW_FOCUS  = '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 24px var(--lg-accent-glow)'
+const GLOW_OK     = '0 0 0 3px rgba(52, 211, 153, 0.18), 0 0 24px rgba(52, 211, 153, 0.25)'
+const GLOW_NONE   = 'none'
 
 const ROTATE_INTERVAL = 3500
 
@@ -65,12 +70,13 @@ export function AIInput({ orgId }: AIInputProps) {
   // Completes against member names first (most valuable), then canonical phrases.
   const ghost = useMemo(() => computeGhost(value, memberNames), [value, memberNames])
 
-  // Rotate placeholder when idle and not focused
+  // Rotate placeholder when idle and not focused. Depending on `value` directly
+  // would tear down + recreate the interval on every keystroke; instead we
+  // depend on the boolean "is empty" so the effect only runs when the user
+  // transitions between empty <-> non-empty.
+  const isEmpty = value === ''
   useEffect(() => {
-    if (focused || value) {
-      if (rotateRef.current) clearInterval(rotateRef.current)
-      return
-    }
+    if (focused || !isEmpty) return
     rotateRef.current = setInterval(() => {
       setPlaceholderVisible(false)
       setTimeout(() => {
@@ -81,7 +87,7 @@ export function AIInput({ orgId }: AIInputProps) {
     return () => {
       if (rotateRef.current) clearInterval(rotateRef.current)
     }
-  }, [focused, value])
+  }, [focused, isEmpty, PLACEHOLDERS.length])
 
   // Global ⌘K is owned by the command palette; "/" focuses this input from anywhere.
   // The palette also exposes a "Skriv statusoppdatering" action that routes here.
@@ -171,29 +177,28 @@ export function AIInput({ orgId }: AIInputProps) {
         : 'var(--lg-accent)'
     : 'var(--lg-divider)'
 
-  const glowStyle = focused
-    ? {
-        boxShadow: isSuccess
-          ? '0 0 0 3px rgba(52, 211, 153, 0.18), 0 0 24px rgba(52, 211, 153, 0.25)'
-          : '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 24px var(--lg-accent-glow)',
-      }
-    : {
-        boxShadow: 'none',
-      }
+  const boxShadow = focused ? (isSuccess ? GLOW_OK : GLOW_FOCUS) : GLOW_NONE
 
   return (
     <div className="w-full space-y-2">
-      <motion.div
-        animate={glowStyle}
-        transition={spring.smooth}
+      {/* Glow lives on a plain div via a CSS transition — Framer Motion
+          re-evaluating a spring on every keystroke was a measurable cost. */}
+      <div
         className="rounded-2xl relative"
+        style={{
+          boxShadow,
+          transition: 'box-shadow 220ms ease',
+        }}
       >
         <div
           className="relative flex items-center gap-3 px-5 py-[16px] rounded-2xl border transition-colors duration-200"
           style={{
-            background: 'rgba(22, 22, 27, 0.55)',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            background: 'rgba(22, 22, 27, 0.7)',
+            // Lightened from blur(20px) saturate(180%): the wrapper paints on
+            // every keystroke as the input text changes, and 20px+saturate is
+            // one of the most expensive composite ops the browser can do.
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
             borderColor,
             borderWidth: 1,
           }}
@@ -397,7 +402,7 @@ export function AIInput({ orgId }: AIInputProps) {
             </AnimatePresence>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Clarification message */}
       <AnimatePresence>
