@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useState, useEffect, useCallback, useRef, useId, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { getISOWeek, getWeekStart, getLastISOWeek } from '@/lib/dates'
 import { spring } from '@/lib/motion'
@@ -599,6 +599,7 @@ export function DiskView({
   const CATEGORY_LABELS_L = categoryLabelsT(t)
   const RING_NAMES_L = ringNamesT(t)
   const uid = useId().replace(/:/g, '')
+  const reduce = useReducedMotion()
 
   const todayDeg = (dayOfYear(today) / daysInYear(year)) * 360
   const currentWeek = getISOWeek(today)
@@ -823,11 +824,11 @@ export function DiskView({
               background: `radial-gradient(circle at 30% 30%, hsla(${seasonHue}, 88%, 66%, 0.30), transparent 58%)`,
               filter: 'blur(44px)',
             }}
-            animate={{
+            animate={reduce ? undefined : {
               x: [0, 20, -10, 0].map(v => v + parallax.x * 18),
               y: [0, -15, 10, 0].map(v => v + parallax.y * 18),
             }}
-            transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
+            transition={reduce ? undefined : { duration: 22, repeat: Infinity, ease: 'easeInOut' }}
           />
           <motion.div
             className="absolute inset-[-18%] rounded-full"
@@ -835,11 +836,11 @@ export function DiskView({
               background: `radial-gradient(circle at 75% 40%, hsla(${(seasonHue + 60) % 360}, 92%, 62%, 0.22), transparent 58%)`,
               filter: 'blur(44px)',
             }}
-            animate={{
+            animate={reduce ? undefined : {
               x: [0, -18, 12, 0].map(v => v - parallax.x * 22),
               y: [0, 14, -8, 0].map(v => v - parallax.y * 22),
             }}
-            transition={{ duration: 26, repeat: Infinity, ease: 'easeInOut' }}
+            transition={reduce ? undefined : { duration: 26, repeat: Infinity, ease: 'easeInOut' }}
           />
           <motion.div
             className="absolute inset-[-18%] rounded-full"
@@ -847,11 +848,11 @@ export function DiskView({
               background: `radial-gradient(circle at 50% 80%, hsla(${(seasonHue + 300) % 360}, 65%, 62%, 0.24), transparent 58%)`,
               filter: 'blur(46px)',
             }}
-            animate={{
+            animate={reduce ? undefined : {
               x: [0, 14, -16, 0].map(v => v + parallax.x * 14),
               y: [0, -10, 12, 0].map(v => v + parallax.y * 14),
             }}
-            transition={{ duration: 30, repeat: Infinity, ease: 'easeInOut' }}
+            transition={reduce ? undefined : { duration: 30, repeat: Infinity, ease: 'easeInOut' }}
           />
           <div
             className="absolute inset-0 mix-blend-overlay"
@@ -1164,8 +1165,8 @@ export function DiskView({
                           fill="#00D9F5"
                           style={{ filter: `url(#${ID.bloom})` }}
                           initial={{ opacity: 0.3 }}
-                          animate={{ opacity: [0.35, 0.7, 0.35] }}
-                          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                          animate={reduce ? { opacity: 0.5 } : { opacity: [0.35, 0.7, 0.35] }}
+                          transition={reduce ? undefined : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
                         />
                       )}
                       <path
@@ -1449,8 +1450,8 @@ export function DiskView({
                           fill="#00D9F5"
                           style={{ filter: `url(#${ID.bloom})` }}
                           initial={{ opacity: 0.3 }}
-                          animate={{ opacity: [0.35, 0.7, 0.35] }}
-                          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                          animate={reduce ? { opacity: 0.5 } : { opacity: [0.35, 0.7, 0.35] }}
+                          transition={reduce ? undefined : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
                         />
                       )}
                       <path
@@ -1850,8 +1851,8 @@ export function DiskView({
                 d={pieSlice(R.monthOuter + 10, activeTodayDeg - (focus ? 2.4 : 1.8), activeTodayDeg + (focus ? 2.4 : 1.8))}
                 fill={`url(#${ID.todayBeam})`}
                 initial={{ opacity: 0 }}
-                animate={{ opacity: [0.85, 1, 0.85] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                animate={reduce ? { opacity: 0.92 } : { opacity: [0.85, 1, 0.85] }}
+                transition={reduce ? undefined : { duration: 4, repeat: Infinity, ease: 'easeInOut' }}
               />
               {/* Hairline ray from center out through today — iOS-clean clarity line */}
               <line
@@ -1870,8 +1871,8 @@ export function DiskView({
                 cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
                 fill="var(--accent-color)"
                 initial={{ r: 6, opacity: 0.5 }}
-                animate={{ r: [6, 16, 6], opacity: [0.5, 0, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+                animate={reduce ? { r: 6, opacity: 0.6 } : { r: [6, 16, 6], opacity: [0.5, 0, 0.5] }}
+                transition={reduce ? undefined : { duration: 2, repeat: Infinity, ease: 'easeOut' }}
               />
               <circle
                 cx={f(activeTodayTip.x)} cy={f(activeTodayTip.y)}
