@@ -302,6 +302,21 @@ export const no = {
       singular: '1 gjest i dag',
       plural: '{count} gjester i dag',
     },
+    preview: {
+      title: 'Forhåndsvisning',
+      back: 'Tilbake',
+      realVisits: 'Planlagt',
+      custom: 'Egendefinert',
+      noVisits: 'Ingen planlagte besøk de neste dagene. Bruk «Egendefinert» for å teste.',
+      hideControls: 'Skjul kontroller',
+      showControls: 'Vis kontroller',
+      fields: {
+        name: 'Navn',
+        company: 'Firma',
+        start: 'Fra kl.',
+        end: 'Til kl.',
+      },
+    },
   },
   guests: {
     todaysTitle: 'Dagens gjester',
@@ -445,6 +460,7 @@ export const no = {
       map: 'Kart',
       theme: 'Tema',
       language: 'Språk',
+      welcomePreview: 'Forhåndsvis velkomst',
     },
     org: {
       title: 'Organisasjon',
