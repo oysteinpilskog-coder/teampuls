@@ -55,11 +55,10 @@ export function CustomerMapView({
   const memberById = new Map(members.map(m => [m.id, m]))
   const customerColor = STATUS_COLORS.customer.icon
 
-  // Pins reflect the customer portfolio — only labels that match a row in
-  // the customer registry become pins. Unmatched labels go into the
-  // "Ukjente steder" sidebar so the admin can register them or ignore them.
+  // Pins reflect the customer portfolio — only labels that match a row
+  // in the customer registry become pins. Unmatched labels are silently
+  // dropped from the dashboard view; admin handles them elsewhere.
   const byKey = new Map<string, CustomerCluster>()
-  const unresolved = new Map<string, Set<string>>()  // label → member ids
 
   for (const e of entries) {
     if (e.status !== 'customer' && e.status !== 'event' && e.status !== 'travel') continue
@@ -68,13 +67,7 @@ export function CustomerMapView({
     const label = (e.location_label ?? '').trim()
     const asCustomer = resolveCustomer(label, customers)
 
-    if (!asCustomer) {
-      if (!label) continue
-      const set = unresolved.get(label) ?? new Set<string>()
-      set.add(e.member_id)
-      unresolved.set(label, set)
-      continue
-    }
+    if (!asCustomer) continue
 
     const key = `${asCustomer.lat.toFixed(3)},${asCustomer.lng.toFixed(3)}`
     let cluster = byKey.get(key)
@@ -570,30 +563,6 @@ export function CustomerMapView({
               </div>
             )
           })()}
-
-          {unresolved.size > 0 && (
-            <div
-              className="rounded-2xl p-4 flex flex-col gap-2 flex-shrink-0"
-              style={{
-                background:
-                  'linear-gradient(155deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.008) 100%)',
-                border: '1px dashed rgba(255,255,255,0.08)',
-              }}
-            >
-              <h3
-                className="text-[10px] font-semibold uppercase tracking-[0.22em]"
-                style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-body)' }}
-              >
-                {t.dashboard.customer.unknownPlaces}
-              </h3>
-              <p
-                className="text-[11px] leading-relaxed"
-                style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-body)' }}
-              >
-                {Array.from(unresolved.keys()).slice(0, 4).join(' · ')}
-              </p>
-            </div>
-          )}
         </motion.div>
       </div>
     </div>
