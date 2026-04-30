@@ -75,15 +75,19 @@
    ============================================================ */
 
 :root {
-  /* === Jord (Earth) === */
-  --paper:       #F5EFE4;
-  --paper-soft:  #EDE5D1;
-  --stone:       #E0D8C8;
-  --stone-soft:  #F0EADF;
+  /* === Jord (Earth) ===
+     Light mode follows the "paper on a desk" metaphor: the canvas is the
+     warm desktop (deeper cream), elevated surfaces are the paper itself
+     (brighter, near-white). This gives real hierarchy — cards cast warm
+     shadows onto a darker surround instead of dissolving into it. */
+  --paper:       #EFE6D2;  /* canvas / desktop — deeper warm cream */
+  --paper-soft:  #FBF6EA;  /* elevated paper — brighter than canvas */
+  --stone:       #C7BAA0;  /* visible hairline border */
+  --stone-soft:  #E5DAC2;  /* muted surfaces, subtle hover */
   --ink:         #0E0B08;
   --espresso:    #15110E;
   --dusk:        #1F1913;
-  --mist:        #8A7F70;
+  --mist:        #6B5E4A;  /* readable tertiary — passes AA on paper */
 
   /* === Glød (Ember) — action, primary accent === */
   --ember:       #B45309;
@@ -114,81 +118,83 @@
   --text-tertiary:  var(--mist);
 
   --border-subtle: var(--stone);
-  --border-strong: #C8BFAE;
+  --border-strong: #A89A7E;
 
   /* Accent — Ember is the default primary */
   --accent-color: var(--ember);
-  --accent-glow:  rgba(180, 83, 9, 0.22);
+  --accent-glow:  rgba(180, 83, 9, 0.28);
 
-  /* Ambient aurora — restrained Ember-tint */
-  --aurora-a: rgba(180, 83, 9, 0.12);
-  --aurora-b: rgba(251, 191, 36, 0.10);
-  --aurora-opacity: 0.9;
+  /* Ambient aurora — restrained Ember-tint, lifted slightly so it actually
+     warms the deeper canvas instead of disappearing into it. */
+  --aurora-a: rgba(180, 83, 9, 0.18);
+  --aurora-b: rgba(251, 191, 36, 0.14);
+  --aurora-opacity: 0.95;
   --aurora-blur: 90px;
 
   /* Glass / gloss layering (Paper-tinted) */
   --glass-tint: var(--paper-soft);
-  --glass-tint-strength: 72%;
+  --glass-tint-strength: 86%;
   --glass-blur: 28px;
   --glass-sheen: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.08) 38%, rgba(255,255,255,0) 70%);
   --glass-sheen-opacity: 0.5;
   --surface-sheen: linear-gradient(180deg, rgba(255,255,255,0.3), rgba(255,255,255,0) 45%);
   --surface-sheen-opacity: 0.32;
-  --glass-edge-top:    rgba(255,255,255,0.5);
-  --glass-edge-ring:   rgba(14,11,8,0.08);
+  --glass-edge-top:    rgba(255,255,255,0.65);
+  --glass-edge-ring:   rgba(14,11,8,0.10);
   --glass-shadow:
-    0 30px 60px -18px rgba(14, 11, 8, 0.18),
-    0 14px 30px -14px rgba(14, 11, 8, 0.12),
-    0 1px 2px rgba(14, 11, 8, 0.06);
+    0 36px 72px -20px rgba(14, 11, 8, 0.24),
+    0 16px 32px -14px rgba(14, 11, 8, 0.16),
+    0 1px 2px rgba(14, 11, 8, 0.08);
 
-  /* Shadows — warm ink, never cold grey */
+  /* Shadows — warm ink, never cold grey. Lifted so cards (now brighter
+     than canvas) actually pop off the desktop. */
   --shadow-sm:
-    0 1px 2px rgba(14, 11, 8, 0.06),
-    0 0 0 1px rgba(14, 11, 8, 0.03);
-  --shadow-md:
-    0 4px 8px rgba(14, 11, 8, 0.06),
-    0 2px 4px rgba(14, 11, 8, 0.04),
-    0 0 0 1px rgba(14, 11, 8, 0.04);
-  --shadow-lg:
-    0 12px 24px rgba(14, 11, 8, 0.09),
-    0 4px 8px rgba(14, 11, 8, 0.06),
-    0 0 0 1px rgba(14, 11, 8, 0.04);
-  --shadow-xl:
-    0 24px 48px rgba(14, 11, 8, 0.12),
-    0 8px 16px rgba(14, 11, 8, 0.06),
+    0 1px 2px rgba(14, 11, 8, 0.10),
     0 0 0 1px rgba(14, 11, 8, 0.05);
+  --shadow-md:
+    0 6px 12px rgba(14, 11, 8, 0.10),
+    0 2px 4px rgba(14, 11, 8, 0.06),
+    0 0 0 1px rgba(14, 11, 8, 0.06);
+  --shadow-lg:
+    0 18px 36px rgba(14, 11, 8, 0.14),
+    0 6px 12px rgba(14, 11, 8, 0.09),
+    0 0 0 1px rgba(14, 11, 8, 0.06);
+  --shadow-xl:
+    0 32px 64px rgba(14, 11, 8, 0.18),
+    0 12px 24px rgba(14, 11, 8, 0.10),
+    0 0 0 1px rgba(14, 11, 8, 0.07);
   --shadow-accent:
     0 8px 24px color-mix(in oklab, var(--accent-color) 22%, transparent),
     0 2px 4px color-mix(in oklab, var(--accent-color) 12%, transparent);
 
   /* shadcn semantic tokens — Paper/Ink with Ember primary */
-  --background:           #F5EFE4;
+  --background:           #EFE6D2;
   --foreground:           #0E0B08;
-  --card:                 #EDE5D1;
+  --card:                 #FBF6EA;
   --card-foreground:      #0E0B08;
-  --popover:              #F5EFE4;
+  --popover:              #FBF6EA;
   --popover-foreground:   #0E0B08;
   --primary:              #B45309;
-  --primary-foreground:   #F5EFE4;
-  --secondary:            #E0D8C8;
+  --primary-foreground:   #FBF6EA;
+  --secondary:            #DFD3B6;
   --secondary-foreground: #0E0B08;
-  --muted:                #F0EADF;
-  --muted-foreground:     #1F1913;
-  --accent-foreground:    #F5EFE4;
+  --muted:                #E5DAC2;
+  --muted-foreground:     #4A4036;
+  --accent-foreground:    #FBF6EA;
   --destructive:          oklch(0.577 0.245 27.325);
-  --border:               #E0D8C8;
-  --input:                #E0D8C8;
+  --border:               #C7BAA0;
+  --input:                #D4C7AB;
   --ring:                 #B45309;
   --radius:               0.875rem;
 
   /* Sidebar — Paper-based */
-  --sidebar:                    #F5EFE4;
+  --sidebar:                    #EFE6D2;
   --sidebar-foreground:         #0E0B08;
   --sidebar-primary:            #B45309;
-  --sidebar-primary-foreground: #F5EFE4;
-  --sidebar-accent:             #EDE5D1;
+  --sidebar-primary-foreground: #FBF6EA;
+  --sidebar-accent:             #FBF6EA;
   --sidebar-accent-foreground:  #0E0B08;
-  --sidebar-border:             #E0D8C8;
+  --sidebar-border:             #C7BAA0;
   --sidebar-ring:               #B45309;
 }
 
