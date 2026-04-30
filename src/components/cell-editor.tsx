@@ -301,7 +301,7 @@ export function CellEditor({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
             className="fixed inset-0 z-40"
-            style={{ backgroundColor: 'rgba(10,15,30,0.32)', backdropFilter: 'blur(8px) saturate(140%)', WebkitBackdropFilter: 'blur(8px) saturate(140%)' }}
+            style={{ backgroundColor: 'rgba(10,15,30,0.42)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
             onClick={onClose}
           />
 
@@ -441,7 +441,7 @@ export function CellEditor({
                 placeholder={t.editor.locationPlaceholder}
                 list="location-suggestions"
                 autoComplete="off"
-                className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none transition-all"
+                className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none transition-[border-color] duration-150"
                 style={{
                   backgroundColor: 'var(--bg-subtle)',
                   color: 'var(--text-primary)',
@@ -472,7 +472,7 @@ export function CellEditor({
                 onChange={e => setNote(e.target.value)}
                 placeholder={t.editor.notePlaceholder}
                 autoComplete="off"
-                className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none transition-all"
+                className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none transition-[border-color] duration-150"
                 style={{
                   backgroundColor: 'var(--bg-subtle)',
                   color: 'var(--text-primary)',

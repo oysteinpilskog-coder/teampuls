@@ -91,7 +91,7 @@ export default function LoginPage() {
                   placeholder={t.auth.emailPlaceholder}
                   required
                   autoFocus
-                  className="w-full h-12 px-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] transition-all focus:outline-none focus:border-[var(--accent-color)] focus:ring-2 focus:ring-[var(--accent-color)]/20"
+                  className="w-full h-12 px-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] transition-[border-color,box-shadow] duration-150 focus:outline-none focus:border-[var(--accent-color)] focus:ring-2 focus:ring-[var(--accent-color)]/20"
                 />
               </div>
 
