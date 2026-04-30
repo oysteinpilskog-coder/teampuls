@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTransition, useState, useEffect } from 'react'
-import { Users, Building2, MapPin, Map, Briefcase, Palette, Languages, MonitorPlay } from 'lucide-react'
+import { Users, Building2, MapPin, Map, Briefcase, Palette, Languages, Sparkles } from 'lucide-react'
 import { useT } from '@/lib/i18n/context'
 
 export function SettingsNav() {
@@ -21,7 +21,7 @@ export function SettingsNav() {
     { href: '/settings/map', label: t.settings.nav.map, icon: Map },
     { href: '/settings/theme', label: t.settings.nav.theme, icon: Palette },
     { href: '/settings/language', label: t.settings.nav.language, icon: Languages },
-    { href: '/dashboard/preview', label: t.settings.nav.welcomePreview, icon: MonitorPlay },
+    { href: '/settings/welcome', label: t.settings.nav.welcome, icon: Sparkles },
   ]
 
   useEffect(() => {
