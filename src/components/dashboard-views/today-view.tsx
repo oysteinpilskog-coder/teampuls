@@ -90,9 +90,9 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
               {orgName}
             </p>
           )}
-          <div className="mt-2.5 flex items-center gap-2">
+          <div className="mt-2.5 flex items-center gap-2 flex-wrap">
             <span
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-widest uppercase whitespace-nowrap flex-shrink-0"
               style={{
                 background: 'color-mix(in oklab, var(--accent-color) 16%, transparent)',
                 border: '1px solid color-mix(in oklab, var(--accent-color) 35%, transparent)',
