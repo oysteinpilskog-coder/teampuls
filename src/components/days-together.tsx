@@ -147,10 +147,10 @@ function SuggestionCard({ day, index }: { day: SuggestedDay; index: number }) {
         backdropFilter: isTop ? 'blur(20px) saturate(180%)' : undefined,
         WebkitBackdropFilter: isTop ? 'blur(20px) saturate(180%)' : undefined,
         border: isTop
-          ? '1px solid rgba(139, 92, 246, 0.35)'
+          ? '1px solid color-mix(in oklab, var(--lg-accent) 35%, transparent)'
           : '1px solid var(--lg-divider)',
         boxShadow: isTop
-          ? '0 0 0 3px rgba(139, 92, 246, 0.10), 0 0 28px -6px var(--lg-accent-glow)'
+          ? '0 0 0 3px color-mix(in oklab, var(--lg-accent) 10%, transparent), 0 0 28px -6px var(--lg-accent-glow)'
           : 'none',
       }}
     >
@@ -238,8 +238,8 @@ function SuggestionCard({ day, index }: { day: SuggestedDay; index: number }) {
 function CountChip({ label, value, tone }: { label: string; value: number; tone: 'accent' | 'muted' | 'warn' }) {
   const colors = {
     accent: {
-      bg: 'rgba(139, 92, 246, 0.12)',
-      ring: 'rgba(139, 92, 246, 0.28)',
+      bg: 'color-mix(in oklab, var(--lg-accent) 12%, transparent)',
+      ring: 'color-mix(in oklab, var(--lg-accent) 28%, transparent)',
       fg: 'var(--lg-accent)',
     },
     muted: {
@@ -311,7 +311,7 @@ function EmptySignal() {
       <div
         className="inline-flex items-center justify-center mx-auto mb-3 w-10 h-10 rounded-full"
         style={{
-          background: 'rgba(139, 92, 246, 0.12)',
+          background: 'color-mix(in oklab, var(--lg-accent) 12%, transparent)',
           color: 'var(--lg-accent)',
         }}
       >

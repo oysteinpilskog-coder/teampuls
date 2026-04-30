@@ -347,7 +347,7 @@ function HeatCell({
             aria-hidden
             className="absolute inset-0 rounded-[5px] pointer-events-none"
             style={{
-              boxShadow: 'inset 0 0 0 1.5px rgba(139, 92, 246, 0.7)',
+              boxShadow: 'inset 0 0 0 1.5px color-mix(in oklab, var(--lg-accent) 70%, transparent)',
             }}
           />
         )}

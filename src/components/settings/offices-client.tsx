@@ -587,7 +587,7 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
                 {/* Advanced: manual coord override */}
                 <details className="col-span-6 group">
                   <summary
-                    className="cursor-pointer text-[11px] font-semibold uppercase tracking-widest list-none flex items-center gap-1.5 select-none"
+                    className="cursor-pointer text-[11px] font-semibold uppercase tracking-[0.16em] list-none flex items-center gap-1.5 select-none"
                     style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
                   >
                     <span className="transition-transform group-open:rotate-90">▸</span>
@@ -672,7 +672,7 @@ function OfficeField({
   return (
     <div className="flex flex-col gap-1.5">
       <label
-        className="text-[11px] font-semibold uppercase tracking-widest"
+        className="text-[11px] font-semibold uppercase tracking-[0.16em]"
         style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
       >
         {label}

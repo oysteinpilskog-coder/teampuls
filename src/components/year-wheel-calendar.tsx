@@ -96,10 +96,10 @@ function MiniMonth({
         backdropFilter: isCurrentMonth ? 'blur(20px) saturate(180%)' : undefined,
         WebkitBackdropFilter: isCurrentMonth ? 'blur(20px) saturate(180%)' : undefined,
         border: `1px solid ${isCurrentMonth
-          ? 'rgba(139, 92, 246, 0.28)'
+          ? 'color-mix(in oklab, var(--lg-accent) 28%, transparent)'
           : 'var(--lg-divider)'}`,
         boxShadow: isCurrentMonth
-          ? '0 0 0 3px rgba(139, 92, 246, 0.10), 0 0 24px -6px var(--lg-accent-glow)'
+          ? '0 0 0 3px color-mix(in oklab, var(--lg-accent) 10%, transparent), 0 0 24px -6px var(--lg-accent-glow)'
           : 'none',
       }}
     >
@@ -202,7 +202,7 @@ function DayCell({
             width: 24,
             height: 24,
             background: 'var(--lg-accent)',
-            boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 16px var(--lg-accent-glow)',
+            boxShadow: '0 0 0 3px color-mix(in oklab, var(--lg-accent) 18%, transparent), 0 0 16px var(--lg-accent-glow)',
           }}
         />
       )}

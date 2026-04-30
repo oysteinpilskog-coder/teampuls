@@ -655,7 +655,7 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
                 color: '#fff',
                 background: 'var(--lg-accent)',
                 boxShadow:
-                  '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 20px var(--lg-accent-glow)',
+                  '0 0 0 3px color-mix(in oklab, var(--lg-accent) 18%, transparent), 0 0 20px var(--lg-accent-glow)',
                 fontFamily: 'var(--font-body)',
               }}
             >

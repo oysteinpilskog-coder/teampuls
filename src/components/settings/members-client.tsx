@@ -255,7 +255,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
       {inactive.length > 0 && (
         <div className="mt-6">
           <p
-            className="text-[11px] font-semibold uppercase tracking-widest px-1 mb-2"
+            className="text-[11px] font-semibold uppercase tracking-[0.16em] px-1 mb-2"
             style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
           >
             Inaktive
@@ -408,7 +408,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
               {/* Personal — birthday + anniversary */}
               <div className="flex flex-col gap-3">
                 <p
-                  className="text-[11px] font-semibold uppercase tracking-widest"
+                  className="text-[11px] font-semibold uppercase tracking-[0.16em]"
                   style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
                 >
                   {t.settings.members.personalSection}
@@ -454,7 +454,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
               >
                 <div className="flex items-baseline gap-2">
                   <label
-                    className="text-[11px] font-semibold uppercase tracking-widest"
+                    className="text-[11px] font-semibold uppercase tracking-[0.16em]"
                     style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
                   >
                     AI-kortkode
@@ -626,8 +626,8 @@ function ToggleRow({
       disabled={disabled}
       className="flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-[background,border-color,opacity] duration-150 disabled:cursor-not-allowed"
       style={{
-        background: checked ? 'rgba(139, 92, 246, 0.10)' : 'var(--bg-subtle)',
-        border: `1px solid ${checked ? 'rgba(139, 92, 246, 0.45)' : 'var(--border-subtle)'}`,
+        background: checked ? 'color-mix(in oklab, var(--lg-accent) 10%, transparent)' : 'var(--bg-subtle)',
+        border: `1px solid ${checked ? 'color-mix(in oklab, var(--lg-accent) 45%, transparent)' : 'var(--border-subtle)'}`,
         opacity: disabled ? 0.5 : 1,
         fontFamily: 'var(--font-body)',
       }}
@@ -677,7 +677,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline gap-2">
         <label
-          className="text-[11px] font-semibold uppercase tracking-widest"
+          className="text-[11px] font-semibold uppercase tracking-[0.16em]"
           style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
         >
           {label}
@@ -747,7 +747,7 @@ function MemberRow({
           )}
           {member.initials && (
             <span
-              className="text-[10px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded-md font-mono"
+              className="text-[10px] font-semibold uppercase tracking-[0.16em] px-1.5 py-0.5 rounded-md font-mono"
               style={{ backgroundColor: 'var(--bg-subtle)', color: 'var(--text-secondary)' }}
               title="Initialer"
             >
@@ -756,7 +756,7 @@ function MemberRow({
           )}
           {isSelf && (
             <span
-              className="text-[10px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded-md"
+              className="text-[10px] font-semibold uppercase tracking-[0.16em] px-1.5 py-0.5 rounded-md"
               style={{ backgroundColor: 'rgba(0,102,255,0.1)', color: 'var(--accent-color)', fontFamily: 'var(--font-body)' }}
             >
               Deg

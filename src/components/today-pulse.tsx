@@ -71,7 +71,7 @@ export function TodayPulse({ entries }: TodayPulseProps) {
             boxShadow: '0 0 10px var(--lg-accent-glow)',
           }}
           animate={reduce ? {} : { opacity: [0.35, 1, 0.35] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          transition={reduce ? undefined : { duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         />
         <span className="lg-eyebrow">Akkurat nå</span>
       </div>

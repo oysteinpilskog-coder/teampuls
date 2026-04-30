@@ -959,7 +959,7 @@ export function TeamGrid({
                 style={{
                   left,
                   background: isTodayEdge
-                    ? 'rgba(139, 92, 246, 0.22)'
+                    ? 'color-mix(in oklab, var(--lg-accent) 22%, transparent)'
                     : 'var(--lg-divider-soft)',
                   display: i === 0 ? 'none' : undefined,
                 }}
@@ -1625,7 +1625,7 @@ function WeeklySummaryToast({
         style={{
           width: 30,
           height: 30,
-          background: 'rgba(139, 92, 246, 0.12)',
+          background: 'color-mix(in oklab, var(--lg-accent) 12%, transparent)',
           color: 'var(--lg-accent)',
           fontSize: 13,
           fontWeight: 500,

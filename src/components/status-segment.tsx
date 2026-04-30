@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useTheme } from 'next-themes'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { MemberAvatar } from '@/components/member-avatar'
@@ -81,6 +81,7 @@ export function StatusSegment({
   const t = useT()
   const { resolvedTheme } = useTheme()
   const isLight = resolvedTheme === 'light'
+  const prefersReducedMotion = useReducedMotion()
 
   const span = days.length
   const todayIdx = days.findIndex((d) => d.isToday)
@@ -254,10 +255,10 @@ export function StatusSegment({
             height: 5,
             backgroundColor: 'var(--lg-accent)',
             boxShadow:
-              '0 0 0 2px rgba(139, 92, 246, 0.22), 0 0 6px var(--lg-accent-glow)',
+              '0 0 0 2px color-mix(in oklab, var(--lg-accent) 22%, transparent), 0 0 6px var(--lg-accent-glow)',
           }}
-          animate={{ scale: [1, 1.22, 1] }}
-          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+          animate={prefersReducedMotion ? undefined : { scale: [1, 1.22, 1] }}
+          transition={prefersReducedMotion ? undefined : { duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
         />
       )}
 
@@ -337,10 +338,10 @@ export function StatusSegment({
           className="absolute inset-0 rounded-[7px] pointer-events-none z-30"
           style={{
             boxShadow:
-              'inset 0 0 0 1.5px rgba(139, 92, 246, 0.55), 0 0 10px var(--lg-accent-glow)',
+              'inset 0 0 0 1.5px color-mix(in oklab, var(--lg-accent) 55%, transparent), 0 0 10px var(--lg-accent-glow)',
           }}
-          animate={{ opacity: [0.6, 1, 0.6] }}
-          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+          animate={prefersReducedMotion ? undefined : { opacity: [0.6, 1, 0.6] }}
+          transition={prefersReducedMotion ? undefined : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
         />
       )}
 
@@ -370,12 +371,12 @@ export function StatusSegment({
           border-radius: 6px;
         }
         .segment-day.is-highlighted {
-          background-color: rgba(139, 92, 246, 0.18);
+          background-color: color-mix(in oklab, var(--lg-accent) 18%, transparent);
           box-shadow: inset 0 0 0 2px var(--lg-accent);
           border-radius: 6px;
         }
         .segment-day.is-highlighted:hover {
-          background-color: rgba(139, 92, 246, 0.26);
+          background-color: color-mix(in oklab, var(--lg-accent) 26%, transparent);
         }
       `}</style>
     </motion.div>

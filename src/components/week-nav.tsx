@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   getMonthForWeek,
@@ -52,6 +52,7 @@ export function WeekNav({
   metrics,
 }: WeekNavProps) {
   const t = useT()
+  const prefersReducedMotion = useReducedMotion()
   const { month: currentMonth, year: currentCalYear } = getMonthForWeek(week, year)
   const weekDays = getWeekDays(week, year)
   const first = getDayLabel(weekDays[0], t)
@@ -85,19 +86,19 @@ export function WeekNav({
             layoutId="current-week-dot"
             className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full"
             style={{
-              background: 'rgba(139, 92, 246, 0.12)',
+              background: 'color-mix(in oklab, var(--lg-accent) 12%, transparent)',
               color: 'var(--lg-accent)',
-              border: '1px solid rgba(139, 92, 246, 0.28)',
+              border: '1px solid color-mix(in oklab, var(--lg-accent) 28%, transparent)',
               fontFamily: 'var(--font-body)',
             }}
           >
             <motion.span
               className="w-1 h-1 rounded-full"
               style={{ background: 'var(--lg-accent)', boxShadow: '0 0 6px var(--lg-accent-glow)' }}
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+              animate={prefersReducedMotion ? undefined : { opacity: [0.5, 1, 0.5] }}
+              transition={prefersReducedMotion ? undefined : { duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
             />
-            <span className="lg-mono text-[9px] font-medium uppercase" style={{ letterSpacing: '0.2em' }}>Nå</span>
+            <span className="lg-mono text-[9px] font-medium uppercase" style={{ letterSpacing: '0.16em' }}>Nå</span>
           </motion.span>
         )}
 
@@ -156,7 +157,7 @@ export function WeekNav({
             background: isCurrentWeek ? 'transparent' : 'var(--lg-accent)',
             boxShadow: isCurrentWeek
               ? 'none'
-              : '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 20px var(--lg-accent-glow)',
+              : '0 0 0 3px color-mix(in oklab, var(--lg-accent) 18%, transparent), 0 0 20px var(--lg-accent-glow)',
             fontFamily: 'var(--font-body)',
           }}
         >
@@ -293,13 +294,13 @@ function MonthPickerTrigger({ month, year, week, onChange }: MonthPickerTriggerP
                   background: isSelected
                     ? 'var(--lg-accent)'
                     : isThisMonth
-                      ? 'rgba(139, 92, 246, 0.1)'
+                      ? 'color-mix(in oklab, var(--lg-accent) 10%, transparent)'
                       : 'transparent',
                   boxShadow: isSelected
-                    ? '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 20px var(--lg-accent-glow)'
+                    ? '0 0 0 3px color-mix(in oklab, var(--lg-accent) 18%, transparent), 0 0 20px var(--lg-accent-glow)'
                     : undefined,
                   border: isThisMonth && !isSelected
-                    ? '1px solid rgba(139, 92, 246, 0.35)'
+                    ? '1px solid color-mix(in oklab, var(--lg-accent) 35%, transparent)'
                     : '1px solid transparent',
                 }}
               >

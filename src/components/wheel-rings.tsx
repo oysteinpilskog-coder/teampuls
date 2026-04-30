@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment } from 'react'
-import { motion } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import {
   CX, CY, R, MONTH_HSL,
   polarPoint, f, annularArc, labelArcPath,
@@ -14,6 +14,7 @@ import type { Dictionary } from '@/lib/i18n/types'
 // hendelseshjulet men uten parallax (de andre hjulene reagerer ikke på mus).
 
 export function StaticAurora({ seasonHue }: { seasonHue: number }) {
+  const reduce = useReducedMotion()
   return (
     <div className="absolute inset-0 overflow-hidden rounded-full pointer-events-none" aria-hidden>
       <motion.div
@@ -22,8 +23,8 @@ export function StaticAurora({ seasonHue }: { seasonHue: number }) {
           background: `radial-gradient(circle at 30% 30%, hsla(${seasonHue}, 88%, 66%, 0.30), transparent 58%)`,
           filter: 'blur(44px)',
         }}
-        animate={{ x: [0, 20, -10, 0], y: [0, -15, 10, 0] }}
-        transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
+        animate={reduce ? undefined : { x: [0, 20, -10, 0], y: [0, -15, 10, 0] }}
+        transition={reduce ? undefined : { duration: 22, repeat: Infinity, ease: 'easeInOut' }}
       />
       <motion.div
         className="absolute inset-[-18%] rounded-full"
@@ -31,8 +32,8 @@ export function StaticAurora({ seasonHue }: { seasonHue: number }) {
           background: `radial-gradient(circle at 75% 40%, hsla(${(seasonHue + 60) % 360}, 92%, 62%, 0.22), transparent 58%)`,
           filter: 'blur(44px)',
         }}
-        animate={{ x: [0, -18, 12, 0], y: [0, 14, -8, 0] }}
-        transition={{ duration: 26, repeat: Infinity, ease: 'easeInOut' }}
+        animate={reduce ? undefined : { x: [0, -18, 12, 0], y: [0, 14, -8, 0] }}
+        transition={reduce ? undefined : { duration: 26, repeat: Infinity, ease: 'easeInOut' }}
       />
       <motion.div
         className="absolute inset-[-18%] rounded-full"
@@ -40,8 +41,8 @@ export function StaticAurora({ seasonHue }: { seasonHue: number }) {
           background: `radial-gradient(circle at 50% 80%, hsla(${(seasonHue + 300) % 360}, 65%, 62%, 0.24), transparent 58%)`,
           filter: 'blur(46px)',
         }}
-        animate={{ x: [0, 14, -16, 0], y: [0, -10, 12, 0] }}
-        transition={{ duration: 30, repeat: Infinity, ease: 'easeInOut' }}
+        animate={reduce ? undefined : { x: [0, 14, -16, 0], y: [0, -10, 12, 0] }}
+        transition={reduce ? undefined : { duration: 30, repeat: Infinity, ease: 'easeInOut' }}
       />
       <div
         className="absolute inset-0 mix-blend-overlay"
@@ -197,6 +198,7 @@ export function StaticWeekRing({
   idPrefix: string
 }) {
   const weekSegs = getWeekSegments(year)
+  const reduce = useReducedMotion()
 
   return (
     <>
@@ -214,8 +216,8 @@ export function StaticWeekRing({
                 fill="#00D9F5"
                 style={{ filter: `url(#${idPrefix}-bloom)` }}
                 initial={{ opacity: 0.3 }}
-                animate={{ opacity: [0.35, 0.7, 0.35] }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                animate={reduce ? { opacity: 0.5 } : { opacity: [0.35, 0.7, 0.35] }}
+                transition={reduce ? undefined : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
               />
             )}
             <path

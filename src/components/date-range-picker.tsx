@@ -191,7 +191,7 @@ export function DateRangePicker({
       <div className="flex items-end gap-2 mb-3">
         <div className="flex-1">
           <label
-            className="block text-[10px] font-semibold uppercase tracking-widest mb-1"
+            className="block text-[10px] font-semibold uppercase tracking-[0.16em] mb-1"
             style={{ color: 'var(--text-tertiary)' }}
           >
             {t.dateRangePicker.fromLabel}
@@ -208,7 +208,7 @@ export function DateRangePicker({
         </div>
         <div className="flex-1">
           <label
-            className="block text-[10px] font-semibold uppercase tracking-widest mb-1"
+            className="block text-[10px] font-semibold uppercase tracking-[0.16em] mb-1"
             style={{ color: 'var(--text-tertiary)' }}
           >
             {t.dateRangePicker.toLabel}
@@ -333,7 +333,7 @@ function MonthView({
     <div>
       {/* Month header */}
       <div
-        className="text-center text-[12px] font-semibold uppercase tracking-widest mb-2"
+        className="text-center text-[12px] font-semibold uppercase tracking-[0.16em] mb-2"
         style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-fraunces)' }}
       >
         {MONTH_LONG[month.getMonth()]} {month.getFullYear()}

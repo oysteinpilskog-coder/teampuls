@@ -387,7 +387,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
                 />
               ) : (
                 <span
-                  className="text-[10px] font-semibold uppercase tracking-widest"
+                  className="text-[10px] font-semibold uppercase tracking-[0.16em]"
                   style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
                 >
                   Ingen
@@ -611,7 +611,7 @@ function SettingsField({
   return (
     <div className="flex flex-col gap-1.5">
       <label
-        className="text-[11px] font-semibold uppercase tracking-widest"
+        className="text-[11px] font-semibold uppercase tracking-[0.16em]"
         style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
       >
         {label}
@@ -673,8 +673,8 @@ function PresenceAssumptionPicker({
             onClick={() => onChange(opt.value)}
             className="flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-[background,border-color] duration-150"
             style={{
-              background: active ? 'rgba(139, 92, 246, 0.10)' : 'var(--lg-surface-2, var(--bg-subtle))',
-              border: `1px solid ${active ? 'rgba(139, 92, 246, 0.45)' : 'var(--lg-divider, var(--border-subtle))'}`,
+              background: active ? 'color-mix(in oklab, var(--lg-accent) 10%, transparent)' : 'var(--lg-surface-2, var(--bg-subtle))',
+              border: `1px solid ${active ? 'color-mix(in oklab, var(--lg-accent) 45%, transparent)' : 'var(--lg-divider, var(--border-subtle))'}`,
               fontFamily: 'var(--font-body)',
             }}
           >
@@ -686,7 +686,7 @@ function PresenceAssumptionPicker({
                 height: 14,
                 background: active ? 'var(--lg-accent)' : 'transparent',
                 boxShadow: active
-                  ? '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 10px var(--lg-accent-glow)'
+                  ? '0 0 0 3px color-mix(in oklab, var(--lg-accent) 18%, transparent), 0 0 10px var(--lg-accent-glow)'
                   : `inset 0 0 0 1.5px var(--lg-divider, var(--border-subtle))`,
               }}
             >
@@ -737,8 +737,8 @@ function OrgToggleRow({
       onClick={() => onChange(!checked)}
       className="flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-[background,border-color] duration-150"
       style={{
-        background: checked ? 'rgba(139, 92, 246, 0.10)' : 'var(--lg-surface-2, var(--bg-subtle))',
-        border: `1px solid ${checked ? 'rgba(139, 92, 246, 0.45)' : 'var(--lg-divider, var(--border-subtle))'}`,
+        background: checked ? 'color-mix(in oklab, var(--lg-accent) 10%, transparent)' : 'var(--lg-surface-2, var(--bg-subtle))',
+        border: `1px solid ${checked ? 'color-mix(in oklab, var(--lg-accent) 45%, transparent)' : 'var(--lg-divider, var(--border-subtle))'}`,
         fontFamily: 'var(--font-body)',
       }}
     >
@@ -810,8 +810,8 @@ function SickPrivacyPicker({
             onClick={() => onChange(opt.v)}
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-[background,border-color] duration-150"
             style={{
-              background: active ? 'rgba(139, 92, 246, 0.10)' : 'var(--lg-surface-2, var(--bg-subtle))',
-              border: `1px solid ${active ? 'rgba(139, 92, 246, 0.45)' : 'var(--lg-divider, var(--border-subtle))'}`,
+              background: active ? 'color-mix(in oklab, var(--lg-accent) 10%, transparent)' : 'var(--lg-surface-2, var(--bg-subtle))',
+              border: `1px solid ${active ? 'color-mix(in oklab, var(--lg-accent) 45%, transparent)' : 'var(--lg-divider, var(--border-subtle))'}`,
               fontFamily: 'var(--font-body)',
             }}
           >
@@ -823,7 +823,7 @@ function SickPrivacyPicker({
                 height: 14,
                 background: active ? 'var(--lg-accent)' : 'transparent',
                 boxShadow: active
-                  ? '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 10px var(--lg-accent-glow)'
+                  ? '0 0 0 3px color-mix(in oklab, var(--lg-accent) 18%, transparent), 0 0 10px var(--lg-accent-glow)'
                   : `inset 0 0 0 1.5px var(--lg-divider, var(--border-subtle))`,
               }}
             >
@@ -873,8 +873,8 @@ function DashboardRotationPicker({
               onClick={() => onToggle(key)}
               className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-medium transition-[background,border-color,opacity] duration-150 disabled:cursor-not-allowed"
               style={{
-                background: active ? 'rgba(139, 92, 246, 0.12)' : 'var(--lg-surface-2, var(--bg-subtle))',
-                border: `1px solid ${active ? 'rgba(139, 92, 246, 0.45)' : 'var(--lg-divider, var(--border-subtle))'}`,
+                background: active ? 'color-mix(in oklab, var(--lg-accent) 12%, transparent)' : 'var(--lg-surface-2, var(--bg-subtle))',
+                border: `1px solid ${active ? 'color-mix(in oklab, var(--lg-accent) 45%, transparent)' : 'var(--lg-divider, var(--border-subtle))'}`,
                 color: active ? 'var(--lg-text-1, var(--text-primary))' : 'var(--lg-text-2, var(--text-secondary))',
                 fontFamily: 'var(--font-body)',
               }}
@@ -887,7 +887,7 @@ function DashboardRotationPicker({
                   height: 14,
                   background: active ? 'var(--lg-accent)' : 'transparent',
                   boxShadow: active
-                    ? '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 10px var(--lg-accent-glow)'
+                    ? '0 0 0 3px color-mix(in oklab, var(--lg-accent) 18%, transparent), 0 0 10px var(--lg-accent-glow)'
                     : `inset 0 0 0 1.5px var(--lg-divider, var(--border-subtle))`,
                 }}
               >
@@ -965,14 +965,14 @@ function DashboardDurationsEditor({
                 style={{
                   backgroundColor: 'var(--bg-elevated)',
                   color: 'var(--text-primary)',
-                  border: `1.5px solid ${isDefault ? 'transparent' : 'rgba(139, 92, 246, 0.45)'}`,
+                  border: `1.5px solid ${isDefault ? 'transparent' : 'color-mix(in oklab, var(--lg-accent) 45%, transparent)'}`,
                   fontFamily: 'var(--font-body)',
                 }}
                 onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
                 onBlur={e =>
                   (e.currentTarget.style.borderColor = isDefault
                     ? 'transparent'
-                    : 'rgba(139, 92, 246, 0.45)')
+                    : 'color-mix(in oklab, var(--lg-accent) 45%, transparent)')
                 }
               />
               <span

@@ -394,7 +394,7 @@ export function WelcomeClient({
             return (
               <section key={date}>
                 <p
-                  className="text-[11px] font-semibold uppercase tracking-widest mb-2"
+                  className="text-[11px] font-semibold uppercase tracking-[0.16em] mb-2"
                   style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
                 >
                   {heading}
@@ -738,7 +738,7 @@ function Field({
   return (
     <div className="flex flex-col gap-1.5">
       <label
-        className="text-[11px] font-semibold uppercase tracking-widest inline-flex items-center gap-1.5"
+        className="text-[11px] font-semibold uppercase tracking-[0.16em] inline-flex items-center gap-1.5"
         style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
       >
         {icon && <span style={{ color: 'var(--text-tertiary)' }}>{icon}</span>}

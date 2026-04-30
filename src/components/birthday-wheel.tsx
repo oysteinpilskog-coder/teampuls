@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useId, useMemo, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { spring } from '@/lib/motion'
 import {
   CX, CY, R, MONTH_HSL,
@@ -178,6 +178,7 @@ function BirthdayPin({
   const isToday = entry.daysUntil === 0
   const initials = entry.member.initials ?? entry.member.display_name.charAt(0).toUpperCase()
   const [hovered, setHovered] = useState(false)
+  const reduce = useReducedMotion()
 
   return (
     <motion.g
@@ -188,7 +189,7 @@ function BirthdayPin({
       onHoverEnd={() => setHovered(false)}
       style={{ cursor: 'pointer' }}
     >
-      {isToday && (
+      {isToday && !reduce && (
         <motion.circle
           cx={x} cy={y} r={28}
           fill={`url(#${idPrefix}-pin-glow)`}
@@ -198,10 +199,10 @@ function BirthdayPin({
         />
       )}
       <motion.g
-        animate={isToday ? { scale: [1, 1.06, 1] } : undefined}
-        transition={isToday ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : undefined}
+        animate={isToday && !reduce ? { scale: [1, 1.06, 1] } : undefined}
+        transition={isToday && !reduce ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : undefined}
         style={{ transformOrigin: `${x}px ${y}px` }}
-        whileHover={{ scale: 1.12 }}
+        whileHover={reduce ? undefined : { scale: 1.12 }}
       >
         <circle cx={x} cy={y} r={PIN_R + 1.5} fill={halo} />
         {entry.member.avatar_url ? (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useId, useMemo, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { spring } from '@/lib/motion'
 import {
   CX, CY, MONTH_HSL,
@@ -189,6 +189,7 @@ function AnniversaryPin({
   const isToday = entry.daysUntil === 0
   const r = entry.isMilestone ? MILESTONE_PIN_R : PIN_R
   const initials = entry.member.initials ?? entry.member.display_name.slice(0, 2).toUpperCase()
+  const reduce = useReducedMotion()
 
   return (
     <motion.g
@@ -199,7 +200,7 @@ function AnniversaryPin({
       onHoverEnd={() => setHovered(false)}
       style={{ cursor: 'pointer' }}
     >
-      {(isToday || entry.isMilestone) && (
+      {(isToday || entry.isMilestone) && !reduce && (
         <motion.circle
           cx={x} cy={y} r={r + 14}
           fill={`url(#${idPrefix}-milestone-glow)`}
@@ -209,7 +210,7 @@ function AnniversaryPin({
         />
       )}
       <motion.g
-        whileHover={{ scale: 1.12 }}
+        whileHover={reduce ? undefined : { scale: 1.12 }}
         style={{ transformOrigin: `${x}px ${y}px` }}
       >
         {entry.isMilestone ? (

@@ -254,7 +254,7 @@ function PinColorCard({
       {/* Primary pin colour */}
       <div className="flex items-center gap-3">
         <span
-          className="w-[68px] text-[11px] font-semibold uppercase tracking-widest shrink-0"
+          className="w-[68px] text-[11px] font-semibold uppercase tracking-[0.16em] shrink-0"
           style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
         >
           Pin
@@ -291,7 +291,7 @@ function PinColorCard({
       {/* Aurora (Nordlys) colour — user-overridable, auto-derived otherwise */}
       <div className="flex items-center gap-3">
         <span
-          className="w-[68px] text-[11px] font-semibold uppercase tracking-widest shrink-0"
+          className="w-[68px] text-[11px] font-semibold uppercase tracking-[0.16em] shrink-0"
           style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
         >
           Nordlys
@@ -327,7 +327,7 @@ function PinColorCard({
           type="button"
           onClick={() => onAuroraChange(undefined)}
           disabled={!auroraCustom}
-          className="px-2.5 py-2 rounded-lg text-[11px] font-semibold uppercase tracking-widest transition-colors disabled:opacity-40 shrink-0"
+          className="px-2.5 py-2 rounded-lg text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors disabled:opacity-40 shrink-0"
           style={{
             backgroundColor: 'var(--bg-subtle)',
             color: auroraCustom ? 'var(--accent-color)' : 'var(--text-tertiary)',
