@@ -108,25 +108,12 @@ export function WelcomePreviewClient({ orgName, visits, entries }: WelcomePrevie
         <WelcomeView visits={[previewVisit]} orgName={orgName} />
       </div>
 
-      {/* ── Dashboard-chrome: tiny org-label top-left + TimezoneStrip top-right
-          + OffiviewSignature bottom-right. Speiler 1:1 hva DashboardClient
-          tegner rundt view F (welcome). Uten dette manglet preview-et
-          klokkene, signaturen og det dempede top-merket — så samme visit
-          så ulik ut på preview vs. live. */}
-      <div className="pointer-events-none absolute top-4 left-6 z-50">
-        <span
-          style={{
-            fontFamily: 'var(--font-body)',
-            fontSize: 13,
-            fontWeight: 500,
-            letterSpacing: '0.22em',
-            textTransform: 'uppercase',
-            color: 'var(--mist)',
-          }}
-        >
-          {orgName}
-        </span>
-      </div>
+      {/* ── Dashboard-chrome: TimezoneStrip top-right + OffiviewSignature
+          bottom-right. Speiler hva DashboardClient tegner rundt view F. Org-
+          merket øverst-venstre er bevisst utelatt — WelcomeView rendrer sin
+          egen Fraunces-italic wordmark der allerede, og DashboardClient
+          skjuler tilsvarende uppercase-merke på F nettopp for å unngå
+          dobbel-eksponering i samme hjørne. */}
       <div className="pointer-events-none absolute top-4 right-6 z-50">
         <TimezoneStrip visible={true} />
       </div>
