@@ -74,6 +74,26 @@ export interface Organization {
   birthdays_enabled?: boolean
   /** Org-wide kill switch for the work-anniversary surface. */
   anniversaries_enabled?: boolean
+  /** Ukentlig statusmail — master-bryter. Sender-jobben fyrer kun når denne er TRUE. */
+  weekly_email_enabled?: boolean
+  /** ISO-ukedag (1=mandag, 7=søndag) for utsendelse. */
+  weekly_email_weekday?: number
+  /** Klokkeslett (timer/minutter) i org sin tidssone. */
+  weekly_email_hour?: number
+  weekly_email_minute?: number
+  /** Hva skal skje når sendedagen er en helligdag i org-landet:
+   *  'skip'         hopp over uka helt
+   *  'next_workday' utsett til neste arbeidsdag samme uke
+   *  'send_anyway'  send som vanlig */
+  weekly_email_holiday_strategy?: 'skip' | 'next_workday' | 'send_anyway'
+  /** 'all_members' | 'admins_only' | 'custom' */
+  weekly_email_recipients?: 'all_members' | 'admins_only' | 'custom'
+  /** Custom mottakerliste — kun brukt når recipients = 'custom'. */
+  weekly_email_custom_recipients?: string[]
+  /** Egendefinert emnefelt. NULL = bruk default fra koden. */
+  weekly_email_subject?: string | null
+  /** Introtekst øverst i mailen. NULL = bruk default fra koden. */
+  weekly_email_intro?: string | null
   timezone: string
   week_start: number
   created_at: string
