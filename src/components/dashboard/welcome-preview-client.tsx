@@ -105,15 +105,31 @@ export function WelcomePreviewClient({ orgName, visits, entries }: WelcomePrevie
 
       {/* Fullskjerms-canvas — ekte WelcomeView, samme komponent som TV-en. */}
       <div className="absolute inset-0">
-        <WelcomeView visits={[previewVisit]} orgName={orgName} />
+        <WelcomeView visits={[previewVisit]} />
       </div>
 
-      {/* ── Dashboard-chrome: TimezoneStrip top-right + OffiviewSignature
-          bottom-right. Speiler hva DashboardClient tegner rundt view F. Org-
-          merket øverst-venstre er bevisst utelatt — WelcomeView rendrer sin
-          egen Fraunces-italic wordmark der allerede, og DashboardClient
-          skjuler tilsvarende uppercase-merke på F nettopp for å unngå
-          dobbel-eksponering i samme hjørne. */}
+      {/* ── Dashboard-chrome: org-wordmark top-left, TimezoneStrip top-right,
+          OffiviewSignature bottom-right. Speiler hva DashboardClient tegner
+          rundt view F — wordmarken er nå Fraunces italic 30px på shellen, så
+          den må også rendres her i preview-et for at preview = live. */}
+      {orgName && (
+        <div className="pointer-events-none absolute top-5 left-10 z-50">
+          <p
+            className="leading-none"
+            style={{
+              fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+              fontWeight: 300,
+              fontStyle: 'italic',
+              fontVariationSettings: '"opsz" 32, "SOFT" 80',
+              fontSize: 30,
+              letterSpacing: '-0.025em',
+              color: 'var(--paper)',
+            }}
+          >
+            {orgName}
+          </p>
+        </div>
+      )}
       <div className="pointer-events-none absolute top-4 right-6 z-50">
         <TimezoneStrip visible={true} />
       </div>

@@ -17,7 +17,6 @@ interface TodayViewProps {
   weekDays: Date[]
   entries: Entry[]
   todayEntries: Entry[]
-  orgName: string
   time: Date
   offices?: Office[]
 }
@@ -40,7 +39,7 @@ function greetingFor(h: number, g: Dictionary['dashboard']['greetings']): string
   return g.night
 }
 
-export function TodayView({ members, weekDays, entries, todayEntries, orgName, time, offices }: TodayViewProps) {
+export function TodayView({ members, weekDays, entries, todayEntries, time, offices }: TodayViewProps) {
   const STATUS_COLORS = useStatusColors()
   const t = useT()
   const hours   = pad(time.getHours())
@@ -65,34 +64,17 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
   return (
     <div className="relative h-full flex flex-col px-10 pt-5 pb-3 gap-3">
       {/* ── Header band ──────────────────────────────────────────── */}
-      <div className="flex items-start justify-between">
+      {/* Org-wordmarken eies av dashboard-shellen (DashboardClient) så den
+          bevarer font og posisjon på tvers av alle visninger. Header-en her
+          starter rett på LIVE-pille + greeting; pt-12 reserverer plassen
+          shellens wordmark dekker så LIVE-pillen ikke krasjer i den. */}
+      <div className="flex items-start justify-between pt-12">
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...spring.gentle, delay: 0.05 }}
         >
-          {/* Org wordmark — Fraunces italic på Paper. Quiet, warm, restrained.
-              The clock is the Nordlys hero of this surface; the wordmark sits
-              on the ink/paper scale so there's room for a single signature.
-              Bevisst ingen uppercase eyebrow over — wordmarken står alene mot
-              pillen under så org-navnet ikke ekko-er seg selv to ganger. */}
-          {orgName && (
-            <p
-              className="leading-none"
-              style={{
-                fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
-                fontWeight: 300,
-                fontStyle: 'italic',
-                fontVariationSettings: '"opsz" 32, "SOFT" 80',
-                fontSize: 30,
-                letterSpacing: '-0.025em',
-                color: 'var(--paper)',
-              }}
-            >
-              {orgName}
-            </p>
-          )}
-          <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <span
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-[0.16em] uppercase whitespace-nowrap flex-shrink-0"
               style={{

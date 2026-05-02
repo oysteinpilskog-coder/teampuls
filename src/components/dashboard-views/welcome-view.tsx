@@ -8,7 +8,6 @@ import { useT } from '@/lib/i18n/context'
 
 interface WelcomeViewProps {
   visits: Visit[]
-  orgName: string
 }
 
 const CYCLE_MS = 12000
@@ -32,7 +31,7 @@ function trimSeconds(time: string): string {
  * med mykere cross-fade — DashboardClient setter dwell høyt nok til at alle
  * får vist seg minst én gang før vi roterer videre til neste view.
  */
-export function WelcomeView({ visits, orgName }: WelcomeViewProps) {
+export function WelcomeView({ visits }: WelcomeViewProps) {
   const t = useT()
   const [idx, setIdx] = useState(0)
 
@@ -56,30 +55,9 @@ export function WelcomeView({ visits, orgName }: WelcomeViewProps) {
 
   return (
     <div className="relative h-full w-full flex flex-col">
-      {/* ── Header band: org wordmark, samme posisjon som de andre viewene ── */}
-      {orgName && (
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.gentle, delay: 0.05 }}
-          className="px-10 pt-5"
-        >
-          <p
-            className="leading-none"
-            style={{
-              fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
-              fontWeight: 300,
-              fontStyle: 'italic',
-              fontVariationSettings: '"opsz" 32, "SOFT" 80',
-              fontSize: 30,
-              letterSpacing: '-0.025em',
-              color: 'var(--paper)',
-            }}
-          >
-            {orgName}
-          </p>
-        </motion.div>
-      )}
+      {/* Org-wordmarken eies av dashboard-shellen så font og posisjon er
+          konsistent på tvers av alle visninger. WelcomeView eier kun selve
+          hero-flata under. */}
 
       {/* ── Hero — sentrert, dominerer skjermen ─────────────────────────── */}
       <div className="flex-1 flex items-center justify-center px-10 -mt-8">
