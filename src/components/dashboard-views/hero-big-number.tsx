@@ -135,8 +135,11 @@ export function HeroBigNumber({ members, todayEntries, offices }: HeroBigNumberP
           {/* HQ-line — viser hvor mange av "på kontoret"-folka som er på
               hovedkontoret. Stille gull-pil, samme rad som breakdown men
               egen linje så den ikke konkurrerer med hjemme/kunde/borte
-              (som er alternativer, ikke subset). */}
-          {hq && hqMembersTotal > 0 && (
+              (som er alternativer, ikke subset). Vises så lenge et
+              kontor er flagget som HQ — selv om 0 medlemmer er knyttet
+              til det enda (resepsjonisten skal se HQ-status på TV-en
+              uansett om home_office_id er satt for alle ennå). */}
+          {hq && (
             <motion.div
               initial={{ opacity: 0, x: -6 }}
               animate={{ opacity: 1, x: 0 }}
@@ -166,9 +169,11 @@ export function HeroBigNumber({ members, todayEntries, offices }: HeroBigNumberP
                 {atHq}
               </span>
               <span style={{ color: 'rgba(255,255,255,0.55)' }}>
-                {t.pulse.atHqOf
-                  .replace('{total}', String(hqMembersTotal))
-                  .replace('{office}', hq.name)}
+                {hqMembersTotal > 0
+                  ? t.pulse.atHqOf
+                      .replace('{total}', String(hqMembersTotal))
+                      .replace('{office}', hq.name)
+                  : `på ${hq.name}`}
               </span>
             </motion.div>
           )}

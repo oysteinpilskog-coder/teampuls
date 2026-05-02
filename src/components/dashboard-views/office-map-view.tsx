@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { Star } from 'lucide-react'
 import { BreathingDot } from '@/components/breathing-dot'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { MapPin } from './map-pin'
@@ -12,6 +13,8 @@ import type { Office } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
 import { useT } from '@/lib/i18n/context'
 import { OfficeMapLabel } from './office-map-label'
+
+const HQ_GOLD = '#d4a017'
 
 interface OfficeMapViewProps {
   offices: Office[]
@@ -142,6 +145,24 @@ export function OfficeMapView({
                 auroraCompanion={auroras.office}
                 index={i}
               />
+              {/* HQ-stjerne svever rett over pinnen — gull, med matchende
+                  glød så den leser som "premium ankerpunkt" og ikke som
+                  enda en pin. Bare gjengitt når kontoret er flagget som
+                  HQ; resten av kartet forblir uberørt. */}
+              {p.office.is_hq && (
+                <g transform={`translate(0 ${-p.radius - 14})`}>
+                  <circle r={9} fill={HQ_GOLD} opacity={0.18} />
+                  <path
+                    d="M0,-6 L1.76,-1.85 6.18,-1.85 2.71,1.07 4.04,5.45 0,2.96 -4.04,5.45 -2.71,1.07 -6.18,-1.85 -1.76,-1.85 Z"
+                    fill={HQ_GOLD}
+                    stroke="rgba(0,0,0,0.35)"
+                    strokeWidth={0.5}
+                    style={{
+                      filter: `drop-shadow(0 0 4px ${HQ_GOLD}aa)`,
+                    }}
+                  />
+                </g>
+              )}
             </g>
           ))}
 
@@ -197,23 +218,44 @@ export function OfficeMapView({
         }}
       >
         <div className="flex items-center gap-5 min-w-0 overflow-hidden">
-          {placed.slice(0, 10).map(p => (
-            <div key={p.id} className="flex items-center gap-2 flex-shrink-0">
-              <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{
-                  backgroundColor: officeColor,
-                  boxShadow: `0 0 8px ${officeColor}`,
-                }}
-              />
-              <span
-                className="text-[13px] font-medium tracking-wide"
-                style={{ color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-body)' }}
-              >
-                {p.office.city ?? p.office.name}
-              </span>
-            </div>
-          ))}
+          {/* HQ first når flagget er satt — gull-stjerne i stedet for
+              standard prikk så ankerpunktet leses umiddelbart i strippen.
+              Resten av kontorene følger sort_order som før. */}
+          {[...placed]
+            .sort((a, b) => Number(b.office.is_hq) - Number(a.office.is_hq))
+            .slice(0, 10)
+            .map(p => (
+              <div key={p.id} className="flex items-center gap-2 flex-shrink-0">
+                {p.office.is_hq ? (
+                  <Star
+                    className="w-3 h-3"
+                    strokeWidth={2}
+                    fill={HQ_GOLD}
+                    style={{
+                      color: HQ_GOLD,
+                      filter: `drop-shadow(0 0 6px ${HQ_GOLD}aa)`,
+                    }}
+                  />
+                ) : (
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      backgroundColor: officeColor,
+                      boxShadow: `0 0 8px ${officeColor}`,
+                    }}
+                  />
+                )}
+                <span
+                  className="text-[13px] font-medium tracking-wide"
+                  style={{
+                    color: p.office.is_hq ? '#f5e8c4' : 'rgba(255,255,255,0.75)',
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >
+                  {p.office.city ?? p.office.name}
+                </span>
+              </div>
+            ))}
           {placed.length > 10 && (
             <span
               className="text-[12px] tabular-nums flex-shrink-0"
