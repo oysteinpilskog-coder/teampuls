@@ -1,16 +1,15 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useId } from 'react'
 import { motion } from 'framer-motion'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { MemberAvatar } from '@/components/member-avatar'
 import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
-import { getDayLabel, getISOWeek } from '@/lib/dates'
+import { getDayLabel, getISOWeek, isToday } from '@/lib/dates'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { dedupeEntriesByMemberDate } from '@/lib/entries/dedupe'
-import { AnimatedCount } from './animated-count'
 
 interface MonthViewProps {
   members: Member[]
@@ -24,7 +23,17 @@ function pad(n: number) { return String(n).padStart(2, '0') }
 
 const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
 
-export function MonthView({ members, weekDays, entries, orgName, time }: MonthViewProps) {
+// Same grouping as Oversikt's «Akkurat nå»-strip and TodayView's week-strip,
+// so the four colored segments on the bottom day-cells read identically to
+// what the team sees on the matrix.
+const DAY_STATUS_GROUPS: Array<{ key: string; statuses: EntryStatus[]; representative: EntryStatus }> = [
+  { key: 'office',   statuses: ['office'],                          representative: 'office'   },
+  { key: 'remote',   statuses: ['remote'],                          representative: 'remote'   },
+  { key: 'customer', statuses: ['customer', 'event', 'travel'],     representative: 'customer' },
+  { key: 'away',     statuses: ['vacation', 'sick', 'off'],         representative: 'vacation' },
+]
+
+export function MonthView({ members, weekDays, entries, orgName: _orgName, time }: MonthViewProps) {
   const STATUS_COLORS = useStatusColors()
   const t = useT()
   const STATUS_LABELS: Record<EntryStatus, string> = {
@@ -39,6 +48,11 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
   }
   const weekNum = getISOWeek(time)
   const year    = time.getFullYear()
+
+  // Stable id for SVG <defs> so the gradient never collides if the view ever
+  // mounts twice (carousel preload, brand-transition, …). useId() avoids the
+  // hydration-mismatch trap that hard-coded ids would have.
+  const gradientId = useId().replace(/:/g, '_') + '_week_hero'
 
   // Dedup: one Entry per (member_id, date) — keeps tallies aligned with
   // TodayView's HeroBigNumber so «Fordeling denne uken» summerer 100% og
@@ -72,31 +86,40 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
   const weekTotal = weekDeduped.length
   const topStatuses = weekTotals.filter(w => w.count > 0).sort((a, b) => b.count - a.count)
 
-  // Donut arithmetic — radius bumped to 195 to give the Fraunces week-number
-  // hero ~66px breathing room on each side so the glyph never visually
-  // collides with the ring (was 170 → tall klippet av ringen ved 1920p).
-  const DONUT_R = 195
+  // Donut arithmetic. The week-number is rendered as SVG <text> inside the
+  // same canvas so it can never be clipped by CSS line-box quirks (the old
+  // background-clip:text trick lopped the bottom of 8/3/9 even with
+  // lineHeight bumps). dominantBaseline='central' centers around y=0.
+  const DONUT_R = 200
+  const STROKE_W = 30
   const CIRC = 2 * Math.PI * DONUT_R
   let runningPct = 0
 
   return (
-    <div className="relative h-full flex flex-col px-10 pt-14 pb-4 gap-8">
-      {/* ── Header — org-navn og klokke eies av global topp-bar. */}
+    <div className="relative h-full flex flex-col px-10 pt-14 pb-6 gap-6">
+      {/* ── Header — eyebrow + Fraunces title. Org-navn og klokke eies av
+            global topp-bar. */}
       <div className="flex-shrink-0">
         <motion.div
-          initial={{ opacity: 0, y: -12 }}
+          initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...spring.gentle, delay: 0.05 }}
+          className="flex flex-col gap-1.5"
         >
+          <span
+            className="text-[11px] font-semibold tracking-[0.28em] uppercase"
+            style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
+          >
+            Uke {weekNum} · {year}
+          </span>
           <p
-            className="text-[30px] font-semibold tracking-tight leading-none"
+            className="text-[34px] font-light tracking-tight leading-none"
             style={{
-              fontFamily: 'var(--font-fraunces)',
-              background:
-                'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.7) 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
+              fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+              fontStyle: 'italic',
+              fontVariationSettings: '"opsz" 32, "SOFT" 80',
+              letterSpacing: '-0.025em',
+              color: 'var(--paper)',
             }}
           >
             {t.dashboard.month.title}
@@ -104,204 +127,181 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
         </motion.div>
       </div>
 
-      {/* ── Main content ─────────────────────────────────────────── */}
-      <div className="flex-1 grid grid-cols-3 gap-6 min-h-0">
-        {/* Donut + week number */}
+      {/* ── Hero row: donut (left) + status breakdown (right) ───────── */}
+      <div className="flex-1 grid grid-cols-12 gap-8 min-h-0">
+        {/* Donut card */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.gentle, delay: 0.2 }}
-          className="col-span-2 relative rounded-3xl flex flex-col items-center justify-center gap-6 p-8"
+          transition={{ ...spring.gentle, delay: 0.18 }}
+          className="col-span-7 relative rounded-3xl flex items-center justify-center"
           style={{
             background:
-              'linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+              'linear-gradient(155deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
           }}
         >
-          {/* Decorative concentric orbit rings — skalert opp i takt med
-              donut-radius bump (170→195). Den ytterste (540px) holder seg
-              fortsatt innenfor cardet ved alle TV-bredder fra 1280p og
-              oppover. Cardet er ikke overflow-hidden så ringene skal aldri
-              kuttes uansett aspekt. */}
-          {[540, 410, 280, 160].map((size, i) => (
-            <div
-              key={i}
-              aria-hidden
-              className="absolute rounded-full pointer-events-none"
-              style={{
-                width: size,
-                height: size,
-                border: '1px solid rgba(255,255,255,0.07)',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-              }}
+          {/* Single quiet halo behind the donut — replaces the four orbital
+              rings that were competing with the hero. */}
+          <div
+            aria-hidden
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: 560,
+              height: 560,
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              background:
+                'radial-gradient(circle, rgba(0,217,245,0.08) 0%, rgba(0,245,160,0.04) 35%, transparent 70%)',
+              filter: 'blur(20px)',
+            }}
+          />
+
+          {/* Donut SVG. Both the rings and the hero text live inside the same
+              viewBox so a) no z-index gymnastics, b) the text is glyph-perfect
+              centered, c) nothing can clip the digits. */}
+          <svg
+            width={560}
+            height={560}
+            viewBox="-280 -280 560 560"
+            className="relative"
+            aria-label={`Uke ${weekNum} ${year}`}
+          >
+            <defs>
+              <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%"  stopColor="#00F5A0" />
+                <stop offset="55%" stopColor="#00D9F5" />
+                <stop offset="100%" stopColor="#7C3AED" />
+              </linearGradient>
+            </defs>
+
+            {/* Base track */}
+            <circle
+              r={DONUT_R}
+              fill="none"
+              stroke="rgba(255,255,255,0.05)"
+              strokeWidth={STROKE_W}
             />
-          ))}
 
-          {/* Center donut */}
-          <div className="relative flex items-center justify-center" style={{ width: 520, height: 520 }}>
-            <svg width={520} height={520} viewBox="-260 -260 520 520" className="absolute inset-0">
-              {/* Base track */}
-              <circle
-                r={DONUT_R}
-                fill="none"
-                stroke="rgba(255,255,255,0.06)"
-                strokeWidth={28}
-              />
-              {/* Stacked status arcs */}
-              {weekTotal > 0 && weekTotals.map(({ status, count }) => {
-                if (count === 0) return null
-                const pct = count / weekTotal
-                const dash = CIRC * pct
-                const gap = CIRC - dash
-                const offset = -runningPct * CIRC
-                runningPct += pct
-                return (
-                  <motion.circle
-                    key={status}
-                    r={DONUT_R}
-                    fill="none"
-                    stroke={STATUS_COLORS[status].icon}
-                    strokeWidth={28}
-                    strokeLinecap="butt"
-                    strokeDasharray={`${dash} ${gap}`}
-                    initial={{ strokeDashoffset: 0, opacity: 0 }}
-                    animate={{ strokeDashoffset: offset, opacity: 1 }}
-                    transition={{
-                      strokeDashoffset: { duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.4 },
-                      opacity: { duration: 0.6, delay: 0.4 },
-                    }}
-                    transform="rotate(-90)"
-                    style={{
-                      filter: `drop-shadow(0 0 12px ${STATUS_COLORS[status].icon}66)`,
-                    }}
-                  />
-                )
-              })}
-            </svg>
-
-            <div className="relative z-10 flex flex-col items-center gap-2 text-center">
-              <span
-                className="text-[13px] font-semibold tracking-[0.22em] uppercase"
-                style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
-              >
-                Uke
-              </span>
-              {/* Hero-typografi — Fraunces opsz 144 + Nordlys-gradient,
-                  matcher klokken på TodayView. Lest fra resepsjonsdøra. */}
-              <AnimatedCount
-                value={weekNum}
-                delay={0.2}
-                duration={0.9}
-                className="tabular-nums week-hero"
-                style={{
-                  fontSize: 'clamp(160px, 18vw, 256px)',
-                  // leading-none klipper bunnen av Fraunces-glypher (særlig
-                  // 8/3/9) når background-clip:text — line-box-en er da kun
-                  // font-size høy, så kurvene som faller under baseline blir
-                  // umalt. 1.15 gir nok plass og holder fortsatt komposisjonen
-                  // tett rundt donut-senter.
-                  lineHeight: 1.15,
-                  fontWeight: 300,
-                  fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
-                  fontVariationSettings: '"opsz" 144, "SOFT" 80',
-                  letterSpacing: '-0.045em',
-                  backgroundImage: 'var(--gradient-nordlys-clock)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                  filter: 'drop-shadow(0 0 28px rgba(0,245,160,0.22))',
-                }}
-              />
-              <span
-                className="text-[22px] font-medium"
-                style={{ color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-body)' }}
-              >
-                {year}
-              </span>
-            </div>
-          </div>
-
-          {/* Week mini-grid — flex-1 cells så ingenting overflower
-              uavhengig av container-bredde. Bruker weekDeduped slik at
-              dagstellingene matcher donut og «Fordeling denne uken». */}
-          <div className="relative z-10 flex gap-6 w-full">
-            {weekDays.map((date, di) => {
-              const { weekday, day } = getDayLabel(date)
-              const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-              const dayEntries = weekDeduped.filter(e => e.date === dateStr)
-
+            {/* Stacked status arcs */}
+            {weekTotal > 0 && weekTotals.map(({ status, count }) => {
+              if (count === 0) return null
+              const pct = count / weekTotal
+              const dash = CIRC * pct
+              const gap = CIRC - dash
+              const offset = -runningPct * CIRC
+              runningPct += pct
               return (
-                <motion.div
-                  key={date.toISOString()}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ ...spring.gentle, delay: 0.6 + di * 0.05 }}
-                  className="flex-1 min-w-0 flex flex-col items-center gap-1.5"
-                >
-                  <span
-                    className="text-[13px] font-semibold uppercase tracking-[0.18em]"
-                    style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-body)' }}
-                  >
-                    {weekday}
-                  </span>
-                  <span
-                    className="tabular-nums text-[26px] font-semibold"
-                    style={{ color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-fraunces)' }}
-                  >
-                    {day}
-                  </span>
-                  <div className="flex flex-col gap-0.5 mt-0.5">
-                    {STATUS_ORDER.map(status => {
-                      const count = dayEntries.filter(e => e.status === status).length
-                      if (count === 0) return null
-                      return (
-                        <div key={status} className="flex items-center gap-1.5">
-                          <span
-                            className="w-2 h-2 rounded-full"
-                            style={{
-                              backgroundColor: STATUS_COLORS[status].icon,
-                              boxShadow: `0 0 6px ${STATUS_COLORS[status].icon}88`,
-                            }}
-                          />
-                          <span
-                            className="text-[12px] tabular-nums font-medium"
-                            style={{ color: STATUS_COLORS[status].textDark, fontFamily: 'var(--font-body)' }}
-                          >
-                            {count}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </motion.div>
+                <motion.circle
+                  key={status}
+                  r={DONUT_R}
+                  fill="none"
+                  stroke={STATUS_COLORS[status].icon}
+                  strokeWidth={STROKE_W}
+                  strokeLinecap="butt"
+                  strokeDasharray={`${dash} ${gap}`}
+                  initial={{ strokeDashoffset: 0, opacity: 0 }}
+                  animate={{ strokeDashoffset: offset, opacity: 1 }}
+                  transition={{
+                    strokeDashoffset: { duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.4 },
+                    opacity: { duration: 0.6, delay: 0.4 },
+                  }}
+                  transform="rotate(-90)"
+                  style={{
+                    filter: `drop-shadow(0 0 14px ${STATUS_COLORS[status].icon}55)`,
+                  }}
+                />
               )
             })}
-          </div>
+
+            {/* «Uke»-eyebrow */}
+            <text
+              x={0}
+              y={-78}
+              textAnchor="middle"
+              fill="rgba(255,255,255,0.4)"
+              fontFamily="var(--font-body)"
+              fontWeight={600}
+              fontSize={14}
+              letterSpacing={3}
+              style={{ textTransform: 'uppercase' }}
+            >
+              UKE
+            </text>
+
+            {/* Hero week number — Fraunces, Nordlys gradient. Inside SVG so
+                no CSS line-box can clip 8/3/9 descenders ever again. */}
+            <motion.text
+              x={0}
+              y={0}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill={`url(#${gradientId})`}
+              fontFamily='var(--font-fraunces), "Iowan Old Style", Georgia, serif'
+              fontWeight={300}
+              fontSize={216}
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ ...spring.gentle, delay: 0.5 }}
+              style={{
+                fontVariationSettings: '"opsz" 144, "SOFT" 80',
+                letterSpacing: '-0.045em',
+                filter: 'drop-shadow(0 0 28px rgba(0,245,160,0.22))',
+              }}
+            >
+              {weekNum}
+            </motion.text>
+
+            {/* Year */}
+            <text
+              x={0}
+              y={94}
+              textAnchor="middle"
+              fill="rgba(255,255,255,0.45)"
+              fontFamily="var(--font-body)"
+              fontWeight={500}
+              fontSize={22}
+            >
+              {year}
+            </text>
+          </svg>
         </motion.div>
 
-        {/* Right column */}
-        <div className="flex flex-col gap-5 min-h-0">
-          {/* Fordeling (week breakdown) */}
+        {/* Right column — Akkurat nå-style status breakdown, mirrors how the
+            distribution reads on Oversikt's TodayPulse. Below: «Borte denne
+            uken» avatar chips. */}
+        <div className="col-span-5 flex flex-col gap-5 min-h-0">
+          {/* Fordeling card */}
           <motion.div
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ ...spring.gentle, delay: 0.25 }}
-            className="rounded-2xl p-5 flex flex-col gap-4"
+            className="rounded-2xl p-5 flex flex-col gap-3"
             style={{
               background:
                 'linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
               border: '1px solid rgba(255,255,255,0.08)',
             }}
           >
-            <h3
-              className="text-[11px] font-semibold uppercase tracking-[0.22em]"
-              style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
-            >
-              Fordeling denne uken
-            </h3>
+            <div className="flex items-baseline justify-between">
+              <h3
+                className="text-[11px] font-semibold uppercase tracking-[0.22em]"
+                style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
+              >
+                Fordeling denne uken
+              </h3>
+              {weekTotal > 0 && (
+                <span
+                  className="tabular-nums text-[11px] font-semibold"
+                  style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-fraunces)' }}
+                >
+                  {weekTotal} reg.
+                </span>
+              )}
+            </div>
+
             {topStatuses.length === 0 ? (
               <p
                 className="text-[14px]"
@@ -310,52 +310,28 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
                 {t.dashboard.noMonthEntries}
               </p>
             ) : (
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-1.5">
                 {topStatuses.map(({ status, count }, i) => {
-                  const pct = Math.round((count / weekTotal) * 100)
+                  const pct = (count / weekTotal) * 100
                   const c = STATUS_COLORS[status]
                   return (
-                    <motion.div
+                    <PulseRow
                       key={status}
-                      initial={{ opacity: 0, x: 12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ ...spring.gentle, delay: 0.4 + i * 0.06 }}
-                      className="flex items-center gap-3"
-                    >
-                      <StatusIcon status={status} size={18} color={c.textDark} />
-                      <span
-                        className="text-[14px] font-medium flex-shrink-0"
-                        style={{ color: c.textDark, fontFamily: 'var(--font-body)', minWidth: 72 }}
-                      >
-                        {STATUS_LABELS[status]}
-                      </span>
-                      <div className="flex-1 h-[6px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${pct}%` }}
-                          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.5 + i * 0.06 }}
-                          className="h-full rounded-full"
-                          style={{
-                            background: `linear-gradient(90deg, ${c.icon} 0%, ${c.textDark} 100%)`,
-                            boxShadow: `0 0 10px ${c.icon}88`,
-                          }}
-                        />
-                      </div>
-                      <span
-                        className="tabular-nums text-[13px] font-semibold"
-                        style={{ color: c.textDark, fontFamily: 'var(--font-body)', minWidth: 28, textAlign: 'right' }}
-                      >
-                        {count}
-                      </span>
-                    </motion.div>
+                      status={status}
+                      label={STATUS_LABELS[status]}
+                      count={count}
+                      pct={pct}
+                      tone={c.icon}
+                      labelColor={c.textDark}
+                      delay={0.35 + i * 0.06}
+                    />
                   )
                 })}
               </div>
             )}
           </motion.div>
 
-          {/* Borte denne uken — chip-wrap so any roster size fits in-place
-              without scroll. */}
+          {/* Borte denne uken */}
           <motion.div
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
@@ -427,6 +403,211 @@ export function MonthView({ members, weekDays, entries, orgName, time }: MonthVi
           </motion.div>
         </div>
       </div>
+
+      {/* ── Bottom 7-day strip ─ daily distribution. Same visual language as
+            TodayView's week strip so navigating Nå → Uken stays coherent. */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ ...spring.gentle, delay: 0.5 }}
+        className="relative rounded-2xl px-5 py-3 flex gap-3 flex-shrink-0"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+        }}
+      >
+        {weekDays.map((date, di) => {
+          const { weekday, day } = getDayLabel(date)
+          const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+          const dayEntries = weekDeduped.filter(e => e.date === dateStr)
+          const today = isToday(date)
+
+          const counts = DAY_STATUS_GROUPS.map(g => ({
+            group: g,
+            count: dayEntries.filter(e => g.statuses.includes(e.status)).length,
+          }))
+          const registered = dayEntries.length
+          const regPct = members.length > 0 ? Math.round((registered / members.length) * 100) : 0
+
+          return (
+            <motion.div
+              key={date.toISOString()}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ...spring.gentle, delay: 0.6 + di * 0.04 }}
+              className="relative flex-1 flex flex-col items-center gap-1 rounded-xl py-2 px-2"
+              style={{
+                background: today
+                  ? 'linear-gradient(180deg, color-mix(in oklab, var(--accent-color) 20%, transparent) 0%, color-mix(in oklab, var(--accent-color) 0%, transparent) 100%)'
+                  : 'transparent',
+                border: today
+                  ? '1px solid color-mix(in oklab, var(--accent-color) 50%, transparent)'
+                  : '1px solid transparent',
+                boxShadow: today
+                  ? '0 0 32px -8px color-mix(in oklab, var(--accent-color) 65%, transparent), inset 0 1px 0 color-mix(in oklab, var(--accent-color) 30%, transparent)'
+                  : 'none',
+              }}
+            >
+              <span
+                className="text-[11px] font-semibold uppercase tracking-[0.18em]"
+                style={{
+                  color: today ? 'color-mix(in oklab, var(--accent-color) 60%, white)' : 'rgba(255,255,255,0.35)',
+                  fontFamily: 'var(--font-body)',
+                }}
+              >
+                {weekday}
+              </span>
+              <span
+                className="tabular-nums text-[20px] font-semibold leading-none"
+                style={{
+                  fontFamily: 'var(--font-fraunces)',
+                  color: today ? '#ffffff' : 'rgba(255,255,255,0.55)',
+                  // Padding-bottom på Fraunces-glyfen sikrer at descenderne på
+                  // 8/3/9 aldri klippes av line-box-en — en bug som tidligere
+                  // beit på den store week-hero, og som vi her forebygger
+                  // proaktivt på alle dag-tallene også.
+                  paddingBottom: 2,
+                }}
+              >
+                {day}
+              </span>
+
+              <div
+                className="flex w-full h-[6px] rounded-full overflow-hidden mt-0.5"
+                style={{ background: 'rgba(255,255,255,0.05)' }}
+              >
+                {counts.map(({ group, count }) =>
+                  count > 0 ? (
+                    <div
+                      key={group.key}
+                      style={{
+                        flex: count,
+                        background: STATUS_COLORS[group.representative].icon,
+                        boxShadow: `0 0 8px ${STATUS_COLORS[group.representative].icon}55`,
+                      }}
+                    />
+                  ) : null
+                )}
+              </div>
+
+              <div className="flex items-baseline gap-1">
+                <span
+                  className="tabular-nums text-[13px] font-semibold"
+                  style={{
+                    color: today ? '#ffffff' : 'rgba(255,255,255,0.6)',
+                    fontFamily: 'var(--font-fraunces)',
+                  }}
+                >
+                  {registered}
+                </span>
+                <span
+                  className="text-[10px]"
+                  style={{
+                    color: today ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.28)',
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >
+                  / {members.length} · {regPct}%
+                </span>
+              </div>
+            </motion.div>
+          )
+        })}
+      </motion.div>
     </div>
+  )
+}
+
+/**
+ * Akkurat nå-style row used in «Fordeling denne uken». Mirrors TodayPulse's
+ * PulseRow on Oversikt so navigating Oversikt → Dashboard reads as the same
+ * surface, not two designs of the same thing.
+ */
+function PulseRow({
+  status,
+  label,
+  count,
+  pct,
+  tone,
+  labelColor,
+  delay,
+}: {
+  status: EntryStatus
+  label: string
+  count: number
+  pct: number
+  tone: string
+  labelColor: string
+  delay: number
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 12 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ ...spring.gentle, delay }}
+      className="relative rounded-xl overflow-hidden flex items-center gap-3 px-3 py-2.5"
+      style={{
+        background: 'rgba(255,255,255,0.025)',
+        border: '1px solid rgba(255,255,255,0.06)',
+        boxShadow: `inset 2px 0 0 ${tone}`,
+      }}
+    >
+      {/* Icon pill — same affordance as TodayPulse */}
+      <div
+        className="flex items-center justify-center rounded-lg flex-shrink-0"
+        style={{
+          width: 28,
+          height: 28,
+          background: `color-mix(in oklab, ${tone} 18%, transparent)`,
+          boxShadow: `0 0 0 1px color-mix(in oklab, ${tone} 32%, transparent)`,
+        }}
+      >
+        <StatusIcon status={status} size={14} color={tone} />
+      </div>
+
+      {/* Label */}
+      <span
+        className="text-[14px] font-medium flex-1 truncate"
+        style={{ color: labelColor, fontFamily: 'var(--font-body)' }}
+      >
+        {label}
+      </span>
+
+      {/* Mini pct bar — sits between label and count, fills to share */}
+      <div
+        className="h-[5px] rounded-full overflow-hidden flex-shrink-0"
+        style={{ width: 84, background: 'rgba(255,255,255,0.05)' }}
+      >
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: delay + 0.05 }}
+          className="h-full rounded-full"
+          style={{
+            background: `linear-gradient(90deg, ${tone} 0%, color-mix(in oklab, ${tone} 70%, white) 100%)`,
+            boxShadow: `0 0 10px ${tone}88`,
+          }}
+        />
+      </div>
+
+      {/* Count — Fraunces, generous min-width so 100+ never reflows */}
+      <span
+        className="tabular-nums text-[20px] font-semibold leading-none flex-shrink-0 text-right"
+        style={{
+          color: 'rgba(255,255,255,0.92)',
+          fontFamily: 'var(--font-fraunces)',
+          // Generøs min-width sikrer at trekksifrede tall (100+) ikke
+          // skubber bar-bredden — og bevisst paddingBottom på 2px så
+          // descender-glyfer (8/3/9) aldri klippes av line-box-en.
+          minWidth: 36,
+          paddingBottom: 2,
+        }}
+      >
+        {count}
+      </span>
+    </motion.div>
   )
 }
