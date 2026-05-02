@@ -14,7 +14,11 @@ import { dedupeEntriesByMemberDate } from '@/lib/entries/dedupe'
 interface MonthViewProps {
   members: Member[]
   weekDays: Date[]
-  entries: Entry[]   // current week entries
+  /** Current week's entries — real rows merged with presence-assumed
+   *  syntheses (one row per member × weekday). Same merged shape som
+   *  Oversikt-matrisa, slik at donut, «Fordeling denne uken», dagstrip og
+   *  «Borte denne uken» rapporterer eksakt det matrisa viser. */
+  entries: Entry[]
   orgName: string
   time: Date
 }
