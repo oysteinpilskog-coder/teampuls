@@ -513,6 +513,57 @@ export function DashboardClient({
     return out
   }, [todayEntries, members, presenceAssumption, todayStr])
 
+  // Same speilflate som displayTodayEntries, men for hele uken — en syntetisk
+  // entry per (member × weekday) der ekte rad mangler, basert på org-en sin
+  // presence-antakelse. Uken-vy-en sin donut, «Fordeling denne uken» og
+  // «Borte denne uken» leser nå eksakt det Oversikt-matrisa viser, slik at
+  // antatte rader (per_member-default eller office_default) teller med på
+  // begge flater. Uten dette kunne en CalWin med default 'office' se full
+  // matrise på Oversikt, men nesten tomme totaler på dashboardets «Uken».
+  const displayWeekEntries = useMemo<Entry[]>(() => {
+    const memberIds = new Set(members.map(m => m.id))
+    // Index real entries by (member_id, date) — most-recently-updated wins
+    // når flere rader peker på samme dag (legacy-data fra før UNIQUE-indexen).
+    const realByKey = new Map<string, Entry>()
+    for (const e of entries) {
+      if (!memberIds.has(e.member_id)) continue
+      const key = `${e.member_id}_${e.date}`
+      const existing = realByKey.get(key)
+      if (!existing || new Date(e.updated_at).getTime() > new Date(existing.updated_at).getTime()) {
+        realByKey.set(key, e)
+      }
+    }
+    const nowIso = new Date().toISOString()
+    const out: Entry[] = []
+    for (const m of members) {
+      const assumed = inferStatus({ default_status: m.default_status }, presenceAssumption)
+      for (const dateStr of dateStrings) {
+        const real = realByKey.get(`${m.id}_${dateStr}`)
+        if (real) {
+          out.push(real)
+          continue
+        }
+        if (!assumed) continue
+        out.push({
+          id: `assumed:${m.id}:${dateStr}`,
+          org_id: m.org_id,
+          member_id: m.id,
+          date: dateStr,
+          status: assumed,
+          location_label: null,
+          note: null,
+          source: 'manual',
+          source_text: null,
+          confidence: null,
+          created_by: null,
+          created_at: nowIso,
+          updated_at: nowIso,
+        })
+      }
+    }
+    return out
+  }, [entries, members, presenceAssumption, dateStrings])
+
   // Fullscreen API
   function toggleFullscreen() {
     if (!document.fullscreenElement) {
@@ -562,7 +613,6 @@ export function DashboardClient({
             weekDays={weekDays}
             entries={entries}
             todayEntries={displayTodayEntries}
-            orgName={orgName}
             time={time}
             offices={offices}
           />
@@ -572,7 +622,7 @@ export function DashboardClient({
           <MonthView
             members={members}
             weekDays={weekDays}
-            entries={entries}
+            entries={displayWeekEntries}
             orgName={orgName}
             time={time}
           />
@@ -618,7 +668,7 @@ export function DashboardClient({
         // (mellom render og tilstand-cleanup) — VIEWS-arrayen vil oppdateres
         // og BrandTransition spiller crossfade ut til neste view.
         return activeWelcomes.length > 0 ? (
-          <WelcomeView visits={activeWelcomes} orgName={orgName} />
+          <WelcomeView visits={activeWelcomes} />
         ) : null
     }
   }
@@ -823,29 +873,29 @@ export function DashboardClient({
       <RotationHairline pct={rotationPct} />
 
       {/* Global topp-bar — org-navn (venstre) + tidssoneklokker (høyre).
-          Begge står på samme baseline (top-4), uavhengig av aktiv visning.
-          Org-navnet skjules på TodayView (A) og WelcomeView (F) — begge
-          rendrer sin egen Fraunces italic wordmark øverst-venstre, og to
-          org-navn i samme hjørne leser som dobbel-eksponering. Klokken til
-          høyre lever videre på F (resepsjonen vil gjerne se tida) men
-          skjules på A der hero-klokken eier flata. Alt skjules under
-          BrandTransition så brand-broa er helt ren. */}
-      {currentView !== 'A' && currentView !== 'F' && (
-        <div className="pointer-events-none absolute top-4 left-6 z-50">
-          <span
-            className="transition-opacity duration-500"
+          Wordmarken er samme Fraunces italic på tvers av alle visninger,
+          rendret én gang her i shellen så font og posisjon ikke hopper når
+          dashbordet roterer. A og F har sine interne wordmarks fjernet til
+          fordel for denne. Klokken til høyre lever videre på F (resepsjonen
+          vil gjerne se tida) men skjules på A der hero-klokken eier flata.
+          Alt skjules under BrandTransition så brand-broa er helt ren. */}
+      {orgName && (
+        <div className="pointer-events-none absolute top-5 left-10 z-50">
+          <p
+            className="leading-none transition-opacity duration-500"
             style={{
               opacity: pendingViewIdx === null ? 1 : 0,
-              fontFamily: 'var(--font-body)',
-              fontSize: 13,
-              fontWeight: 500,
-              letterSpacing: '0.22em',
-              textTransform: 'uppercase',
-              color: 'var(--mist)',
+              fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+              fontWeight: 300,
+              fontStyle: 'italic',
+              fontVariationSettings: '"opsz" 32, "SOFT" 80',
+              fontSize: 30,
+              letterSpacing: '-0.025em',
+              color: 'var(--paper)',
             }}
           >
             {orgName}
-          </span>
+          </p>
         </div>
       )}
       {currentView !== 'A' && (
