@@ -17,6 +17,7 @@ import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { Mail, Calendar, AlertTriangle, Send, Eye } from 'lucide-react'
+import { StatusIcon } from '@/components/icons/status-icons'
 import { addDays, format, type Locale as DateFnsLocale } from 'date-fns'
 import { nb, enGB, sv, es, lt as ltLocale } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
@@ -270,16 +271,35 @@ export function WeeklyEmailClient({
 
   return (
     <div>
-      <div className="mb-6">
+      {/* Premium hero — Fraunces, lett italic på siste ord, Nordlys-horisont */}
+      <div className="mb-10 flex flex-col gap-3">
+        <span
+          className="text-[10.5px] font-semibold uppercase tracking-[0.2em]"
+          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+        >
+          {t.settings.title}
+        </span>
         <h1
-          className="text-[24px] font-semibold"
-          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
+          className="leading-[1.0]"
+          style={{
+            color: 'var(--text-primary)',
+            fontFamily: 'var(--font-fraunces)',
+            fontWeight: 300,
+            fontSize: 'clamp(36px, 5vw, 48px)',
+            letterSpacing: '-0.028em',
+            fontFeatureSettings: '"ss01"',
+          }}
         >
           {t.settings.email.title}
         </h1>
         <p
-          className="text-[14px] mt-0.5"
-          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+          className="text-[15px] max-w-xl"
+          style={{
+            color: 'var(--text-tertiary)',
+            fontFamily: 'var(--font-body)',
+            fontWeight: 400,
+            letterSpacing: '-0.005em',
+          }}
         >
           {t.settings.email.subtitle}
         </p>
@@ -491,38 +511,70 @@ export function WeeklyEmailClient({
           </div>
         </div>
 
-        {/* Schedule resolution banner */}
+        {/* Schedule resolution banner — premium glass-card med subtil
+            ember-glow når neste sending er bekreftet, varm warning når
+            helligdag er oppdaget. */}
         <div
-          className="rounded-2xl px-5 py-4 flex items-center gap-3"
+          className="rounded-2xl px-6 py-5 flex items-start gap-4"
           style={{
-            backgroundColor: resolvedSend.willSkip
-              ? 'color-mix(in oklab, var(--warning) 10%, var(--bg-elevated))'
-              : 'var(--bg-elevated)',
+            background: resolvedSend.willSkip
+              ? 'color-mix(in oklab, var(--warning) 8%, var(--bg-elevated))'
+              : resolvedSend.holiday
+                ? 'color-mix(in oklab, var(--warning) 5%, var(--bg-elevated))'
+                : 'var(--bg-elevated)',
             border: `1px solid ${
               resolvedSend.holiday
-                ? 'color-mix(in oklab, var(--warning) 35%, transparent)'
+                ? 'color-mix(in oklab, var(--warning) 30%, transparent)'
                 : 'var(--border-subtle)'
             }`,
+            boxShadow: resolvedSend.holiday
+              ? '0 1px 0 rgba(255,255,255,0.5) inset, 0 12px 28px -16px color-mix(in oklab, var(--warning) 60%, transparent)'
+              : '0 1px 0 rgba(255,255,255,0.5) inset, 0 8px 24px -16px rgba(14,11,8,0.12)',
           }}
         >
-          {resolvedSend.holiday ? (
-            <AlertTriangle
-              className="w-4 h-4 shrink-0"
-              strokeWidth={1.75}
-              style={{ color: 'var(--warning)' }}
-            />
-          ) : (
-            <Calendar
-              className="w-4 h-4 shrink-0"
-              strokeWidth={1.75}
-              style={{ color: 'var(--accent-color)' }}
-            />
-          )}
-          <div className="flex flex-col gap-0.5 text-[13px]" style={{ fontFamily: 'var(--font-body)' }}>
-            <span style={{ color: 'var(--text-primary)' }}>
-              {t.settings.email.previewSendNote}: {weekdayLabel.toLowerCase()} {timeStr}
-              {' · '}
-              {t.settings.email.preview} ({t.settings.email.previewWeekHeading} {sampleWeekNumber}):{' '}
+          <div
+            className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center"
+            style={{
+              background: resolvedSend.holiday
+                ? 'color-mix(in oklab, var(--warning) 18%, var(--bg-subtle))'
+                : 'color-mix(in oklab, var(--accent-color) 14%, var(--bg-subtle))',
+              border: `1px solid ${
+                resolvedSend.holiday
+                  ? 'color-mix(in oklab, var(--warning) 35%, transparent)'
+                  : 'color-mix(in oklab, var(--accent-color) 30%, transparent)'
+              }`,
+            }}
+          >
+            {resolvedSend.holiday ? (
+              <AlertTriangle
+                className="w-4 h-4"
+                strokeWidth={1.75}
+                style={{ color: 'var(--warning)' }}
+              />
+            ) : (
+              <Calendar
+                className="w-4 h-4"
+                strokeWidth={1.75}
+                style={{ color: 'var(--accent-color)' }}
+              />
+            )}
+          </div>
+          <div className="flex flex-col gap-1 min-w-0 flex-1">
+            <span
+              className="text-[10.5px] font-semibold uppercase tracking-[0.18em]"
+              style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+            >
+              {t.settings.email.previewSendNote}
+            </span>
+            <span
+              className="text-[17px] leading-snug"
+              style={{
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-fraunces)',
+                fontWeight: 300,
+                letterSpacing: '-0.018em',
+              }}
+            >
               {resolvedSend.willSkip
                 ? t.settings.email.previewWillSkip
                 : t.settings.email.previewWillSendOn
@@ -530,7 +582,14 @@ export function WeeklyEmailClient({
                     .replace('{time}', timeStr)}
             </span>
             {resolvedSend.holiday && (
-              <span style={{ color: 'var(--text-tertiary)' }}>
+              <span
+                className="text-[12.5px] italic mt-0.5"
+                style={{
+                  color: 'var(--text-tertiary)',
+                  fontFamily: 'var(--font-fraunces)',
+                  fontVariationSettings: '"opsz" 14, "SOFT" 40',
+                }}
+              >
                 {t.settings.email.previewHolidayNotice
                   .replace(
                     '{date}',
@@ -704,7 +763,6 @@ function EmailPreview({
   const localeForDates: DateFnsLocale = dateFnsLocaleMap[previewLocale] ?? dateLocale
 
   const days = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i))
-  const STATUSES: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
 
   // Standard-emne i hver av de fem språkene — brukes når admin lar feltet
   // stå tomt. Default-tekst er ikke i Dictionary-strukturen siden den er
@@ -750,221 +808,420 @@ function EmailPreview({
 
   const visibleMembers = members.filter((m) => m.is_active).slice(0, 8)
 
+  // Statuser som rent faktisk dukker opp denne uka — vi viser bare disse i
+  // forklaringen, ikke alle 8. Det reduserer støy og gir mer luft.
+  const usedStatuses = new Set<EntryStatus>()
+  for (const e of entries) usedStatuses.add(e.status)
+  const legendStatuses: EntryStatus[] = (
+    ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off'] as const
+  ).filter((s) => usedStatuses.has(s))
+
+  // Premium paper-tone — varmt, ikke kalt hvitt. Speiler design-systemets
+  // `--paper`-token, men hardkodet siden e-post-render-en må være
+  // theme-uavhengig (en mottaker leser den i sin egen mailklient).
+  const PAPER = '#F7F2E8'
+  const INK = '#0E0B08'
+  const MIST = '#8A7F70'
+  const HAIRLINE = 'rgba(14, 11, 8, 0.07)'
+
   return (
     <div
-      className="rounded-2xl overflow-hidden"
+      className="rounded-[28px] overflow-hidden"
       style={{
-        background: '#FFFFFF',
-        border: '1px solid var(--border-subtle)',
-        color: '#0F172A',
+        background: PAPER,
+        border: '1px solid rgba(14,11,8,0.06)',
+        color: INK,
         fontFamily: 'var(--font-body)',
+        boxShadow:
+          '0 1px 0 rgba(255,255,255,0.6) inset, 0 30px 60px -30px rgba(14,11,8,0.18), 0 8px 24px -12px rgba(14,11,8,0.08)',
       }}
     >
-      {/* Mail headers */}
+      {/* Mail-klient header — diskret, så det er tydelig at dette ER en mail
+          uten å stjele oppmerksomhet fra selve innholdet. */}
       <div
-        className="px-5 py-3 grid grid-cols-[80px_1fr] gap-x-3 gap-y-1 text-[12.5px]"
+        className="px-6 py-3 flex items-center gap-3 text-[11px]"
         style={{
-          background: '#F8FAFC',
-          borderBottom: '1px solid #E2E8F0',
-          color: '#475569',
+          borderBottom: `1px solid ${HAIRLINE}`,
+          color: MIST,
+          background: 'rgba(14,11,8,0.015)',
         }}
       >
-        <span className="font-semibold uppercase tracking-[0.12em] text-[10.5px]">
+        <span
+          className="font-semibold uppercase tracking-[0.18em] text-[9.5px]"
+          style={{ color: MIST }}
+        >
           {previewDict.settings.email.previewFromLabel}
         </span>
-        <span style={{ color: '#0F172A' }}>
-          {fromName} &lt;{senderEmail}&gt;
+        <span style={{ color: INK, fontWeight: 500 }} className="truncate">
+          {fromName}
         </span>
-        <span className="font-semibold uppercase tracking-[0.12em] text-[10.5px]">
+        <span style={{ color: MIST }}>·</span>
+        <span
+          className="font-semibold uppercase tracking-[0.18em] text-[9.5px]"
+          style={{ color: MIST }}
+        >
           {previewDict.settings.email.previewToLabel}
         </span>
-        <span style={{ color: '#0F172A' }}>{recipientPreviewLine || currentUserEmail}</span>
-        <span className="font-semibold uppercase tracking-[0.12em] text-[10.5px]">
-          {previewDict.settings.email.previewSubjectLabel}
-        </span>
-        <span className="font-semibold" style={{ color: '#0F172A' }}>
-          {resolvedSubject}
+        <span style={{ color: INK, fontWeight: 500 }} className="truncate">
+          {recipientPreviewLine || currentUserEmail}
         </span>
       </div>
 
-      {/* Mail body */}
-      <div className="px-6 py-6 flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          {org.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={org.logo_url}
-              alt={org.name}
-              className="w-10 h-10 rounded-xl object-contain"
-              style={{ background: '#F1F5F9' }}
-            />
-          ) : (
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-[13px] font-bold"
-              style={{ background: org.primary_color, color: '#fff' }}
-            >
-              {org.name.slice(0, 2).toUpperCase()}
-            </div>
-          )}
-          <div className="flex flex-col">
-            <span
-              className="text-[18px] font-bold"
-              style={{ color: '#0F172A', fontFamily: 'var(--font-fraunces)' }}
-            >
-              {previewDict.settings.email.previewWeekHeading} {weekNumber}
-            </span>
-            <span className="text-[12px]" style={{ color: '#64748B' }}>
-              {format(weekStart, 'd. MMM', { locale: localeForDates })} –{' '}
-              {format(addDays(weekStart, 4), 'd. MMM', { locale: localeForDates })} · {org.name}
-            </span>
-          </div>
-        </div>
-
-        <p className="text-[14px] leading-relaxed" style={{ color: '#1E293B' }}>
-          {resolvedIntro}
-        </p>
-
-        {/* Team grid */}
-        <div
-          className="rounded-xl overflow-hidden"
-          style={{ border: '1px solid #E2E8F0' }}
-        >
-          <div
-            className="grid text-[11px] font-semibold uppercase tracking-[0.12em] px-3 py-2"
-            style={{
-              gridTemplateColumns: '1.6fr repeat(5, 1fr)',
-              background: '#F8FAFC',
-              color: '#475569',
-              borderBottom: '1px solid #E2E8F0',
-            }}
-          >
-            <span>{previewDict.settings.email.previewSummary}</span>
-            {days.map((d) => (
-              <span key={d.toISOString()} className="text-center">
-                {format(d, 'EEE d', { locale: localeForDates })}
-              </span>
-            ))}
-          </div>
-          {visibleMembers.length === 0 ? (
-            <div className="px-3 py-4 text-[13px] text-center" style={{ color: '#64748B' }}>
-              {previewDict.settings.email.previewNoMembers}
-            </div>
-          ) : (
-            visibleMembers.map((m, idx) => (
+      {/* HERO — store moment. Logo + uke-nummer + datointervall.
+          Nordlys-horisont under tittelen er den ene "én gang per skjerm"-
+          signaturen. Tallet er Fraunces, italic — Ember-fargen. */}
+      <div className="px-10 pt-12 pb-8 flex flex-col gap-6">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {org.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={org.logo_url}
+                alt={org.name}
+                className="w-9 h-9 rounded-xl object-contain"
+                style={{ background: 'transparent' }}
+              />
+            ) : (
               <div
-                key={m.id}
-                className="grid items-center px-3 py-2 text-[12.5px]"
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-[13px] font-bold"
                 style={{
-                  gridTemplateColumns: '1.6fr repeat(5, 1fr)',
-                  background: idx % 2 === 0 ? '#FFFFFF' : '#FAFBFC',
-                  borderTop: idx === 0 ? 'none' : '1px solid #F1F5F9',
-                  color: '#1E293B',
+                  background: `linear-gradient(135deg, ${org.primary_color} 0%, color-mix(in oklab, ${org.primary_color} 65%, #000) 100%)`,
+                  color: '#fff',
+                  fontFamily: 'var(--font-fraunces)',
                 }}
               >
-                <span className="font-medium truncate">{m.display_name}</span>
-                {days.map((d) => {
-                  const key = `${m.id}_${format(d, 'yyyy-MM-dd')}`
-                  const e = byMemberDate.get(key)
-                  return (
-                    <span key={key} className="flex justify-center">
-                      <StatusPill status={e?.status ?? null} label={e?.location_label ?? null} palette={palette} />
-                    </span>
-                  )
-                })}
+                {org.name.slice(0, 2).toUpperCase()}
               </div>
-            ))
-          )}
-        </div>
-
-        {/* Legend */}
-        <div className="flex flex-wrap gap-2 pt-2">
-          <span
-            className="text-[10.5px] font-semibold uppercase tracking-[0.12em] mr-1"
-            style={{ color: '#64748B' }}
-          >
-            {previewDict.settings.email.previewLegend}:
-          </span>
-          {STATUSES.map((s) => (
+            )}
             <span
-              key={s}
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px]"
+              className="text-[14px]"
               style={{
-                background: '#F8FAFC',
-                color: '#1E293B',
-                border: '1px solid #E2E8F0',
+                color: INK,
+                fontWeight: 500,
+                letterSpacing: '-0.01em',
               }}
             >
+              {org.name}
+            </span>
+          </div>
+          <span
+            className="text-[10.5px] font-semibold uppercase tracking-[0.18em] tabular-nums"
+            style={{ color: MIST }}
+          >
+            {format(weekStart, 'MMM yyyy', { locale: localeForDates })}
+          </span>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <h1
+            className="leading-[0.92]"
+            style={{
+              fontFamily: 'var(--font-fraunces)',
+              fontWeight: 300,
+              fontSize: 'clamp(56px, 9vw, 96px)',
+              letterSpacing: '-0.045em',
+              color: INK,
+              fontFeatureSettings: '"ss01"',
+            }}
+          >
+            {previewDict.settings.email.previewWeekHeading}{' '}
+            <em
+              style={{
+                fontStyle: 'italic',
+                color: '#B45309',
+                fontVariationSettings: '"opsz" 144, "SOFT" 80',
+              }}
+            >
+              {weekNumber}
+            </em>
+          </h1>
+
+          {/* Nordlys-horisont — én gang per skjerm */}
+          <span
+            aria-hidden
+            className="block rounded-full"
+            style={{
+              width: 56,
+              height: 2,
+              background:
+                'linear-gradient(90deg, #00F5A0 0%, #00D9F5 55%, #7C3AED 100%)',
+              boxShadow: '0 0 12px rgba(0,217,245,0.35)',
+            }}
+          />
+
+          <p
+            className="text-[16px]"
+            style={{
+              color: MIST,
+              fontWeight: 400,
+              letterSpacing: '-0.005em',
+            }}
+          >
+            {format(weekStart, 'd. MMMM', { locale: localeForDates })} –{' '}
+            {format(addDays(weekStart, 4), 'd. MMMM', { locale: localeForDates })}
+          </p>
+        </div>
+      </div>
+
+      {/* Intro — Fraunces lede-størrelse, gir mailen menneskelig stemme */}
+      <div className="px-10 pb-10">
+        <p
+          className="leading-[1.45]"
+          style={{
+            fontFamily: 'var(--font-fraunces)',
+            fontWeight: 300,
+            fontSize: 'clamp(18px, 2vw, 22px)',
+            letterSpacing: '-0.012em',
+            color: INK,
+          }}
+        >
+          {resolvedIntro}
+        </p>
+      </div>
+
+      {/* Team — hver person som en horisontal flow, ingen tabell-celler.
+          Den fulle bredden brukes så hver dag får luft. */}
+      <div className="px-10 pb-12 flex flex-col">
+        {visibleMembers.length === 0 ? (
+          <p
+            className="text-[14px] py-6 text-center italic"
+            style={{ color: MIST, fontFamily: 'var(--font-fraunces)' }}
+          >
+            {previewDict.settings.email.previewNoMembers}
+          </p>
+        ) : (
+          visibleMembers.map((m, idx) => {
+            const memberDays = days.map((d) => {
+              const key = `${m.id}_${format(d, 'yyyy-MM-dd')}`
+              return { date: d, entry: byMemberDate.get(key) ?? null }
+            })
+            const noteForRow = memberDays.find((d) => d.entry?.location_label)
+              ?.entry?.location_label
+
+            return (
+              <div
+                key={m.id}
+                className="py-5 grid gap-4 items-center"
+                style={{
+                  gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 3fr)',
+                  borderTop: idx === 0 ? 'none' : `1px solid ${HAIRLINE}`,
+                }}
+              >
+                {/* Navn + valgfri location-note som italic eyebrow */}
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span
+                    className="text-[18px] truncate"
+                    style={{
+                      color: INK,
+                      fontWeight: 500,
+                      letterSpacing: '-0.018em',
+                    }}
+                  >
+                    {m.display_name}
+                  </span>
+                  {noteForRow && (
+                    <span
+                      className="text-[12.5px] truncate italic"
+                      style={{
+                        color: MIST,
+                        fontFamily: 'var(--font-fraunces)',
+                        fontVariationSettings: '"opsz" 14, "SOFT" 40',
+                      }}
+                    >
+                      {noteForRow}
+                    </span>
+                  )}
+                </div>
+
+                {/* 5 dager som premium kapseler — ingen rammeboks rundt */}
+                <div className="flex items-stretch gap-2 min-w-0">
+                  {memberDays.map(({ date, entry }) => (
+                    <DayCapsule
+                      key={date.toISOString()}
+                      date={date}
+                      status={entry?.status ?? null}
+                      palette={palette}
+                      dateLocale={localeForDates}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {/* Forklaring — kun statusene som faktisk er i bruk denne uka.
+          Subtil, ikke en boks, bare en linje med farge-prikker. */}
+      {legendStatuses.length > 0 && (
+        <div
+          className="px-10 py-6 flex flex-wrap gap-x-4 gap-y-2"
+          style={{ borderTop: `1px solid ${HAIRLINE}` }}
+        >
+          {legendStatuses.map((s) => (
+            <span
+              key={s}
+              className="inline-flex items-center gap-2 text-[12px]"
+              style={{ color: MIST }}
+            >
               <span
-                className="inline-block w-2 h-2 rounded-full"
-                style={{ background: palette[s] }}
+                className="inline-block w-1.5 h-1.5 rounded-full"
+                style={{
+                  background: palette[s],
+                  boxShadow: `0 0 6px ${palette[s]}66`,
+                }}
               />
               {previewDict.status[s]}
             </span>
           ))}
         </div>
+      )}
 
-        <p className="text-[12px] pt-2" style={{ color: '#64748B' }}>
-          {previewDict.settings.email.previewFooter.replace(
-            '{inboundEmail}',
-            org.inbound_email ?? '—'
-          )}
-        </p>
-
-        <div
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11.5px] mt-1"
+      {/* Footer — minimal, italic accent på inbound-mailen */}
+      <div
+        className="px-10 py-8 flex flex-col gap-3"
+        style={{ borderTop: `1px solid ${HAIRLINE}` }}
+      >
+        <p
+          className="text-[14px] leading-relaxed"
           style={{
-            background: '#F1F5F9',
-            color: '#475569',
-            border: '1px solid #E2E8F0',
+            fontFamily: 'var(--font-fraunces)',
+            fontWeight: 300,
+            color: INK,
+            fontVariationSettings: '"opsz" 18, "SOFT" 60',
           }}
         >
-          <Send className="w-3 h-3" strokeWidth={1.75} />
-          <span>
-            {recipientList.length > 0
-              ? `${recipientList.length} mottaker${recipientList.length === 1 ? '' : 'e'}`
-              : '—'}
-          </span>
-          <span style={{ color: '#94A3B8' }}>·</span>
-          <Mail className="w-3 h-3" strokeWidth={1.75} />
-          <span>{org.timezone}</span>
-        </div>
+          {previewDict.settings.email.previewFooter
+            .replace('{inboundEmail}', '')
+            .trim()
+            .replace(/\.$/, '')}
+        </p>
+        <a
+          className="text-[15px] inline-flex items-center gap-2 self-start italic"
+          style={{
+            fontFamily: 'var(--font-fraunces)',
+            color: '#B45309',
+            textDecoration: 'none',
+            borderBottom: '1px solid rgba(180,83,9,0.35)',
+            paddingBottom: 1,
+          }}
+          href={`mailto:${org.inbound_email ?? ''}`}
+        >
+          {org.inbound_email ?? '—'}
+        </a>
+      </div>
+
+      {/* TeamPulse-signet helt nederst — diskret, paper bg-glow */}
+      <div
+        className="px-10 py-5 flex items-center justify-between text-[10.5px] uppercase tracking-[0.2em]"
+        style={{
+          color: MIST,
+          background: 'rgba(14,11,8,0.025)',
+          borderTop: `1px solid ${HAIRLINE}`,
+          fontWeight: 500,
+        }}
+      >
+        <span>TeamPulse</span>
+        <span className="tabular-nums">{org.timezone}</span>
       </div>
     </div>
   )
 }
 
-function StatusPill({
+/**
+ * En "dag-kapsel" — den minste byggeklossen i den nye preview-en.
+ *
+ * Top: ukedag + dato (eyebrow / mono-feel via Manrope tracking)
+ * Bunn: subtil bakgrunn matchende statusen + ikon + label
+ *
+ * Ingen status → bare en blass paper-flate. Det er bevisst — vi vil ikke
+ * pepre mailen med "ikke registrert"-merker.
+ */
+function DayCapsule({
+  date,
   status,
-  label,
   palette,
+  dateLocale,
 }: {
+  date: Date
   status: EntryStatus | null
-  label: string | null
   palette: ReturnType<typeof mergeHexColors>
+  dateLocale: DateFnsLocale
 }) {
+  const weekday = format(date, 'EEE', { locale: dateLocale })
+  const day = format(date, 'd', { locale: dateLocale })
+
   if (!status) {
     return (
-      <span
-        className="inline-block w-5 h-5 rounded-md"
-        style={{ background: '#F1F5F9', border: '1px dashed #CBD5E1' }}
-      />
+      <div
+        className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 rounded-2xl py-3"
+        style={{
+          background: 'rgba(14,11,8,0.025)',
+          color: '#8A7F70',
+          minHeight: 64,
+        }}
+      >
+        <span
+          className="text-[10px] uppercase tracking-[0.16em] font-semibold"
+          style={{ opacity: 0.7 }}
+        >
+          {weekday}
+        </span>
+        <span
+          className="text-[18px] tabular-nums"
+          style={{
+            fontFamily: 'var(--font-fraunces)',
+            fontWeight: 300,
+            opacity: 0.55,
+          }}
+        >
+          {day}
+        </span>
+      </div>
     )
   }
+
   const color = palette[status]
   return (
-    <span
-      title={label ?? status}
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-semibold uppercase tracking-[0.06em]"
+    <div
+      className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 rounded-2xl py-3 relative overflow-hidden"
       style={{
-        background: color,
+        background: `linear-gradient(155deg, ${color} 0%, color-mix(in oklab, ${color} 78%, #000) 100%)`,
         color: '#FFFFFF',
-        textShadow: '0 1px 1px rgba(0,0,0,0.18)',
-        minWidth: 28,
-        justifyContent: 'center',
+        minHeight: 64,
+        boxShadow: `0 6px 18px -10px ${color}99, inset 0 1px 0 rgba(255,255,255,0.18)`,
       }}
     >
-      {status.slice(0, 3)}
-    </span>
+      {/* Subtil glans øverst */}
+      <span
+        aria-hidden
+        className="absolute top-0 left-0 right-0 pointer-events-none"
+        style={{
+          height: '40%',
+          background:
+            'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.04) 70%, transparent 100%)',
+        }}
+      />
+      <span
+        className="text-[10px] uppercase tracking-[0.16em] font-semibold"
+        style={{ opacity: 0.85, textShadow: '0 1px 1px rgba(0,0,0,0.18)' }}
+      >
+        {weekday}
+      </span>
+      <div className="flex items-center gap-1.5">
+        <StatusIcon status={status} size={11} color="#FFFFFF" />
+        <span
+          className="text-[16px] tabular-nums leading-none"
+          style={{
+            fontFamily: 'var(--font-fraunces)',
+            fontWeight: 300,
+            textShadow: '0 1px 1px rgba(0,0,0,0.16)',
+          }}
+        >
+          {day}
+        </span>
+      </div>
+    </div>
   )
 }
 
