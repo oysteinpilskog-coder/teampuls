@@ -841,12 +841,13 @@ export function DashboardClient({
       )}
 
       {/* Gjeste-chip: stille pille som forteller resepsjonen og forbi-passerende
-          at det venter besøk i dag — uten å avsløre hvem. Synlig på alle views,
-          fader bort på Velkomst-slide F (besøkende skal ikke møte sin egen
-          counter idet de hilses) og under BrandTransition. */}
+          at det venter besøk i dag — uten å avsløre hvem. Lever kun på View A
+          (Dagens puls), der «i dag» hører hjemme; B/C/D/E ville bare repetert
+          samme info fire ganger til. Velkomst-slide F eier selve hilse-
+          øyeblikket når besøkende faktisk kommer. */}
       <GuestChip
         count={todaysVisits.length}
-        visible={pendingViewIdx === null && currentView !== 'F'}
+        visible={pendingViewIdx === null && currentView === 'A'}
       />
 
       <OffiviewSignature
