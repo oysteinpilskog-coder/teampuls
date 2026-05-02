@@ -21,7 +21,9 @@ import { addDays, format, type Locale as DateFnsLocale } from 'date-fns'
 import { nb, enGB, sv, es, lt as ltLocale } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 import { useT, useLocale } from '@/lib/i18n/context'
-import type { Dictionary } from '@/lib/i18n/types'
+import type { Dictionary, Locale } from '@/lib/i18n/types'
+import { LOCALE_META, LOCALES } from '@/lib/i18n/types'
+import { resolveMemberLocale, dictForLocale } from '@/lib/i18n/member-locale'
 import type { Organization, Member, EntryStatus } from '@/lib/supabase/types'
 import { getHolidayForDate, isSupportedCountry } from '@/lib/holidays'
 import { spring } from '@/lib/motion'
@@ -39,12 +41,19 @@ type SampleEntry = {
 
 type SlimMember = Pick<
   Member,
-  'id' | 'display_name' | 'email' | 'role' | 'is_active' | 'home_office_id'
+  'id' | 'display_name' | 'email' | 'role' | 'is_active' | 'home_office_id' | 'preferred_locale'
 >
+
+type SlimOffice = {
+  id: string
+  name: string
+  country_code: string | null
+}
 
 interface Props {
   org: Organization
   members: SlimMember[]
+  offices: SlimOffice[]
   sampleEntries: SampleEntry[]
   sampleWeekNumber: number
   sampleWeekStartIso: string
@@ -68,6 +77,7 @@ const inputStyle: React.CSSProperties = {
 export function WeeklyEmailClient({
   org: initialOrg,
   members,
+  offices,
   sampleEntries,
   sampleWeekNumber,
   sampleWeekStartIso,
@@ -93,6 +103,12 @@ export function WeeklyEmailClient({
   const [subject, setSubject] = useState(initialOrg.weekly_email_subject ?? '')
   const [intro, setIntro] = useState(initialOrg.weekly_email_intro ?? '')
   const [saving, setSaving] = useState(false)
+
+  // Hvilken språkversjon av preview-en admin ser akkurat nå.
+  // Default = admin sin egen UI-locale, men hen kan bla mellom alle 5
+  // for å se hvordan svensk/litauisk osv. ser ut.
+  const [previewLocale, setPreviewLocale] = useState<Locale>(locale)
+
 
   // ---- Helpers --------------------------------------------------------
 
@@ -136,23 +152,48 @@ export function WeeklyEmailClient({
     return { date: configuredSendDate, willSkip: true, holiday: holiday.name }
   }, [configuredSendDate, sampleWeekStart, country, holidayStrategy])
 
+  // recipientList = den faktiske mottaker-listen som senderen vil iterere
+  // over. Hver oppføring bærer sin egen `locale` slik at senderen kan
+  // velge riktig språkpakke per mottaker (Vilnius → litauisk osv.).
+  // Custom-mottakere arver org sin default-locale siden vi ikke vet
+  // hvem de er.
   const recipientList = useMemo(() => {
     if (recipients === 'admins_only') {
       return members
         .filter((m) => m.role === 'admin' && m.email)
-        .map((m) => ({ name: m.display_name, email: m.email }))
+        .map((m) => ({
+          name: m.display_name,
+          email: m.email,
+          locale: resolveMemberLocale(m, offices, initialOrg),
+        }))
     }
     if (recipients === 'custom') {
+      const fallback = resolveMemberLocale({}, offices, initialOrg)
       return customRecipientsText
         .split('\n')
         .map((s) => s.trim())
         .filter(Boolean)
-        .map((email) => ({ name: email.split('@')[0], email }))
+        .map((email) => ({ name: email.split('@')[0], email, locale: fallback }))
     }
     return members
       .filter((m) => m.email)
-      .map((m) => ({ name: m.display_name, email: m.email }))
-  }, [recipients, members, customRecipientsText])
+      .map((m) => ({
+        name: m.display_name,
+        email: m.email,
+        locale: resolveMemberLocale(m, offices, initialOrg),
+      }))
+  }, [recipients, members, customRecipientsText, offices, initialOrg])
+
+  // Språkfordeling over `recipientList`. Vises som pille-rad over
+  // preview-en så admin med en gang ser at "5 svensk · 3 engelsk · …"
+  // matcher landsfordelingen i kontorene.
+  const localeDistribution = useMemo(() => {
+    const counts = new Map<Locale, number>()
+    for (const r of recipientList) {
+      counts.set(r.locale, (counts.get(r.locale) ?? 0) + 1)
+    }
+    return counts
+  }, [recipientList])
 
   const isDirty =
     enabled !== (org.weekly_email_enabled ?? false) ||
@@ -526,6 +567,73 @@ export function WeeklyEmailClient({
             {t.settings.email.previewDesc}
           </p>
 
+          {/* Språkfordeling — viser umiddelbart at en SE-mottaker får svensk
+              mail, en LT-mottaker litauisk osv. */}
+          {localeDistribution.size > 0 && (
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span
+                className="text-[11px] font-semibold uppercase tracking-[0.16em] mr-1"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                {t.settings.email.languageDistribution}
+              </span>
+              {LOCALES.filter((l) => (localeDistribution.get(l) ?? 0) > 0).map((l) => (
+                <span
+                  key={l}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px]"
+                  style={{
+                    background: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-secondary)',
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >
+                  <span aria-hidden>{LOCALE_META[l].flag}</span>
+                  <span>{LOCALE_META[l].nativeName}</span>
+                  <span className="tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                    {localeDistribution.get(l)}
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Språk-velger for selve preview-renderingen */}
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <span
+              className="text-[11px] font-semibold uppercase tracking-[0.16em] mr-1"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              {t.settings.email.previewAsLanguage}
+            </span>
+            {LOCALES.map((l) => {
+              const active = previewLocale === l
+              return (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setPreviewLocale(l)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] transition-[background,border-color] duration-150"
+                  style={{
+                    background: active
+                      ? 'color-mix(in oklab, var(--accent-color) 14%, var(--bg-subtle))'
+                      : 'var(--bg-subtle)',
+                    border: `1px solid ${
+                      active
+                        ? 'color-mix(in oklab, var(--accent-color) 45%, transparent)'
+                        : 'var(--border-subtle)'
+                    }`,
+                    color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >
+                  <span aria-hidden>{LOCALE_META[l].flag}</span>
+                  <span>{LOCALE_META[l].nativeName}</span>
+                </button>
+              )
+            })}
+          </div>
+
           <EmailPreview
             org={org}
             members={members}
@@ -537,7 +645,8 @@ export function WeeklyEmailClient({
             intro={intro}
             palette={palette}
             currentUserEmail={currentUserEmail}
-            t={t}
+            previewLocale={previewLocale}
+            uiDict={t}
             dateLocale={dateLocale}
           />
         </div>
@@ -561,7 +670,8 @@ function EmailPreview({
   intro,
   palette,
   currentUserEmail,
-  t,
+  previewLocale,
+  uiDict,
   dateLocale,
 }: {
   org: Organization
@@ -569,24 +679,56 @@ function EmailPreview({
   entries: SampleEntry[]
   weekNumber: number
   weekStart: Date
-  recipientList: { name: string; email: string }[]
+  recipientList: { name: string; email: string; locale: Locale }[]
   subject: string
   intro: string
   palette: ReturnType<typeof mergeHexColors>
   currentUserEmail: string
-  t: Dictionary
+  previewLocale: Locale
+  uiDict: Dictionary
   dateLocale: DateFnsLocale
 }) {
+  // Mailen render-er på `previewLocale`. Både dictionary og date-fns-
+  // locale følger med så datoformatet ("Mon 4" vs "ma 4") matcher
+  // mottakerens språk i preview-en. `uiDict` (admin sin UI-locale)
+  // er bare med for at toast-er o.l. utenfor selve mailen.
+  void uiDict
+  const previewDict = dictForLocale(previewLocale)
+  const dateFnsLocaleMap: Record<Locale, DateFnsLocale> = {
+    no: nb,
+    en: enGB,
+    sv: sv,
+    es: es,
+    lt: ltLocale,
+  }
+  const localeForDates: DateFnsLocale = dateFnsLocaleMap[previewLocale] ?? dateLocale
+
   const days = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i))
   const STATUSES: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
 
-  const resolvedSubject = (subject.trim() || `Ukens plan — ${org.name}`)
+  // Standard-emne i hver av de fem språkene — brukes når admin lar feltet
+  // stå tomt. Default-tekst er ikke i Dictionary-strukturen siden den er
+  // template-basert.
+  const DEFAULT_SUBJECTS: Record<Locale, string> = {
+    no: `Ukens plan — ${org.name}`,
+    en: `Plan for the week — ${org.name}`,
+    sv: `Veckans plan — ${org.name}`,
+    es: `Plan semanal — ${org.name}`,
+    lt: `Savaitės planas — ${org.name}`,
+  }
+  const DEFAULT_INTRO: Record<Locale, string> = {
+    no: 'Hei alle sammen! Her er ukens oversikt — gi beskjed hvis noe må justeres.',
+    en: "Hi everyone! Here's the plan for the week — let me know if anything needs adjusting.",
+    sv: 'Hej alla! Här är veckans översikt — säg till om något ska justeras.',
+    es: '¡Hola a todos! Aquí está el plan de la semana — avísame si hay que ajustar algo.',
+    lt: 'Sveiki visi! Štai šios savaitės apžvalga — praneškite, jei reikia ką nors koreguoti.',
+  }
+
+  const resolvedSubject = (subject.trim() || DEFAULT_SUBJECTS[previewLocale])
     .replace(/\{orgName\}/g, org.name)
     .replace(/\{weekNumber\}/g, String(weekNumber))
 
-  const resolvedIntro =
-    intro.trim() ||
-    'Hei alle sammen! Her er ukens oversikt — gi beskjed hvis noe må justeres.'
+  const resolvedIntro = intro.trim() || DEFAULT_INTRO[previewLocale]
 
   const senderEmail =
     org.inbound_email && org.inbound_email.includes('@')
@@ -628,17 +770,17 @@ function EmailPreview({
         }}
       >
         <span className="font-semibold uppercase tracking-[0.12em] text-[10.5px]">
-          {t.settings.email.previewFromLabel}
+          {previewDict.settings.email.previewFromLabel}
         </span>
         <span style={{ color: '#0F172A' }}>
           {fromName} &lt;{senderEmail}&gt;
         </span>
         <span className="font-semibold uppercase tracking-[0.12em] text-[10.5px]">
-          {t.settings.email.previewToLabel}
+          {previewDict.settings.email.previewToLabel}
         </span>
         <span style={{ color: '#0F172A' }}>{recipientPreviewLine || currentUserEmail}</span>
         <span className="font-semibold uppercase tracking-[0.12em] text-[10.5px]">
-          {t.settings.email.previewSubjectLabel}
+          {previewDict.settings.email.previewSubjectLabel}
         </span>
         <span className="font-semibold" style={{ color: '#0F172A' }}>
           {resolvedSubject}
@@ -669,11 +811,11 @@ function EmailPreview({
               className="text-[18px] font-bold"
               style={{ color: '#0F172A', fontFamily: 'var(--font-fraunces)' }}
             >
-              {t.settings.email.previewWeekHeading} {weekNumber}
+              {previewDict.settings.email.previewWeekHeading} {weekNumber}
             </span>
             <span className="text-[12px]" style={{ color: '#64748B' }}>
-              {format(weekStart, 'd. MMM', { locale: dateLocale })} –{' '}
-              {format(addDays(weekStart, 4), 'd. MMM', { locale: dateLocale })} · {org.name}
+              {format(weekStart, 'd. MMM', { locale: localeForDates })} –{' '}
+              {format(addDays(weekStart, 4), 'd. MMM', { locale: localeForDates })} · {org.name}
             </span>
           </div>
         </div>
@@ -696,16 +838,16 @@ function EmailPreview({
               borderBottom: '1px solid #E2E8F0',
             }}
           >
-            <span>{t.settings.email.previewSummary}</span>
+            <span>{previewDict.settings.email.previewSummary}</span>
             {days.map((d) => (
               <span key={d.toISOString()} className="text-center">
-                {format(d, 'EEE d', { locale: dateLocale })}
+                {format(d, 'EEE d', { locale: localeForDates })}
               </span>
             ))}
           </div>
           {visibleMembers.length === 0 ? (
             <div className="px-3 py-4 text-[13px] text-center" style={{ color: '#64748B' }}>
-              {t.settings.email.previewNoMembers}
+              {previewDict.settings.email.previewNoMembers}
             </div>
           ) : (
             visibleMembers.map((m, idx) => (
@@ -740,7 +882,7 @@ function EmailPreview({
             className="text-[10.5px] font-semibold uppercase tracking-[0.12em] mr-1"
             style={{ color: '#64748B' }}
           >
-            {t.settings.email.previewLegend}:
+            {previewDict.settings.email.previewLegend}:
           </span>
           {STATUSES.map((s) => (
             <span
@@ -756,13 +898,13 @@ function EmailPreview({
                 className="inline-block w-2 h-2 rounded-full"
                 style={{ background: palette[s] }}
               />
-              {t.status[s]}
+              {previewDict.status[s]}
             </span>
           ))}
         </div>
 
         <p className="text-[12px] pt-2" style={{ color: '#64748B' }}>
-          {t.settings.email.previewFooter.replace(
+          {previewDict.settings.email.previewFooter.replace(
             '{inboundEmail}',
             org.inbound_email ?? '—'
           )}
