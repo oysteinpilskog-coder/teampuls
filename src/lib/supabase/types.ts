@@ -179,6 +179,9 @@ export interface Member {
   birthday_visible?: boolean
   /** Default TRUE: work anniversaries are public, but a member can still hide theirs. */
   anniversary_visible?: boolean
+  /** Eksplisitt språkpreferanse for utgående e-post.
+   *  NULL = utled fra office.country_code, så fall tilbake til org-default. */
+  preferred_locale?: 'no' | 'en' | 'sv' | 'es' | 'lt' | null
   created_at: string
   updated_at: string
 }
