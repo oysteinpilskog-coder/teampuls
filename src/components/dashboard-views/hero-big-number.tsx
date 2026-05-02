@@ -1,8 +1,9 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { Star } from 'lucide-react'
 import { useStatusColors } from '@/lib/status-colors/context'
-import type { Entry, Member } from '@/lib/supabase/types'
+import type { Entry, Member, Office } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { AnimatedCount } from './animated-count'
@@ -10,6 +11,7 @@ import { AnimatedCount } from './animated-count'
 interface HeroBigNumberProps {
   members: Member[]
   todayEntries: Entry[] // deduped: one entry per member
+  offices?: Office[]
 }
 
 /**
@@ -21,7 +23,7 @@ interface HeroBigNumberProps {
  * groups (home, customer, away) become small chips underneath, and the
  * registered % sits as a quiet ring in the corner.
  */
-export function HeroBigNumber({ members, todayEntries }: HeroBigNumberProps) {
+export function HeroBigNumber({ members, todayEntries, offices }: HeroBigNumberProps) {
   const t = useT()
   const STATUS_COLORS = useStatusColors()
 
@@ -37,6 +39,21 @@ export function HeroBigNumber({ members, todayEntries }: HeroBigNumberProps) {
   const total = members.length
   const registered = todayEntries.length
   const pct = total > 0 ? Math.round((registered / total) * 100) : 0
+
+  // HQ-counter: hvor mange av "på kontoret"-folka er på selve hovedkontoret.
+  // Antagelse: status='office' + member.home_office_id=hq.id ⇒ på HQ. Det
+  // dekker det vanlige tilfellet uten at vi trenger eksplisitt office_id på
+  // entries. Hvis ingen org har markert HQ er hq null og linja skjules.
+  const hq = offices?.find(o => o.is_hq) ?? null
+  const memberById = new Map(members.map(m => [m.id, m]))
+  const atHq = hq
+    ? todayEntries.filter(
+        e => e.status === 'office' && memberById.get(e.member_id)?.home_office_id === hq.id,
+      ).length
+    : 0
+  const hqMembersTotal = hq
+    ? members.filter(m => m.home_office_id === hq.id).length
+    : 0
 
   return (
     <motion.section
@@ -114,6 +131,47 @@ export function HeroBigNumber({ members, todayEntries }: HeroBigNumberProps) {
               </span>
             )}
           </div>
+
+          {/* HQ-line — viser hvor mange av "på kontoret"-folka som er på
+              hovedkontoret. Stille gull-pil, samme rad som breakdown men
+              egen linje så den ikke konkurrerer med hjemme/kunde/borte
+              (som er alternativer, ikke subset). */}
+          {hq && hqMembersTotal > 0 && (
+            <motion.div
+              initial={{ opacity: 0, x: -6 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ ...spring.gentle, delay: 0.55 }}
+              className="inline-flex items-baseline gap-1.5 text-[13px]"
+              style={{
+                color: 'rgba(255,255,255,0.78)',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              <Star
+                className="w-3 h-3 self-center shrink-0"
+                strokeWidth={2}
+                fill="currentColor"
+                style={{
+                  color: '#d4a017',
+                  filter: 'drop-shadow(0 0 6px rgba(212,160,23,0.55))',
+                }}
+              />
+              <span
+                className="tabular-nums font-semibold"
+                style={{
+                  fontFamily: 'var(--font-fraunces)',
+                  color: 'rgba(255,255,255,0.92)',
+                }}
+              >
+                {atHq}
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.55)' }}>
+                {t.pulse.atHqOf
+                  .replace('{total}', String(hqMembersTotal))
+                  .replace('{office}', hq.name)}
+              </span>
+            </motion.div>
+          )}
         </div>
       </div>
 

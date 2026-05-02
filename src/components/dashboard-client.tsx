@@ -564,6 +564,7 @@ export function DashboardClient({
             todayEntries={displayTodayEntries}
             orgName={orgName}
             time={time}
+            offices={offices}
           />
         )
       case 'B':
