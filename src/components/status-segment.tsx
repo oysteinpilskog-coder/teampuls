@@ -243,16 +243,21 @@ export function StatusSegment({
         })}
       </div>
 
-      {/* Today dot for multi-day segment — violet accent, matches nav "nå" dot */}
+      {/* Today dot for multi-day segment — violet accent, matches nav "nå" dot.
+          Position math: the segment is one grid item that spans N cells, so its
+          width includes (N-1) gutters of 8px. To land the dot on the matrix's
+          today chord (column center), we measure column center in pixel-space
+          rather than as a flat percentage of the segment — otherwise the dot
+          drifts left/right off the line for any T ≠ (N-1)/2. */}
       {!hideToday && !singleDay && todayIdx !== -1 && (
         <motion.div
           className="absolute pointer-events-none rounded-full z-30"
           style={{
             top: '4px',
-            left: `${((todayIdx + 0.5) / span) * 100}%`,
+            left: `calc((100% - ${(span - 1) * 8}px) * ${(todayIdx + 0.5) / span} + ${todayIdx * 8}px)`,
             transform: 'translateX(-50%)',
-            width: 5,
-            height: 5,
+            width: status === 'customer' || status === 'travel' ? 7 : 5,
+            height: status === 'customer' || status === 'travel' ? 7 : 5,
             backgroundColor: 'var(--lg-accent)',
             boxShadow:
               '0 0 0 2px color-mix(in oklab, var(--lg-accent) 22%, transparent), 0 0 6px var(--lg-accent-glow)',
