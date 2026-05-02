@@ -234,26 +234,61 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
   // Maks ett HQ per org. Vi nullstiller andre lokalt og remote først,
   // så markerer det valgte. Partial unique index i DB beskytter mot
   // race conditions hvis to admins toggler samtidig.
+  //
+  // Bevisst .select() etter UPDATE: når RLS avviser stille (returnerer
+  // tom array uten error), trenger vi å vite det — ellers ser brukeren
+  // optimistic UI som flipper tilbake ved neste page load uten beskjed.
   async function handleToggleHq(target: Office) {
     const supabase = createClient()
     const next = !target.is_hq
+
+    // Optimistic
     setOffices(prev => prev.map(o => ({
       ...o,
       is_hq: o.id === target.id ? next : (next ? false : o.is_hq),
     })))
+
+    function rollback() {
+      setOffices(prev => prev.map(o => ({
+        ...o,
+        is_hq: o.id === target.id ? !next : o.is_hq,
+      })))
+    }
+
     if (next) {
-      const { error: clearErr } = await supabase
+      const { data: cleared, error: clearErr } = await supabase
         .from('offices')
         .update({ is_hq: false })
         .eq('org_id', orgId)
         .eq('is_hq', true)
-      if (clearErr) { toast.error(t.common.errorShort); return }
+        .select()
+      if (clearErr) {
+        toast.error(`HQ-rens feilet: ${clearErr.message}`)
+        rollback()
+        return
+      }
+      // cleared kan trygt være tom (det er ingen forrige HQ å nullstille).
+      void cleared
     }
-    const { error } = await supabase
+
+    const { data, error } = await supabase
       .from('offices')
       .update({ is_hq: next })
       .eq('id', target.id)
-    if (error) { toast.error(t.common.errorShort); return }
+      .select()
+
+    if (error) {
+      toast.error(`HQ-update feilet: ${error.message}`)
+      rollback()
+      return
+    }
+    if (!data || data.length === 0) {
+      // RLS avviste stille, eller raden finnes ikke. Begge betyr at
+      // optimistic UI lyver — rull tilbake og fortell brukeren.
+      toast.error('Ingen rader oppdatert — sjekk admin-rettighet eller om kontoret eksisterer.')
+      rollback()
+      return
+    }
     toast.success(next ? t.settings.offices.toastHqSet : t.settings.offices.toastHqUnset)
   }
 
