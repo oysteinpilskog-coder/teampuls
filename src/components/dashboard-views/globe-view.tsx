@@ -228,8 +228,14 @@ function ActiveOfficeOverlay({
           // and don't dance with the rotating globe. Vertical centre
           // gives the city name top-billing without competing with the
           // header. Pointer-events disabled — TV surface is read-only.
-          className="absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none"
-          style={{ maxWidth: '38%' }}
+          //
+          // Width budget: 44 % of the canvas — wide enough to fit
+          // «Newcastle upon Tyne» italic at 88 px without clipping,
+          // narrow enough that the globe stays the visual centre of
+          // gravity. `overflow-visible` so descender + italic skew
+          // don't get sliced by an inadvertent overflow:hidden parent.
+          className="absolute right-12 top-1/2 -translate-y-1/2 pointer-events-none"
+          style={{ width: '44%', maxWidth: 560, overflow: 'visible' }}
         >
           <ActiveOfficeCard
             city={active.city}
@@ -293,7 +299,14 @@ function ActiveOfficeCard({
         {activeNowInLabel}
       </p>
       <p
-        className="mt-2 text-[88px] font-semibold leading-[0.92] tracking-tight"
+        // Italic serif rendering needs a touch of right padding so
+        // the descender of the final glyph (especially «l» / «y» in
+        // Fraunces italic, which leans further right than upright
+        // metrics suggest) doesn't get clipped by the parent's
+        // bounding rect. Auto font-size shrinks long names down to
+        // 56 px so we never run off-screen — short names still get
+        // the full 88 px treatment.
+        className="mt-2 font-semibold leading-[0.92] tracking-tight"
         style={{
           fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
           background:
@@ -302,6 +315,10 @@ function ActiveOfficeCard({
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
           fontStyle: 'italic',
+          fontSize: city.length > 14 ? 56 : city.length > 10 ? 72 : 88,
+          paddingRight: 12,
+          wordBreak: 'normal',
+          overflowWrap: 'normal',
         }}
       >
         {city}
