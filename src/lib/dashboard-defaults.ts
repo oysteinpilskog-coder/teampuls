@@ -21,6 +21,9 @@ export const DEFAULT_VIEW_DURATIONS: Record<DashboardViewKey, number> = {
   D: 15,
   E: 20,
   F: 30,
+  // Globus: long enough that the auto-tour can land on every office once
+  // (~6.4s/office × ~5 offices = ~32s) before the rotation hands off.
+  G: 32,
 }
 
 /**

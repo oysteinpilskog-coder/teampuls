@@ -12,6 +12,8 @@
  *    via a snippet without redeploying the app.
  */
 
+import type { DashboardViewKey } from './supabase/types'
+
 const STORAGE_KEY = 'offiview:analytics_events'
 const MAX_STORED = 100
 
@@ -48,7 +50,7 @@ export function track(event: string, props: Props = {}): void {
 }
 
 export interface BrandImpressionProps extends Props {
-  view_key: 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+  view_key: DashboardViewKey
   dwell_sec: number
   org_id: string
 }

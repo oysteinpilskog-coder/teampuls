@@ -19,14 +19,15 @@ export type PresenceAssumption = 'none' | 'office' | 'remote' | 'per_member'
 /**
  * Keys for the rotating dashboard views shown on the public TV surface.
  * A = Nå (today), B = Uken (week), C = Kontorer (offices map),
- * D = Kunder (customers map), E = Årshjul (wheel).
+ * D = Kunder (customers map), E = Årshjul (wheel),
+ * G = Globus (rotating world globe — same data as C, cinematic framing).
  *
  * F = Velkomst — injiseres dynamisk i rotasjonen kun når et besøk er
  * innenfor sitt aktive vindu (60 min før → 15 min etter start_time).
  * F konfigureres ALDRI i organizations.dashboard_rotation_views; den
  * dukker opp og forsvinner basert på `visits`-tabellen.
  */
-export type DashboardViewKey = 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+export type DashboardViewKey = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G'
 
 export interface Account {
   id: string
@@ -135,6 +136,8 @@ export interface Office {
   latitude: number | null
   longitude: number | null
   sort_order: number
+  /** Maks ett kontor per org kan ha is_hq = true (partial unique index). */
+  is_hq: boolean
   created_at: string
 }
 

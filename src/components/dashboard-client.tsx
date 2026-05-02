@@ -31,6 +31,10 @@ const WheelView = dynamic(
   () => import('@/components/dashboard-views/wheel-view').then(m => ({ default: m.WheelView })),
   { ssr: false }
 )
+const GlobeView = dynamic(
+  () => import('@/components/dashboard-views/globe-view').then(m => ({ default: m.GlobeView })),
+  { ssr: false }
+)
 const WelcomeView = dynamic(
   () => import('@/components/dashboard-views/welcome-view').then(m => ({ default: m.WelcomeView })),
   { ssr: false }
@@ -78,7 +82,7 @@ interface DashboardClientProps {
 }
 
 type ViewKey = DashboardViewKey
-const ALL_VIEWS: ViewKey[] = ['A', 'B', 'C', 'D', 'E']
+const ALL_VIEWS: ViewKey[] = ['A', 'B', 'C', 'D', 'E', 'G']
 // View F (Velkomst) er IKKE i ALL_VIEWS — den injiseres dynamisk når et
 // besøk er innenfor sitt vindu (60 min før → 15 min etter start_time).
 // Den lagres aldri i organizations.dashboard_rotation_views.
@@ -126,6 +130,7 @@ export function DashboardClient({
     D: t.dashboard.views.customers,
     E: t.dashboard.views.wheel,
     F: t.dashboard.views.welcome,
+    G: t.dashboard.views.globe,
   }), [t])
   const searchParams = useSearchParams()
   // ?brand=off disables the 3.2s brand-transition moment for the entire
@@ -595,6 +600,14 @@ export function DashboardClient({
           <WheelView
             orgIds={orgIds}
             logoOrgId={headerOrgId}
+            orgName={orgName}
+            time={time}
+          />
+        )
+      case 'G':
+        return (
+          <GlobeView
+            offices={offices}
             orgName={orgName}
             time={time}
           />
