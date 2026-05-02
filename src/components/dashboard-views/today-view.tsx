@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { BreathingDot } from '@/components/breathing-dot'
 import { useStatusColors } from '@/lib/status-colors/context'
-import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
+import type { Member, Entry, EntryStatus, Office } from '@/lib/supabase/types'
 import { getDayLabel, getISOWeek, isToday } from '@/lib/dates'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
@@ -19,6 +19,7 @@ interface TodayViewProps {
   todayEntries: Entry[]
   orgName: string
   time: Date
+  offices?: Office[]
 }
 
 const WEEK_STATUS_GROUPS: Array<{ key: string; statuses: EntryStatus[]; representative: EntryStatus }> = [
@@ -39,7 +40,7 @@ function greetingFor(h: number, g: Dictionary['dashboard']['greetings']): string
   return g.night
 }
 
-export function TodayView({ members, weekDays, entries, todayEntries, orgName, time }: TodayViewProps) {
+export function TodayView({ members, weekDays, entries, todayEntries, orgName, time, offices }: TodayViewProps) {
   const STATUS_COLORS = useStatusColors()
   const t = useT()
   const hours   = pad(time.getHours())
@@ -180,7 +181,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
       {/* ── Hero number — Apple Weather-style. One Fraunces tall, lap-read
             from across reception. The screen has a single hero instead of
             four competing widgets. */}
-      <HeroBigNumber members={members} todayEntries={dedupedTodayEntries} />
+      <HeroBigNumber members={members} todayEntries={dedupedTodayEntries} offices={offices} />
 
       {/* ── Team board ───────────────────────────────────────────── */}
       <TeamBoard members={members} todayMap={todayMap} />

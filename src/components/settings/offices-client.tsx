@@ -4,7 +4,7 @@ import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, X, MapPin, Sparkles, Check, Loader2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, MapPin, Sparkles, Check, Loader2, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { geocode } from '@/lib/geocode-client'
 import type { Office } from '@/lib/supabase/types'
@@ -231,6 +231,32 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
     toast.success(t.settings.offices.toastDeleted)
   }
 
+  // Maks ett HQ per org. Vi nullstiller andre lokalt og remote først,
+  // så markerer det valgte. Partial unique index i DB beskytter mot
+  // race conditions hvis to admins toggler samtidig.
+  async function handleToggleHq(target: Office) {
+    const supabase = createClient()
+    const next = !target.is_hq
+    setOffices(prev => prev.map(o => ({
+      ...o,
+      is_hq: o.id === target.id ? next : (next ? false : o.is_hq),
+    })))
+    if (next) {
+      const { error: clearErr } = await supabase
+        .from('offices')
+        .update({ is_hq: false })
+        .eq('org_id', orgId)
+        .eq('is_hq', true)
+      if (clearErr) { toast.error(t.common.errorShort); return }
+    }
+    const { error } = await supabase
+      .from('offices')
+      .update({ is_hq: next })
+      .eq('id', target.id)
+    if (error) { toast.error(t.common.errorShort); return }
+    toast.success(next ? t.settings.offices.toastHqSet : t.settings.offices.toastHqUnset)
+  }
+
   return (
     <div>
       {/* Header */}
@@ -285,12 +311,27 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p
-                    className="text-[14px] font-medium truncate"
-                    style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
-                  >
-                    {office.name}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p
+                      className="text-[14px] font-medium truncate"
+                      style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+                    >
+                      {office.name}
+                    </p>
+                    {office.is_hq && (
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider shrink-0"
+                        style={{
+                          backgroundColor: 'rgba(212,160,23,0.14)',
+                          color: '#b8860b',
+                          fontFamily: 'var(--font-body)',
+                        }}
+                      >
+                        <Star className="w-2.5 h-2.5" strokeWidth={2.5} fill="currentColor" />
+                        {t.settings.offices.hqBadge}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[12px] truncate" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
                     {[office.address, office.postal_code, office.city].filter(Boolean).join(', ')}
                     {office.country_code ? ` · ${office.country_code}` : ''}
@@ -315,6 +356,19 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
                 </span>
 
                 <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => handleToggleHq(office)}
+                    className="p-2 rounded-lg transition-colors hover:bg-[var(--bg-subtle)]"
+                    style={{ color: office.is_hq ? '#b8860b' : 'var(--text-tertiary)' }}
+                    title={office.is_hq ? t.settings.offices.unsetHq : t.settings.offices.setHq}
+                    aria-pressed={office.is_hq}
+                  >
+                    <Star
+                      className="w-4 h-4"
+                      strokeWidth={1.5}
+                      fill={office.is_hq ? 'currentColor' : 'none'}
+                    />
+                  </button>
                   <button
                     onClick={() => openEdit(office)}
                     className="p-2 rounded-lg transition-colors hover:bg-[var(--bg-subtle)]"
