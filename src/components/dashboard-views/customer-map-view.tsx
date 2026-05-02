@@ -16,6 +16,7 @@ import type { Member, Entry, Customer } from '@/lib/supabase/types'
 import { getISOWeek } from '@/lib/dates'
 import { useT } from '@/lib/i18n/context'
 import { WeatherInline } from '@/components/weather/weather-inline'
+import { BreathingDot } from '@/components/breathing-dot'
 
 interface CustomerMapViewProps {
   members: Member[]
@@ -142,7 +143,15 @@ export function CustomerMapView({
     .filter(c => regionFor(c.latitude!, c.longitude!) === 'europe')
     .map(c => {
       const { x, y } = project(c.latitude!, c.longitude!, MAP_WIDTH, MAP_HEIGHT)
-      return { id: c.id, name: c.name, city: c.city, x, y }
+      return {
+        id: c.id,
+        name: c.name,
+        city: c.city,
+        x,
+        y,
+        lat: c.latitude!,
+        lng: c.longitude!,
+      }
     })
     .filter(c => Number.isFinite(c.x) && Number.isFinite(c.y))
   const usUnvisitedCustomers = allUnvisitedCustomers
@@ -283,12 +292,7 @@ export function CustomerMapView({
                 fontFamily: 'var(--font-body)',
               }}
             >
-              <motion.span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: customerColor }}
-                animate={reduce ? undefined : { opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
-                transition={reduce ? undefined : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-              />
+              <BreathingDot color={customerColor} />
               {t.matrix.weekLabel} {weekNum}
             </span>
           </div>
@@ -634,8 +638,8 @@ export function CustomerMapView({
                 state: 'idle',
                 visitCount: 0,
                 members: [],
-                lat: null,
-                lng: null,
+                lat: c.lat,
+                lng: c.lng,
               })
             }
             // Mirror US clusters/idle into the unified list so users without
@@ -665,8 +669,8 @@ export function CustomerMapView({
                 state: 'idle',
                 visitCount: 0,
                 members: [],
-                lat: null,
-                lng: null,
+                lat: c.lat,
+                lng: c.lng,
               })
             }
             const tierRank: Record<CustomerPinState, number> = { today: 0, week: 1, idle: 2 }
@@ -678,17 +682,19 @@ export function CustomerMapView({
               return a.name.localeCompare(b.name)
             })
 
-            // Maks 5 værbadges samtidig — atmosfære uten støy. Tier-
-            // sorteringen plasserer alle today-rader først, så den første
-            // N er garantert det som driver dagen.
-            const MAX_WEATHER_BADGES = 5
-            const weatherKeys = new Set<string>()
-            for (const r of rows) {
-              if (r.state !== 'today') break
-              if (r.lat == null || r.lng == null) continue
-              weatherKeys.add(r.key)
-              if (weatherKeys.size >= MAX_WEATHER_BADGES) break
-            }
+            // Hver rad har fast høyde så vi kan duplisere listen og animere
+            // y-translation sømløst. Når y når −totalHeight har duplikatet
+            // overtatt synsfeltet, og en repeat tilbakestiller posisjonen
+            // uten visuelt hopp.
+            const ROW_HEIGHT = 28
+            const ROW_GAP = 6
+            const STRIDE = ROW_HEIGHT + ROW_GAP
+            const totalHeight = rows.length * STRIDE
+            // ~0.85 s per rad gir et behagelig flipboard-tempo: 75 kunder
+            // tar ca 64 sek for en full sirkel — sakte nok til å lese, raskt
+            // nok til at flere rader rekker forbi i et TV-kikk. Minst 36 s
+            // ellers blir få-rad-lister stressende raske.
+            const duration = Math.max(36, rows.length * 0.85)
 
             return (
               <div
@@ -707,48 +713,62 @@ export function CustomerMapView({
                   {t.dashboard.customer.customers}
                 </h3>
 
-                <div className="flex flex-col gap-1.5 overflow-y-auto pr-1 -mr-1">
-                  {rows.map((r, i) => (
-                    <motion.div
-                      key={r.key}
-                      initial={{ opacity: 0, x: 8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ ...spring.gentle, delay: 0.35 + i * 0.03 }}
-                      className="flex items-center gap-3 py-0.5"
-                    >
-                      <SidePanelDot state={r.state} color={customerColor} />
-                      <span
-                        className="flex-1 min-w-0 truncate text-[13px]"
-                        style={{
-                          color:
-                            r.state === 'idle'
-                              ? 'rgba(255,255,255,0.55)'
-                              : 'rgba(255,255,255,0.92)',
-                          fontFamily: 'var(--font-body)',
-                          fontWeight: r.state === 'idle' ? 500 : 600,
-                        }}
+                {reduce ? (
+                  // prefers-reduced-motion: ingen rull. Vi viser topp-15
+                  // (today + week først, så idle alfabetisk) — nok til å
+                  // formidle tier-hierarkiet uten bevegelse.
+                  <div className="flex flex-col gap-1.5 overflow-hidden">
+                    {rows.slice(0, 15).map((r, i) => (
+                      <motion.div
+                        key={r.key}
+                        initial={{ opacity: 0, x: 8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ ...spring.gentle, delay: 0.35 + i * 0.03 }}
                       >
-                        {r.name}
-                      </span>
-                      {weatherKeys.has(r.key) && (
-                        <WeatherInline lat={r.lat} lng={r.lng} size="sm" />
-                      )}
-                      {r.visitCount > 0 && (
-                        <span
-                          className="text-[11px] tabular-nums flex-shrink-0"
-                          style={{
-                            color: r.state === 'today' ? customerColor : 'rgba(255,255,255,0.55)',
-                            fontFamily: 'var(--font-fraunces)',
-                            fontWeight: 600,
-                          }}
-                          title={r.members.join(', ')}
-                        >
-                          {r.visitCount}
-                        </span>
-                      )}
+                        <CustomerScrollerRow r={r} customerColor={customerColor} rowHeight={ROW_HEIGHT} />
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.6, delay: 0.4 }}
+                    className="relative flex-1 min-h-0 overflow-hidden"
+                    style={{
+                      // Top/bunn-fade så rader smelter inn og ut i stedet for
+                      // å kappes. 6 % gir nok pust uten å spise lesbar høyde.
+                      maskImage:
+                        'linear-gradient(to bottom, transparent 0%, black 6%, black 94%, transparent 100%)',
+                      WebkitMaskImage:
+                        'linear-gradient(to bottom, transparent 0%, black 6%, black 94%, transparent 100%)',
+                    }}
+                  >
+                    <motion.div
+                      animate={{ y: [0, -totalHeight] }}
+                      transition={{
+                        duration,
+                        repeat: Infinity,
+                        ease: 'linear',
+                      }}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: `${ROW_GAP}px`,
+                      }}
+                    >
+                      {/* Listen rendres to ganger for sømløs wrap. */}
+                      {[...rows, ...rows].map((r, i) => (
+                        <CustomerScrollerRow
+                          key={`${r.key}-${i < rows.length ? 'a' : 'b'}`}
+                          r={r}
+                          customerColor={customerColor}
+                          rowHeight={ROW_HEIGHT}
+                        />
+                      ))}
                     </motion.div>
-                  ))}
-                </div>
+                  </motion.div>
+                )}
               </div>
             )
           })()}
@@ -851,5 +871,68 @@ function SidePanelDot({ state, color }: { state: CustomerPinState; color: string
         }}
       />
     </span>
+  )
+}
+
+/**
+ * Én rad i den rullende kunde-strømmen. Holdes som egen komponent fordi
+ * radene rendres dobbelt (sømløs wrap) og fordi reduced-motion-grenen
+ * trenger samme rad-utseende uten bevegelse. Fast høyde er kritisk: y-
+ * translasjonen i scroller-en regner med `rows.length * stride`, og avvik
+ * der gir et visuelt hopp ved repeat.
+ */
+function CustomerScrollerRow({
+  r,
+  customerColor,
+  rowHeight,
+}: {
+  r: {
+    key: string
+    name: string
+    state: CustomerPinState
+    visitCount: number
+    members: string[]
+    lat: number | null
+    lng: number | null
+  }
+  customerColor: string
+  rowHeight: number
+}) {
+  return (
+    <div
+      className="flex items-center gap-3 flex-shrink-0"
+      style={{ height: `${rowHeight}px` }}
+    >
+      <SidePanelDot state={r.state} color={customerColor} />
+      <span
+        className="flex-1 min-w-0 truncate text-[13px]"
+        style={{
+          color:
+            r.state === 'idle'
+              ? 'rgba(255,255,255,0.55)'
+              : 'rgba(255,255,255,0.92)',
+          fontFamily: 'var(--font-body)',
+          fontWeight: r.state === 'idle' ? 500 : 600,
+        }}
+      >
+        {r.name}
+      </span>
+      {r.lat != null && r.lng != null && (
+        <WeatherInline lat={r.lat} lng={r.lng} size="sm" />
+      )}
+      {r.visitCount > 0 && (
+        <span
+          className="text-[11px] tabular-nums flex-shrink-0"
+          style={{
+            color: r.state === 'today' ? customerColor : 'rgba(255,255,255,0.55)',
+            fontFamily: 'var(--font-fraunces)',
+            fontWeight: 600,
+          }}
+          title={r.members.join(', ')}
+        >
+          {r.visitCount}
+        </span>
+      )}
+    </div>
   )
 }

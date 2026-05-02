@@ -1,6 +1,7 @@
 'use client'
 
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { BreathingDot } from '@/components/breathing-dot'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { MapPin } from './map-pin'
 import { project, resolveLocation } from '@/lib/geo'
@@ -37,7 +38,6 @@ export function OfficeMapView({
   const auroras = useAuroraColors()
   const t = useT()
   const weekNum = getISOWeek(time)
-  const reduce = useReducedMotion()
 
   // Project each office. City-dictionary match wins over stored lat/lng so
   // the continent-scale view stays robust against bad geocoder results
@@ -112,12 +112,7 @@ export function OfficeMapView({
                 fontFamily: 'var(--font-body)',
               }}
             >
-              <motion.span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: officeColor }}
-                animate={reduce ? undefined : { opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
-                transition={reduce ? undefined : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-              />
+              <BreathingDot color={officeColor} />
               Uke {weekNum}
             </span>
           </div>

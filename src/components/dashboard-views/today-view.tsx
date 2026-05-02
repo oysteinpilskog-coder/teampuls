@@ -1,6 +1,7 @@
 'use client'
 
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { BreathingDot } from '@/components/breathing-dot'
 import { useStatusColors } from '@/lib/status-colors/context'
 import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
 import { getDayLabel, getISOWeek, isToday } from '@/lib/dates'
@@ -41,7 +42,6 @@ function greetingFor(h: number, g: Dictionary['dashboard']['greetings']): string
 export function TodayView({ members, weekDays, entries, todayEntries, orgName, time }: TodayViewProps) {
   const STATUS_COLORS = useStatusColors()
   const t = useT()
-  const reduce = useReducedMotion()
   const hours   = pad(time.getHours())
   const minutes = pad(time.getMinutes())
   const weekNum = getISOWeek(time)
@@ -101,12 +101,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, orgName, t
                 fontFamily: 'var(--font-body)',
               }}
             >
-              <motion.span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: 'var(--accent-color)' }}
-                animate={reduce ? undefined : { opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
-                transition={reduce ? undefined : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-              />
+              <BreathingDot color="var(--accent-color)" />
               {t.dashboard.live} · {t.matrix.weekLabel} {weekNum}
             </span>
             <span

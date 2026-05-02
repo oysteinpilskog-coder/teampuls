@@ -3,11 +3,12 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
-import { Plus, Pencil, X, Trash2, AlertTriangle } from 'lucide-react'
+import { Plus, Pencil, X, Trash2, AlertTriangle, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Member, MemberRole, Office } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { MemberAvatar } from '@/components/member-avatar'
+import { EmptyState } from '@/components/empty-state'
 import { DatePicker } from '@/components/date-picker'
 import { CountryCombobox } from '@/components/ui/country-combobox'
 import { flagFor, isSupportedCountry } from '@/lib/holidays'
@@ -226,16 +227,18 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
       </div>
 
       {/* Active members */}
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{ border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-elevated)' }}
-      >
-        {active.length === 0 ? (
-          <div className="p-8 text-center" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
-            {t.settings.members.empty}
-          </div>
-        ) : (
-          active.map((m, i) => (
+      {active.length === 0 ? (
+        <EmptyState
+          icon={<Users className="w-6 h-6" strokeWidth={1.5} />}
+          title={t.settings.members.empty}
+          description={t.settings.members.emptyHint}
+        />
+      ) : (
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-elevated)' }}
+        >
+          {active.map((m, i) => (
             <MemberRow
               key={m.id}
               member={m}
@@ -247,9 +250,9 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
               onToggle={() => toggleActive(m)}
               onDelete={() => setDeleteTarget(m)}
             />
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Inactive members */}
       {inactive.length > 0 && (
@@ -258,7 +261,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
             className="text-[11px] font-semibold uppercase tracking-[0.16em] px-1 mb-2"
             style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
           >
-            Inaktive
+            {t.settings.members.inactiveTitle}
           </p>
           <div
             className="rounded-2xl overflow-hidden"

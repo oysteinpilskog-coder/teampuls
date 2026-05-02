@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEntries } from '@/hooks/use-entries'
+import { BreathingDot } from '@/components/breathing-dot'
 // Heavy view bundles (Leaflet, d3-geo, big SVG wheel, …) are split out so the
 // dashboard shell paints fast and each view chunk loads on first use. Aurora
 // stays statically imported because it owns the immediate background.
@@ -918,7 +919,6 @@ function RotationHairline({ pct }: { pct: number }) {
  */
 function GuestChip({ count, visible }: { count: number; visible: boolean }) {
   const t = useT()
-  const reduce = useReducedMotion()
   if (count <= 0) return null
   const label =
     count === 1
@@ -943,12 +943,7 @@ function GuestChip({ count, visible }: { count: number; visible: boolean }) {
           fontFamily: 'var(--font-body)',
         }}
       >
-        <motion.span
-          className="w-1.5 h-1.5 rounded-full"
-          style={{ backgroundColor: 'var(--accent-color)' }}
-          animate={reduce ? undefined : { opacity: [1, 0.35, 1], scale: [1, 1.25, 1] }}
-          transition={reduce ? undefined : { duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-        />
+        <BreathingDot color="var(--accent-color)" />
         <span className="tabular-nums">{label}</span>
       </div>
     </motion.div>

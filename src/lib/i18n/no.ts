@@ -528,6 +528,8 @@ export const no = {
     members: {
       title: 'Medlemmer',
       empty: 'Ingen aktive medlemmer',
+      emptyHint: 'Legg til den første kollegaen — så lyser teamet opp i matrisen og dashbordet.',
+      inactiveTitle: 'Inaktive',
       modalAddTitle: 'Legg til medlem',
       modalEditTitle: 'Rediger medlem',
       emailLabel: 'E-post',

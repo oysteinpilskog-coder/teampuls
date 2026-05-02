@@ -530,6 +530,8 @@ export const lt: Dictionary = {
     members: {
       title: 'Nariai',
       empty: 'Nėra aktyvių narių',
+      emptyHint: 'Pridėk pirmą kolegą — ir komanda nušvis matricoje ir prietaisų skydelyje.',
+      inactiveTitle: 'Neaktyvūs',
       modalAddTitle: 'Pridėti narį',
       modalEditTitle: 'Redaguoti narį',
       emailLabel: 'El. paštas',

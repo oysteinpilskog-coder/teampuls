@@ -530,6 +530,8 @@ export const en: Dictionary = {
     members: {
       title: 'Members',
       empty: 'No active members',
+      emptyHint: 'Add the first colleague — and the team lights up across the matrix and dashboard.',
+      inactiveTitle: 'Inactive',
       modalAddTitle: 'Add member',
       modalEditTitle: 'Edit member',
       emailLabel: 'Email',

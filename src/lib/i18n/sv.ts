@@ -530,6 +530,8 @@ export const sv: Dictionary = {
     members: {
       title: 'Medlemmar',
       empty: 'Inga aktiva medlemmar',
+      emptyHint: 'Lägg till den första kollegan — så lyser teamet upp i matrisen och dashboarden.',
+      inactiveTitle: 'Inaktiva',
       modalAddTitle: 'Lägg till medlem',
       modalEditTitle: 'Redigera medlem',
       emailLabel: 'E-post',

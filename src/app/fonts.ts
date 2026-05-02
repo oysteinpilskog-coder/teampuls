@@ -19,10 +19,6 @@ export const fontBody = Manrope({
   weight: 'variable',
 })
 
-// Fraunces alias for the serif slot. Components that read var(--font-serif)
-// (italic display) resolve here.
-export const fontSerif = fontDisplay
-
 /**
  * Mono is delivered via the system stack (SF Mono on Apple, Consolas/Menlo
  * elsewhere) — see the .lg-mono utility in globals.css. The --font-mono var
