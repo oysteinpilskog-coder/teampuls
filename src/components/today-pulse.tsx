@@ -24,16 +24,18 @@ interface TodayPulseProps {
   entries: MemberWithEntry[]
 }
 
-// Bento-layout: size cards based on importance (member count).
-// Total 12 column grid — columns adapt to how many groups are visible.
+// Compact strip layout — one row per status group, two columns on wide
+// screens. Replaces the previous bento grid which left a lot of empty
+// space inside each tall card and used a `mix(tone, white)` accent that
+// vanished on the cream Paper background in light mode.
 const COL_CLASSES: Record<number, string> = {
   1: 'grid-cols-1',
-  2: 'grid-cols-1 md:grid-cols-2',
-  3: 'grid-cols-1 md:grid-cols-3',
-  4: 'grid-cols-2 md:grid-cols-4',
-  5: 'grid-cols-2 md:grid-cols-3 lg:grid-cols-5',
-  6: 'grid-cols-2 md:grid-cols-3 lg:grid-cols-6',
-  7: 'grid-cols-2 md:grid-cols-4 lg:grid-cols-7',
+  2: 'grid-cols-1 lg:grid-cols-2',
+  3: 'grid-cols-1 lg:grid-cols-2',
+  4: 'grid-cols-1 lg:grid-cols-2',
+  5: 'grid-cols-1 lg:grid-cols-2',
+  6: 'grid-cols-1 lg:grid-cols-2',
+  7: 'grid-cols-1 lg:grid-cols-2',
 }
 
 export function TodayPulse({ entries }: TodayPulseProps) {
@@ -83,9 +85,9 @@ export function TodayPulse({ entries }: TodayPulseProps) {
         reduce={reduce}
       />
 
-      <div className={`grid ${colClasses} gap-2.5`}>
+      <div className={`grid ${colClasses} gap-2`}>
         {visibleGroups.map((group, i) => (
-          <PulseCard
+          <PulseRow
             key={group.status}
             status={group.status}
             label={group.label}
@@ -188,7 +190,7 @@ function TeamBalanceBar({ visibleGroups, total, statusColors, reduce }: TeamBala
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface PulseCardProps {
+interface PulseRowProps {
   status: EntryStatus
   label: string
   members: MemberWithEntry[]
@@ -197,89 +199,81 @@ interface PulseCardProps {
   reduce: boolean
 }
 
-function PulseCard({ status, label, members, index, tone, reduce }: PulseCardProps) {
+function PulseRow({ status, label, members, index, tone, reduce }: PulseRowProps) {
   const count = useCountUp(members.length, reduce ? 0 : 600 + index * 80)
   const assumedCount = members.filter((m) => m.assumed).length
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: 0.05 + index * 0.04, ease: [0.4, 0, 0.2, 1] }}
-      className="relative rounded-2xl overflow-hidden group transition-[border-color,background] duration-200"
+      className="relative rounded-xl overflow-hidden transition-[border-color,background] duration-200"
       style={{
         background: 'var(--lg-surface-1)',
         border: '1px solid var(--lg-divider)',
-        boxShadow: `inset 2px 0 0 ${tone}, 0 0 18px -10px ${tone}55`,
-        minHeight: 124,
+        boxShadow: `inset 2px 0 0 ${tone}, 0 1px 2px -1px ${tone}22`,
       }}
     >
-      <div className="relative flex flex-col justify-between h-full p-3.5 md:p-4" style={{ minHeight: 124 }}>
-        {/* Top row — icon + mono count */}
-        <div className="flex items-start justify-between gap-3">
-          <div
-            className="flex items-center justify-center rounded-lg"
-            style={{
-              width: 26,
-              height: 26,
-              background: `color-mix(in oklab, ${tone} 18%, transparent)`,
-              boxShadow: `0 0 0 1px color-mix(in oklab, ${tone} 35%, transparent)`,
-            }}
-          >
-            <StatusIcon status={status} size={13} color={tone} />
-          </div>
-
-          <motion.span
-            className="lg-mono leading-none"
-            style={{
-              color: 'var(--lg-text-1)',
-              fontSize: 'clamp(30px, 3.6vw, 40px)',
-              fontWeight: 500,
-            }}
-          >
-            {count}
-          </motion.span>
+      <div className="flex items-center gap-3 px-3 py-2.5 min-h-[56px]">
+        {/* Icon pill */}
+        <div
+          className="flex items-center justify-center rounded-lg flex-shrink-0"
+          style={{
+            width: 28,
+            height: 28,
+            background: `color-mix(in oklab, ${tone} 16%, transparent)`,
+            boxShadow: `0 0 0 1px color-mix(in oklab, ${tone} 32%, transparent)`,
+          }}
+        >
+          <StatusIcon status={status} size={14} color={tone} />
         </div>
 
-        {/* Bottom — label + avatar stack */}
-        <div className="flex flex-col gap-2">
-          <div className="flex items-baseline justify-between gap-2">
+        {/* Label + assumed sub-line */}
+        <div className="flex flex-col min-w-0 flex-1 leading-tight">
+          <span
+            className="font-medium truncate"
+            style={{
+              color: 'var(--lg-text-1)',
+              fontFamily: 'var(--font-body)',
+              fontSize: 13.5,
+            }}
+          >
+            {label}
+          </span>
+          {assumedCount > 0 && (
             <span
-              className="font-medium truncate"
+              className="lg-mono"
               style={{
-                color: 'var(--lg-text-1)',
-                fontFamily: 'var(--font-body)',
-                fontSize: 13,
+                color: 'var(--lg-text-3)',
+                fontSize: 10,
+                letterSpacing: '0.06em',
+                marginTop: 1,
               }}
+              title={`${assumedCount} antatt — ikke registrert`}
             >
-              {label}
+              {assumedCount} antatt
             </span>
-            <span
-              className="lg-mono shrink-0 flex items-center gap-1.5"
-              style={{ color: 'var(--lg-text-3)', fontSize: 10.5 }}
-            >
-              <span>{members.length === 1 ? 'person' : 'personer'}</span>
-              {assumedCount > 0 && (
-                <span
-                  title={`${assumedCount} antatt — ikke registrert`}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full"
-                  style={{
-                    background: `color-mix(in oklab, ${tone} 12%, transparent)`,
-                    border: `1px dashed color-mix(in oklab, ${tone} 40%, transparent)`,
-                    color: `color-mix(in oklab, ${tone} 60%, white)`,
-                    fontSize: 9.5,
-                    letterSpacing: '0.08em',
-                  }}
-                >
-                  {assumedCount} antatt
-                </span>
-              )}
-            </span>
-          </div>
+          )}
+        </div>
 
+        {/* Count */}
+        <span
+          className="lg-mono leading-none tabular-nums shrink-0"
+          style={{
+            color: 'var(--lg-text-1)',
+            fontSize: 22,
+            fontWeight: 500,
+          }}
+        >
+          {count}
+        </span>
+
+        {/* Avatars */}
+        <div className="shrink-0">
           <AvatarStack
             members={members}
-            max={5}
+            max={4}
             size="sm"
             ringColor="var(--lg-surface-1)"
           />
