@@ -15,8 +15,6 @@ const CellEditor = dynamic(
 )
 import { EmptyState } from '@/components/empty-state'
 import { StatusSegment, type SegmentDay } from '@/components/status-segment'
-import { MyPlanYearStripe } from '@/components/my-plan-year-stripe'
-import type { CountryCode } from '@/lib/holidays'
 import {
   toDateString,
   isToday,
@@ -36,10 +34,8 @@ interface MyPlanProps {
   memberName: string
   memberInitials?: string | null
   avatarUrl: string | null
-  /** Country code used to mark public holidays on the year-stripe. */
-  country?: CountryCode
-  /** Rendered above the year-stripe inside the sticky header. Pass an `<AIInput>`
-   *  here on /min-plan so it stays reachable while scrolling the year list. */
+  /** Rendered inside the sticky header. Pass an `<AIInput>` here on /min-plan
+   *  so it stays reachable while scrolling the year list. */
   aiInputSlot?: ReactNode
 }
 
@@ -179,7 +175,7 @@ interface ResizeDrag {
   entry: Entry
 }
 
-export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl, country = 'NO', aiInputSlot }: MyPlanProps) {
+export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl, aiInputSlot }: MyPlanProps) {
   const t = useT()
   const currentYear = useMemo(() => getISOWeekYear(new Date()), [])
   const [year, setYear] = useState(currentYear)
@@ -555,16 +551,6 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
     didScrollToCurrentWeek.current = false
   }
 
-  // Smooth-scroll the corresponding week row into view when a stripe pill is clicked.
-  const scrollToWeek = useCallback(
-    (weekNumber: number) => {
-      const el = document.getElementById(`week-${year}-${weekNumber}`)
-      if (!el) return
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    },
-    [year],
-  )
-
   const totalEntries = entries.length
 
   return (
@@ -669,10 +655,10 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
           structure is still visible underneath and clickable. */}
       {!loading && totalEntries === 0 && <MyPlanEmpty year={year} />}
 
-      {/* Composite sticky header — AI input (slot), year stripe, and the
-          weekday header live together so they freeze as one unit when the
-          year list scrolls under. Sits just below the app-header (h-16)
-          with a fade-to-bg gradient so content disappears smoothly under. */}
+      {/* Composite sticky header — AI input (slot) and the weekday header
+          live together so they freeze as one unit when the year list scrolls
+          under. Sits just below the app-header (h-16) with a fade-to-bg
+          gradient so content disappears smoothly under. */}
       <div
         className="sticky z-30 -mx-1 px-1 pt-3 pb-3 space-y-3"
         style={{
@@ -684,8 +670,6 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
         {aiInputSlot && (
           <div className="mx-auto max-w-3xl">{aiInputSlot}</div>
         )}
-
-        <MyPlanYearStripe year={year} entries={entries} country={country} onWeekClick={scrollToWeek} />
 
         <div
           className="grid gap-2 px-4 py-2 rounded-2xl"
