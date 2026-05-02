@@ -17,7 +17,7 @@ import { toDateString } from '@/lib/dates'
  * hvis behovet melder seg.
  */
 export default async function WelcomeSettingsPage() {
-  const { member } = await getSessionMember()
+  const { member, activeWorkspace } = await getSessionMember()
   if (!member) redirect('/')
 
   const supabase = await createClient()
@@ -42,6 +42,7 @@ export default async function WelcomeSettingsPage() {
   return (
     <WelcomeClient
       orgId={member.org_id}
+      orgName={activeWorkspace?.name ?? ''}
       currentMemberId={member.id}
       initialVisits={visitsRes.data ?? []}
       members={membersRes.data ?? []}

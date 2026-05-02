@@ -16,6 +16,8 @@ import {
   CalendarDays,
   Building2,
   User2,
+  StickyNote,
+  Users,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Visit, Member } from '@/lib/supabase/types'
@@ -26,9 +28,11 @@ import {
   WELCOME_PRE_WINDOW_MIN,
   WELCOME_POST_WINDOW_MIN,
 } from '@/hooks/use-todays-visits'
+import { WelcomeStage, type StageVisit } from './welcome-stage'
 
 interface WelcomeClientProps {
   orgId: string
+  orgName: string
   currentMemberId: string
   initialVisits: Visit[]
   members: Member[]
@@ -56,12 +60,10 @@ function emptyForm(currentMemberId: string): VisitFormState {
   }
 }
 
-/** Postgres TIME ('HH:MM:SS') → 'HH:MM'. */
 function trimSeconds(timeStr: string): string {
   return timeStr.length >= 5 ? timeStr.slice(0, 5) : timeStr
 }
 
-/** 'HH:MM' → 'HH:MM:00'. Validerer at formatet er gyldig. */
 function toPgTime(hhmm: string): string | null {
   if (!/^\d{2}:\d{2}$/.test(hhmm)) return null
   const [h, m] = hhmm.split(':').map(Number)
@@ -71,11 +73,6 @@ function toPgTime(hhmm: string): string | null {
 
 type VisitStatus = 'upcoming' | 'window' | 'past'
 
-/**
- * Speiler velkomst-vinduet på TV-en (60 min før → 15 min etter end_time).
- * 'window' = vises på TV akkurat nå, 'upcoming' = i fremtiden, 'past' =
- * vinduet er passert. Brukes til status-pillen i hver rad.
- */
 function visitStatus(visit: Visit, now: Date): VisitStatus {
   const todayStr = toDateString(now)
   if (visit.date > todayStr) return 'upcoming'
@@ -105,8 +102,34 @@ function formatLongDate(dateStr: string, locale = 'nb-NO'): string {
   })
 }
 
+/** Visit → StageVisit. Stage doesn't care about ids/dates, just the on-stage shape. */
+function toStage(v: Visit): StageVisit {
+  return {
+    id: v.id,
+    visitor_name: v.visitor_name,
+    visitor_company: v.visitor_company,
+    start_time: v.start_time,
+    note: v.note,
+  }
+}
+
+/** FormState → StageVisit. Drives the live preview while the editor is open. */
+function formToStage(form: VisitFormState, fallbackId: string): StageVisit {
+  const start = form.start_hhmm && /^\d{2}:\d{2}$/.test(form.start_hhmm)
+    ? `${form.start_hhmm}:00`
+    : ''
+  return {
+    id: fallbackId,
+    visitor_name: form.visitor_name.trim() || 'Forventet gjest',
+    visitor_company: form.visitor_company.trim() || null,
+    start_time: start,
+    note: form.note.trim() || null,
+  }
+}
+
 export function WelcomeClient({
   orgId,
+  orgName,
   currentMemberId,
   initialVisits,
   members,
@@ -122,18 +145,15 @@ export function WelcomeClient({
   const [deleting, setDeleting] = useState<string | null>(null)
   const [now, setNow] = useState<Date>(() => new Date())
 
-  // Tikker en gang i minuttet så status-pillen ('Pågår' / 'Kommer' / 'Forbi')
-  // går av seg selv uten reload — viktig spesielt når en admin sitter på
-  // siden mens et besøk passerer inn i sitt 60-min-vindu.
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60 * 1000)
     return () => clearInterval(id)
   }, [])
 
-  // Realtime: settings-listen reagerer umiddelbart når AI/e-post oppretter
-  // nye besøk, eller når en annen admin rediger fra et annet brett. Speiler
-  // mønsteret fra customers-realtime + use-todays-visits, men uten dato-
-  // filter — denne siden viser alt fremover i tid.
+  // Realtime — settings list reflects AI/email-driven inserts and parallel
+  // admin edits without a manual reload. Mirrors the customers/offices
+  // approach but without a date filter, since we already gte('today') in
+  // the page query.
   useEffect(() => {
     const supabase = createClient()
     const channel = supabase
@@ -155,8 +175,6 @@ export function WelcomeClient({
           }
           const upserted = payload.new as Visit
           if (!upserted?.id) return
-          // Filtrer bort historikk så listen aldri vokser bakover. Dagens
-          // dato-streng sammenlignes leksikografisk siden begge er ISO.
           const today = toDateString(new Date())
           if (upserted.date < today) {
             setVisits(prev => prev.filter(v => v.id !== upserted.id))
@@ -181,8 +199,6 @@ export function WelcomeClient({
     return map
   }, [members])
 
-  // Grupper besøk etter dato slik at 'I dag', 'I morgen', etc. får sin
-  // egen seksjon — leselig selv når kalenderen er tett.
   const grouped = useMemo(() => {
     const buckets = new Map<string, Visit[]>()
     for (const v of visits) {
@@ -194,6 +210,17 @@ export function WelcomeClient({
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([date, list]) => ({ date, list }))
   }, [visits])
+
+  // What the stage shows. While editing/adding, the live form drives it
+  // (single visit, frozen index). While idle, we cycle through the next
+  // few real visits — what the TV will show through the day.
+  const stageVisits = useMemo<StageVisit[]>(() => {
+    if (modalMode !== 'closed') {
+      return [formToStage(form, 'editing')]
+    }
+    if (visits.length === 0) return []
+    return visits.slice(0, 6).map(toStage)
+  }, [modalMode, form, visits])
 
   function openAdd() {
     setForm(emptyForm(currentMemberId))
@@ -307,6 +334,7 @@ export function WelcomeClient({
 
   return (
     <div>
+      {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <div className="min-w-0">
           <h1
@@ -352,9 +380,43 @@ export function WelcomeClient({
         </div>
       </div>
 
+      {/* ── Live preview pane ─────────────────────────────────────────── */}
+      <div className="mb-7 relative">
+        <WelcomeStage
+          visits={stageVisits}
+          orgName={orgName}
+          eyebrow={t.dashboard.welcome.eyebrow}
+          atTemplate={t.dashboard.welcome.at}
+          fromTemplate={t.dashboard.welcome.from}
+          freeze={modalMode !== 'closed'}
+        />
+        <p
+          className="mt-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] flex items-center gap-1.5"
+          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+        >
+          <span
+            className="inline-block rounded-full"
+            style={{
+              width: 6,
+              height: 6,
+              background: 'var(--accent-color)',
+              boxShadow: '0 0 8px var(--accent-color)',
+            }}
+          />
+          {modalMode === 'closed'
+            ? visits.length === 0
+              ? 'Forhåndsvisning · slik vil TV-en se ut når noen er registrert'
+              : visits.length === 1
+                ? 'Forhåndsvisning · slik vil TV-en se ut'
+                : `Forhåndsvisning · roterer mellom ${Math.min(visits.length, 6)} kommende besøk`
+            : 'Live forhåndsvisning · TV-en vil se akkurat slik ut'}
+        </p>
+      </div>
+
+      {/* ── List of visits ────────────────────────────────────────────── */}
       {visits.length === 0 ? (
         <div
-          className="rounded-2xl p-12 text-center flex flex-col items-center gap-3"
+          className="rounded-2xl p-10 text-center flex flex-col items-center gap-3"
           style={{ border: '2px dashed var(--border-subtle)' }}
         >
           <div
@@ -505,6 +567,7 @@ export function WelcomeClient({
         </div>
       )}
 
+      {/* ── Editor sheet — split-screen with the live stage on the left ── */}
       <AnimatePresence>
         {modalMode !== 'closed' && (
           <>
@@ -512,35 +575,88 @@ export function WelcomeClient({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: 0.18 }}
               className="fixed inset-0 z-40"
-              style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(6px)' }}
+              style={{ backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)' }}
               onClick={closeModal}
             />
-            <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-4 pt-[6vh] sm:pt-[8vh] pointer-events-none">
+            <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-6 pt-[5vh] sm:pt-6 pointer-events-none overflow-y-auto">
               <motion.div
-                initial={{ opacity: 0, scale: 0.97, y: 8 }}
+                initial={{ opacity: 0, scale: 0.97, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.97, y: 8 }}
+                exit={{ opacity: 0, scale: 0.97, y: 10 }}
                 transition={spring.modal}
-                className="tp-modal pointer-events-auto w-[520px] max-w-full max-h-[calc(100vh-10vh-1rem)] sm:max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl p-4 sm:p-6 flex flex-col gap-4"
+                className="tp-modal pointer-events-auto w-full max-w-[960px] rounded-[22px] overflow-hidden flex flex-col"
               >
-                <div className="flex items-center justify-between">
-                  <h2
-                    className="text-[20px] font-semibold"
-                    style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
+                {/* Header bar */}
+                <div
+                  className="flex items-center justify-between px-5 sm:px-7 py-4"
+                  style={{ borderBottom: '1px solid var(--border-subtle)' }}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="w-8 h-8 rounded-xl flex items-center justify-center"
+                      style={{
+                        background: 'color-mix(in oklab, var(--accent-color) 15%, transparent)',
+                        color: 'var(--accent-color)',
+                      }}
+                    >
+                      <Sparkles className="w-4 h-4" strokeWidth={1.8} />
+                    </div>
+                    <div>
+                      <h2
+                        className="text-[18px] font-semibold leading-tight"
+                        style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
+                      >
+                        {modalMode === 'add'
+                          ? t.settings.welcome.modalAddTitle
+                          : t.settings.welcome.modalEditTitle}
+                      </h2>
+                      <p
+                        className="text-[11px] font-semibold uppercase tracking-[0.18em] leading-tight mt-0.5"
+                        style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+                      >
+                        Live forhåndsvisning
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={closeModal}
+                    className="p-1.5 rounded-lg transition-colors hover:bg-[var(--bg-subtle)]"
+                    style={{ color: 'var(--text-tertiary)' }}
+                    aria-label={t.common.cancel}
                   >
-                    {modalMode === 'add'
-                      ? t.settings.welcome.modalAddTitle
-                      : t.settings.welcome.modalEditTitle}
-                  </h2>
-                  <button onClick={closeModal} style={{ color: 'var(--text-tertiary)' }}>
                     <X className="w-5 h-5" strokeWidth={1.5} />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-6 gap-3">
-                  <div className="col-span-6 sm:col-span-4">
+                {/* Body — split layout */}
+                <div className="grid grid-cols-1 md:grid-cols-[1.05fr_1fr]">
+                  {/* Live stage column */}
+                  <div
+                    className="p-5 sm:p-6 flex flex-col gap-4"
+                    style={{
+                      background:
+                        'linear-gradient(180deg, color-mix(in oklab, var(--accent-color) 6%, transparent) 0%, transparent 100%)',
+                      borderBottom: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <WelcomeStage
+                      visits={[formToStage(form, 'editor-stage')]}
+                      orgName={orgName}
+                      eyebrow={t.dashboard.welcome.eyebrow}
+                      atTemplate={t.dashboard.welcome.at}
+                      fromTemplate={t.dashboard.welcome.from}
+                      freeze
+                    />
+                    <PreviewSummary form={form} memberById={memberById} t={t} />
+                  </div>
+
+                  {/* Form column */}
+                  <div
+                    className="p-5 sm:p-6 flex flex-col gap-3.5 max-h-[min(70vh,640px)] overflow-y-auto"
+                    style={{ borderLeft: '1px solid var(--border-subtle)' }}
+                  >
                     <Field
                       label={t.settings.welcome.fields.visitorName}
                       icon={<User2 className="w-3.5 h-3.5" strokeWidth={1.5} />}
@@ -548,18 +664,17 @@ export function WelcomeClient({
                     >
                       <input
                         type="text"
+                        autoFocus
                         value={form.visitor_name}
                         onChange={e => updateForm('visitor_name', e.target.value)}
                         placeholder="Anna Hansen"
-                        className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
+                        className="appleish-input"
                         style={inputStyle}
                         onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
                         onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
                       />
                     </Field>
-                  </div>
 
-                  <div className="col-span-6 sm:col-span-2">
                     <Field
                       label={t.settings.welcome.fields.visitorCompany}
                       icon={<Building2 className="w-3.5 h-3.5" strokeWidth={1.5} />}
@@ -569,77 +684,76 @@ export function WelcomeClient({
                         value={form.visitor_company}
                         onChange={e => updateForm('visitor_company', e.target.value)}
                         placeholder="Acme AS"
-                        className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
+                        className="appleish-input"
                         style={inputStyle}
                         onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
                         onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
                       />
                     </Field>
-                  </div>
 
-                  <div className="col-span-6 sm:col-span-2">
-                    <Field
-                      label={t.settings.welcome.fields.date}
-                      icon={<CalendarDays className="w-3.5 h-3.5" strokeWidth={1.5} />}
-                      required
-                    >
-                      <input
-                        type="date"
-                        value={form.date}
-                        onChange={e => updateForm('date', e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
-                        style={inputStyle}
-                        onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
-                        onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
-                      />
-                    </Field>
-                  </div>
+                    <div className="grid grid-cols-3 gap-2.5">
+                      <div className="col-span-3 sm:col-span-1">
+                        <Field
+                          label={t.settings.welcome.fields.date}
+                          icon={<CalendarDays className="w-3.5 h-3.5" strokeWidth={1.5} />}
+                          required
+                        >
+                          <input
+                            type="date"
+                            value={form.date}
+                            onChange={e => updateForm('date', e.target.value)}
+                            className="appleish-input tabular-nums"
+                            style={inputStyle}
+                            onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                            onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                          />
+                        </Field>
+                      </div>
+                      <div className="col-span-3 sm:col-span-1">
+                        <Field
+                          label={t.settings.welcome.fields.start}
+                          icon={<Clock className="w-3.5 h-3.5" strokeWidth={1.5} />}
+                          required
+                        >
+                          <input
+                            type="time"
+                            value={form.start_hhmm}
+                            onChange={e => updateForm('start_hhmm', e.target.value)}
+                            className="appleish-input tabular-nums"
+                            style={inputStyle}
+                            onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                            onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                          />
+                        </Field>
+                      </div>
+                      <div className="col-span-3 sm:col-span-1">
+                        <Field
+                          label={t.settings.welcome.fields.end}
+                          hint={t.settings.welcome.fields.endHint}
+                        >
+                          <input
+                            type="time"
+                            value={form.end_hhmm}
+                            onChange={e => updateForm('end_hhmm', e.target.value)}
+                            className="appleish-input tabular-nums"
+                            style={inputStyle}
+                            onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+                            onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+                          />
+                        </Field>
+                      </div>
+                    </div>
 
-                  <div className="col-span-3 sm:col-span-2">
-                    <Field
-                      label={t.settings.welcome.fields.start}
-                      icon={<Clock className="w-3.5 h-3.5" strokeWidth={1.5} />}
-                      required
-                    >
-                      <input
-                        type="time"
-                        value={form.start_hhmm}
-                        onChange={e => updateForm('start_hhmm', e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none tabular-nums"
-                        style={inputStyle}
-                        onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
-                        onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
-                      />
-                    </Field>
-                  </div>
-
-                  <div className="col-span-3 sm:col-span-2">
-                    <Field
-                      label={t.settings.welcome.fields.end}
-                      hint={t.settings.welcome.fields.endHint}
-                    >
-                      <input
-                        type="time"
-                        value={form.end_hhmm}
-                        onChange={e => updateForm('end_hhmm', e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none tabular-nums"
-                        style={inputStyle}
-                        onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
-                        onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
-                      />
-                    </Field>
-                  </div>
-
-                  <div className="col-span-6">
                     <Field
                       label={t.settings.welcome.fields.host}
+                      icon={<Users className="w-3.5 h-3.5" strokeWidth={1.5} />}
                       hint={t.settings.welcome.fields.hostHint}
                       required
                     >
                       <select
                         value={form.host_member_id}
                         onChange={e => updateForm('host_member_id', e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none"
+                        className="appleish-input"
                         style={inputStyle}
                         onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
                         onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
@@ -654,11 +768,10 @@ export function WelcomeClient({
                         ))}
                       </select>
                     </Field>
-                  </div>
 
-                  <div className="col-span-6">
                     <Field
                       label={t.settings.welcome.fields.note}
+                      icon={<StickyNote className="w-3.5 h-3.5" strokeWidth={1.5} />}
                       hint={t.settings.welcome.fields.noteHint}
                     >
                       <textarea
@@ -666,7 +779,7 @@ export function WelcomeClient({
                         onChange={e => updateForm('note', e.target.value)}
                         placeholder={t.settings.welcome.fields.notePlaceholder}
                         rows={2}
-                        className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none resize-none"
+                        className="appleish-input resize-none"
                         style={inputStyle}
                         onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
                         onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
@@ -675,13 +788,16 @@ export function WelcomeClient({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-1">
+                {/* Footer */}
+                <div
+                  className="flex items-center justify-end gap-2 px-5 sm:px-7 py-4"
+                  style={{ borderTop: '1px solid var(--border-subtle)' }}
+                >
                   <button
                     onClick={closeModal}
-                    className="px-4 py-2 rounded-xl text-[13px] font-medium"
+                    className="px-4 py-2 rounded-xl text-[13px] font-medium transition-colors hover:bg-[var(--bg-subtle)]"
                     style={{
                       color: 'var(--text-secondary)',
-                      backgroundColor: 'var(--bg-subtle)',
                       fontFamily: 'var(--font-body)',
                     }}
                   >
@@ -693,10 +809,13 @@ export function WelcomeClient({
                     whileHover={canSave ? { scale: 1.02 } : undefined}
                     whileTap={canSave ? { scale: 0.97 } : undefined}
                     transition={spring.snappy}
-                    className="px-5 py-2 rounded-xl text-[13px] font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="px-5 py-2 rounded-xl text-[13px] font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
                     style={{
                       backgroundColor: 'var(--accent-color)',
                       fontFamily: 'var(--font-body)',
+                      boxShadow: canSave
+                        ? '0 6px 18px -6px color-mix(in oklab, var(--accent-color) 70%, transparent)'
+                        : 'none',
                     }}
                   >
                     {saving
@@ -708,6 +827,18 @@ export function WelcomeClient({
                 </div>
               </motion.div>
             </div>
+
+            <style jsx global>{`
+              .appleish-input {
+                width: 100%;
+                padding: 0.625rem 0.875rem;
+                border-radius: 0.75rem;
+                font-size: 14px;
+                outline: none;
+                transition: border-color 120ms ease;
+              }
+              .appleish-input:focus { outline: none; }
+            `}</style>
           </>
         )}
       </AnimatePresence>
@@ -766,6 +897,53 @@ function Field({
   )
 }
 
+/**
+ * Compact summary chip-row under the live stage in the editor — translates
+ * the form state into the same plain-language facts the TV slide will show
+ * (date, host name) so the admin sees both the visual rendering AND the
+ * underlying truth in one glance.
+ */
+function PreviewSummary({
+  form,
+  memberById,
+  t,
+}: {
+  form: VisitFormState
+  memberById: Map<string, Member>
+  t: ReturnType<typeof useT>
+}) {
+  const host = memberById.get(form.host_member_id)
+  const dateLabel = form.date ? formatLongDate(form.date) : '—'
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <SummaryChip icon={<CalendarDays className="w-3 h-3" strokeWidth={1.6} />} label={dateLabel} />
+      {host && (
+        <SummaryChip
+          icon={<Users className="w-3 h-3" strokeWidth={1.6} />}
+          label={`${t.settings.welcome.hostLabel} ${host.display_name}`}
+        />
+      )}
+    </div>
+  )
+}
+
+function SummaryChip({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium"
+      style={{
+        backgroundColor: 'var(--bg-subtle)',
+        color: 'var(--text-secondary)',
+        fontFamily: 'var(--font-body)',
+        border: '1px solid var(--border-subtle)',
+      }}
+    >
+      <span style={{ color: 'var(--text-tertiary)' }}>{icon}</span>
+      {label}
+    </span>
+  )
+}
+
 function StatusPill({
   status,
   t,
@@ -808,16 +986,6 @@ function StatusPill({
   )
 }
 
-/**
- * Tiny inline SVG that replaces the generic dot — gives each visit-state a
- * distinct silhouette (DESIGN_SYSTEM §8 mandates SVG, never emoji). All three
- * glyphs sit on the same 10×10 viewBox so the pill width stays steady.
- *
- * - `window` keeps a pulse ring (live broadcast feel) at the same 2.4s
- *   cadence as before, with the inner dot solid
- * - `upcoming` shows a clock face with a forward-leaning hand
- * - `past` shows a calm checkmark
- */
 function StatusGlyph({ status, reducedMotion }: { status: VisitStatus; reducedMotion: boolean }) {
   const stroke = 'currentColor'
   if (status === 'window') {
