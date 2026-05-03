@@ -9,7 +9,7 @@ export type WeatherInlineSize = 'sm' | 'md' | 'lg'
 interface WeatherInlineProps {
   lat: number | null | undefined
   lng: number | null | undefined
-  /** sm: 14px / md: 22px / lg: 40px ikonboks. Default sm. */
+  /** sm: 13px / md: 22px / lg: 40px ikonboks. Default sm. */
   size?: WeatherInlineSize
   /** Vis kort beskrivelse («lett regn») under tallet. Kun på md/lg. */
   showLabel?: boolean
@@ -18,10 +18,19 @@ interface WeatherInlineProps {
 }
 
 const SIZES: Record<WeatherInlineSize, { icon: number; tempPx: number; labelPx: number; gapPx: number }> = {
-  sm: { icon: 14, tempPx: 13, labelPx: 12, gapPx: 6 },
+  // sm matcher office-map-label (icon 13, tempPx 12) så vær-glyf og
+  // grader ser identisk store ut på tvers av dashboard-flatene — kunde-
+  // scroller og kontor-kart leses som samme språk på TV.
+  sm: { icon: 13, tempPx: 12, labelPx: 12, gapPx: 4 },
   md: { icon: 22, tempPx: 18, labelPx: 14, gapPx: 8 },
   lg: { icon: 40, tempPx: 36, labelPx: 16, gapPx: 12 },
 }
+
+// Identiske farge-tokens som office-map-label bruker — varm trer frem
+// som ekte gul (Ember-glow) i stedet for mørk amber, og kald hviler i
+// papirets nedtonede lys. Holder vær-uttrykket i én stemme på dashboard.
+const WARM_COLOR = '#FBBF24'
+const COLD_COLOR = 'rgba(245, 239, 228, 0.82)'
 
 /**
  * WeatherInline — én linje, ikon + tall (+ valgfri label). Brukes i
@@ -32,7 +41,9 @@ const SIZES: Record<WeatherInlineSize, { icon: number; tempPx: number; labelPx: 
  *  - Ikon FØR tall, alltid horisontalt
  *  - Stroke 1.8px (avvik fra lucide default 2)
  *  - Tabular figures på temperaturen
- *  - Ember kun når været er varmt (tempC ≥ 18) — ellers Ink/Paper
+ *  - Varmt vær (tempC ≥ 18) tegnes i Ember-glow-gult (#FBBF24) med en
+ *    soft glow på ikonet — speiler office-map-label så hele dashboard-et
+ *    snakker samme vær-språk. Kald faller tilbake til paper-tonet hvit.
  *  - Hele grader, ekte minustegn (formatTemp håndterer dette)
  *  - Label kun på md/lg + showLabel=true
  *  - Hvis vær mangler: render `null` (skjules stille på TV)
@@ -48,23 +59,26 @@ export function WeatherInline({
 
   const { icon: Icon, label, warm } = wmoToIcon(snap.code, snap.tempC)
   const dims = SIZES[size]
-  const colorClass = warm ? 'text-ember' : 'text-ink dark:text-paper'
+  const color = warm ? WARM_COLOR : COLD_COLOR
   const wantLabel = showLabel && size !== 'sm'
 
   return (
     <span
       className={`inline-flex items-center ${className ?? ''}`}
-      style={{ gap: dims.gapPx }}
+      style={{ gap: dims.gapPx, color }}
       aria-label={`${label}, ${formatTemp(snap.tempC)}`}
     >
       <Icon
         size={dims.icon}
         strokeWidth={1.8}
-        className={colorClass}
         aria-hidden
+        style={{
+          flexShrink: 0,
+          display: 'block',
+          filter: warm ? `drop-shadow(0 0 8px ${WARM_COLOR}55)` : undefined,
+        }}
       />
       <span
-        className={colorClass}
         style={{
           fontFamily: 'var(--font-manrope)',
           fontWeight: 500,
