@@ -1399,10 +1399,12 @@ export function TeamGrid({
                               {member.full_name || member.display_name}
                             </span>
                             {combinedView && workspaceByOrgId.get(member.org_id) && (
-                              <WorkspaceBadge
-                                workspace={workspaceByOrgId.get(member.org_id)!}
-                                size="sm"
-                              />
+                              <span className="ml-auto flex-shrink-0">
+                                <WorkspaceBadge
+                                  workspace={workspaceByOrgId.get(member.org_id)!}
+                                  size="sm"
+                                />
+                              </span>
                             )}
                           </div>
                         </MemberHoverCard>
