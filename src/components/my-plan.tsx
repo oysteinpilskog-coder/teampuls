@@ -675,7 +675,7 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
           className="grid gap-2 px-4 py-2 rounded-2xl"
           style={{
             gridTemplateColumns: '128px repeat(5, 1fr)',
-            background: 'rgba(31, 25, 19, 0.65)',
+            background: 'var(--lg-panel-bg)',
             backdropFilter: 'blur(18px) saturate(160%)',
             WebkitBackdropFilter: 'blur(18px) saturate(160%)',
             border: '1px solid var(--lg-divider)',
