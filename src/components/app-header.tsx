@@ -26,6 +26,7 @@ export function AppHeader() {
     { href: '/', label: t.nav.home },
     { href: '/min-plan', label: t.nav.myPlan },
     { href: '/wheel', label: t.nav.wheel },
+    { href: '/sommer', label: t.nav.summer },
     { href: '/dashboard', label: t.nav.dashboard },
     { href: '/settings', label: t.nav.settings },
   ]
