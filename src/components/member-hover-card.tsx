@@ -101,7 +101,7 @@ export function MemberHoverCard({
             onMouseLeave={scheduleClose}
             onFocus={scheduleOpen}
             onBlur={scheduleClose}
-            className="inline-flex items-center gap-2 cursor-default outline-none"
+            className="flex w-full min-w-0 items-center gap-2 cursor-default outline-none"
           />
         }
       >
