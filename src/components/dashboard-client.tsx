@@ -659,6 +659,8 @@ export function DashboardClient({
         return (
           <GlobeView
             offices={offices}
+            members={members}
+            todayEntries={displayTodayEntries}
             orgName={orgName}
             time={time}
           />

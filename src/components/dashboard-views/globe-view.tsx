@@ -1,353 +1,469 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
 import { useMemo } from 'react'
-import { BreathingDot } from '@/components/breathing-dot'
-import { GlobeCanvas, type GlobePoint, type ProjectedPoint } from './globe-canvas'
+import { GlobeCanvas, type OfficePoint, type OfficeArc } from './globe-canvas'
 import { resolveLocation } from '@/lib/geo'
-import { useStatusColors } from '@/lib/status-colors/context'
-import { spring } from '@/lib/motion'
-import type { Office } from '@/lib/supabase/types'
+import type { Entry, Member, Office } from '@/lib/supabase/types'
 import { useT } from '@/lib/i18n/context'
-import { useWeather } from '@/lib/weather/use-weather'
-import { wmoToIcon } from '@/lib/weather/wmo-to-icon'
-import { formatTemp } from '@/lib/weather/format-temp'
 
 interface GlobeViewProps {
   offices: Office[]
-  /** Currently unused — the global top-bar in dashboard-client renders the
-   *  org name on this view. Kept on the prop to mirror sibling view APIs
-   *  and to keep the call site in dashboard-client.tsx homogeneous. */
+  members: Member[]
+  /** Deduped today entries (one row per active member, with assumed
+   *  presence already applied). Used to count "online now". */
+  todayEntries: Entry[]
+  /** Currently rendered by the global top-bar — kept on the prop so
+   *  the call site in dashboard-client.tsx mirrors sibling views. */
   orgName: string
   time: Date
 }
 
+// Local working hours window. 08:00–17:00 in each office's own
+// timezone — matches the user's reference design. Tuneable per-org
+// later if needed.
+const WORK_HOURS_START = 8
+const WORK_HOURS_END = 17
+
+const COLOR_OPEN = '#4ade80'
+const COLOR_CLOSED = '#6b7280'
+const COLOR_HQ = '#fbbf24'
+
 /**
- * Dashboard view G — «Verden i sanntid». A slow-rotating orthographic
- * globe that flies between the org's offices, lingering on each so the
- * camera-mounted TV can show local time and weather alongside the city
- * name. The data is the same as Kontorer (view C); the storytelling is
- * different — view C is a top-down atlas of the European footprint, view
- * G frames each office as a moment ("right now in Vilnius, it's 14°C and
- * 11:42 PM").
+ * Local-time helpers — Intl.DateTimeFormat does the heavy lifting so
+ * we don't have to ship a tz database. Falls back to a longitude-
+ * derived offset when the office row has no IANA timezone (rare; the
+ * Office type carries `timezone: string | null`).
  */
-export function GlobeView({ offices, orgName, time }: GlobeViewProps) {
-  const STATUS_COLORS = useStatusColors()
+function localTime(timezone: string | null, lng: number, now: Date): string {
+  if (timezone) {
+    try {
+      return new Intl.DateTimeFormat('nb-NO', {
+        timeZone: timezone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(now)
+    } catch {
+      // fall through to longitude approximation
+    }
+  }
+  const offsetH = Math.round(lng / 15)
+  const utc = now.getTime() + now.getTimezoneOffset() * 60_000
+  const local = new Date(utc + offsetH * 3_600_000)
+  return `${String(local.getHours()).padStart(2, '0')}:${String(local.getMinutes()).padStart(2, '0')}`
+}
+
+function localHour(timezone: string | null, lng: number, now: Date): number {
+  if (timezone) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        hour: '2-digit',
+        hour12: false,
+      }).formatToParts(now)
+      const h = parts.find(p => p.type === 'hour')?.value
+      if (h) return parseInt(h, 10)
+    } catch {
+      /* fall through */
+    }
+  }
+  const offsetH = Math.round(lng / 15)
+  const utc = now.getTime() + now.getTimezoneOffset() * 60_000
+  return new Date(utc + offsetH * 3_600_000).getHours()
+}
+
+function localWeekday(timezone: string | null, lng: number, now: Date): string {
+  if (timezone) {
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        weekday: 'short',
+      }).format(now)
+    } catch {
+      /* fall through */
+    }
+  }
+  const offsetH = Math.round(lng / 15)
+  const utc = now.getTime() + now.getTimezoneOffset() * 60_000
+  return new Date(utc + offsetH * 3_600_000).toLocaleDateString('en-US', {
+    weekday: 'short',
+  })
+}
+
+function isOfficeOpen(o: OfficePoint, now: Date): boolean {
+  const day = localWeekday(o.timezone, o.lng, now)
+  if (day === 'Sat' || day === 'Sun') return false
+  const h = localHour(o.timezone, o.lng, now)
+  return h >= WORK_HOURS_START && h < WORK_HOURS_END
+}
+
+/**
+ * Dashboard view G — «Verden i sanntid». A live globe.gl scene with
+ * Earth night-lights texture, atmospheric glow, and animated arcs
+ * between the org's offices. HUD overlays in the four corners do the
+ * storytelling: org wordmark top-left, UTC clock top-right, headline
+ * counters bottom-left, per-office status panel bottom-right.
+ *
+ * The data is the same as Kontorer (view C); the framing is what
+ * makes this view feel like a control room rather than an atlas.
+ */
+export function GlobeView({
+  offices,
+  members,
+  todayEntries,
+  orgName,
+  time,
+}: GlobeViewProps) {
   const t = useT()
 
-  // Resolve coordinates for every office — same precedence as office-map-
-  // view.tsx so the globe and the 2D atlas always agree on where each
-  // city sits. City-dictionary match wins over stored lat/lng.
-  const points: GlobePoint[] = useMemo(() => {
+  // Membership count per office for the tooltip + bottom-left "Team"
+  // stat. Members without an office are still counted toward Team
+  // but never against any single office row.
+  const teamPerOffice = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const m of members) {
+      if (!m.home_office_id) continue
+      counts.set(m.home_office_id, (counts.get(m.home_office_id) ?? 0) + 1)
+    }
+    return counts
+  }, [members])
+
+  // Resolve coordinates — same precedence as office-map-view (city
+  // dictionary first, stored lat/lng as fallback). Drop offices that
+  // have neither so the globe never plots a marker at NaN.
+  const points: OfficePoint[] = useMemo(() => {
     return offices
-      .map<GlobePoint | null>(o => {
+      .map<OfficePoint | null>(o => {
         const cityHit = resolveLocation(o.city ?? o.name)
         const lat = cityHit?.lat ?? o.latitude
         const lng = cityHit?.lng ?? o.longitude
         if (typeof lat !== 'number' || typeof lng !== 'number') return null
         return {
           id: o.id,
+          name: o.city ?? o.name,
+          city: o.city ?? o.name,
+          country: o.country_code ?? '',
           lat,
           lng,
-          city: o.city ?? o.name,
+          timezone: o.timezone,
+          isHq: !!o.is_hq,
+          team: teamPerOffice.get(o.id) ?? 0,
         }
       })
-      .filter((p): p is GlobePoint => p !== null)
-  }, [offices])
+      .filter((p): p is OfficePoint => p !== null)
+  }, [offices, teamPerOffice])
 
-  const officeColor = STATUS_COLORS.office.icon
+  // Arcs: HQ → every other office, plus a few peer pairs so the
+  // network reads as a mesh, not a star. Mirrors the user's
+  // reference design (Ålesund hub + Stockholm-Vilnius peer).
+  const arcs: OfficeArc[] = useMemo(() => {
+    if (points.length < 2) return []
+    const hq = points.find(p => p.isHq) ?? points[0]
+    const out: OfficeArc[] = []
+    for (const p of points) {
+      if (p.id === hq.id) continue
+      out.push({
+        startLat: hq.lat,
+        startLng: hq.lng,
+        endLat: p.lat,
+        endLng: p.lng,
+      })
+    }
+    // Add one peer pair (first non-HQ to second non-HQ) to break the
+    // pure-star pattern. Keeps the arc count bounded so the screen
+    // doesn't turn into a tangle.
+    const others = points.filter(p => p.id !== hq.id)
+    if (others.length >= 2) {
+      out.push({
+        startLat: others[0].lat,
+        startLng: others[0].lng,
+        endLat: others[1].lat,
+        endLng: others[1].lng,
+      })
+    }
+    return out
+  }, [points])
+
+  // Color callback re-creates whenever `time` ticks — the parent
+  // dashboard already updates `time` once a second so the open/closed
+  // dot flips automatically when working hours roll over.
+  const pointColor = useMemo(() => {
+    return (o: OfficePoint) => {
+      if (o.isHq) return COLOR_HQ
+      return isOfficeOpen(o, time) ? COLOR_OPEN : COLOR_CLOSED
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [time.getMinutes()])
+
+  const pointLabel = useMemo(() => {
+    return (o: OfficePoint) => {
+      const open = isOfficeOpen(o, time)
+      const dotColor = open ? COLOR_OPEN : COLOR_CLOSED
+      const statusText = open
+        ? t.dashboard.globe.openLabel
+        : t.dashboard.globe.closedLabel
+      const teamText =
+        o.team === 1
+          ? t.dashboard.globe.teamOne
+          : t.dashboard.globe.teamMany.replace('{n}', String(o.team))
+      // globe.gl expects an HTML string — escape office-controlled
+      // strings (city, name) so a future free-form input can't break
+      // out of the tooltip.
+      const esc = (s: string) =>
+        s.replace(/[&<>"']/g, c =>
+          c === '&'
+            ? '&amp;'
+            : c === '<'
+            ? '&lt;'
+            : c === '>'
+            ? '&gt;'
+            : c === '"'
+            ? '&quot;'
+            : '&#39;'
+        )
+      const role = o.isHq ? 'HQ' : t.dashboard.globe.officeOne
+      return `
+        <div style="background:rgba(0,0,0,0.85);padding:12px 16px;border-radius:12px;
+                    font-family:var(--font-body),system-ui;font-size:12px;color:#fff;
+                    border:1px solid rgba(255,255,255,0.1);min-width:180px;">
+          <div style="font-size:14px;font-weight:600;">${esc(o.city)}</div>
+          <div style="color:rgba(255,255,255,0.55);font-size:10px;
+                      letter-spacing:0.15em;text-transform:uppercase;margin-top:2px;">
+            ${esc(o.country)}${o.country ? ' · ' : ''}${role}
+          </div>
+          <div style="margin-top:8px;font-size:11px;">
+            <span style="color:${dotColor};">●</span>
+            ${statusText} · ${localTime(o.timezone, o.lng, time)}
+          </div>
+          <div style="color:rgba(255,255,255,0.55);font-size:11px;margin-top:2px;">
+            ${teamText}
+          </div>
+        </div>
+      `
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [time.getMinutes(), t])
+
+  // Stats for the bottom-left HUD.
+  const onlineNow = useMemo(() => {
+    return todayEntries.filter(e => e.status === 'office').length
+  }, [todayEntries])
+
+  // UTC clock for the top-right HUD. Re-derives every render — the
+  // dashboard already drives a 1 Hz tick into `time`.
+  const utcClock = useMemo(() => {
+    const hh = String(time.getUTCHours()).padStart(2, '0')
+    const mm = String(time.getUTCMinutes()).padStart(2, '0')
+    return `${hh}:${mm}`
+  }, [time])
+  const utcDate = useMemo(() => {
+    return time.toUTCString().slice(5, 16) + ' UTC'
+  }, [time])
 
   return (
-    <div className="relative h-full flex flex-col px-10 pt-14 pb-4 gap-4">
-      {/* ── Header ──────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0">
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.gentle, delay: 0.05 }}
+    <div className="relative h-full w-full overflow-hidden" style={{ background: '#000' }}>
+      <GlobeCanvas
+        offices={points}
+        arcs={arcs}
+        pointColor={pointColor}
+        pointLabel={pointLabel}
+        initialView={{ lat: 55, lng: 15, altitude: 2.2 }}
+        autoRotateSpeed={0.3}
+      />
+
+      {/* Empty state — globe still renders but no markers. The HUD
+          tells the user why so it doesn't look like a bug. */}
+      {points.length === 0 && (
+        <div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-body)' }}
         >
-          <p
-            className="text-[30px] font-semibold tracking-tight leading-none"
-            style={{
-              fontFamily: 'var(--font-fraunces)',
-              background:
-                'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.7) 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}
-          >
-            {t.dashboard.globe.heading}
-          </p>
-          <div className="mt-2 flex items-center gap-2">
-            <span
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-[0.16em] uppercase"
+          {t.dashboard.noOfficesWithCoords}
+        </div>
+      )}
+
+      {/* ── HUD top-left: workspace wordmark ─────────────────────── */}
+      <div className={GLASS_CLS} style={{ ...glassStyle, position: 'absolute', top: 32, left: 32, padding: '18px 24px', zIndex: 10 }}>
+        <div
+          style={{
+            margin: '0 0 4px 0',
+            fontSize: 13,
+            fontWeight: 500,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            color: 'rgba(255,255,255,0.55)',
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          {orgName}
+        </div>
+        <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: '-0.01em', fontFamily: 'var(--font-fraunces)' }}>
+          {t.dashboard.globe.heading}
+        </div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 2, fontFamily: 'var(--font-body)' }}>
+          {t.dashboard.globe.subtitle}
+        </div>
+      </div>
+
+      {/* ── HUD top-right: UTC clock ─────────────────────────────── */}
+      <div
+        className={GLASS_CLS}
+        style={{ ...glassStyle, position: 'absolute', top: 32, right: 32, padding: '14px 20px', zIndex: 10, textAlign: 'right' }}
+      >
+        <div
+          style={{
+            fontSize: 22,
+            fontWeight: 200,
+            letterSpacing: '0.04em',
+            fontVariantNumeric: 'tabular-nums',
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          {utcClock}
+        </div>
+        <div
+          style={{
+            fontSize: 11,
+            color: 'rgba(255,255,255,0.45)',
+            marginTop: 2,
+            letterSpacing: '0.15em',
+            textTransform: 'uppercase',
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          {utcDate}
+        </div>
+      </div>
+
+      {/* ── HUD bottom-left: stat triplet ────────────────────────── */}
+      <div style={{ position: 'absolute', bottom: 32, left: 32, display: 'flex', gap: 14, zIndex: 10 }}>
+        <StatCard value={points.length} label={t.dashboard.globe.statOffices} />
+        <StatCard
+          value={onlineNow}
+          label={t.dashboard.globe.statOnline}
+          accent={COLOR_OPEN}
+        />
+        <StatCard value={members.length} label={t.dashboard.globe.statTeam} />
+      </div>
+
+      {/* ── HUD bottom-right: live office list ───────────────────── */}
+      <div
+        className={GLASS_CLS}
+        style={{
+          ...glassStyle,
+          position: 'absolute',
+          bottom: 32,
+          right: 32,
+          padding: '16px 20px',
+          minWidth: 240,
+          zIndex: 10,
+        }}
+      >
+        {points.map((p, i) => {
+          const open = isOfficeOpen(p, time)
+          const dot = open ? COLOR_OPEN : COLOR_CLOSED
+          const isLast = i === points.length - 1
+          return (
+            <div
+              key={p.id}
               style={{
-                background: 'rgba(0,102,255,0.12)',
-                border: '1px solid rgba(0,102,255,0.25)',
-                color: '#7FB2FF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 0',
+                borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                fontSize: 12,
                 fontFamily: 'var(--font-body)',
               }}
             >
-              <BreathingDot color={officeColor} />
-              {t.dashboard.globe.subtitle}
-            </span>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* ── Globe canvas — fills remaining height. ─────────────────── */}
-      <motion.div
-        className="flex-1 relative rounded-3xl overflow-hidden min-h-0"
-        initial={{ opacity: 0, scale: 0.985 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ ...spring.gentle, delay: 0.18 }}
-        style={{
-          background:
-            'radial-gradient(ellipse at 50% 50%, rgba(20,40,90,0.18) 0%, rgba(5,5,7,0) 70%)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          boxShadow:
-            'inset 0 1px 0 rgba(255,255,255,0.06), 0 40px 80px -40px rgba(0,0,0,0.5)',
-        }}
-      >
-        <GlobeCanvas offices={points}>
-          {({ points: projected, activeId }) => (
-            <ActiveOfficeOverlay
-              points={projected}
-              activeId={activeId}
-              now={time}
-              activeNowInLabel={t.dashboard.globe.activeNowIn}
-            />
-          )}
-        </GlobeCanvas>
-
-        {points.length === 0 && (
-          <div
-            className="absolute inset-0 flex items-center justify-center"
-            style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
-          >
-            {t.dashboard.noOfficesWithCoords}
-          </div>
-        )}
-
-        {/* Glass top-edge highlight */}
-        <div
-          aria-hidden
-          className="absolute inset-x-0 top-0 h-[1px]"
-          style={{
-            background:
-              'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0) 100%)',
-          }}
-        />
-      </motion.div>
-
-      {/* ── Footer summary — same shape as office-map-view so the two
-          surfaces share their visual language. */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ ...spring.gentle, delay: 0.4 }}
-        className="flex items-center justify-between gap-4 px-5 py-3 rounded-2xl flex-shrink-0 overflow-hidden"
-        style={{
-          background:
-            'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%)',
-          border: '1px solid rgba(255,255,255,0.06)',
-        }}
-      >
-        <div className="flex items-center gap-5 min-w-0 overflow-hidden">
-          {points.slice(0, 10).map(p => (
-            <div key={p.id} className="flex items-center gap-2 flex-shrink-0">
-              <span
-                className="w-1.5 h-1.5 rounded-full"
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: dot,
+                    boxShadow: `0 0 8px ${dot}`,
+                    flexShrink: 0,
+                  }}
+                />
+                <div>
+                  <div>{p.city}</div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: 'rgba(255,255,255,0.4)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.1em',
+                    }}
+                  >
+                    {p.country}
+                  </div>
+                </div>
+              </div>
+              <div
                 style={{
-                  backgroundColor: officeColor,
-                  boxShadow: `0 0 8px ${officeColor}`,
+                  color: 'rgba(255,255,255,0.55)',
+                  fontVariantNumeric: 'tabular-nums',
                 }}
-              />
-              <span
-                className="text-[13px] font-medium tracking-wide"
-                style={{ color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--font-body)' }}
               >
-                {p.city}
-              </span>
+                {localTime(p.timezone, p.lng, time)}
+              </div>
             </div>
-          ))}
-          {points.length > 10 && (
-            <span
-              className="text-[12px] tabular-nums flex-shrink-0"
-              style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-body)' }}
-            >
-              +{points.length - 10}
-            </span>
-          )}
-        </div>
-        <span
-          className="text-[11px] tracking-[0.22em] uppercase flex-shrink-0"
-          style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-body)' }}
-        >
-          {points.length} {points.length === 1 ? t.dashboard.globe.officeOne : t.dashboard.globe.officeMany}
-        </span>
-      </motion.div>
+          )
+        })}
+      </div>
     </div>
   )
 }
 
-/**
- * The label that floats next to the active office. Shows city, current
- * local time, and live weather. Crossfades when the active office
- * changes — single moment of focus on the TV.
- *
- * Positioned absolutely inside the globe canvas wrapper. We use the
- * canvas viewBox-space coords from `projected` and convert them via
- * percentages so the label tracks correctly even when the SVG
- * letterboxes (preserveAspectRatio="meet").
- */
-function ActiveOfficeOverlay({
-  points,
-  activeId,
-  now,
-  activeNowInLabel,
-}: {
-  points: ProjectedPoint[]
-  activeId: string | null
-  now: Date
-  activeNowInLabel: string
-}) {
-  const active = points.find(p => p.id === activeId) ?? null
-
-  return (
-    <AnimatePresence mode="wait">
-      {active && active.visible && (
-        <motion.div
-          key={active.id}
-          initial={{ opacity: 0, x: -16 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 16 }}
-          transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-          // Anchor along the right-hand side so labels are predictable
-          // and don't dance with the rotating globe. Vertical centre
-          // gives the city name top-billing without competing with the
-          // header. Pointer-events disabled — TV surface is read-only.
-          //
-          // Width budget: 44 % of the canvas — wide enough to fit
-          // «Newcastle upon Tyne» italic at 88 px without clipping,
-          // narrow enough that the globe stays the visual centre of
-          // gravity. `overflow-visible` so descender + italic skew
-          // don't get sliced by an inadvertent overflow:hidden parent.
-          className="absolute right-12 top-1/2 -translate-y-1/2 pointer-events-none"
-          style={{ width: '44%', maxWidth: 560, overflow: 'visible' }}
-        >
-          <ActiveOfficeCard
-            city={active.city}
-            lat={active.lat}
-            lng={active.lng}
-            now={now}
-            activeNowInLabel={activeNowInLabel}
-          />
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
+// Shared "frosted glass" panel styling used by every HUD card.
+// Pulled into a constant so they read as one visual language and a
+// single tweak (tint, blur radius, border alpha) flows everywhere.
+const GLASS_CLS = ''
+const glassStyle: React.CSSProperties = {
+  backdropFilter: 'blur(20px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+  background: 'rgba(20, 20, 28, 0.55)',
+  border: '1px solid rgba(255, 255, 255, 0.08)',
+  borderRadius: 18,
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+  color: '#fff',
 }
 
-function ActiveOfficeCard({
-  city,
-  lat,
-  lng,
-  now,
-  activeNowInLabel,
+function StatCard({
+  value,
+  label,
+  accent,
 }: {
-  city: string
-  lat: number
-  lng: number
-  now: Date
-  activeNowInLabel: string
+  value: number | string
+  label: string
+  accent?: string
 }) {
-  const snap = useWeather(lat, lng)
-  const desc = snap ? wmoToIcon(snap.code, snap.tempC) : null
-  const Icon = desc?.icon
-  const warm = desc?.warm ?? false
-  const weatherColor = warm ? '#FBBF24' : 'rgba(245, 239, 228, 0.9)'
-
-  // Local time at the office. We approximate timezone via longitude when
-  // the office row doesn't have a stored IANA zone — close enough for a
-  // headline display. UTC offset = lng / 15, rounded to whole hours so
-  // the clock advances cleanly.
-  const localTime = useMemo(() => {
-    const offsetHours = Math.round(lng / 15)
-    const utc = now.getTime() + now.getTimezoneOffset() * 60_000
-    const local = new Date(utc + offsetHours * 3_600_000)
-    const hh = String(local.getHours()).padStart(2, '0')
-    const mm = String(local.getMinutes()).padStart(2, '0')
-    return `${hh}:${mm}`
-  }, [lng, now])
-
   return (
-    <div
-      style={{
-        textShadow: '0 2px 16px rgba(0,0,0,0.5)',
-      }}
-    >
-      <p
-        className="text-[12px] tracking-[0.32em] uppercase"
+    <div className={GLASS_CLS} style={{ ...glassStyle, padding: '12px 18px' }}>
+      <div
         style={{
-          color: 'rgba(180, 210, 255, 0.85)',
+          fontSize: 22,
+          fontWeight: 300,
+          color: accent ?? '#fff',
+          fontVariantNumeric: 'tabular-nums',
           fontFamily: 'var(--font-body)',
-          fontWeight: 500,
         }}
       >
-        {activeNowInLabel}
-      </p>
-      <p
-        // Italic serif rendering needs a touch of right padding so
-        // the descender of the final glyph (especially «l» / «y» in
-        // Fraunces italic, which leans further right than upright
-        // metrics suggest) doesn't get clipped by the parent's
-        // bounding rect. Auto font-size shrinks long names down to
-        // 56 px so we never run off-screen — short names still get
-        // the full 88 px treatment.
-        className="mt-2 font-semibold leading-[0.92] tracking-tight"
+        {value}
+      </div>
+      <div
         style={{
-          fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
-          background:
-            'linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(220,232,255,0.85) 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          fontStyle: 'italic',
-          fontSize: city.length > 14 ? 56 : city.length > 10 ? 72 : 88,
-          paddingRight: 12,
-          wordBreak: 'normal',
-          overflowWrap: 'normal',
+          fontSize: 10,
+          letterSpacing: '0.2em',
+          textTransform: 'uppercase',
+          color: 'rgba(255,255,255,0.45)',
+          marginTop: 2,
+          fontFamily: 'var(--font-body)',
         }}
       >
-        {city}
-      </p>
-
-      <div className="mt-4 flex items-baseline gap-5 flex-wrap">
-        <span
-          className="text-[44px] font-semibold tabular-nums leading-none"
-          style={{
-            fontFamily: 'var(--font-body)',
-            color: 'white',
-            letterSpacing: '-0.02em',
-          }}
-        >
-          {localTime}
-        </span>
-        {snap && Icon && (
-          <span
-            className="inline-flex items-center gap-2 text-[26px] font-medium tabular-nums leading-none"
-            style={{
-              color: weatherColor,
-              fontFamily: 'var(--font-body)',
-              filter: warm ? `drop-shadow(0 0 14px ${weatherColor}55)` : undefined,
-            }}
-          >
-            <Icon size={26} strokeWidth={1.6} />
-            <span>{formatTemp(snap.tempC)}</span>
-          </span>
-        )}
+        {label}
       </div>
     </div>
   )
