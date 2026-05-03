@@ -9,17 +9,18 @@ export default async function WheelPage() {
   if (!user) redirect('/login')
   if (!member) redirect('/')
 
-  // Org-level kill switches for the new wheel views. Default both on if the
+  // Org-level kill switches for the wheel views. Default each on if the
   // column is null/undefined — matches the migration default.
   const supabase = await createSupabaseServerClient()
   const { data: org } = await supabase
     .from('organizations')
-    .select('birthdays_enabled, anniversaries_enabled')
+    .select('birthdays_enabled, anniversaries_enabled, strategies_enabled')
     .eq('id', member.org_id)
     .maybeSingle()
 
   const birthdaysEnabled = org?.birthdays_enabled !== false
   const anniversariesEnabled = org?.anniversaries_enabled !== false
+  const strategiesEnabled = org?.strategies_enabled !== false
 
   return (
     <div className="mx-auto max-w-[1220px] px-4 sm:px-6 pt-10 md:pt-14 pb-10 md:pb-12">
@@ -28,6 +29,7 @@ export default async function WheelPage() {
           orgId={member.org_id}
           birthdaysEnabled={birthdaysEnabled}
           anniversariesEnabled={anniversariesEnabled}
+          strategiesEnabled={strategiesEnabled}
         />
       </Suspense>
     </div>

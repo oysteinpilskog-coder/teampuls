@@ -75,6 +75,8 @@ export interface Organization {
   birthdays_enabled?: boolean
   /** Org-wide kill switch for the work-anniversary surface. */
   anniversaries_enabled?: boolean
+  /** Org-wide kill switch for the quarterly-strategy wheel surface. */
+  strategies_enabled?: boolean
   /** Ukentlig statusmail — master-bryter. Sender-jobben fyrer kun når denne er TRUE. */
   weekly_email_enabled?: boolean
   /** ISO-ukedag (1=mandag, 7=søndag) for utsendelse. */
@@ -234,6 +236,21 @@ export interface Visit {
   source: EntrySource
   source_text: string | null
   confidence: number | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type StrategyStatus = 'on_track' | 'at_risk' | 'off_track' | 'done'
+
+export interface StrategyTheme {
+  id: string
+  org_id: string
+  year: number
+  quarter: 1 | 2 | 3 | 4
+  title: string
+  goal: string | null
+  status: StrategyStatus
   created_by: string | null
   created_at: string
   updated_at: string

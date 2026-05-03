@@ -66,6 +66,9 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
   const [anniversariesEnabled, setAnniversariesEnabled] = useState<boolean>(
     initialOrg.anniversaries_enabled ?? true
   )
+  const [strategiesEnabled, setStrategiesEnabled] = useState<boolean>(
+    initialOrg.strategies_enabled ?? true
+  )
   const [dashboardRotationViews, setDashboardRotationViews] = useState<DashboardViewKey[]>(
     initialOrg.dashboard_rotation_views && initialOrg.dashboard_rotation_views.length > 0
       ? initialOrg.dashboard_rotation_views
@@ -113,6 +116,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     dashboardShowSick !== (org.dashboard_show_sick ?? true) ||
     birthdaysEnabled !== (org.birthdays_enabled ?? true) ||
     anniversariesEnabled !== (org.anniversaries_enabled ?? true) ||
+    strategiesEnabled !== (org.strategies_enabled ?? true) ||
     rotationDirty ||
     durationsDirty ||
     statusColorsDirty
@@ -238,6 +242,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
         dashboard_show_sick: dashboardShowSick,
         birthdays_enabled: birthdaysEnabled,
         anniversaries_enabled: anniversariesEnabled,
+        strategies_enabled: strategiesEnabled,
         dashboard_rotation_views: rotation_payload,
         dashboard_view_durations: { ...viewDurations },
       })
@@ -258,6 +263,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       dashboard_show_sick: dashboardShowSick,
       birthdays_enabled: birthdaysEnabled,
       anniversaries_enabled: anniversariesEnabled,
+      strategies_enabled: strategiesEnabled,
       dashboard_rotation_views: rotation_payload,
       dashboard_view_durations: { ...viewDurations },
     }))
@@ -501,6 +507,12 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
               hint={t.settings.org.anniversariesEnabledDesc}
               checked={anniversariesEnabled}
               onChange={setAnniversariesEnabled}
+            />
+            <OrgToggleRow
+              label={t.settings.org.strategiesEnabled}
+              hint={t.settings.org.strategiesEnabledDesc}
+              checked={strategiesEnabled}
+              onChange={setStrategiesEnabled}
             />
           </div>
         </SettingsField>
