@@ -919,7 +919,7 @@ export function DashboardClient({
 
       <OffiviewSignature
         ref={signatureRef}
-        visible={pendingViewIdx === null && currentView !== 'A'}
+        visible={pendingViewIdx === null && currentView !== 'A' && currentView !== 'B'}
         controlBarSafeArea
       />
     </div>
