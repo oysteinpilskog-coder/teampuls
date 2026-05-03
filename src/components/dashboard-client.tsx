@@ -324,6 +324,7 @@ export function DashboardClient({
           .select('*')
           .in('org_id', orgIds)
           .eq('is_active', true)
+          .eq('hidden_from_overview', false)
           .order('display_name'),
         supabase
           .from('offices')
@@ -425,7 +426,7 @@ export function DashboardClient({
             if (!upserted?.id) return
             setMembers(prev => {
               const without = prev.filter(m => m.id !== upserted.id)
-              if (!upserted.is_active) return without
+              if (!upserted.is_active || upserted.hidden_from_overview) return without
               return [...without, upserted].sort((a, b) =>
                 (a.display_name ?? '').localeCompare(b.display_name ?? '')
               )

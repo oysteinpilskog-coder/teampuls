@@ -75,6 +75,7 @@ export function PresenceHeatmap({ orgId, weeks = 6 }: PresenceHeatmapProps) {
           .select('*')
           .eq('org_id', orgId)
           .eq('is_active', true)
+          .eq('hidden_from_overview', false)
           .order('display_name'),
         supabase
           .from('entries')

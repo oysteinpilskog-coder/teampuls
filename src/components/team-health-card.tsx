@@ -59,7 +59,8 @@ export function TeamHealthCard({ orgId, weeks = 6 }: TeamHealthCardProps) {
             .from('members')
             .select('id', { count: 'exact', head: true })
             .eq('org_id', orgId)
-            .eq('is_active', true),
+            .eq('is_active', true)
+            .eq('hidden_from_overview', false),
           supabase
             .from('entries')
             .select('id, org_id, member_id, date, status, location_label, note, source, source_text, created_by, created_at, updated_at')

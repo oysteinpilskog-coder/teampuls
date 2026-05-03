@@ -139,6 +139,7 @@ async function TeamGridLoader({
       .select('*')
       .in('org_id', orgIds)
       .eq('is_active', true)
+      .eq('hidden_from_overview', false)
       .order('display_name'),
     supabase
       .from('entries')

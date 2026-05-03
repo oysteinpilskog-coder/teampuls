@@ -174,6 +174,10 @@ export interface Member {
   default_status?: EntryStatus | null
   role: MemberRole
   is_active: boolean
+  /** Når true vises ikke medlemmet på team-oversikt, dashboard, heatmap, bursdager etc.
+   *  RLS, admin-rolle, workspace-switcher og AI-navnegjenkjenning er upåvirket.
+   *  Brukes for cross-workspace-admins (f.eks. Øystein i CalWin UK). */
+  hidden_from_overview?: boolean
   /** Personal date — only surfaced when birthday_visible is true. ISO 'YYYY-MM-DD'. */
   birth_date?: string | null
   /** Employment start date — drives work-anniversary celebration. ISO 'YYYY-MM-DD'. */

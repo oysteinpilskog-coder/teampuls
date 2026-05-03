@@ -35,6 +35,7 @@ export default async function DashboardPage() {
       .select('*')
       .in('org_id', orgIds)
       .eq('is_active', true)
+      .eq('hidden_from_overview', false)
       .order('display_name'),
     supabase
       .from('offices')

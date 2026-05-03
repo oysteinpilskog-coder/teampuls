@@ -10,10 +10,10 @@ const MILESTONES = new Set([1, 5, 10, 15, 20, 25, 30, 35, 40])
 type MemberSlim = Pick<Member,
   | 'id' | 'org_id' | 'display_name' | 'full_name' | 'initials' | 'avatar_url'
   | 'birth_date' | 'start_date' | 'birthday_visible' | 'anniversary_visible'
-  | 'is_active'
+  | 'is_active' | 'hidden_from_overview'
 >
 
-const SELECT = 'id, org_id, display_name, full_name, initials, avatar_url, birth_date, start_date, birthday_visible, anniversary_visible, is_active'
+const SELECT = 'id, org_id, display_name, full_name, initials, avatar_url, birth_date, start_date, birthday_visible, anniversary_visible, is_active, hidden_from_overview'
 
 export type DerivedBirthday = {
   member: MemberSlim
@@ -104,6 +104,7 @@ export function useTeamMembers(orgId: string) {
       .select(SELECT)
       .eq('org_id', orgId)
       .eq('is_active', true)
+      .eq('hidden_from_overview', false)
       .order('display_name')
     setMembers((data as MemberSlim[]) ?? [])
     setLoading(false)
@@ -124,7 +125,7 @@ export function useTeamMembers(orgId: string) {
     function upsertHandler(payload: { new: MemberSlim }) {
       const upserted = payload.new
       if (upserted.org_id !== orgId) return
-      if (!upserted.is_active) {
+      if (!upserted.is_active || upserted.hidden_from_overview) {
         setMembers(prev => prev.filter(m => m.id !== upserted.id))
         return
       }
