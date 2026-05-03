@@ -32,6 +32,24 @@ export interface OfficeArc {
   endLng: number
 }
 
+/**
+ * Per-office data the parent feeds to the HTML label overlay each tick.
+ * Kept separate from `OfficePoint` because the time/status fields churn
+ * every minute while the office data itself is stable — feeding them
+ * through a callback lets the canvas component refresh card text in
+ * place without rebuilding the WebGL points layer.
+ */
+export interface OfficeLabelMeta {
+  city: string
+  /** ISO 3166-1 alpha-2 — drives the country chip. Empty string hides it. */
+  countryCode: string
+  /** Pre-formatted "HH:MM" string in the office's local timezone. */
+  localTime: string
+  status: 'hq' | 'open' | 'closed'
+  /** Hex CSS colour used for the label dot + stem accent. */
+  statusColor: string
+}
+
 interface GlobeCanvasProps {
   offices: OfficePoint[]
   arcs: OfficeArc[]
@@ -40,6 +58,8 @@ interface GlobeCanvasProps {
   pointColor: (o: OfficePoint) => string
   /** HTML string (yes, string — globe.gl tooltip API) to render on hover. */
   pointLabel: (o: OfficePoint) => string
+  /** Per-office derived data for the HTML label overlay. */
+  labelMeta: (o: OfficePoint) => OfficeLabelMeta
   /** Initial camera pose. `altitude` 1 ≈ Earth-radius distance.
    *  Default is Europe-centred at ~Norway/UK eye-line, slightly tilted south. */
   initialView?: { lat: number; lng: number; altitude: number }
@@ -51,12 +71,37 @@ const TEXTURE_NIGHT = 'https://unpkg.com/three-globe/example/img/earth-night.jpg
 const TEXTURE_BUMP = 'https://unpkg.com/three-globe/example/img/earth-topology.png'
 const TEXTURE_SKY = 'https://unpkg.com/three-globe/example/img/night-sky.png'
 
+/** Pin tip altitude — drives where labels anchor in screen space. */
+const PIN_ALT = 0.10
+
+/**
+ * Match three-globe's polar→cartesian convention so the dot product
+ * against `camera.position` decides front/back-face correctly. The
+ * sign on x mirrors three-globe's own helper — getting it wrong puts
+ * every other longitude on the "wrong" side of the planet.
+ */
+function unitCart(lat: number, lng: number) {
+  const phi = ((90 - lat) * Math.PI) / 180
+  const theta = ((lng + 180) * Math.PI) / 180
+  return {
+    x: -Math.sin(phi) * Math.cos(theta),
+    y: Math.cos(phi),
+    z: Math.sin(phi) * Math.sin(theta),
+  }
+}
+
 /**
  * Wrapper around vanilla globe.gl — three.js-backed Earth with a
- * realistic night-lights texture. We use the imperative API directly
- * inside a single useEffect so we never collide with React's render
- * cycle (the library mutates an internal three.js scene, which doesn't
- * play well with a virtual-DOM-driven re-render).
+ * realistic night-lights texture. Two layers stacked under one wrapper:
+ *
+ * - The WebGL canvas (mounted by globe.gl) draws the planet, pins, rings
+ *   and arcs.
+ * - An HTML overlay (DOM siblings of the canvas) draws glass-pill labels
+ *   per office. We position them every animation frame via
+ *   `getScreenCoords` and hide back-side ones via a dot-product against
+ *   the camera direction — so labels read crisply with system fonts (no
+ *   canvas-text mojibake on Norwegian glyphs) and we get real CSS for
+ *   blur, shadows and the country chip.
  *
  * The Globe instance lives for the lifetime of the wrapper element.
  * Subsequent prop changes are pushed into the existing instance via
@@ -69,18 +114,28 @@ export function GlobeCanvas({
   arcs,
   pointColor,
   pointLabel,
+  labelMeta,
   initialView = { lat: 55, lng: 15, altitude: 2.2 },
   autoRotateSpeed = 0.3,
 }: GlobeCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
   const globeRef = useRef<GlobeInstance | null>(null)
+  // DOM cache for the HTML labels — built once per office, mutated in
+  // place when meta changes so we don't churn the React tree.
+  const labelElsRef = useRef(new Map<string, HTMLElement>())
+  const officesRef = useRef<OfficePoint[]>(offices)
+
   // Ref-mirrors of accessor props so setters bound on first render see
   // the latest closure-captured state without us having to rebind on
   // every render (which would defeat globe.gl's diffing).
   const pointColorRef = useRef(pointColor)
   const pointLabelRef = useRef(pointLabel)
+  const labelMetaRef = useRef(labelMeta)
   pointColorRef.current = pointColor
   pointLabelRef.current = pointLabel
+  labelMetaRef.current = labelMeta
+  officesRef.current = offices
 
   // One-shot mount: lazy-import globe.gl, build the instance, hand it
   // a fixed set of accessors that read from the refs. Cleanup tears
@@ -101,41 +156,35 @@ export function GlobeCanvas({
         .bumpImageUrl(TEXTURE_BUMP)
         .backgroundImageUrl(TEXTURE_SKY)
         .atmosphereColor('#4a90e2')
-        .atmosphereAltitude(0.2)
-        // ── Office pins. Made deliberately oversized vs. globe.gl's
-        // defaults so they pop against the busy night-lights texture.
-        // Earlier versions used 0.025/0.45 — invisible on a TV from
-        // across the room. 0.18 altitude gives the pin a real "stem"
-        // that protrudes above the atmosphere; 0.9/1.4 radius makes
-        // the head readable at altitude 2.2.
+        .atmosphereAltitude(0.22)
+        // ── Office pins. Slim "stalk" geometry — narrower than globe.gl's
+        // defaults so they don't bury labels under giant capsules at our
+        // Europe-zoom altitude. The radar ring (below) does the heavy
+        // lifting on locating the pin from across the room; the pin itself
+        // can stay elegant.
         .pointLat('lat')
         .pointLng('lng')
-        .pointAltitude(0.18)
-        .pointRadius((d: object) => ((d as OfficePoint).isHq ? 1.4 : 0.9))
+        .pointAltitude(PIN_ALT)
+        .pointRadius((d: object) => ((d as OfficePoint).isHq ? 0.7 : 0.45))
         .pointColor((d: object) => pointColorRef.current(d as OfficePoint))
         .pointLabel((d: object) => pointLabelRef.current(d as OfficePoint))
         .pointsTransitionDuration(1500)
         // ── Pulsing radar rings — one per office, propagating outward
-        // every 2 s. Drives the «levende sentral»-følelsen: hver pin
+        // every 1.8 s. Drives the «levende sentral»-følelsen: hver pin
         // er ikke bare et punkt, men en aktiv beacon. globe.gl tegner
         // ringene som flate skiver klistret på sfæren, så de leser
         // som fra-bakken-pulser uavhengig av kamerapose.
         .ringLat('lat')
         .ringLng('lng')
-        .ringMaxRadius(3.5)
-        .ringPropagationSpeed(2)
-        .ringRepeatPeriod(2000)
+        .ringMaxRadius(4.5)
+        .ringPropagationSpeed(1.8)
+        .ringRepeatPeriod(1800)
         .ringAltitude(0.005)
         .ringColor((d: object) => {
           const o = d as OfficePoint
           const c = pointColorRef.current(o)
-          // Multi-stop interpolator: globe.gl evaluates the function
-          // along [0..1] (ring expansion); mapping `t` into an alpha
-          // ramp gives the soft "fade outward" pulse.
           return (t: number) => {
             const alpha = (1 - t) * 0.85
-            // Hex → rgba. Quick parse since pointColor returns the
-            // canonical 7-char strings COLOR_OPEN / COLOR_CLOSED / COLOR_HQ.
             const hex = c.replace('#', '')
             const r = parseInt(hex.slice(0, 2), 16)
             const grn = parseInt(hex.slice(2, 4), 16)
@@ -143,26 +192,17 @@ export function GlobeCanvas({
             return `rgba(${r},${grn},${b},${alpha.toFixed(3)})`
           }
         })
-        // ── City labels — text rendered on the globe surface so you
-        // can read "Ålesund / Vilnius / London" without needing to
-        // hover. Drawn slightly above the pin head so they don't
-        // collide with the marker dot itself.
-        .labelLat('lat')
-        .labelLng('lng')
-        .labelAltitude(0.22)
-        .labelText((d: object) => (d as OfficePoint).city)
-        .labelSize(0.6)
-        .labelDotRadius(0)
-        .labelColor(() => 'rgba(255,255,255,0.92)')
-        .labelResolution(2)
         // Animated mesh arcs — connecting the offices as a network.
+        // Gold-tinted because every arc starts at HQ in the current
+        // data shape; the colour matches the HQ pin/label so the eye
+        // reads the network as "spreading out from the home base."
         .arcColor(() => [
-          'rgba(74,222,128,0.0)',
-          'rgba(74,222,128,0.7)',
-          'rgba(74,222,128,0.0)',
+          'rgba(251,191,36,0.0)',
+          'rgba(251,191,36,0.7)',
+          'rgba(251,191,36,0.0)',
         ])
         .arcAltitudeAutoScale(0.4)
-        .arcStroke(0.3)
+        .arcStroke(0.32)
         .arcDashLength(0.4)
         .arcDashGap(0.2)
         .arcDashAnimateTime(3000)
@@ -174,7 +214,6 @@ export function GlobeCanvas({
       // their initial run. Push here to seed the layers.
       g.pointsData(offices)
       g.ringsData(offices)
-      g.labelsData(offices)
       g.arcsData(arcs)
 
       // Initial camera + auto-rotate speed. controls() returns the
@@ -191,6 +230,9 @@ export function GlobeCanvas({
 
       globeRef.current = g
 
+      // Build initial HTML label DOM nodes
+      buildLabels(officesRef.current)
+
       // Resize handling — globe.gl auto-fills the container, but on
       // window resize we explicitly nudge it so the canvas keeps up
       // (the library's own resize observer can lag on multi-monitor
@@ -203,7 +245,20 @@ export function GlobeCanvas({
       onResize()
       window.addEventListener('resize', onResize)
 
+      // ── Animation loop — sync HTML label positions every frame.
+      // The auto-rotate ticks through three.js, so labels need to
+      // ride along; rAF keeps us in sync with the renderer's own
+      // cadence. Cost: ~10 trig + DOM transform writes per frame
+      // for a dozen offices. Negligible vs the WebGL draw call.
+      let raf = 0
+      const tick = () => {
+        positionLabels()
+        raf = requestAnimationFrame(tick)
+      }
+      raf = requestAnimationFrame(tick)
+
       cleanup = () => {
+        cancelAnimationFrame(raf)
         window.removeEventListener('resize', onResize)
         // globe.gl exposes a destructor on the kapsule that releases
         // WebGL resources. The double-cast is because the type from
@@ -213,6 +268,8 @@ export function GlobeCanvas({
           ._destructor
         if (destructor) destructor()
         else if (containerRef.current) containerRef.current.innerHTML = ''
+        if (overlayRef.current) overlayRef.current.innerHTML = ''
+        labelElsRef.current.clear()
       }
     })()
 
@@ -230,14 +287,16 @@ export function GlobeCanvas({
   // Push offices/arcs through the existing instance. globe.gl diffs
   // by reference identity so we pass the arrays through directly —
   // no mapping-into-new-objects each render or the points-transition
-  // animation would replay every tick. Rings and labels share the
-  // offices array since they're keyed off the same lat/lng.
+  // animation would replay every tick. Rings share the offices array
+  // since they're keyed off the same lat/lng. Labels are mirrored
+  // into the HTML overlay via buildLabels (idempotent — only adds
+  // missing entries / removes dropped ones).
   useEffect(() => {
     const g = globeRef.current
     if (!g) return
     g.pointsData(offices)
     g.ringsData(offices)
-    g.labelsData(offices)
+    buildLabels(offices)
   }, [offices])
 
   useEffect(() => {
@@ -256,12 +315,186 @@ export function GlobeCanvas({
     g.pointColor((d: object) => pointColorRef.current(d as OfficePoint))
   }, [pointColor])
 
+  // Refresh label text when labelMeta callback identity changes
+  // (parent ticks `time` once a minute — a new closure means the
+  // local time / open-or-closed state may have rolled over). Mutates
+  // existing DOM nodes in place so we don't lose CSS transitions.
+  useEffect(() => {
+    for (const o of officesRef.current) {
+      const el = labelElsRef.current.get(o.id)
+      if (el) applyLabelMeta(o, el)
+    }
+  }, [labelMeta])
+
+  /** Idempotent: ensures one HTML label DOM node per office, removes
+   *  orphaned ones. Safe to call on every offices-array change. */
+  function buildLabels(items: OfficePoint[]) {
+    if (!overlayRef.current) return
+    const ov = overlayRef.current
+    const seen = new Set<string>()
+    for (const o of items) {
+      seen.add(o.id)
+      let el = labelElsRef.current.get(o.id)
+      if (!el) {
+        el = document.createElement('div')
+        el.className = 'tp-globe-label'
+        el.innerHTML = `
+          <div class="tp-globe-label-stem"></div>
+          <div class="tp-globe-label-card">
+            <span class="tp-globe-label-cc" data-tp-cc></span>
+            <div class="tp-globe-label-info">
+              <div class="tp-globe-label-city" data-tp-city></div>
+              <div class="tp-globe-label-meta">
+                <span class="tp-globe-label-dot"></span>
+                <span data-tp-time></span>
+              </div>
+            </div>
+          </div>
+        `
+        ov.appendChild(el)
+        labelElsRef.current.set(o.id, el)
+      }
+      applyLabelMeta(o, el)
+    }
+    for (const [id, el] of labelElsRef.current) {
+      if (!seen.has(id)) {
+        el.remove()
+        labelElsRef.current.delete(id)
+      }
+    }
+  }
+
+  function applyLabelMeta(o: OfficePoint, el: HTMLElement) {
+    const m = labelMetaRef.current(o)
+    el.dataset.tpStatus = m.status
+    el.style.setProperty('--tp-status-color', m.statusColor)
+    const cc = el.querySelector<HTMLElement>('[data-tp-cc]')
+    if (cc) {
+      cc.textContent = m.countryCode
+      cc.style.display = m.countryCode ? '' : 'none'
+    }
+    const city = el.querySelector<HTMLElement>('[data-tp-city]')
+    if (city) city.textContent = m.city
+    const time = el.querySelector<HTMLElement>('[data-tp-time]')
+    if (time) time.textContent = m.localTime
+  }
+
+  /**
+   * Per-frame sync: project each office to screen space, decide whether
+   * it sits on the visible hemisphere (dot product > 0.18 — a small
+   * positive bias hides labels that would skim the horizon and look
+   * crowded against the rim), then place card+stem with a screen-space
+   * collision pass that lifts overlapping labels by raising their stem
+   * height. HQ wins ties so it always sits closest to its pin.
+   */
+  function positionLabels() {
+    const g = globeRef.current
+    const ov = overlayRef.current
+    if (!g || !ov) return
+
+    const camera = g.camera()
+    const cd = camera.position
+    const cdLen = Math.hypot(cd.x, cd.y, cd.z) || 1
+    const cdx = cd.x / cdLen
+    const cdy = cd.y / cdLen
+    const cdz = cd.z / cdLen
+
+    interface Entry {
+      el: HTMLElement
+      x: number
+      y: number
+      visible: boolean
+      priority: number
+      cardW: number
+      cardH: number
+    }
+    const entries: Entry[] = []
+
+    for (const o of officesRef.current) {
+      const el = labelElsRef.current.get(o.id)
+      if (!el) continue
+      const u = unitCart(o.lat, o.lng)
+      const dot = u.x * cdx + u.y * cdy + u.z * cdz
+      const visible = dot > 0.18
+      let coords: { x: number; y: number } | null = null
+      try {
+        coords = g.getScreenCoords(o.lat, o.lng, PIN_ALT)
+      } catch {
+        coords = null
+      }
+      if (!coords || !Number.isFinite(coords.x) || !Number.isFinite(coords.y)) {
+        el.style.opacity = '0'
+        continue
+      }
+      // Measure on the fly — card width tracks the city name length.
+      // Falls back to a generous default if the rect hasn't settled
+      // (first frame after build, usually).
+      const cardEl = el.querySelector<HTMLElement>('.tp-globe-label-card')
+      let cardW = 130
+      let cardH = 30
+      if (cardEl) {
+        const r = cardEl.getBoundingClientRect()
+        if (r.width) cardW = r.width
+        if (r.height) cardH = r.height
+      }
+      entries.push({
+        el,
+        x: coords.x,
+        y: coords.y,
+        visible,
+        priority: o.isHq ? 2 : 1,
+        cardW,
+        cardH,
+      })
+    }
+
+    // HQ first, then by ascending screen y (top → bottom). Top-most
+    // gets first claim on its slot; later labels lift if they collide.
+    entries.sort((a, b) => b.priority - a.priority || a.y - b.y)
+
+    const placed: Array<{ x: number; y: number; w: number; h: number }> = []
+    for (const e of entries) {
+      const baseStemH = 28
+      let stemH = baseStemH
+      const cardLeft = e.x - e.cardW / 2
+      let cardTop = e.y - stemH - e.cardH
+      let attempts = 0
+      while (attempts < 8) {
+        const collides = placed.some(
+          p =>
+            cardLeft < p.x + p.w + 6 &&
+            cardLeft + e.cardW > p.x - 6 &&
+            cardTop < p.y + p.h + 4 &&
+            cardTop + e.cardH > p.y - 4,
+        )
+        if (!collides) break
+        stemH += e.cardH + 6
+        cardTop = e.y - stemH - e.cardH
+        attempts++
+      }
+      placed.push({ x: cardLeft, y: cardTop, w: e.cardW, h: e.cardH })
+      e.el.style.transform = `translate3d(${e.x}px, ${e.y}px, 0)`
+      e.el.style.setProperty('--tp-stem-h', `${stemH}px`)
+      e.el.style.opacity = e.visible ? '1' : '0'
+    }
+  }
+
   return (
-    <div
-      ref={containerRef}
-      className="absolute inset-0"
-      style={{ background: '#000' }}
-      aria-label="Verdensglobus med kontorer"
-    />
+    <div className="absolute inset-0" aria-label="Verdensglobus med kontorer">
+      <div
+        ref={containerRef}
+        className="absolute inset-0"
+        style={{ background: '#000' }}
+      />
+      {/* HTML label overlay — sibling of the WebGL canvas, layered on
+          top. pointer-events:none so hovers fall through to globe.gl's
+          own pin tooltip. overflow:hidden clips labels that get pushed
+          off-screen during collision lift-up. */}
+      <div
+        ref={overlayRef}
+        className="absolute inset-0 pointer-events-none"
+        style={{ overflow: 'hidden' }}
+      />
+    </div>
   )
 }
