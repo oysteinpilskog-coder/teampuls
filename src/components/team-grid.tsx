@@ -1381,7 +1381,7 @@ export function TeamGrid({
                           todayLocation={todayEntry?.location_label ?? null}
                           todayNote={todayEntry?.note ?? null}
                         >
-                          <div className="flex items-center gap-2 px-1 h-[32px] min-w-0">
+                          <div className="flex items-center gap-2 px-1 h-[32px] w-full min-w-0">
                             <MemberAvatar
                               name={member.display_name}
                               initials={member.initials}
