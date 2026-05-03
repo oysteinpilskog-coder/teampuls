@@ -302,12 +302,14 @@ export function GlobeView({
         pointColor={pointColor}
         pointLabel={pointLabel}
         labelMeta={labelMeta}
-        // Europa-zoom: altitude 1.1 ≈ kameraet sitter ved Earth-radius,
-        // så Lisboa→Helsinki→Tromsø→London rammes horisontalt — Nordics,
-        // UK, Baltikum og Sentral-Europa er i view samtidig. Tilted
-        // litt sør (lat 52) så Middelhavet ikke faller ut bunnen når
-        // globen ruller.
-        initialView={{ lat: 52, lng: 15, altitude: 1.1 }}
+        // CalWin-zoom: altitude 0.7 puts the camera tight in over
+        // Northern Europe — Newcastle/Spalding på vest-randen,
+        // Vilnius på øst-randen, Ålesund toppen, og Sør-England /
+        // Polen på bunnen. Kameralat hevet til 57 (mellom Ålesund
+        // 62°N og Spalding 53°N) så pin-skyen blir vertikalt sentrert
+        // når globen ruller forbi. Lng 12 fanger CalWins faktiske
+        // tyngdepunkt mellom Norge og Litauen.
+        initialView={{ lat: 57, lng: 12, altitude: 0.7 }}
         // Veldig sakte rotasjon — 0.08 °/s ≈ én omdreining på ~75 min.
         // Føles ambient på TV-en, ikke som en spinning beach ball.
         autoRotateSpeed={0.08}
