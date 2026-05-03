@@ -1,7 +1,12 @@
 'use client'
 
 import { useMemo } from 'react'
-import { GlobeCanvas, type OfficePoint, type OfficeArc } from './globe-canvas'
+import {
+  GlobeCanvas,
+  type OfficePoint,
+  type OfficeArc,
+  type OfficeLabelMeta,
+} from './globe-canvas'
 import { resolveLocation } from '@/lib/geo'
 import type { Entry, Member, Office } from '@/lib/supabase/types'
 import { useT } from '@/lib/i18n/context'
@@ -184,6 +189,12 @@ export function GlobeView({
     return out
   }, [points])
 
+  // Parent ticks `time` every second; we only need a fresh closure when
+  // the displayed "HH:MM" actually changes, so all the time-dependent
+  // memos below key on this minute-bucket. Hoisted into a variable so
+  // the linter's "deps must be simple expressions" rule is happy.
+  const minuteKey = time.getMinutes()
+
   // Color callback re-creates whenever `time` ticks — the parent
   // dashboard already updates `time` once a second so the open/closed
   // dot flips automatically when working hours roll over.
@@ -193,7 +204,30 @@ export function GlobeView({
       return isOfficeOpen(o, time) ? COLOR_OPEN : COLOR_CLOSED
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [time.getMinutes()])
+  }, [minuteKey])
+
+  // Per-office label data for the HTML overlay. Re-derives every minute
+  // so we don't thrash labels 60× a minute for nothing.
+  const labelMeta = useMemo(() => {
+    return (o: OfficePoint): OfficeLabelMeta => {
+      const open = isOfficeOpen(o, time)
+      const status: 'hq' | 'open' | 'closed' = o.isHq
+        ? 'hq'
+        : open
+        ? 'open'
+        : 'closed'
+      const statusColor =
+        status === 'hq' ? COLOR_HQ : status === 'open' ? COLOR_OPEN : COLOR_CLOSED
+      return {
+        city: o.city,
+        countryCode: (o.country ?? '').toUpperCase(),
+        localTime: localTime(o.timezone, o.lng, time),
+        status,
+        statusColor,
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minuteKey])
 
   const pointLabel = useMemo(() => {
     return (o: OfficePoint) => {
@@ -242,7 +276,7 @@ export function GlobeView({
       `
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [time.getMinutes(), t])
+  }, [minuteKey, t])
 
   // Stats for the bottom-left HUD.
   const onlineNow = useMemo(() => {
@@ -267,6 +301,7 @@ export function GlobeView({
         arcs={arcs}
         pointColor={pointColor}
         pointLabel={pointLabel}
+        labelMeta={labelMeta}
         // Europa-zoom: altitude 1.1 ≈ kameraet sitter ved Earth-radius,
         // så Lisboa→Helsinki→Tromsø→London rammes horisontalt — Nordics,
         // UK, Baltikum og Sentral-Europa er i view samtidig. Tilted

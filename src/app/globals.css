@@ -1054,6 +1054,147 @@
   letter-spacing: -0.01em;
 }
 
+/* ============================================================
+   GLOBE LABELS — HTML overlay anchored over the WebGL canvas.
+   The wrapper element's transform: translate3d(...) is set per-
+   frame from JS via getScreenCoords(); the card and stem are
+   positioned with CSS variables so we can lift overlapping
+   labels by raising --tp-stem-h instead of mutating layout.
+   ============================================================ */
+.tp-globe-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translate3d(-9999px, -9999px, 0);
+  pointer-events: none;
+  font-family: var(--font-body);
+  --tp-stem-h: 28px;
+  --tp-status-color: #4ade80;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  will-change: transform, opacity;
+}
+
+.tp-globe-label-stem {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  height: var(--tp-stem-h);
+  transform: translate(-50%, 0);
+  background: linear-gradient(
+    to top,
+    var(--tp-status-color) 0%,
+    rgba(255, 255, 255, 0.55) 55%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  opacity: 0.75;
+}
+
+.tp-globe-label-card {
+  position: absolute;
+  left: 0;
+  bottom: var(--tp-stem-h);
+  transform: translate(-50%, 0);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 11px 6px 6px;
+  border-radius: 999px;
+  background: rgba(15, 18, 25, 0.78);
+  backdrop-filter: blur(14px) saturate(170%);
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 12px 28px -10px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.tp-globe-label[data-tp-status="hq"] .tp-globe-label-card {
+  background: linear-gradient(
+    155deg,
+    rgba(54, 36, 8, 0.88),
+    rgba(20, 14, 6, 0.88)
+  );
+  border-color: rgba(251, 191, 36, 0.4);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 14px 32px -10px rgba(0, 0, 0, 0.6),
+    0 0 28px -4px rgba(251, 191, 36, 0.45),
+    inset 0 1px 0 rgba(251, 191, 36, 0.18);
+}
+
+.tp-globe-label[data-tp-status="closed"] .tp-globe-label-card {
+  opacity: 0.82;
+}
+
+.tp-globe-label-cc {
+  font-family: var(--font-fraunces);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.tp-globe-label[data-tp-status="hq"] .tp-globe-label-cc {
+  background: rgba(251, 191, 36, 0.18);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fde68a;
+}
+
+.tp-globe-label-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 2px;
+}
+
+.tp-globe-label-city {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.96);
+  letter-spacing: -0.005em;
+  line-height: 1.05;
+}
+
+.tp-globe-label[data-tp-status="hq"] .tp-globe-label-city {
+  color: #fde68a;
+}
+
+.tp-globe-label-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+}
+
+.tp-globe-label-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--tp-status-color);
+  box-shadow: 0 0 6px var(--tp-status-color);
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-globe-label {
+    transition: none;
+  }
+}
+
 /* Small-caps meta label — used for section labels like "FORDELING" */
 .lg-eyebrow {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
