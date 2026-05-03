@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 
-export type WheelView = 'events' | 'birthdays' | 'anniversaries'
+export type WheelView = 'events' | 'birthdays' | 'anniversaries' | 'strategy'
 export type AnniversarySub = 'wheel' | 'timeline'
 
 export function WheelViewSwitcher({
@@ -14,12 +14,13 @@ export function WheelViewSwitcher({
   sub: AnniversarySub
   onView: (v: WheelView) => void
   onSub: (s: AnniversarySub) => void
-  available: { events: boolean; birthdays: boolean; anniversaries: boolean }
+  available: { events: boolean; birthdays: boolean; anniversaries: boolean; strategy: boolean }
 }) {
   const t = useT()
 
   const opts: Array<{ key: WheelView; label: string; show: boolean }> = [
     { key: 'events',        label: t.wheel.views.events,        show: available.events },
+    { key: 'strategy',      label: t.wheel.views.strategy,      show: available.strategy },
     { key: 'birthdays',     label: t.wheel.views.birthdays,     show: available.birthdays },
     { key: 'anniversaries', label: t.wheel.views.anniversaries, show: available.anniversaries },
   ]

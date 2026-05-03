@@ -7,14 +7,16 @@ import { YearWheel } from '@/components/year-wheel'
 import { BirthdayWheel } from '@/components/birthday-wheel'
 import { AnniversaryWheel } from '@/components/anniversary-wheel'
 import { AnniversaryTimeline } from '@/components/anniversary-timeline'
+import { StrategyWheel } from '@/components/strategy-wheel'
 import { WheelViewSwitcher, type WheelView, type AnniversarySub } from '@/components/wheel-view-switcher'
 
 export function WheelShell({
-  orgId, birthdaysEnabled, anniversariesEnabled,
+  orgId, birthdaysEnabled, anniversariesEnabled, strategiesEnabled,
 }: {
   orgId: string
   birthdaysEnabled: boolean
   anniversariesEnabled: boolean
+  strategiesEnabled: boolean
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -24,7 +26,8 @@ export function WheelShell({
   const view: WheelView =
     requested === 'birthdays' && !birthdaysEnabled ? 'events'
     : requested === 'anniversaries' && !anniversariesEnabled ? 'events'
-    : (['events', 'birthdays', 'anniversaries'] as const).includes(requested)
+    : requested === 'strategy' && !strategiesEnabled ? 'events'
+    : (['events', 'birthdays', 'anniversaries', 'strategy'] as const).includes(requested)
       ? requested
       : 'events'
 
@@ -65,6 +68,9 @@ export function WheelShell({
         ? <motion.div key="anniversaries-timeline" {...fade}><AnniversaryTimeline orgId={orgId} /></motion.div>
         : <motion.div key="anniversaries-wheel" {...fade}><AnniversaryWheel orgId={orgId} /></motion.div>
     }
+    if (view === 'strategy' && strategiesEnabled) {
+      return <motion.div key="strategy" {...fade}><StrategyWheel orgId={orgId} /></motion.div>
+    }
     return <motion.div key="events" {...fade}><YearWheel orgId={orgId} /></motion.div>
   }
 
@@ -79,6 +85,7 @@ export function WheelShell({
           events: true,
           birthdays: birthdaysEnabled,
           anniversaries: anniversariesEnabled,
+          strategy: strategiesEnabled,
         }}
       />
       <div className="w-full">
