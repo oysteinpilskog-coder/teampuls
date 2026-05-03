@@ -136,12 +136,17 @@ export function WheelView({ orgIds, logoOrgId, orgName, time }: WheelViewProps) 
           />
         </motion.div>
 
-        {/* Agenda rail — fixed-width sidebar styled for the dashboard aesthetic. */}
+        {/* Agenda rail — fixed-width sidebar styled for the dashboard aesthetic.
+            pb-[112px] reserverer bunn-høyre-hjørnet for `OffiviewSignature`
+            (fixed, controlBarSafeArea — bottom:96 right:48, ~360×51px).
+            «KOMMENDE»-flisen er flex-1 og fyller resten av kolonnen, så
+            uten denne padding-en sklir nederste rader bak signaturen og
+            event-titler kuttes. */}
         <motion.aside
           initial={{ opacity: 0, x: 12 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ ...spring.gentle, delay: 0.28 }}
-          className="w-[360px] flex-shrink-0 flex flex-col gap-4"
+          className="w-[360px] flex-shrink-0 flex flex-col gap-4 pb-[112px]"
         >
           <AgendaTile
             eyebrow="I DAG"
