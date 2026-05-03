@@ -35,6 +35,7 @@ interface MemberFormState {
   birthday_visible: boolean
   start_date: string
   anniversary_visible: boolean
+  hidden_from_overview: boolean
 }
 
 const EMPTY_FORM: MemberFormState = {
@@ -48,6 +49,7 @@ const EMPTY_FORM: MemberFormState = {
   birthday_visible: false,
   start_date: '',
   anniversary_visible: true,
+  hidden_from_overview: false,
 }
 
 const COUNTRY_FAVORITES = ['NO', 'SE', 'LT', 'GB'] as const
@@ -100,6 +102,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
       birthday_visible: m.birthday_visible ?? false,
       start_date: m.start_date ?? '',
       anniversary_visible: m.anniversary_visible ?? true,
+      hidden_from_overview: m.hidden_from_overview ?? false,
     })
     setInitialsTouched(true)
     setEditTarget(m)
@@ -135,6 +138,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
       birthday_visible: form.birthday_visible,
       start_date: form.start_date || null,
       anniversary_visible: form.anniversary_visible,
+      hidden_from_overview: form.hidden_from_overview,
     }
 
     if (modalMode === 'edit' && editTarget) {
@@ -447,6 +451,13 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
                   checked={form.anniversary_visible}
                   onChange={v => setForm(f => ({ ...f, anniversary_visible: v }))}
                   disabled={!form.start_date}
+                />
+
+                <ToggleRow
+                  label={t.settings.members.hiddenFromOverviewLabel}
+                  hint={t.settings.members.hiddenFromOverviewHint}
+                  checked={form.hidden_from_overview}
+                  onChange={v => setForm(f => ({ ...f, hidden_from_overview: v }))}
                 />
               </div>
 

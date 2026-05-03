@@ -651,6 +651,8 @@ export const no = {
       startDateHint: 'Valgfri — datoen du startet i firmaet',
       anniversaryVisibleLabel: 'Vis jubileum',
       anniversaryVisibleHint: 'Jobbjubileum vises som standard. Slå av hvis du foretrekker det.',
+      hiddenFromOverviewLabel: 'Skjul fra oversikt',
+      hiddenFromOverviewHint: 'Beholder admin-tilgang og workspace-bytte, men dukker ikke opp på team-oversikt eller dashboard.',
     },
     offices: {
       title: 'Kontorer',

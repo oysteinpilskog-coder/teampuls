@@ -653,6 +653,8 @@ export const sv: Dictionary = {
       startDateHint: 'Valfritt — datumet du började i företaget',
       anniversaryVisibleLabel: 'Visa jubileum',
       anniversaryVisibleHint: 'Jobbjubileum visas som standard. Stäng av om du föredrar det.',
+      hiddenFromOverviewLabel: 'Dölj från översikt',
+      hiddenFromOverviewHint: 'Behåller admin-åtkomst och arbetsyte-byte, men visas inte på teamöversikt eller dashboard.',
     },
     offices: {
       title: 'Kontor',

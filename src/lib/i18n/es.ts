@@ -653,6 +653,8 @@ export const es: Dictionary = {
       startDateHint: 'Opcional — la fecha en que entraste en la empresa',
       anniversaryVisibleLabel: 'Mostrar aniversario',
       anniversaryVisibleHint: 'Los aniversarios laborales se muestran por defecto. Desactívalo si lo prefieres.',
+      hiddenFromOverviewLabel: 'Ocultar de la vista general',
+      hiddenFromOverviewHint: 'Mantiene el acceso de admin y el cambio de área de trabajo, pero no aparece en la vista del equipo ni en el dashboard.',
     },
     offices: {
       title: 'Oficinas',

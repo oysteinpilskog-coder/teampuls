@@ -653,6 +653,8 @@ export const en: Dictionary = {
       startDateHint: 'Optional — the date you joined the company',
       anniversaryVisibleLabel: 'Show work anniversary',
       anniversaryVisibleHint: 'Work anniversaries are shown by default. Turn off if you prefer.',
+      hiddenFromOverviewLabel: 'Hide from overview',
+      hiddenFromOverviewHint: "Keeps admin access and workspace switching, but won't appear on team overview or dashboard.",
     },
     offices: {
       title: 'Offices',

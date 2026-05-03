@@ -653,6 +653,8 @@ export const lt: Dictionary = {
       startDateHint: 'Neprivaloma — diena, kai pradėjote dirbti įmonėje',
       anniversaryVisibleLabel: 'Rodyti jubiliejų',
       anniversaryVisibleHint: 'Darbo jubiliejus rodomas pagal numatymą. Išjunkite, jei norite.',
+      hiddenFromOverviewLabel: 'Slėpti nuo apžvalgos',
+      hiddenFromOverviewHint: 'Išlaiko administratoriaus prieigą ir darbo srities perjungimą, bet nerodomas komandos apžvalgoje ar prietaisų skydelyje.',
     },
     offices: {
       title: 'Biurai',
