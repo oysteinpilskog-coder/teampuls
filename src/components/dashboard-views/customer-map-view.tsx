@@ -699,11 +699,13 @@ export function CustomerMapView({
             const ROW_GAP = 6
             const STRIDE = ROW_HEIGHT + ROW_GAP
             const totalHeight = rows.length * STRIDE
-            // ~0.85 s per rad gir et behagelig flipboard-tempo: 75 kunder
-            // tar ca 64 sek for en full sirkel — sakte nok til å lese, raskt
-            // nok til at flere rader rekker forbi i et TV-kikk. Minst 36 s
-            // ellers blir få-rad-lister stressende raske.
-            const duration = Math.max(36, rows.length * 0.85)
+            // ~0.85 s per rad gir konstant ~40 px/s flipboard-tempo uansett
+            // listestørrelse: 75 kunder ≈ 64 s, 15 kunder ≈ 13 s. Det gamle
+            // 36 s-gulvet bremset korte lister til 4–14 px/s, som så helt
+            // statisk ut på TV-en ved CalWins kundeantall — listen ruller
+            // nå synlig selv med ti rader. 8 s-bunnen forhindrer at en
+            // mikroskopisk liste (≤9 rader) blinker forbi for fort.
+            const duration = Math.max(8, rows.length * 0.85)
 
             return (
               <div
