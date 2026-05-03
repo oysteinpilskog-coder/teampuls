@@ -102,13 +102,60 @@ export function GlobeCanvas({
         .backgroundImageUrl(TEXTURE_SKY)
         .atmosphereColor('#4a90e2')
         .atmosphereAltitude(0.2)
+        // ── Office pins. Made deliberately oversized vs. globe.gl's
+        // defaults so they pop against the busy night-lights texture.
+        // Earlier versions used 0.025/0.45 — invisible on a TV from
+        // across the room. 0.18 altitude gives the pin a real "stem"
+        // that protrudes above the atmosphere; 0.9/1.4 radius makes
+        // the head readable at altitude 2.2.
         .pointLat('lat')
         .pointLng('lng')
-        .pointAltitude(0.025)
-        .pointRadius((d: object) => ((d as OfficePoint).isHq ? 0.55 : 0.45))
+        .pointAltitude(0.18)
+        .pointRadius((d: object) => ((d as OfficePoint).isHq ? 1.4 : 0.9))
         .pointColor((d: object) => pointColorRef.current(d as OfficePoint))
         .pointLabel((d: object) => pointLabelRef.current(d as OfficePoint))
         .pointsTransitionDuration(1500)
+        // ── Pulsing radar rings — one per office, propagating outward
+        // every 2 s. Drives the «levende sentral»-følelsen: hver pin
+        // er ikke bare et punkt, men en aktiv beacon. globe.gl tegner
+        // ringene som flate skiver klistret på sfæren, så de leser
+        // som fra-bakken-pulser uavhengig av kamerapose.
+        .ringLat('lat')
+        .ringLng('lng')
+        .ringMaxRadius(3.5)
+        .ringPropagationSpeed(2)
+        .ringRepeatPeriod(2000)
+        .ringAltitude(0.005)
+        .ringColor((d: object) => {
+          const o = d as OfficePoint
+          const c = pointColorRef.current(o)
+          // Multi-stop interpolator: globe.gl evaluates the function
+          // along [0..1] (ring expansion); mapping `t` into an alpha
+          // ramp gives the soft "fade outward" pulse.
+          return (t: number) => {
+            const alpha = (1 - t) * 0.85
+            // Hex → rgba. Quick parse since pointColor returns the
+            // canonical 7-char strings COLOR_OPEN / COLOR_CLOSED / COLOR_HQ.
+            const hex = c.replace('#', '')
+            const r = parseInt(hex.slice(0, 2), 16)
+            const grn = parseInt(hex.slice(2, 4), 16)
+            const b = parseInt(hex.slice(4, 6), 16)
+            return `rgba(${r},${grn},${b},${alpha.toFixed(3)})`
+          }
+        })
+        // ── City labels — text rendered on the globe surface so you
+        // can read "Ålesund / Vilnius / London" without needing to
+        // hover. Drawn slightly above the pin head so they don't
+        // collide with the marker dot itself.
+        .labelLat('lat')
+        .labelLng('lng')
+        .labelAltitude(0.22)
+        .labelText((d: object) => (d as OfficePoint).city)
+        .labelSize(0.6)
+        .labelDotRadius(0)
+        .labelColor(() => 'rgba(255,255,255,0.92)')
+        .labelResolution(2)
+        // Animated mesh arcs — connecting the offices as a network.
         .arcColor(() => [
           'rgba(74,222,128,0.0)',
           'rgba(74,222,128,0.7)',
@@ -119,6 +166,16 @@ export function GlobeCanvas({
         .arcDashLength(0.4)
         .arcDashGap(0.2)
         .arcDashAnimateTime(3000)
+
+      // Push initial data immediately so the first paint isn't a
+      // bare globe. The data-sync useEffects below only fire when
+      // their array refs change; on first mount globeRef.current is
+      // still null while React is mid-effect, so they no-op away
+      // their initial run. Push here to seed the layers.
+      g.pointsData(offices)
+      g.ringsData(offices)
+      g.labelsData(offices)
+      g.arcsData(arcs)
 
       // Initial camera + auto-rotate speed. controls() returns the
       // OrbitControls instance — three.js convention.
@@ -173,11 +230,14 @@ export function GlobeCanvas({
   // Push offices/arcs through the existing instance. globe.gl diffs
   // by reference identity so we pass the arrays through directly —
   // no mapping-into-new-objects each render or the points-transition
-  // animation would replay every tick.
+  // animation would replay every tick. Rings and labels share the
+  // offices array since they're keyed off the same lat/lng.
   useEffect(() => {
     const g = globeRef.current
     if (!g) return
     g.pointsData(offices)
+    g.ringsData(offices)
+    g.labelsData(offices)
   }, [offices])
 
   useEffect(() => {
