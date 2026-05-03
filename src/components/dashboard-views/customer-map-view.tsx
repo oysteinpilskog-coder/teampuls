@@ -260,9 +260,12 @@ export function CustomerMapView({
   const showUsInset = usInsetPoints.length > 0
 
   return (
-    <div className="relative h-full flex flex-col px-10 pt-14 pb-4 gap-4">
+    <div className="relative h-full flex flex-col px-10 pt-20 pb-4 gap-4">
       {/* ── Header — org-navn og klokke eies av global topp-bar; her står
-          kun visningstittel + uke-badge så kart får mest mulig pust. */}
+          kun visningstittel + uke-badge så kart får mest mulig pust.
+          pt-20 (80px) holder KUNDEPORTEFØLJE-tittelen klar av shellens
+          CalWin-wordmark (top-5, fontSize 30 → bottom y≈50) — pt-14 ga
+          bare 6px luft og merkene krasjet i samme venstre-kolonne. */}
       <div className="flex-shrink-0">
         <motion.div
           initial={{ opacity: 0, y: -12 }}
@@ -463,11 +466,17 @@ export function CustomerMapView({
         </motion.div>
 
         {/* ── Side panel: portfolio → visited → unvisited ──────────── */}
+        {/* pb-[112px] reserverer bunn-høyre-hjørnet for `OffiviewSignature`
+            (fixed, controlBarSafeArea — bottom:96 right:48, ~360×51px).
+            Uten denne padding-en raster den nederste tredelen av
+            kunde-scrolleren rett bak signaturen og kunde-navnene leses
+            ikke lenger. Speiler reservasjonen office-map-view bruker i
+            footer-en sin paddingRight. */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ ...spring.gentle, delay: 0.28 }}
-          className="flex flex-col gap-4 min-h-0 overflow-hidden"
+          className="flex flex-col gap-4 min-h-0 overflow-hidden pb-[112px]"
         >
           {/* Portfolio card — the headline number: how much of our
            *  customer base did the team touch this week. */}
