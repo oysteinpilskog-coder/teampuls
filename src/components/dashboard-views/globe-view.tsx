@@ -267,8 +267,15 @@ export function GlobeView({
         arcs={arcs}
         pointColor={pointColor}
         pointLabel={pointLabel}
-        initialView={{ lat: 55, lng: 15, altitude: 2.2 }}
-        autoRotateSpeed={0.3}
+        // Europa-zoom: altitude 1.1 ≈ kameraet sitter ved Earth-radius,
+        // så Lisboa→Helsinki→Tromsø→London rammes horisontalt — Nordics,
+        // UK, Baltikum og Sentral-Europa er i view samtidig. Tilted
+        // litt sør (lat 52) så Middelhavet ikke faller ut bunnen når
+        // globen ruller.
+        initialView={{ lat: 52, lng: 15, altitude: 1.1 }}
+        // Veldig sakte rotasjon — 0.08 °/s ≈ én omdreining på ~75 min.
+        // Føles ambient på TV-en, ikke som en spinning beach ball.
+        autoRotateSpeed={0.08}
       />
 
       {/* Empty state — globe still renders but no markers. The HUD
@@ -346,13 +353,19 @@ export function GlobeView({
         <StatCard value={members.length} label={t.dashboard.globe.statTeam} />
       </div>
 
-      {/* ── HUD bottom-right: live office list ───────────────────── */}
+      {/* ── HUD bottom-right: live office list ─────────────────────
+          bottom: 170 holder kortet over `OffiviewSignature` (fixed,
+          controlBarSafeArea — bottom:96 + ~51px høyde = topp 147px fra
+          bunn). Tidligere bottom: 32 lå UNDER signaturen, så de
+          nederste kontor-radene ble skjult bak Offiview-merket og
+          taglinen. Ikke samme problem på bunn-venstre HUD-stat-radene
+          siden signaturen er ankret høyre. */}
       <div
         className={GLASS_CLS}
         style={{
           ...glassStyle,
           position: 'absolute',
-          bottom: 32,
+          bottom: 170,
           right: 32,
           padding: '16px 20px',
           minWidth: 240,
