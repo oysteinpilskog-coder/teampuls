@@ -1,0 +1,832 @@
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
+import { motion, useReducedMotion } from 'framer-motion'
+import { useTheme } from 'next-themes'
+import { addDays, getISOWeek } from 'date-fns'
+import { useEntries } from '@/hooks/use-entries'
+import { useT } from '@/lib/i18n/context'
+import { useStatusColors } from '@/lib/status-colors/context'
+import { MemberAvatar } from '@/components/member-avatar'
+import { toDateString } from '@/lib/dates'
+import { spring, ease } from '@/lib/motion'
+import type { Entry, Member } from '@/lib/supabase/types'
+
+interface SummerViewProps {
+  year: number
+  orgIds: string[]
+  initialMembers: Member[]
+  initialEntries: Entry[]
+}
+
+interface VacationBlock {
+  startDay: number   // 0-indexed offset from June 1
+  endDay: number     // inclusive
+  startDate: Date
+  endDate: Date
+  locationLabel: string | null
+  note: string | null
+}
+
+interface MemberRow {
+  member: Member
+  blocks: VacationBlock[]
+  firstDay: number    // POSITIVE_INFINITY when no vacation
+  totalDays: number
+}
+
+export function SummerView({ year, orgIds, initialMembers, initialEntries }: SummerViewProps) {
+  const t = useT()
+  const router = useRouter()
+  const pathname = usePathname()
+  const reduce = useReducedMotion()
+  const palettes = useStatusColors()
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  const isLight = mounted ? resolvedTheme !== 'dark' : true
+
+  const range = useMemo(() => {
+    const start = new Date(year, 5, 1)
+    const end = new Date(year, 7, 31)
+    const totalDays = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1
+    return { start, end, totalDays }
+  }, [year])
+
+  const dateStrings = useMemo(() => {
+    const out: string[] = []
+    for (let i = 0; i < range.totalDays; i++) {
+      out.push(toDateString(addDays(range.start, i)))
+    }
+    return out
+  }, [range])
+
+  const { entries } = useEntries(orgIds, dateStrings, { initial: initialEntries })
+
+  // Per-member vacation blocks. We collapse consecutive vacation days into
+  // a single visual block — including weekends, since "uke 28" reads as one
+  // ferie even though the weekend rows technically aren't in the DB.
+  const memberRows = useMemo<MemberRow[]>(() => {
+    const byMember = new Map<string, Entry[]>()
+    for (const e of entries) {
+      if (e.status !== 'vacation') continue
+      const arr = byMember.get(e.member_id) ?? []
+      arr.push(e)
+      byMember.set(e.member_id, arr)
+    }
+    const rows: MemberRow[] = []
+    for (const member of initialMembers) {
+      const memberEntries = (byMember.get(member.id) ?? []).slice()
+        .sort((a, b) => a.date.localeCompare(b.date))
+      const blocks: VacationBlock[] = []
+      let cur: VacationBlock | null = null
+      for (const e of memberEntries) {
+        const date = parseDateString(e.date)
+        const dayOffset = Math.round((date.getTime() - range.start.getTime()) / 86_400_000)
+        if (dayOffset < 0 || dayOffset >= range.totalDays) continue
+        // Bridge across weekends: any gap of ≤ 3 days counts as the same
+        // vacation block (covers Fri → Mon as well as a Thursday gap).
+        if (cur && dayOffset - cur.endDay <= 3) {
+          cur.endDay = dayOffset
+          cur.endDate = date
+          if (e.location_label && !cur.locationLabel) cur.locationLabel = e.location_label
+          if (e.note && !cur.note) cur.note = e.note
+        } else {
+          if (cur) blocks.push(cur)
+          cur = {
+            startDay: dayOffset,
+            endDay: dayOffset,
+            startDate: date,
+            endDate: date,
+            locationLabel: e.location_label ?? null,
+            note: e.note ?? null,
+          }
+        }
+      }
+      if (cur) blocks.push(cur)
+      const firstDay = blocks.length > 0 ? blocks[0].startDay : Number.POSITIVE_INFINITY
+      const totalDays = blocks.reduce((sum, b) => sum + (b.endDay - b.startDay + 1), 0)
+      rows.push({ member, blocks, firstDay, totalDays })
+    }
+    rows.sort((a, b) => {
+      if (a.firstDay === b.firstDay) return a.member.display_name.localeCompare(b.member.display_name)
+      return a.firstDay - b.firstDay
+    })
+    return rows
+  }, [initialMembers, entries, range])
+
+  // Day-by-day "people on vacation" count, drives the coverage rail.
+  const coverage = useMemo(() => {
+    const counts = new Array<number>(range.totalDays).fill(0)
+    for (const e of entries) {
+      if (e.status !== 'vacation') continue
+      const date = parseDateString(e.date)
+      const off = Math.round((date.getTime() - range.start.getTime()) / 86_400_000)
+      if (off >= 0 && off < range.totalDays) counts[off]++
+    }
+    return counts
+  }, [entries, range])
+
+  const totalActiveMembers = initialMembers.length
+  const membersWithVacation = memberRows.filter(r => r.totalDays > 0).length
+  const totalVacationDays = memberRows.reduce((sum, r) => sum + r.totalDays, 0)
+  const peak = coverage.length === 0 ? 0 : Math.max(...coverage)
+  const peakDayIdx = coverage.indexOf(peak)
+  const peakDate = peak > 0 ? addDays(range.start, peakDayIdx) : null
+
+  const today = useMemo(() => new Date(), [])
+  const todayDayOffset = Math.round((today.getTime() - range.start.getTime()) / 86_400_000)
+  const todayInRange = todayDayOffset >= 0 && todayDayOffset < range.totalDays
+
+  // Year nav
+  const todayDate = new Date()
+  const defaultYear = todayDate.getMonth() >= 8 ? todayDate.getFullYear() + 1 : todayDate.getFullYear()
+  const yearOptions = [year - 1, year, year + 1]
+
+  function setYear(y: number) {
+    const url = y === defaultYear ? pathname : `${pathname}?year=${y}`
+    router.replace(url, { scroll: false })
+  }
+
+  const monthSpans = useMemo(() => {
+    // June (30), July (31), August (31)
+    return [
+      { label: t.dates.monthsLong[5], days: 30 },
+      { label: t.dates.monthsLong[6], days: 31 },
+      { label: t.dates.monthsLong[7], days: 31 },
+    ]
+  }, [t])
+
+  // Week-tick positions (Mondays inside the range)
+  const weekTicks = useMemo(() => {
+    const ticks: { dayOffset: number; weekNo: number }[] = []
+    for (let i = 0; i < range.totalDays; i++) {
+      const d = addDays(range.start, i)
+      if (d.getDay() === 1) {
+        ticks.push({ dayOffset: i, weekNo: getISOWeek(d) })
+      }
+    }
+    return ticks
+  }, [range])
+
+  const peakLabel = peakDate
+    ? `${t.dates.weekdaysShort[peakDate.getDay()].toLowerCase()} ${peakDate.getDate()}. ${t.dates.monthsShort[peakDate.getMonth()]}`
+    : null
+
+  const palette = palettes.vacation
+  const barGradient = isLight ? palette.gradient.light : palette.gradient.dark
+  const barGlow = palette.glow
+
+  return (
+    <div className="w-full flex flex-col gap-7">
+      <Hero
+        year={year}
+        membersWithVacation={membersWithVacation}
+        totalActiveMembers={totalActiveMembers}
+        totalVacationDays={totalVacationDays}
+        t={t}
+      />
+
+      <YearSwitcher year={year} options={yearOptions} onChange={setYear} t={t} />
+
+      <Timeline
+        range={range}
+        memberRows={memberRows}
+        monthSpans={monthSpans}
+        weekTicks={weekTicks}
+        coverage={coverage}
+        peak={peak}
+        peakLabel={peakLabel}
+        todayInRange={todayInRange}
+        todayDayOffset={todayDayOffset}
+        totalActiveMembers={totalActiveMembers}
+        barGradient={barGradient}
+        barGlow={barGlow}
+        isLight={isLight}
+        reduce={!!reduce}
+        t={t}
+      />
+    </div>
+  )
+}
+
+function Hero({
+  year, membersWithVacation, totalActiveMembers, totalVacationDays, t,
+}: {
+  year: number
+  membersWithVacation: number
+  totalActiveMembers: number
+  totalVacationDays: number
+  t: ReturnType<typeof useT>
+}) {
+  return (
+    <header className="px-1">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: ease.horizon }}
+      >
+        <div
+          className="text-[12px] font-semibold uppercase tracking-[0.22em]"
+          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+        >
+          {t.summer.eyebrow}
+        </div>
+        <h1
+          className="mt-2 text-[56px] sm:text-[72px] md:text-[88px] leading-[0.95]"
+          style={{
+            fontFamily: 'var(--font-display), Georgia, serif',
+            fontVariationSettings: '"opsz" 96, "SOFT" 60, "wght" 540',
+            letterSpacing: '-0.02em',
+            color: 'var(--text-primary)',
+          }}
+        >
+          {t.summer.title} <SummerYear year={year} />
+        </h1>
+        <p
+          className="mt-3 max-w-2xl text-[15px] sm:text-[16px]"
+          style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
+        >
+          {t.summer.subline
+            .replace('{withVac}', String(membersWithVacation))
+            .replace('{total}', String(totalActiveMembers))
+            .replace('{days}', String(totalVacationDays))}
+        </p>
+      </motion.div>
+    </header>
+  )
+}
+
+function SummerYear({ year }: { year: number }) {
+  // The year gets the warm sun-gradient — the only place we lean Nordlys-ish
+  // on this surface, used once.
+  return (
+    <span
+      style={{
+        background: 'linear-gradient(120deg, var(--ember-glow) 0%, var(--ember-soft) 50%, var(--nordlys-c) 100%)',
+        WebkitBackgroundClip: 'text',
+        backgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        color: 'transparent',
+      }}
+    >
+      {year}
+    </span>
+  )
+}
+
+function YearSwitcher({
+  year, options, onChange, t,
+}: {
+  year: number
+  options: number[]
+  onChange: (y: number) => void
+  t: ReturnType<typeof useT>
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label={t.summer.yearSwitcherAria}
+      className="self-start inline-flex items-center gap-1 p-1 rounded-2xl"
+      style={{
+        background: 'color-mix(in oklab, var(--bg-elevated) 70%, transparent)',
+        border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+        backdropFilter: 'blur(14px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(14px) saturate(180%)',
+      }}
+    >
+      {options.map((y) => {
+        const isActive = y === year
+        return (
+          <button
+            key={y}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onChange(y)}
+            className="relative px-4 py-1.5 text-[13px] font-semibold rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+            style={{
+              color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+              fontFamily: 'var(--font-body)',
+            }}
+          >
+            {isActive && (
+              <motion.span
+                layoutId="summer-year-active"
+                className="absolute inset-0 rounded-xl"
+                style={{
+                  background: 'color-mix(in oklab, var(--bg-primary) 88%, transparent)',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05), 0 0 0 1px color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+                }}
+                transition={spring.snappy}
+              />
+            )}
+            <span className="relative z-10">{y}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+interface TimelineProps {
+  range: { start: Date; end: Date; totalDays: number }
+  memberRows: MemberRow[]
+  monthSpans: { label: string; days: number }[]
+  weekTicks: { dayOffset: number; weekNo: number }[]
+  coverage: number[]
+  peak: number
+  peakLabel: string | null
+  todayInRange: boolean
+  todayDayOffset: number
+  totalActiveMembers: number
+  barGradient: [string, string]
+  barGlow: string
+  isLight: boolean
+  reduce: boolean
+  t: ReturnType<typeof useT>
+}
+
+const NAME_COL = 'clamp(116px, 18vw, 196px)'
+const ROW_H = 52
+
+function Timeline({
+  range, memberRows, monthSpans, weekTicks, coverage,
+  peak, peakLabel, todayInRange, todayDayOffset, totalActiveMembers,
+  barGradient, barGlow, isLight, reduce, t,
+}: TimelineProps) {
+  const total = range.totalDays
+  const dayPct = (n: number) => (n / total) * 100
+
+  return (
+    <section
+      className="relative w-full rounded-[28px] overflow-hidden"
+      style={{
+        background: 'color-mix(in oklab, var(--bg-elevated) 86%, transparent)',
+        border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+        boxShadow: isLight
+          ? '0 24px 60px -28px rgba(180, 83, 9, 0.18), 0 1px 0 rgba(255,255,255,0.6) inset'
+          : '0 24px 60px -28px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.04) inset',
+      }}
+    >
+      {/* Soft horizon glow at the top — the "summer sky" hint */}
+      <div
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-32 pointer-events-none"
+        style={{
+          background: isLight
+            ? 'radial-gradient(120% 100% at 50% 0%, rgba(251, 191, 36, 0.18), transparent 60%)'
+            : 'radial-gradient(120% 100% at 50% 0%, rgba(251, 191, 36, 0.10), transparent 60%)',
+        }}
+      />
+
+      {/* Month band */}
+      <div
+        className="relative grid items-center"
+        style={{
+          gridTemplateColumns: `${NAME_COL} 1fr`,
+          paddingTop: 18,
+          paddingBottom: 10,
+          paddingLeft: 18,
+          paddingRight: 24,
+        }}
+      >
+        <div />
+        <div className="relative h-7">
+          {monthSpans.map((m, i) => {
+            const offset = monthSpans.slice(0, i).reduce((sum, prev) => sum + prev.days, 0)
+            const left = dayPct(offset)
+            const width = dayPct(m.days)
+            return (
+              <div
+                key={i}
+                className="absolute top-0 bottom-0 flex items-end pl-3"
+                style={{ left: `${left}%`, width: `${width}%` }}
+              >
+                <span
+                  className="text-[11px] font-semibold uppercase tracking-[0.24em]"
+                  style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+                >
+                  {m.label}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Week ticks rule */}
+      <div
+        className="relative grid"
+        style={{
+          gridTemplateColumns: `${NAME_COL} 1fr`,
+          paddingLeft: 18,
+          paddingRight: 24,
+          paddingBottom: 10,
+        }}
+      >
+        <div />
+        <div className="relative h-5">
+          {weekTicks.map((tick) => (
+            <div
+              key={tick.weekNo}
+              className="absolute top-0 bottom-0 flex items-start"
+              style={{ left: `${dayPct(tick.dayOffset)}%`, transform: 'translateX(-50%)' }}
+            >
+              <span
+                className="text-[10px] font-medium tabular-nums"
+                style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)', letterSpacing: '0.05em' }}
+              >
+                {t.summer.weekShort}{tick.weekNo}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Background week stripes — sit behind the rows */}
+      <div
+        aria-hidden
+        className="absolute pointer-events-none"
+        style={{
+          left: `calc(${NAME_COL} + 18px)`,
+          right: 24,
+          // Match rows section vertical bounds exactly via inline anchors
+          top: 78,
+          bottom: 110,
+        }}
+      >
+        <div className="relative w-full h-full">
+          {weekTicks.map((tick, i) => (
+            <div
+              key={i}
+              className="absolute top-0 bottom-0"
+              style={{
+                left: `${dayPct(tick.dayOffset)}%`,
+                width: '1px',
+                background: 'color-mix(in oklab, var(--border-subtle) 50%, transparent)',
+                opacity: 0.5,
+              }}
+            />
+          ))}
+          {/* Today line */}
+          {todayInRange && (
+            <motion.div
+              className="absolute top-0 bottom-0 pointer-events-none"
+              style={{
+                left: `${dayPct(todayDayOffset)}%`,
+                width: '2px',
+                transform: 'translateX(-1px)',
+                background: 'linear-gradient(180deg, var(--nordlys-b), color-mix(in oklab, var(--nordlys-c) 60%, transparent))',
+                boxShadow: '0 0 14px rgba(0, 217, 245, 0.55), 0 0 32px rgba(124, 58, 237, 0.22)',
+                borderRadius: 2,
+              }}
+              animate={reduce ? undefined : { opacity: [0.85, 1, 0.85] }}
+              transition={reduce ? undefined : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Member rows */}
+      <div
+        className="relative"
+        style={{
+          paddingLeft: 18,
+          paddingRight: 24,
+          paddingBottom: 18,
+        }}
+      >
+        {memberRows.length === 0 ? (
+          <div
+            className="py-12 text-center text-[14px]"
+            style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
+          >
+            {t.summer.empty}
+          </div>
+        ) : (
+          <div className="flex flex-col">
+            {memberRows.map((row, idx) => (
+              <Row
+                key={row.member.id}
+                row={row}
+                idx={idx}
+                dayPct={dayPct}
+                barGradient={barGradient}
+                barGlow={barGlow}
+                isLight={isLight}
+                reduce={reduce}
+                t={t}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Coverage rail */}
+      <Coverage
+        coverage={coverage}
+        totalActiveMembers={totalActiveMembers}
+        peak={peak}
+        peakLabel={peakLabel}
+        dayPct={dayPct}
+        weekTicks={weekTicks}
+        t={t}
+      />
+    </section>
+  )
+}
+
+function Row({
+  row, idx, dayPct, barGradient, barGlow, isLight, reduce, t,
+}: {
+  row: MemberRow
+  idx: number
+  dayPct: (n: number) => number
+  barGradient: [string, string]
+  barGlow: string
+  isLight: boolean
+  reduce: boolean
+  t: ReturnType<typeof useT>
+}) {
+  const hasVacation = row.blocks.length > 0
+  return (
+    <motion.div
+      className="grid items-center"
+      style={{
+        gridTemplateColumns: `${NAME_COL} 1fr`,
+        height: ROW_H,
+        opacity: hasVacation ? 1 : 0.55,
+      }}
+      initial={reduce ? { opacity: hasVacation ? 1 : 0.55 } : { opacity: 0, x: -8 }}
+      animate={{ opacity: hasVacation ? 1 : 0.55, x: 0 }}
+      transition={reduce ? { duration: 0 } : { delay: 0.04 + idx * 0.025, duration: 0.45, ease: ease.horizon }}
+    >
+      {/* Name col */}
+      <div className="flex items-center gap-2.5 pr-3 min-w-0">
+        <MemberAvatar
+          name={row.member.display_name}
+          initials={row.member.initials}
+          avatarUrl={row.member.avatar_url}
+          size="sm"
+        />
+        <div className="min-w-0">
+          <div
+            className="truncate text-[13px] font-medium"
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+          >
+            {row.member.display_name}
+          </div>
+          {hasVacation && (
+            <div
+              className="text-[10.5px] font-medium tabular-nums"
+              style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)', letterSpacing: '0.04em' }}
+            >
+              {row.totalDays}{' '}{row.totalDays === 1 ? t.summer.dayOne : t.summer.dayMany}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bars track */}
+      <div className="relative h-full">
+        {row.blocks.map((b, i) => {
+          const left = dayPct(b.startDay)
+          // Inclusive width: span = endDay - startDay + 1
+          const width = Math.max(dayPct(b.endDay - b.startDay + 1), 1.4)
+          const days = b.endDay - b.startDay + 1
+          const dateRange = formatBlockRange(b.startDate, b.endDate, t)
+          const tooltip = b.locationLabel
+            ? `${dateRange} · ${b.locationLabel}`
+            : dateRange
+          return (
+            <motion.div
+              key={i}
+              className="absolute top-1/2 -translate-y-1/2 rounded-full overflow-hidden"
+              style={{
+                left: `${left}%`,
+                width: `${width}%`,
+                height: 30,
+                background: `linear-gradient(180deg, ${barGradient[0]}, ${barGradient[1]})`,
+                boxShadow: `0 4px 14px ${hexToRgba(barGlow, 0.32)}, 0 0 0 1px ${hexToRgba(barGlow, 0.18)} inset, inset 0 1px 0 ${isLight ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.10)'}`,
+              }}
+              initial={reduce ? false : { scaleX: 0, opacity: 0 }}
+              animate={{ scaleX: 1, opacity: 1 }}
+              transition={reduce ? { duration: 0 } : { delay: 0.18 + i * 0.05, duration: 0.55, ease: ease.horizon }}
+              title={tooltip}
+            >
+              {/* Sun shimmer overlay */}
+              {!reduce && (
+                <motion.div
+                  aria-hidden
+                  className="absolute inset-y-0 w-1/3 pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)',
+                    mixBlendMode: 'overlay',
+                  }}
+                  initial={{ x: '-120%' }}
+                  animate={{ x: '380%' }}
+                  transition={{
+                    duration: 7 + (i % 3) * 1.3,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                    delay: 1 + i * 0.6,
+                  }}
+                />
+              )}
+              {/* Inner label — only when block is wide enough */}
+              {width > 7 && (
+                <div
+                  className="relative h-full flex items-center justify-between px-3 text-[11px] font-semibold whitespace-nowrap"
+                  style={{
+                    color: isLight ? 'rgba(255,255,255,0.96)' : 'rgba(255,255,255,0.92)',
+                    textShadow: '0 1px 2px rgba(0,0,0,0.18)',
+                    fontFamily: 'var(--font-body)',
+                    letterSpacing: '0.01em',
+                  }}
+                >
+                  <span className="truncate">{formatBlockShort(b.startDate, b.endDate, t)}</span>
+                  <span className="ml-2 tabular-nums opacity-90">{days}d</span>
+                </div>
+              )}
+            </motion.div>
+          )
+        })}
+      </div>
+    </motion.div>
+  )
+}
+
+function Coverage({
+  coverage, totalActiveMembers, peak, peakLabel, dayPct, weekTicks, t,
+}: {
+  coverage: number[]
+  totalActiveMembers: number
+  peak: number
+  peakLabel: string | null
+  dayPct: (n: number) => number
+  weekTicks: { dayOffset: number; weekNo: number }[]
+  t: ReturnType<typeof useT>
+}) {
+  const totalDays = coverage.length
+  const max = Math.max(peak, Math.max(1, Math.round(totalActiveMembers * 0.35)))
+  // Build a smooth area path
+  const areaPath = useMemo(() => {
+    if (totalDays === 0) return ''
+    const w = 1000
+    const h = 100
+    const stepX = w / (totalDays - 1 || 1)
+    const points = coverage.map((v, i) => {
+      const x = i * stepX
+      const y = h - (v / max) * h
+      return [x, y] as const
+    })
+    let d = `M 0 ${h} L ${points[0][0]} ${points[0][1]}`
+    for (let i = 1; i < points.length; i++) {
+      const [x0, y0] = points[i - 1]
+      const [x1, y1] = points[i]
+      const cx = (x0 + x1) / 2
+      d += ` C ${cx} ${y0}, ${cx} ${y1}, ${x1} ${y1}`
+    }
+    d += ` L ${points[points.length - 1][0]} ${h} Z`
+    return d
+  }, [coverage, max, totalDays])
+
+  const linePath = useMemo(() => {
+    if (totalDays === 0) return ''
+    const w = 1000
+    const h = 100
+    const stepX = w / (totalDays - 1 || 1)
+    const points = coverage.map((v, i) => {
+      const x = i * stepX
+      const y = h - (v / max) * h
+      return [x, y] as const
+    })
+    let d = `M ${points[0][0]} ${points[0][1]}`
+    for (let i = 1; i < points.length; i++) {
+      const [x0, y0] = points[i - 1]
+      const [x1, y1] = points[i]
+      const cx = (x0 + x1) / 2
+      d += ` C ${cx} ${y0}, ${cx} ${y1}, ${x1} ${y1}`
+    }
+    return d
+  }, [coverage, max, totalDays])
+
+  return (
+    <div
+      className="relative grid"
+      style={{
+        gridTemplateColumns: `${NAME_COL} 1fr`,
+        padding: '18px 24px 22px 18px',
+        borderTop: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+        background: 'color-mix(in oklab, var(--bg-subtle) 38%, transparent)',
+      }}
+    >
+      <div className="pr-3">
+        <div
+          className="text-[10.5px] font-semibold uppercase tracking-[0.22em]"
+          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+        >
+          {t.summer.coverageLabel}
+        </div>
+        <div
+          className="mt-1 text-[12px]"
+          style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
+        >
+          {peak === 0
+            ? t.summer.coverageNone
+            : t.summer.coveragePeak
+                .replace('{n}', String(peak))
+                .replace('{date}', peakLabel ?? '')}
+        </div>
+      </div>
+
+      <div className="relative" style={{ height: 76 }}>
+        <svg
+          viewBox="0 0 1000 100"
+          preserveAspectRatio="none"
+          className="absolute inset-0 w-full h-full"
+          aria-hidden
+        >
+          <defs>
+            <linearGradient id="summer-area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--ember-glow)" stopOpacity="0.55" />
+              <stop offset="100%" stopColor="var(--ember-glow)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {areaPath && <path d={areaPath} fill="url(#summer-area)" />}
+          {linePath && (
+            <path
+              d={linePath}
+              fill="none"
+              stroke="var(--ember-soft)"
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+        </svg>
+
+        {/* Week guides */}
+        {weekTicks.map((tick) => (
+          <div
+            key={tick.weekNo}
+            className="absolute top-0 bottom-0"
+            style={{
+              left: `${dayPct(tick.dayOffset)}%`,
+              width: '1px',
+              background: 'color-mix(in oklab, var(--border-subtle) 50%, transparent)',
+              opacity: 0.4,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// --------------------------------------------------------------------------
+// helpers
+
+function parseDateString(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+function hexToRgba(hex: string, a: number): string {
+  const m = /^#?([a-f\d]{6})$/i.exec(hex.trim())
+  if (!m) return `rgba(180, 83, 9, ${a})`
+  const n = parseInt(m[1], 16)
+  const r = (n >> 16) & 0xff
+  const g = (n >> 8) & 0xff
+  const b = n & 0xff
+  return `rgba(${r}, ${g}, ${b}, ${a})`
+}
+
+function formatBlockRange(start: Date, end: Date, t: ReturnType<typeof useT>): string {
+  const sm = t.dates.monthsShort[start.getMonth()]
+  const em = t.dates.monthsShort[end.getMonth()]
+  if (start.getMonth() === end.getMonth() && start.getDate() === end.getDate()) {
+    return `${start.getDate()}. ${sm}`
+  }
+  if (start.getMonth() === end.getMonth()) {
+    return `${start.getDate()}.–${end.getDate()}. ${sm}`
+  }
+  return `${start.getDate()}. ${sm} – ${end.getDate()}. ${em}`
+}
+
+function formatBlockShort(start: Date, end: Date, t: ReturnType<typeof useT>): string {
+  // For inside-bar labels: "uke 28" reads cleaner than full dates when the
+  // span aligns with an ISO week. Otherwise fall back to date range.
+  const startWeek = getISOWeek(start)
+  const endWeek = getISOWeek(end)
+  const span = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1
+  if (start.getDay() === 1 && (end.getDay() === 0 || end.getDay() === 5) && startWeek === endWeek) {
+    return `${t.summer.weekShort}${startWeek}`
+  }
+  if (startWeek !== endWeek && span >= 6) {
+    return `${t.summer.weekShort}${startWeek}–${endWeek}`
+  }
+  return formatBlockRange(start, end, t)
+}
