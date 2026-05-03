@@ -206,15 +206,26 @@ export function OfficeMapView({
       </motion.div>
 
       {/* ── Footer summary — single row, truncates gracefully ─────── */}
+      {/* paddingRight reserverer bunn-høyre-hjørnet for `OffiviewSignature`.
+          Signaturen er position: fixed, controlBarSafeArea (bottom: 96px,
+          right: 48px) og ~360px bred på vanlig desktop (45 mono + 16 gap +
+          ~300 tagline) — venstrekant ender ~408px fra viewport-høyre. På
+          4K-vegg vokser pad til 72px og monogrammet til ~67px, så signaturen
+          spiser ~465px fra viewport-høyre. Wrapperen har allerede px-10
+          (40px), så footer-paddingRight må være minst (signature_left −
+          wrapper_pad) + luft. ≥400px på desktop, ≥480px på 4K. Tidligere
+          clamp(220, 26vw, 460) ga bare 374px på 1440-skjerm, så «N kontorer»
+          krasjet med signaturens venstre kant. */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...spring.gentle, delay: 0.4 }}
-        className="flex items-center justify-between gap-4 px-5 py-3 rounded-2xl flex-shrink-0 overflow-hidden"
+        className="flex items-center justify-between gap-4 pl-5 py-3 rounded-2xl flex-shrink-0 overflow-hidden"
         style={{
           background:
             'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%)',
           border: '1px solid rgba(255,255,255,0.06)',
+          paddingRight: 'clamp(400px, 30vw, 500px)',
         }}
       >
         <div className="flex items-center gap-5 min-w-0 overflow-hidden">
