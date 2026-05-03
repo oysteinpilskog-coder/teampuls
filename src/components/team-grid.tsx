@@ -152,6 +152,14 @@ interface ResizeDrag {
   entry: Entry
 }
 
+// Render-rad for matrise-kroppen: enten en medlemsrad eller et tynt
+// org-skille mellom organisasjoner i kombinert visning. Holder rowIdx
+// for medlems-radene så animasjons-staggeren holder seg jevn — skillene
+// teller ikke som en rad.
+type GridRow =
+  | { kind: 'member'; member: Member; rowIdx: number }
+  | { kind: 'divider'; key: string }
+
 interface TeamGridProps {
   orgId: string
   /** Optional — server-rendered member list for instant hydration. */
@@ -184,6 +192,22 @@ interface TeamGridProps {
 // On narrow viewports the matrix card has min-w-[640px] + overflow-x-auto,
 // so phones get horizontal scroll instead of squashed cells.
 const GRID_COLS = '136px repeat(5, 1fr)'
+
+// Tynt skille mellom organisasjons-grupper i kombinert visning. Ingen
+// label — workspace-badgen lever per rad og forteller allerede hvilken
+// org du ser på. Hairline-en bruker samme soft divider-token som
+// kolonne-skiller i matrisa, så all skille-grafikk i kortet snakker
+// samme språk.
+function GroupDivider() {
+  return (
+    <div aria-hidden className="relative h-2 my-1">
+      <div
+        className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-px"
+        style={{ background: 'var(--lg-divider-soft)' }}
+      />
+    </div>
+  )
+}
 
 // Skeleton row for loading state
 function SkeletonRow({ index = 0 }: { index?: number }) {
@@ -341,7 +365,12 @@ export function TeamGrid({
   // unless the org opted into an assumption, in which case every active
   // member gets a row (their empty days render as assumed segments).
   // In combined view we then narrow further by the orgFilter pill.
-  const visibleMembers = useMemo(() => {
+  //
+  // gridRows er den endelige render-listen: medlemsrader interleavet med
+  // tynne skille-rader mellom organisasjoner i kombinert visning. Single-
+  // workspace og filtrert kombinert visning får ingen skiller — der er
+  // det bare én gruppe.
+  const { visibleMembers, gridRows } = useMemo(() => {
     let pool = members
     if (presenceAssumption === 'none') {
       const memberIdsWithEntries = new Set(entries.map((e) => e.member_id))
@@ -350,16 +379,62 @@ export function TeamGrid({
     if (combinedView && orgFilter) {
       pool = pool.filter((m) => m.org_id === orgFilter)
     }
-    // UK-medlemmer (home office GB) sorteres alltid nederst. Stabil sort
-    // bevarer eksisterende alfabetiske rekkefølge fra .order('display_name')
-    // innenfor hver gruppe.
+
+    // Kombinert visning uten aktivt filter: grupper etter org. UK-org
+    // (country_code='GB') havner alltid nederst; resten sorteres
+    // alfabetisk på workspace-navn. Skiller settes inn mellom hver
+    // org-gruppe så «Alle CalWin» leses som blokker, ikke ett blandet
+    // alfabet.
+    if (combinedView && !orgFilter && workspaces && workspaces.length > 1) {
+      const ukOrgIds = new Set(
+        workspaces
+          .filter((w) => w.country_code === 'GB')
+          .map((w) => w.org_id),
+      )
+      const orgRank = new Map<string, number>()
+      workspaces
+        .slice()
+        .sort((a, b) => {
+          const aUk = ukOrgIds.has(a.org_id) ? 1 : 0
+          const bUk = ukOrgIds.has(b.org_id) ? 1 : 0
+          if (aUk !== bUk) return aUk - bUk
+          return a.name.localeCompare(b.name)
+        })
+        .forEach((w, i) => orgRank.set(w.org_id, i))
+      const sorted = pool
+        .map((m, idx) => ({ m, idx, rank: orgRank.get(m.org_id) ?? 999 }))
+        .sort((a, b) => a.rank - b.rank || a.idx - b.idx)
+        .map(({ m }) => m)
+      const rows: GridRow[] = []
+      let lastOrg: string | null = null
+      let memberIdx = 0
+      for (const m of sorted) {
+        if (lastOrg !== null && m.org_id !== lastOrg) {
+          rows.push({ kind: 'divider', key: `divider-${m.org_id}` })
+        }
+        rows.push({ kind: 'member', member: m, rowIdx: memberIdx++ })
+        lastOrg = m.org_id
+      }
+      return { visibleMembers: sorted, gridRows: rows }
+    }
+
+    // Single-workspace (eller filtrert kombinert visning): UK-medlemmer
+    // (home office GB) sorteres alltid nederst. Stabil sort bevarer
+    // alfabetisk rekkefølge fra .order('display_name') innenfor hver
+    // gruppe. Ingen skiller — alt er én gruppe her.
     const ukOfficeIds = new Set(
       offices.filter((o) => o.country_code === 'GB').map((o) => o.id),
     )
     const isUK = (m: Member) =>
       !!m.home_office_id && ukOfficeIds.has(m.home_office_id)
-    return [...pool].sort((a, b) => Number(isUK(a)) - Number(isUK(b)))
-  }, [members, entries, presenceAssumption, combinedView, orgFilter, offices])
+    const sorted = [...pool].sort((a, b) => Number(isUK(a)) - Number(isUK(b)))
+    const rows: GridRow[] = sorted.map((m, i) => ({
+      kind: 'member',
+      member: m,
+      rowIdx: i,
+    }))
+    return { visibleMembers: sorted, gridRows: rows }
+  }, [members, entries, presenceAssumption, combinedView, orgFilter, offices, workspaces])
 
   // Per-workspace member counts for the filter pills.
   const memberCountsByOrg = useMemo(() => {
@@ -426,6 +501,7 @@ export function TeamGrid({
         .select('*')
         .in('org_id', scopedOrgIds)
         .eq('is_active', true)
+        .eq('hidden_from_overview', false)
         .order('display_name'),
       supabase
         .from('offices')
@@ -1268,7 +1344,12 @@ export function TeamGrid({
           >
             {loading
               ? Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} index={i} />)
-              : visibleMembers.map((member, rowIdx) => (
+              : gridRows.map((row) => {
+                if (row.kind === 'divider') {
+                  return <GroupDivider key={row.key} />
+                }
+                const { member, rowIdx } = row
+                return (
                   <motion.div
                     key={member.id}
                     className="relative grid gap-2 items-center"
@@ -1453,7 +1534,8 @@ export function TeamGrid({
                       )
                     })()}
                   </motion.div>
-                ))}
+                )
+              })}
 
             {!loading && members.length === 0 && (
               <div className="py-16 text-center text-[var(--text-tertiary)] text-[15px]">
