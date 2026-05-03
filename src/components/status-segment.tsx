@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useTheme } from 'next-themes'
 import { StatusIcon } from '@/components/icons/status-icons'
@@ -80,7 +81,13 @@ export function StatusSegment({
   const palettes = useStatusColors()
   const t = useT()
   const { resolvedTheme } = useTheme()
-  const isLight = resolvedTheme === 'light'
+  // next-themes returns `undefined` on the server and the very first client
+  // render. Without the mounted gate, `isLight` flips to `false` on every
+  // SSR pass, which made bars render with dark-mode tints on the cream Paper
+  // background — too washed-out to read.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  const isLight = mounted ? resolvedTheme !== 'dark' : true
   const prefersReducedMotion = useReducedMotion()
 
   const span = days.length
@@ -92,23 +99,26 @@ export function StatusSegment({
 
   const palette = status ? palettes[status] : null
   const tone = palette?.icon ?? ''        // primary category color
-  // Text/icon tint flips with theme. The lightened-towards-white `textDark`
-  // reads great on dark espresso but disappears on cream Paper; in light mode
-  // we use the darkened-towards-black `text` so the label stays legible
-  // against the soft tinted fill.
-  const tint = palette
+  // Text/icon tint flips with theme. The palette's `text`/`textDark` are too
+  // close to the tinted fill (45% mix) and read washed-out on the bar — so
+  // we push another 35% toward black/white using color-mix. Pills/chips
+  // elsewhere keep the original palette tones.
+  const baseTint = palette
     ? (isLight ? palette.text : palette.textDark)
     : (isLight ? '#0E0B08' : '#fff')
+  const tint = palette
+    ? `color-mix(in oklab, ${baseTint} 65%, ${isLight ? '#000' : '#fff'})`
+    : baseTint
   const glow = palette?.glow ?? tone
 
-  // Tile fill alpha — dark mode reads at 13/8% over espresso, but on warm
-  // Paper that vanishes. Lift to 28/18% so the category tint is actually
-  // legible without going opaque (which would kill the glass feel).
-  const fillTopAlpha    = isLight ? '47' : '22' // 0x47 ≈ 28% / 0x22 ≈ 13%
-  const fillBottomAlpha = isLight ? '2E' : '14' // 0x2E ≈ 18% / 0x14 ≈ 8%
-  const fillTopAlphaAssumed    = isLight ? '24' : '11'
-  const fillBottomAlphaAssumed = isLight ? '18' : '08'
-  const innerRimAlpha   = isLight ? '4D' : '30' // 0x4D ≈ 30%
+  // Tile fill alpha — bumped from the previous 28/18 (light) and 13/8 (dark)
+  // because the bars read as ghostly against the surrounding card. Higher
+  // alpha gives the category tint actual presence without going opaque.
+  const fillTopAlpha    = isLight ? '6E' : '38' // ≈ 43% / 22%
+  const fillBottomAlpha = isLight ? '47' : '22' // ≈ 28% / 13%
+  const fillTopAlphaAssumed    = isLight ? '33' : '18'
+  const fillBottomAlphaAssumed = isLight ? '22' : '0F'
+  const innerRimAlpha   = isLight ? '70' : '4D' // ≈ 44% / 30%
 
   // Assumed bars: diminished fill + a dashed rim, so the viewer can tell
   // "inferred" from "registered" at a glance without a second label.
@@ -164,7 +174,7 @@ export function StatusSegment({
                 className="text-[11px] leading-none truncate"
                 style={{
                   color: tint,
-                  fontWeight: 500,
+                  fontWeight: 600,
                   letterSpacing: '-0.005em',
                 }}
               >
