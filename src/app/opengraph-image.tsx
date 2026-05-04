@@ -14,11 +14,12 @@ export const contentType = 'image/png'
 
 // Brand palette mirrors --paper / --ink / --ember from globals.css.
 // next/og can't load CSS variables, so the values are repeated literally.
-const PAPER = '#F5EFE4'
-const PAPER_SOFT = '#EDE5D1'
-const INK = '#0E0B08'
-const EMBER = '#B45309'
-const EMBER_GLOW = '#FBBF24'
+// CalWin BrandBook §3: Silver Gray + Blue Violet + Light Blue.
+const PAPER = '#EAEAE6'        // Silver Gray
+const PAPER_SOFT = '#F7F7F4'   // near-white
+const INK = '#322E7A'          // Blue Violet
+const EMBER = '#66C4EF'        // Light Blue (accent)
+const EMBER_GLOW = '#B3E2F7'   // pale Light Blue glow
 
 export default async function OpenGraphImage() {
   const locale = await getServerLocale()

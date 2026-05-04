@@ -198,9 +198,9 @@ function HeroMark({
               y2={62}
               gradientUnits="userSpaceOnUse"
             >
-              <stop offset="0%" stopColor="#00F5A0" />
-              <stop offset="55%" stopColor="#00D9F5" />
-              <stop offset="100%" stopColor="#7C3AED" />
+              <stop offset="0%" stopColor="#66C4EF" />
+              <stop offset="55%" stopColor="#4A4595" />
+              <stop offset="100%" stopColor="#322E7A" />
             </linearGradient>
             {/*
              * filterUnits="userSpaceOnUse" + konkrete viewBox-koordinater.
@@ -232,7 +232,7 @@ function HeroMark({
             cy={50}
             r={RADIUS}
             fill="none"
-            stroke="#F5EFE4"
+            stroke="#EAEAE6"
             strokeWidth={5}
             strokeLinecap="round"
             strokeDasharray={CIRCUMFERENCE}

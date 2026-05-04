@@ -1,24 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Offiview PWA + browser favicon. Espresso card, cream ring, og en
-       to-stopps Nordlys grønn→cyan horisont. Ingen blur-filter her —
-       den brukes både som favicon (16/32px) og PWA-ikon (512px), og
-       feGaussianBlur ble inkonsistent renderet ved favicon-rasterisering
-       (sirkelen forsvant av og til, etterlot bare linjen). Apple-touch
-       (180px) beholder filteret der det reproduserer pålitelig. -->
+  <!-- TeamPulse / CalWin PWA + browser favicon. Blue Violet card, Silver Gray
+       ring, og en CalWin Light Blue → Blue Violet horisont. Ingen blur her —
+       feGaussianBlur ble inkonsistent renderet ved favicon-rasterisering. -->
   <defs>
     <linearGradient id="nordlys" x1="108" y1="324" x2="404" y2="324" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#00F5A0"/>
-      <stop offset="100%" stop-color="#00D9F5"/>
+      <stop offset="0%" stop-color="#66C4EF"/>
+      <stop offset="100%" stop-color="#322E7A"/>
     </linearGradient>
     <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#00F5A0" stop-opacity="0.18"/>
-      <stop offset="70%" stop-color="#00F5A0" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#66C4EF" stop-opacity="0.22"/>
+      <stop offset="70%" stop-color="#66C4EF" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="#15110E"/>
+  <rect width="512" height="512" rx="112" fill="#1F1C52"/>
   <rect width="512" height="512" rx="112" fill="url(#glow)"/>
-  <circle cx="256" cy="256" r="170" fill="none" stroke="#F5EFE4" stroke-width="44"/>
+  <circle cx="256" cy="256" r="170" fill="none" stroke="#EAEAE6" stroke-width="44"/>
   <line x1="108" y1="324" x2="404" y2="324"
         stroke="url(#nordlys)" stroke-width="44" stroke-linecap="round"/>
 </svg>

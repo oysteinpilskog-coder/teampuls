@@ -39,7 +39,8 @@ export function OffiviewMark({
   // ink & paper are mono variants — they follow `currentColor` so the caller
   // can flip light/dark via text color. Only the signature variants (ember,
   // nordlys) hard-bake their own palette.
-  const ringStroke = variant === 'nordlys' ? '#F5EFE4' : 'currentColor'
+  // CalWin: "paper" reads on Blue Violet — the ring stroke is Silver Gray.
+  const ringStroke = variant === 'nordlys' ? '#EAEAE6' : 'currentColor'
 
   // Horizon geometry — x from 15 to 85 at y = 62 (of 100-unit viewBox)
   const hx1 = 15
@@ -87,9 +88,10 @@ export function OffiviewMark({
             y2={hy}
             gradientUnits="userSpaceOnUse"
           >
-            <stop offset="0%" stopColor="#B45309" />
-            <stop offset="60%" stopColor="#D97706" />
-            <stop offset="100%" stopColor="#FBBF24" />
+            {/* CalWin brandbook §3: corporate gradient runs Blue Violet → Light Blue. */}
+            <stop offset="0%" stopColor="#322E7A" />
+            <stop offset="60%" stopColor="#4A4595" />
+            <stop offset="100%" stopColor="#66C4EF" />
           </linearGradient>
         ) : null}
         {variant === 'nordlys' ? (
@@ -99,6 +101,10 @@ export function OffiviewMark({
              * default `objectBoundingBox` collapses on a horizontal <line>
              * (y1=y2 → bbox height 0) and the gradient renders transparent.
              * Same root cause as the favicon fix in commit 7ecd3e4.
+             *
+             * CalWin "signature" variant: Light Blue → Blue Violet → deep
+             * Blue Violet. The brandbook permits gradients only inside the
+             * primary palette pair, so we stay there.
              */}
             <linearGradient
               id={gradientId}
@@ -108,9 +114,9 @@ export function OffiviewMark({
               y2={hy}
               gradientUnits="userSpaceOnUse"
             >
-              <stop offset="0%" stopColor="#00F5A0" />
-              <stop offset="55%" stopColor="#00D9F5" />
-              <stop offset="100%" stopColor="#7C3AED" />
+              <stop offset="0%" stopColor="#66C4EF" />
+              <stop offset="55%" stopColor="#4A4595" />
+              <stop offset="100%" stopColor="#322E7A" />
             </linearGradient>
             {/*
              * filterUnits="userSpaceOnUse" + konkrete viewBox-koordinater.
