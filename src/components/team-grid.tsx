@@ -183,6 +183,13 @@ interface TeamGridProps {
   /** When true: render org badge per member row + filter pill row, and
    *  read members from multiple workspaces. */
   combinedView?: boolean
+  /** Optional — when set, only entries whose status is in the list are
+   *  visible. Used by /sommer (statusFilter=['vacation']) to reuse this
+   *  matrix as a focused vacation surface. When active we also force
+   *  presence inference off and always show every member, since the
+   *  meaning of an "empty" cell shifts from "unregistered" to
+   *  "not on vacation that day". */
+  statusFilter?: EntryStatus[]
 }
 
 // Shared grid template — single source of truth for the four call sites
@@ -262,6 +269,7 @@ export function TeamGrid({
   todayMetrics,
   workspaces,
   combinedView = false,
+  statusFilter,
 }: TeamGridProps) {
   const t = useT()
   const { week: todayWeek, year: todayYear } = getTodayWeekAndYear()
@@ -297,7 +305,7 @@ export function TeamGrid({
   // what the page rendered on the server. Navigating to a different week
   // before the hook has a chance to fetch should still trigger a fetch.
   const ssrEntriesMatchWeek = initialWeek === week && initialYear === year
-  const { entries, loading: entriesLoading, refetch, applyOptimistic } = useEntries(
+  const { entries: rawEntries, loading: entriesLoading, refetch, applyOptimistic } = useEntries(
     combinedView && workspaces && workspaces.length > 0
       ? workspaces.map((w) => w.org_id)
       : orgId,
@@ -305,6 +313,16 @@ export function TeamGrid({
     ssrEntriesMatchWeek ? { initial: initialEntries } : {},
   )
   const loading = membersLoading || entriesLoading
+
+  // When the host scopes us to a subset of statuses (e.g. /sommer →
+  // vacation only), drop everything else BEFORE downstream consumers see
+  // the data. The drag/edit handlers still write whatever status the user
+  // picks — we only filter what's *displayed*.
+  const entries = useMemo(() => {
+    if (!statusFilter || statusFilter.length === 0) return rawEntries
+    const allowed = new Set(statusFilter)
+    return rawEntries.filter((e) => allowed.has(e.status))
+  }, [rawEntries, statusFilter])
 
   // Build entry lookup: member_id + date → Entry
   const entryMap = useMemo(() => {
@@ -370,9 +388,16 @@ export function TeamGrid({
   // tynne skille-rader mellom organisasjoner i kombinert visning. Single-
   // workspace og filtrert kombinert visning får ingen skiller — der er
   // det bare én gruppe.
+  // When the matrix is scoped to a status (e.g. /sommer = vacation),
+  // every member should keep their row regardless of whether they have a
+  // registered vacation that week — empty cells convey "not on vacation",
+  // which is itself useful info. Without this override, a quiet week
+  // would render as an empty matrix.
+  const keepAllMembers = !!statusFilter && statusFilter.length > 0
+
   const { visibleMembers, gridRows } = useMemo(() => {
     let pool = members
-    if (presenceAssumption === 'none') {
+    if (presenceAssumption === 'none' && !keepAllMembers) {
       const memberIdsWithEntries = new Set(entries.map((e) => e.member_id))
       pool = members.filter((m) => memberIdsWithEntries.has(m.id))
     }
@@ -434,7 +459,7 @@ export function TeamGrid({
       rowIdx: i,
     }))
     return { visibleMembers: sorted, gridRows: rows }
-  }, [members, entries, presenceAssumption, combinedView, orgFilter, offices, workspaces])
+  }, [members, entries, presenceAssumption, keepAllMembers, combinedView, orgFilter, offices, workspaces])
 
   // Per-workspace member counts for the filter pills.
   const memberCountsByOrg = useMemo(() => {
