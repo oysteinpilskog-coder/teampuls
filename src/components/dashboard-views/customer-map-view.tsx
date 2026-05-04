@@ -755,18 +755,22 @@ export function CustomerMapView({
                         'linear-gradient(to bottom, transparent 0%, black 6%, black 94%, transparent 100%)',
                     }}
                   >
-                    <motion.div
-                      animate={{ y: [0, -totalHeight] }}
-                      transition={{
-                        duration,
-                        repeat: Infinity,
-                        ease: 'linear',
-                      }}
+                    {/* CSS-animasjon i stedet for framer-motion: parent-shellen
+                        re-rendrer hvert sekund (klokketikk) + ved realtime-
+                        oppdateringer, og JS-keyframes restartet da sporadisk →
+                        rullingen stoppet på TV-en. Compositor-animasjonen er
+                        immun mot React-render og plukker opp endringer i
+                        `--tp-scroll-distance`/`animation-duration` på neste
+                        iterasjon uten reset. */}
+                    <div
+                      className="tp-customer-scroll"
                       style={{
                         display: 'flex',
                         flexDirection: 'column',
                         gap: `${ROW_GAP}px`,
-                      }}
+                        animationDuration: `${duration}s`,
+                        ['--tp-scroll-distance' as string]: `${totalHeight}px`,
+                      } as React.CSSProperties}
                     >
                       {/* Listen rendres to ganger for sømløs wrap. */}
                       {[...rows, ...rows].map((r, i) => (
@@ -777,7 +781,7 @@ export function CustomerMapView({
                           rowHeight={ROW_HEIGHT}
                         />
                       ))}
-                    </motion.div>
+                    </div>
                   </motion.div>
                 )}
               </div>

@@ -747,6 +747,33 @@
   }
 }
 
+/* Kunde-scroller: kompositor-drevet uendelig rull. Lå tidligere på en
+   framer-motion `animate={{ y: [0, -totalHeight] }}` med `repeat: Infinity`,
+   men dashboard-shellen re-rendrer hvert sekund (klokketikk) og ved
+   realtime-oppdateringer. JS-baserte keyframe-animasjoner restarter da
+   sporadisk → rullingen stopper på TV-en. CSS-animasjoner kjører i
+   compositor-tråden uavhengig av React-render og plukker opp endringer i
+   `--tp-scroll-distance` på neste iterasjon uten å resette posisjonen.
+   Inner-div-en holder duplikatet av radlisten; -1 × distance lander
+   nøyaktig der duplikatet starter, så loopen er sømløs. */
+.tp-customer-scroll {
+  animation-name: tp-customer-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+@keyframes tp-customer-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(0, calc(-1 * var(--tp-scroll-distance, 0px)), 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-customer-scroll {
+    animation: none;
+  }
+}
+
 /* Utility: glass panel */
 .glass {
   position: relative;
