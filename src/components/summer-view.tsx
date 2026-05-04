@@ -1258,14 +1258,17 @@ function formatBlockRange(start: Date, end: Date, t: ReturnType<typeof useT>): s
 
 function formatBlockShort(start: Date, end: Date, t: ReturnType<typeof useT>): string {
   // For inside-bar labels: "uke 28" reads cleaner than full dates when the
-  // span aligns with an ISO week. Otherwise fall back to date range.
+  // block actually aligns with whole ISO weeks (Mon → Fri/Sun). Anything
+  // else — Wed → Wed, Thu → Tue, partial weeks — falls back to the actual
+  // date range so the label doesn't lie about which days are off.
   const startWeek = getISOWeek(start)
   const endWeek = getISOWeek(end)
-  const span = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1
-  if (start.getDay() === 1 && (end.getDay() === 0 || end.getDay() === 5) && startWeek === endWeek) {
+  const startsOnMon = start.getDay() === 1
+  const endsOnWeekEnd = end.getDay() === 5 || end.getDay() === 0  // Fri or Sun
+  if (startsOnMon && endsOnWeekEnd && startWeek === endWeek) {
     return `${t.summer.weekShort}${startWeek}`
   }
-  if (startWeek !== endWeek && span >= 6) {
+  if (startsOnMon && endsOnWeekEnd && startWeek !== endWeek) {
     return `${t.summer.weekShort}${startWeek}–${endWeek}`
   }
   return formatBlockRange(start, end, t)
