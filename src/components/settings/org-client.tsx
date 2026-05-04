@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { Copy, Check, Upload, Trash2, RotateCcw } from 'lucide-react'
@@ -49,11 +50,17 @@ const TIMEZONES = [
 
 export function OrgClient({ org: initialOrg }: OrgClientProps) {
   const t = useT()
+  const router = useRouter()
   const [org, setOrg] = useState(initialOrg)
   const [name, setName] = useState(initialOrg.name)
   const [timezone, setTimezone] = useState(initialOrg.timezone)
   const [logoUrl, setLogoUrl] = useState(initialOrg.logo_url ?? '')
-  const [primaryColor, setPrimaryColor] = useState(initialOrg.primary_color ?? '#0066FF')
+  // Settings-feltet skriver til accent_color (driver workspace-pill, glow,
+  // ikon). primary_color leses som fallback for orgs som ble opprettet før
+  // denne fiksen, slik at vi ikke "nullstiller" valgt farge ved lasting.
+  const [accentColor, setAccentColor] = useState(
+    initialOrg.accent_color ?? initialOrg.primary_color ?? '#0066FF'
+  )
   const [presenceAssumption, setPresenceAssumption] = useState<PresenceAssumption>(
     initialOrg.default_presence_assumption ?? 'none'
   )
@@ -102,7 +109,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
   const isDirty =
     name !== org.name ||
     timezone !== org.timezone ||
-    primaryColor !== (org.primary_color ?? '#0066FF') ||
+    accentColor !== (org.accent_color ?? org.primary_color ?? '#0066FF') ||
     presenceAssumption !== (org.default_presence_assumption ?? 'none') ||
     dashboardShowSick !== (org.dashboard_show_sick ?? true) ||
     rotationDirty ||
@@ -224,7 +231,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       .update({
         name: name.trim(),
         timezone,
-        primary_color: primaryColor,
+        accent_color: accentColor,
         status_colors: status_colors_payload,
         default_presence_assumption: presenceAssumption,
         dashboard_show_sick: dashboardShowSick,
@@ -242,7 +249,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       ...o,
       name: name.trim(),
       timezone,
-      primary_color: primaryColor,
+      accent_color: accentColor,
       status_colors: status_colors_payload,
       default_presence_assumption: presenceAssumption,
       dashboard_show_sick: dashboardShowSick,
@@ -251,6 +258,9 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     }))
     // Push fresh colors through the context so the rest of the app updates immediately.
     statusColorsCtx?.setHex(statusColors)
+    // accent_color leses gjennom WorkspaceProvider (RSC). Refresh slik at den
+    // nye fargen propagerer til workspace-pill, body-glow og aurora uten reload.
+    router.refresh()
     toast.success('Innstillinger lagret')
   }
 
@@ -433,15 +443,15 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
           <div className="flex items-center gap-3">
             <input
               type="color"
-              value={primaryColor}
-              onChange={e => setPrimaryColor(e.target.value)}
+              value={accentColor}
+              onChange={e => setAccentColor(e.target.value)}
               className="w-12 h-10 rounded-lg cursor-pointer border-0 p-0.5"
               style={{ backgroundColor: 'var(--bg-subtle)' }}
             />
             <input
               type="text"
-              value={primaryColor}
-              onChange={e => setPrimaryColor(e.target.value)}
+              value={accentColor}
+              onChange={e => setAccentColor(e.target.value)}
               maxLength={7}
               className="w-32 px-3 py-2.5 rounded-xl text-[14px] outline-none font-mono"
               style={inputStyle}
