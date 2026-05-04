@@ -298,7 +298,7 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1
-            className="text-[24px] font-semibold"
+            className="calwin-bar text-[24px] font-semibold"
             style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
           >
             {t.settings.offices.title}

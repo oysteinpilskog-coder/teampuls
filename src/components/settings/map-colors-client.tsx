@@ -119,7 +119,7 @@ export function MapColorsClient({ org: initialOrg }: MapColorsClientProps) {
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1
-            className="text-[24px] font-semibold flex items-center gap-2"
+            className="calwin-bar text-[24px] font-semibold flex items-center gap-2"
             style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
           >
             <MapPinIcon className="w-5 h-5" strokeWidth={1.5} style={{ color: 'var(--accent-color)' }} />

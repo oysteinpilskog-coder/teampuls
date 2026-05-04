@@ -120,7 +120,7 @@ export function WheelSettingsClient({ org: initialOrg }: { org: Organization }) 
     <div>
       <div className="mb-6">
         <h1
-          className="text-[24px] font-semibold"
+          className="calwin-bar text-[24px] font-semibold"
           style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
         >
           {t.settings.wheel.title}

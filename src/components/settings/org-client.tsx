@@ -272,7 +272,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     <div>
       <div className="mb-6">
         <h1
-          className="text-[24px] font-semibold"
+          className="calwin-bar text-[24px] font-semibold"
           style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
         >
           Organisasjon
