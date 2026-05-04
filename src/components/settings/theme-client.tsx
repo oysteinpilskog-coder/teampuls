@@ -1,11 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Check, Sparkles } from 'lucide-react'
+import { ArrowUpRight, Check, Monitor, Sparkles } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { useThemeVariant } from '@/components/theme-variant-provider'
+import { CalwinMark } from '@/components/brand/calwin-mark'
 import { spring } from '@/lib/motion'
 import { THEMES, type ThemeId, type ThemeMeta } from '@/lib/themes'
 
@@ -87,6 +89,76 @@ export function ThemeClient() {
             onSelect={() => choose(meta.id, meta)}
           />
         ))}
+      </div>
+
+      {/* CalWin BrandBook dashboard — opt-in alternative to /dashboard.
+          The standard rotating dashboard is left untouched; this card
+          links to a parallel route with a strict BrandBook layout
+          (Blue Violet canvas, dotted-circle mark, calwin-bar headings). */}
+      <div className="mt-10 pt-8 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="mb-4 flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2
+              className="calwin-bar text-[18px] font-semibold flex items-center gap-2"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              <Monitor className="w-4 h-4" strokeWidth={1.5} style={{ color: 'var(--accent-color)' }} />
+              CalWin-merket dashboard
+            </h2>
+            <p
+              className="text-[13px] mt-1.5 max-w-xl"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              En egen TV-visning som følger CalWin BrandBook strikt — Blue Violet bakgrunn,
+              prikkesirkel-logo og brand-streker. Standard {' '}
+              <Link
+                href="/dashboard"
+                className="underline-offset-2 hover:underline"
+                style={{ color: 'var(--accent-color)' }}
+              >
+                /dashboard
+              </Link>
+              {' '}forblir uendret.
+            </p>
+          </div>
+        </div>
+
+        <Link
+          href="/dashboard-brand"
+          className="block rounded-2xl overflow-hidden transition-transform hover:-translate-y-0.5"
+          style={{
+            backgroundColor: '#1F1C52',
+            color: '#EAEAE6',
+            boxShadow: '0 12px 32px -16px rgba(31,28,82,0.5), 0 0 0 1px rgba(102,196,239,0.18)',
+          }}
+        >
+          <div className="px-6 py-5 flex items-center justify-between gap-4 relative">
+            <div
+              aria-hidden
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background:
+                  'radial-gradient(circle at 92% 50%, rgba(102,196,239,0.16), transparent 45%)',
+              }}
+            />
+            <div className="relative flex items-center gap-4 min-w-0">
+              <CalwinMark size={48} title="CalWin" />
+              <div className="min-w-0">
+                <div className="text-[15px] font-semibold tracking-[-0.01em]">
+                  Åpne CalWin-merket dashboard
+                </div>
+                <div className="text-[12px] mt-0.5" style={{ color: 'rgba(234,234,230,0.7)' }}>
+                  Fullskjerm — egnet for resepsjons-TV og kundepresentasjoner
+                </div>
+              </div>
+            </div>
+            <ArrowUpRight
+              className="relative w-5 h-5 flex-shrink-0"
+              strokeWidth={1.5}
+              style={{ color: '#66C4EF' }}
+            />
+          </div>
+        </Link>
       </div>
     </div>
   )
