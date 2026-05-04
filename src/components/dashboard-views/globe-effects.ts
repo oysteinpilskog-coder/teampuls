@@ -545,6 +545,143 @@ export function buildShootingStars(): ShootingStarLayer {
   }
 }
 
+/* ── Premium pin-ikoner ──────────────────────────────────────── */
+
+/**
+ * Pin-mesh-håndtak — eksponert til kall-stedet så det kan endre
+ * fargen når et kontor flipper status (åpner/stenger på timetimer)
+ * uten å bygge meshen på nytt.
+ */
+export interface PinHandle {
+  group: THREE.Object3D
+  setColor: (hex: string) => void
+}
+
+/**
+ * Tre-lags pin-ikon som leser som «levende beacon» på TV-en:
+ *
+ *  1. **Kjerne** — liten lyssterk sphere i statusfargen. Bloom-pass
+ *     i postprocessing tar denne og gir den ekte glød uten at vi
+ *     trenger å fake en lysmaske.
+ *  2. **Halo** — større semi-transparent sphere rundt kjernen som
+ *     lar bloomen smøre utover og gir pinnen volum. Bruker
+ *     additive blending så den legger seg over skyer/atmosfære
+ *     uten å mørke dem.
+ *  3. **Stem** — tynn 1-pikselsline fra overflaten opp til pinnen.
+ *     Gradient så den fader inn mot kjernen og leser som «peker
+ *     ned mot byen» istedenfor en hengende dråpe.
+ *
+ *  HQ-pinnen får et 4-spiss stjerne-overlay i gull og en større
+ *  halo så øyet umiddelbart finner moderskipet i klyngen.
+ *
+ *  Pinnen plasseres av globe.gl (objectAltitude i kall-stedet);
+ *  vi bygger bare i lokal-rom rundt origo. Stem-en peker nedover
+ *  langs lokalt -y (inn mot globens sentrum) — globe.gl orienterer
+ *  hele meshen så y-aksen står normalt på sfæroverflaten.
+ */
+export function buildPinMesh(opts: {
+  isHq: boolean
+  hex: string
+}): PinHandle {
+  const { isHq, hex } = opts
+  const group = new THREE.Group()
+  const color = new THREE.Color(hex)
+
+  // Stem — nedover fra pinnen (sentrum) mot globen. Tre-globe
+  // orienterer object-Y normalt på overflaten, så vi setter
+  // basen i (0, -altOffset, 0) der altOffset matcher den virkelige
+  // PIN_ALT som globe.gl skyver pinnen opp.
+  const stemHeight = isHq ? 1.6 : 1.2
+  const stemGeom = new THREE.BufferGeometry()
+  stemGeom.setAttribute(
+    'position',
+    new THREE.BufferAttribute(
+      new Float32Array([0, 0, 0, 0, -stemHeight, 0]),
+      3,
+    ),
+  )
+  const stemMat = new THREE.LineBasicMaterial({
+    color: color.clone(),
+    transparent: true,
+    opacity: 0.55,
+  })
+  const stem = new THREE.Line(stemGeom, stemMat)
+  group.add(stem)
+
+  // Halo — myk ytre kappe som bloomen kan smøre på.
+  const haloRadius = isHq ? 1.4 : 0.95
+  const haloMat = new THREE.MeshBasicMaterial({
+    color: color.clone(),
+    transparent: true,
+    opacity: 0.22,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  })
+  const halo = new THREE.Mesh(
+    new THREE.SphereGeometry(haloRadius, 20, 16),
+    haloMat,
+  )
+  halo.renderOrder = 3
+  group.add(halo)
+
+  // Kjerne — full-bright lyspunkt. MeshBasicMaterial så den lyser
+  // konstant uavhengig av lysretning (ingen lyskilde i scenen).
+  const coreRadius = isHq ? 0.55 : 0.4
+  const coreMat = new THREE.MeshBasicMaterial({ color: color.clone() })
+  const core = new THREE.Mesh(
+    new THREE.SphereGeometry(coreRadius, 20, 16),
+    coreMat,
+  )
+  core.renderOrder = 4
+  group.add(core)
+
+  // HQ får i tillegg et 4-spiss «sparkle»-overlay i gull, lett
+  // forskjøvet i +y-aksen (oppover, vekk fra globen) så det blinker
+  // over kjernen og signaliserer ankerpunktet.
+  let hqStarMat: THREE.MeshBasicMaterial | null = null
+  if (isHq) {
+    const starShape = new THREE.Shape()
+    const outer = 1.3
+    const inner = 0.45
+    for (let i = 0; i < 8; i++) {
+      const r = i % 2 === 0 ? outer : inner
+      const a = (i / 8) * Math.PI * 2 - Math.PI / 2
+      const x = Math.cos(a) * r
+      const y = Math.sin(a) * r
+      if (i === 0) starShape.moveTo(x, y)
+      else starShape.lineTo(x, y)
+    }
+    starShape.closePath()
+    hqStarMat = new THREE.MeshBasicMaterial({
+      color: 0xfde68a,
+      transparent: true,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    })
+    const star = new THREE.Mesh(new THREE.ShapeGeometry(starShape), hqStarMat)
+    // Vendt utover mot kameraet — three-globe roterer hele
+    // object-en så z-aksen peker fra globe-sentrum mot kontoret;
+    // stjernen sitter da automatisk «vendt mot rommet».
+    star.position.y = 0.05
+    star.rotation.x = -Math.PI / 2
+    star.renderOrder = 5
+    group.add(star)
+  }
+
+  return {
+    group,
+    setColor: (newHex: string) => {
+      const c = new THREE.Color(newHex)
+      ;(coreMat.color as THREE.Color).copy(c)
+      ;(haloMat.color as THREE.Color).copy(c)
+      ;(stemMat.color as THREE.Color).copy(c)
+      // HQ-stjernen er alltid gull; ikke endres ved status-flip.
+    },
+  }
+}
+
 /* ── Hjelper: finn globe-mesh i scene-grafen ─────────────────── */
 
 /**

@@ -8,9 +8,11 @@ import {
   buildAuroraLayer,
   buildCloudLayer,
   buildDayNightMaterial,
+  buildPinMesh,
   buildShootingStars,
   findGlobeMesh,
   sunDirectionAt,
+  type PinHandle,
 } from './globe-effects'
 
 /**
@@ -135,6 +137,10 @@ export function GlobeCanvas({
   // place when meta changes so we don't churn the React tree.
   const labelElsRef = useRef(new Map<string, HTMLElement>())
   const officesRef = useRef<OfficePoint[]>(offices)
+  // Pin-mesh-håndtak per kontor — lar pointColor-effekten oppdatere
+  // farge in-place uten å bygge mesh-en på nytt (som ville flikke
+  // bloomen og stjele en frame).
+  const pinHandlesRef = useRef(new Map<string, PinHandle>())
 
   // Ref-mirrors of accessor props so setters bound on first render see
   // the latest closure-captured state without us having to rebind on
@@ -167,18 +173,27 @@ export function GlobeCanvas({
         .backgroundImageUrl(TEXTURE_SKY)
         .atmosphereColor('#4a90e2')
         .atmosphereAltitude(0.22)
-        // ── Office pins. Slim "stalk" geometry — narrower than globe.gl's
-        // defaults so they don't bury labels under giant capsules at our
-        // Europe-zoom altitude. The radar ring (below) does the heavy
-        // lifting on locating the pin from across the room; the pin itself
-        // can stay elegant.
-        .pointLat('lat')
-        .pointLng('lng')
-        .pointAltitude(PIN_ALT)
-        .pointRadius((d: object) => ((d as OfficePoint).isHq ? 0.7 : 0.45))
-        .pointColor((d: object) => pointColorRef.current(d as OfficePoint))
-        .pointLabel((d: object) => pointLabelRef.current(d as OfficePoint))
-        .pointsTransitionDuration(1500)
+        // ── Office pins som premium 3-lags ikoner ───────────────
+        // Vi forbigår globe.gl sine default-kapsler (de leste som
+        // tannpasta-tubes på TV-en). I stedet bruker vi `objectsData`
+        // og bygger hver pin som en three.js-mesh: lyssterk kjerne +
+        // myk halo som bloomen kan smøre på + tynn stem ned mot
+        // overflaten. HQ får i tillegg en gull-stjerne. Mesh-ene
+        // tracks i pinHandlesRef så fargen kan endres in-place når
+        // et kontor flipper status (åpen → stengt på timetimer).
+        .objectLat('lat')
+        .objectLng('lng')
+        .objectAltitude(PIN_ALT)
+        .objectThreeObject((d: object) => {
+          const o = d as OfficePoint
+          const handle = buildPinMesh({
+            isHq: o.isHq,
+            hex: pointColorRef.current(o),
+          })
+          pinHandlesRef.current.set(o.id, handle)
+          return handle.group
+        })
+        .objectLabel((d: object) => pointLabelRef.current(d as OfficePoint))
         // ── Pulsing radar rings — one per office, propagating outward
         // every 1.8 s. Drives the «levende sentral»-følelsen: hver pin
         // er ikke bare et punkt, men en aktiv beacon. globe.gl tegner
@@ -222,7 +237,7 @@ export function GlobeCanvas({
       // their array refs change; on first mount globeRef.current is
       // still null while React is mid-effect, so they no-op away
       // their initial run. Push here to seed the layers.
-      g.pointsData(offices)
+      g.objectsData(offices)
       g.ringsData(offices)
       g.arcsData(arcs)
 
@@ -357,11 +372,11 @@ export function GlobeCanvas({
         nextOfficeIdx++
         // Hold litt sør for kontoret så pinnen sitter midt i øvre
         // tredjedel av rammen — leser som «kontoret er der oppe» og
-        // lar HUD-kortene puste på bunnen. Altitude 0.45 matcher
+        // lar HUD-kortene puste på bunnen. Altitude 0.55 matcher
         // initialView i globe-view.tsx — koreografien holder samme
         // zoom-nivå hele veien så vi ikke pumper inn/ut og bryter
         // illusjonen.
-        return { lat: target.lat - 6, lng: target.lng, altitude: 0.45 }
+        return { lat: target.lat - 6, lng: target.lng, altitude: 0.55 }
       }
 
       function shortestLngDelta(from: number, to: number): number {
@@ -476,6 +491,22 @@ export function GlobeCanvas({
           disposeTree(shooters.group)
         }
         if (dayNight) dayNight.material.dispose()
+        // Pin-meshes — hver pin har egne geometrier og materialer
+        // som globe.gl ikke vet om, så vi må disposere dem her før
+        // libben river ned WebGL-konteksten.
+        for (const handle of pinHandlesRef.current.values()) {
+          handle.group.traverse(child => {
+            const mesh = child as THREE.Mesh | THREE.Line
+            const geom = (mesh as THREE.Mesh).geometry as THREE.BufferGeometry | undefined
+            if (geom && 'dispose' in geom) geom.dispose()
+            const mat = (mesh as THREE.Mesh).material
+            if (mat) {
+              if (Array.isArray(mat)) mat.forEach(m => m.dispose())
+              else (mat as THREE.Material).dispose()
+            }
+          })
+        }
+        pinHandlesRef.current.clear()
         // globe.gl exposes a destructor on the kapsule that releases
         // WebGL resources. The double-cast is because the type from
         // the library doesn't expose it but it exists at runtime —
@@ -510,7 +541,27 @@ export function GlobeCanvas({
   useEffect(() => {
     const g = globeRef.current
     if (!g) return
-    g.pointsData(offices)
+    // Når offices-listen endres må vi rydde i pin-handle-cachen
+    // (ellers vokser den ubegrenset etter hvert som kontorer
+    // legges til/fjernes). objectThreeObject bygger nye meshes for
+    // nye/endrede ID-er; slettede ID-er må vi disposere selv.
+    const incomingIds = new Set(offices.map(o => o.id))
+    for (const [id, handle] of pinHandlesRef.current) {
+      if (!incomingIds.has(id)) {
+        handle.group.traverse(child => {
+          const mesh = child as THREE.Mesh | THREE.Line
+          const geom = (mesh as THREE.Mesh).geometry as THREE.BufferGeometry | undefined
+          if (geom && 'dispose' in geom) geom.dispose()
+          const mat = (mesh as THREE.Mesh).material
+          if (mat) {
+            if (Array.isArray(mat)) mat.forEach(m => m.dispose())
+            else (mat as THREE.Material).dispose()
+          }
+        })
+        pinHandlesRef.current.delete(id)
+      }
+    }
+    g.objectsData(offices)
     g.ringsData(offices)
     buildLabels(offices)
   }, [offices])
@@ -521,14 +572,16 @@ export function GlobeCanvas({
     g.arcsData(arcs)
   }, [arcs])
 
-  // Re-trigger the colour accessor when the parent's pointColor
-  // function identity changes (open/closed flip on the hour). globe.gl
-  // re-paints points only when pointsData ref changes OR a setter is
-  // re-called, so we kick it explicitly.
+  // Når pointColor-callbacken endrer identitet (parent har tikket
+  // `time` og åpen/stengt-statusen kan ha flipped), oppdaterer vi
+  // hver pin in-place via håndtaket fra `buildPinMesh`. Det er
+  // billigere enn å re-bygge object-meshene og unngår en kortvarig
+  // bloom-flikk når geometrien re-mountes.
   useEffect(() => {
-    const g = globeRef.current
-    if (!g) return
-    g.pointColor((d: object) => pointColorRef.current(d as OfficePoint))
+    for (const o of officesRef.current) {
+      const handle = pinHandlesRef.current.get(o.id)
+      if (handle) handle.setColor(pointColor(o))
+    }
   }, [pointColor])
 
   // Refresh label text when labelMeta callback identity changes
