@@ -13,7 +13,7 @@
    ============================================================ */
 
 @theme inline {
-  /* Fonts — Orbitron (Good Times stand-in) + Josefin Sans (primary) */
+  /* Fonts — Inter (matches calwin.no) for both body and display slots */
   --font-display: var(--font-fraunces);
   --font-body:    var(--font-manrope);
   --font-sans:    var(--font-manrope);
@@ -350,11 +350,11 @@
   }
 
   html {
-    font-family: var(--font-manrope), "Josefin Sans", system-ui, -apple-system, sans-serif;
+    font-family: var(--font-manrope), Inter, system-ui, -apple-system, sans-serif;
     @apply antialiased;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    letter-spacing: -0.005em;
+    letter-spacing: -0.011em;
     color-scheme: light;
   }
   html.dark {
@@ -415,18 +415,15 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Display font utility — Orbitron (Good Times stand-in) */
+  /* Display font utility — Inter (calwin.no uses one face only) */
   .font-display {
-    font-family: var(--font-fraunces), "Orbitron", "Josefin Sans", system-ui, sans-serif;
-    font-feature-settings: "ss01";
+    font-family: var(--font-fraunces), Inter, system-ui, sans-serif;
   }
 
-  /* "Italic ember-word" slot — under CalWin we don't have a true italic
-     display face, so use Josefin Sans Light Italic for the same role.
-     The class name is preserved so existing component markup keeps
-     resolving without a sweep across the codebase. */
+  /* "Italic ember-word" slot — Inter italic. The class name is preserved
+     so existing component markup keeps resolving without a sweep. */
   .font-serif-italic {
-    font-family: var(--font-manrope), "Josefin Sans", system-ui, sans-serif;
+    font-family: var(--font-manrope), Inter, system-ui, sans-serif;
     font-style: italic;
     font-weight: 300;
     letter-spacing: -0.005em;
@@ -506,7 +503,7 @@
       0 1px 2px rgba(14, 11, 8, 0.04),
       inset 0 1px 0 rgba(255, 255, 255, 0.55);
     color: var(--text-primary);
-    font-family: var(--font-manrope), "Josefin Sans", system-ui, sans-serif;
+    font-family: var(--font-manrope), Inter, system-ui, sans-serif;
     font-size: 13.5px;
     letter-spacing: -0.005em;
     line-height: 1.4;
@@ -1074,11 +1071,11 @@
   .lg-aurora::after { animation: none; }
 }
 
-/* Typography utilities — Orbitron display + system mono.
+/* Typography utilities — Inter + system mono.
    .lg-serif keeps its name (referenced across the codebase) but now
-   maps to Josefin Sans Light Italic — CalWin doesn't ship a serif. */
+   maps to Inter italic light — calwin.no doesn't ship a serif. */
 .lg-serif {
-  font-family: var(--font-manrope), "Josefin Sans", system-ui, sans-serif;
+  font-family: var(--font-manrope), Inter, system-ui, sans-serif;
   font-style: italic;
   letter-spacing: -0.01em;
   font-weight: 300;

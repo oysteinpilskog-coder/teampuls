@@ -70,7 +70,7 @@ export function OffiviewWordmark({
         <span
           aria-hidden
           style={{
-            fontFamily: 'var(--font-manrope), "Josefin Sans", system-ui, sans-serif',
+            fontFamily: 'var(--font-manrope), Inter, system-ui, sans-serif',
             fontWeight: 300,
             fontSize: `${size}px`,
             letterSpacing: '-0.04em',

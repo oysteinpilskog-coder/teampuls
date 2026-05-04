@@ -1,38 +1,32 @@
-import { Josefin_Sans, Orbitron } from 'next/font/google'
+import { Inter } from 'next/font/google'
 
-// CalWin BrandBook §2 — typography.
+// CalWin's actual web typography: Inter (per calwin.no — they use Inter
+// exclusively, all weights). Matching the live site so this product reads
+// as part of the same family.
 //
-// Primary typeface: Josefin Sans. Used for body, UI, and headlines (all
-// weights, italic supported). Solves hierarchy "in a easy and clean way."
-//
-// Secondary: Good Times. Reserved for highlighting specific content.
-// Good Times is a commercial Larabie font and is not available on Google
-// Fonts, so we use Orbitron — the closest free, geometric, digital-feel
-// substitute on Google Fonts — wherever the brandbook calls for Good Times.
-//
-// CSS variable names (`--font-fraunces`, `--font-manrope`) are KEPT for
+// CSS variable names (--font-fraunces, --font-manrope) are kept for
 // backwards compatibility — they're referenced from ~30 component files
-// and globals.css utilities. The variables now resolve to the CalWin
-// fonts. If a future cleanup pass renames them everywhere, that's fine,
-// but it isn't required for the visual rebrand.
+// and globals.css utilities. Both now resolve to Inter.
+//
+// next/font requires literal options passed to the font function (it does
+// static analysis at build time and rejects spreads), so each call lists
+// its options inline rather than sharing a const.
 
-// Display / highlight — Orbitron (Good Times stand-in).
-// Geometric, digital feel; reserved for big numbers, hero headlines, and
-// the existing "italic Ember word" slots that previously used Fraunces.
-export const fontDisplay = Orbitron({
+// Body / UI — Inter.
+export const fontBody = Inter({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-fraunces',
-  weight: ['400', '500', '600', '700', '800', '900'],
+  weight: 'variable',
+  variable: '--font-manrope',
 })
 
-// Body / UI — Josefin Sans (CalWin primary typeface).
-export const fontBody = Josefin_Sans({
+// Display / "italic ember-word" slot — also Inter (calwin.no uses one
+// face only). The legacy variable name --font-fraunces is preserved.
+export const fontDisplay = Inter({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-manrope',
-  weight: ['100', '200', '300', '400', '500', '600', '700'],
-  style: ['normal', 'italic'],
+  weight: 'variable',
+  variable: '--font-fraunces',
 })
 
 /**
