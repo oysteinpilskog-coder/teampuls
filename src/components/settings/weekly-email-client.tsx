@@ -885,7 +885,10 @@ function EmailPreview({
               <div
                 className="w-9 h-9 rounded-xl flex items-center justify-center text-[13px] font-bold"
                 style={{
-                  background: `linear-gradient(135deg, ${org.primary_color} 0%, color-mix(in oklab, ${org.primary_color} 65%, #000) 100%)`,
+                  background: (() => {
+                    const c = org.accent_color ?? org.primary_color ?? '#0066FF'
+                    return `linear-gradient(135deg, ${c} 0%, color-mix(in oklab, ${c} 65%, #000) 100%)`
+                  })(),
                   color: '#fff',
                   fontFamily: 'var(--font-fraunces)',
                 }}
