@@ -118,37 +118,46 @@ export function ThemeClient() {
       </div>
 
       {/* CalWin BrandBook dashboard — opt-in alternative to /dashboard.
-          The standard rotating dashboard is left untouched; this card
-          links to a parallel route with a strict BrandBook layout
-          (Blue Violet canvas, dotted-circle mark, calwin-bar headings). */}
+          The standard rotating dashboard is left untouched; this section
+          lets the user pick which one /dashboard should open AND link
+          straight to the brand variant for ad-hoc viewing. */}
       <div className="mt-10 pt-8 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-        <div className="mb-4 flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <h2
-              className="calwin-bar text-[18px] font-semibold flex items-center gap-2"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              <Monitor className="w-4 h-4" strokeWidth={1.5} style={{ color: 'var(--accent-color)' }} />
-              CalWin-merket dashboard
-            </h2>
-            <p
-              className="text-[13px] mt-1.5 max-w-xl"
-              style={{ color: 'var(--text-tertiary)' }}
-            >
-              En egen TV-visning som følger CalWin BrandBook strikt — Blue Violet bakgrunn,
-              prikkesirkel-logo og brand-streker. Standard {' '}
-              <Link
-                href="/dashboard"
-                className="underline-offset-2 hover:underline"
-                style={{ color: 'var(--accent-color)' }}
-              >
-                /dashboard
-              </Link>
-              {' '}forblir uendret.
-            </p>
-          </div>
+        <div className="mb-5">
+          <h2
+            className="calwin-bar text-[18px] font-semibold flex items-center gap-2"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            <Monitor className="w-4 h-4" strokeWidth={1.5} style={{ color: 'var(--accent-color)' }} />
+            Standard dashboard
+          </h2>
+          <p
+            className="text-[13px] mt-1.5 max-w-xl"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            Velg hva <code style={{ fontFamily: 'var(--font-body)' }}>/dashboard</code> skal åpne.
+            Innstillingen lagres i en cookie i nettleseren.
+          </p>
         </div>
 
+        {/* Radio-style cards — large, obvious, side-by-side. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6" suppressHydrationWarning>
+          <DashboardModeCard
+            id="standard"
+            title="Standard"
+            description="Roterende multi-view (Nå · Måned · Kontorene · Kunder · Hjul · Globe)"
+            active={dashMode === 'standard'}
+            onSelect={() => chooseDashboardMode('standard')}
+          />
+          <DashboardModeCard
+            id="brand"
+            title="CalWin-merket"
+            description="Fullskjerm BrandBook-strikt — Blue Violet canvas, prikkesirkel-logo, brand-streker"
+            active={dashMode === 'brand'}
+            onSelect={() => chooseDashboardMode('brand')}
+          />
+        </div>
+
+        {/* Quick-link to the brand variant regardless of which is default. */}
         <Link
           href="/dashboard-brand"
           className="block rounded-2xl overflow-hidden transition-transform hover:-translate-y-0.5"
@@ -171,10 +180,10 @@ export function ThemeClient() {
               <CalwinMark size={48} title="CalWin" />
               <div className="min-w-0">
                 <div className="text-[15px] font-semibold tracking-[-0.01em]">
-                  Åpne CalWin-merket dashboard
+                  Åpne CalWin-merket dashboard nå
                 </div>
                 <div className="text-[12px] mt-0.5" style={{ color: 'rgba(234,234,230,0.7)' }}>
-                  Fullskjerm — egnet for resepsjons-TV og kundepresentasjoner
+                  Direkte forhåndsvisning — fungerer uavhengig av valget over
                 </div>
               </div>
             </div>
@@ -185,55 +194,71 @@ export function ThemeClient() {
             />
           </div>
         </Link>
-
-        {/* Default-velger: hvilken variant /dashboard skal lande på.
-            Cookie-basert (lest server-side i /dashboard/page.tsx), så valget
-            følger nettleseren – ingen DB-migrering. Hydration-trygg uten
-            mounted-gate fordi initial state er 'standard' og cookie-lesing
-            først skjer i useEffect. */}
-        <div
-          className="mt-4 flex rounded-xl p-1 w-fit"
-          style={{
-            backgroundColor: 'var(--bg-subtle)',
-            border: '1px solid var(--border-subtle)',
-          }}
-          suppressHydrationWarning
-        >
-          {(['standard', 'brand'] as const).map((opt) => {
-            const active = dashMode === opt
-            return (
-              <button
-                key={opt}
-                onClick={() => chooseDashboardMode(opt)}
-                className="relative px-4 py-1.5 text-[12px] font-medium transition-colors"
-                style={{
-                  color: active ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                }}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="dashboard-default-pill"
-                    className="absolute inset-0 rounded-lg"
-                    style={{ backgroundColor: 'var(--bg-elevated)', boxShadow: 'var(--shadow-sm)' }}
-                    transition={spring.snappy}
-                  />
-                )}
-                <span className="relative">
-                  {opt === 'standard' ? 'Standard /dashboard' : 'CalWin som standard'}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-        <p
-          className="text-[11.5px] mt-2"
-          style={{ color: 'var(--text-tertiary)' }}
-        >
-          Velg hvilken variant <code style={{ fontFamily: 'var(--font-body)' }}>/dashboard</code>
-          {' '}skal åpne. Innstillingen lagres i en cookie i nettleseren.
-        </p>
       </div>
     </div>
+  )
+}
+
+function DashboardModeCard({
+  id,
+  title,
+  description,
+  active,
+  onSelect,
+}: {
+  id: 'standard' | 'brand'
+  title: string
+  description: string
+  active: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      onClick={onSelect}
+      type="button"
+      aria-pressed={active}
+      className="text-left rounded-2xl p-4 transition-all focus-visible:outline-none"
+      style={{
+        backgroundColor: active ? 'var(--bg-elevated)' : 'var(--bg-subtle)',
+        border: active
+          ? '1.5px solid var(--accent-color)'
+          : '1px solid var(--border-subtle)',
+        boxShadow: active ? 'var(--shadow-md)' : 'none',
+      }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <span
+          className="text-[15px] font-semibold"
+          style={{ color: 'var(--text-primary)' }}
+        >
+          {title}
+        </span>
+        <span
+          className="inline-flex items-center justify-center w-5 h-5 rounded-full"
+          style={{
+            backgroundColor: active ? 'var(--accent-color)' : 'transparent',
+            border: active ? 'none' : '1.5px solid var(--border-strong)',
+          }}
+        >
+          {active && (
+            <Check
+              className="w-3 h-3"
+              strokeWidth={3}
+              style={{ color: 'var(--accent-foreground)' }}
+            />
+          )}
+        </span>
+      </div>
+      <p className="text-[12px] leading-snug" style={{ color: 'var(--text-tertiary)' }}>
+        {description}
+      </p>
+      <div
+        className="mt-2 text-[10.5px] uppercase tracking-[0.18em]"
+        style={{ color: active ? 'var(--accent-color)' : 'var(--text-tertiary)' }}
+      >
+        {id === 'standard' ? '/dashboard' : '/dashboard → /dashboard-brand'}
+      </div>
+    </button>
   )
 }
 
