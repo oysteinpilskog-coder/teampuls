@@ -35,7 +35,7 @@ export function TodayHero() {
       suppressHydrationWarning
     >
       <h1
-        className="lg-serif leading-[0.95]"
+        className="calwin-bar lg-serif leading-[0.95]"
         style={{
           color: 'var(--lg-text-1)',
           fontSize: 36,

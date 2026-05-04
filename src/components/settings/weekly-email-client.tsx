@@ -280,7 +280,7 @@ export function WeeklyEmailClient({
           {t.settings.title}
         </span>
         <h1
-          className="leading-[1.0]"
+          className="calwin-bar leading-[1.0]"
           style={{
             color: 'var(--text-primary)',
             fontFamily: 'var(--font-fraunces)',
