@@ -5,10 +5,11 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { YearWheel } from '@/components/year-wheel'
 import { BirthdayWheel } from '@/components/birthday-wheel'
+import { BirthdayTimeline } from '@/components/birthday-timeline'
 import { AnniversaryWheel } from '@/components/anniversary-wheel'
 import { AnniversaryTimeline } from '@/components/anniversary-timeline'
 import { StrategyWheel } from '@/components/strategy-wheel'
-import { WheelViewSwitcher, type WheelView, type AnniversarySub } from '@/components/wheel-view-switcher'
+import { WheelViewSwitcher, type WheelView, type WheelLayout } from '@/components/wheel-view-switcher'
 
 export function WheelShell({
   orgId,
@@ -60,7 +61,10 @@ export function WheelShell({
 
   const view: WheelView = isAvailable(requested) ? requested : fallbackView
 
-  const sub = (params.get('ansiennitet') ?? 'wheel') as AnniversarySub
+  // Sub-layout for views that support it (birthdays, anniversaries).
+  // ?layout= is the canonical key; keep ?ansiennitet= as a back-compat alias.
+  const layoutParam = (params.get('layout') ?? params.get('ansiennitet') ?? 'wheel') as WheelLayout
+  const sub: WheelLayout = layoutParam === 'timeline' ? 'timeline' : 'wheel'
 
   // Self-correct the URL if the user landed on a disabled view (e.g. an
   // old bookmark, or because the org admin just turned it off).
@@ -76,22 +80,28 @@ export function WheelShell({
     const next = new URLSearchParams(params.toString())
     if (v === defaultView) next.delete('view')
     else next.set('view', v)
-    if (v !== 'anniversaries') next.delete('ansiennitet')
+    if (v !== 'anniversaries' && v !== 'birthdays') {
+      next.delete('layout')
+      next.delete('ansiennitet')
+    }
     const qs = next.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }, [params, router, pathname, defaultView])
 
-  const setSub = useCallback((s: AnniversarySub) => {
+  const setSub = useCallback((s: WheelLayout) => {
     const next = new URLSearchParams(params.toString())
-    if (s === 'wheel') next.delete('ansiennitet')
-    else next.set('ansiennitet', s)
+    next.delete('ansiennitet')
+    if (s === 'wheel') next.delete('layout')
+    else next.set('layout', s)
     const qs = next.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }, [params, router, pathname])
 
   const renderView = () => {
     if (view === 'birthdays' && birthdaysEnabled) {
-      return <motion.div key="birthdays" {...fade}><BirthdayWheel orgId={orgId} /></motion.div>
+      return sub === 'timeline'
+        ? <motion.div key="birthdays-timeline" {...fade}><BirthdayTimeline orgId={orgId} /></motion.div>
+        : <motion.div key="birthdays-wheel" {...fade}><BirthdayWheel orgId={orgId} /></motion.div>
     }
     if (view === 'anniversaries' && anniversariesEnabled) {
       return sub === 'timeline'
