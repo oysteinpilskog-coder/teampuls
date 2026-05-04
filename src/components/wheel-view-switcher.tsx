@@ -5,15 +5,17 @@ import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 
 export type WheelView = 'events' | 'birthdays' | 'anniversaries' | 'strategy'
-export type AnniversarySub = 'wheel' | 'timeline'
+export type WheelLayout = 'wheel' | 'timeline'
+/** @deprecated Use WheelLayout. Kept as alias for older imports. */
+export type AnniversarySub = WheelLayout
 
 export function WheelViewSwitcher({
   value, sub, onView, onSub, available,
 }: {
   value: WheelView
-  sub: AnniversarySub
+  sub: WheelLayout
   onView: (v: WheelView) => void
-  onSub: (s: AnniversarySub) => void
+  onSub: (s: WheelLayout) => void
   available: { events: boolean; birthdays: boolean; anniversaries: boolean; strategy: boolean }
 }) {
   const t = useT()
@@ -26,6 +28,10 @@ export function WheelViewSwitcher({
   ]
   const visible = opts.filter(o => o.show)
   if (visible.length <= 1) return null
+
+  const supportsLayout =
+    (value === 'anniversaries' && available.anniversaries) ||
+    (value === 'birthdays' && available.birthdays)
 
   return (
     <div className="w-full flex flex-col items-center gap-3">
@@ -75,10 +81,10 @@ export function WheelViewSwitcher({
         })}
       </div>
 
-      {value === 'anniversaries' && available.anniversaries && (
+      {supportsLayout && (
         <div
           role="tablist"
-          aria-label={t.wheel.views.anniversaries}
+          aria-label={value === 'birthdays' ? t.wheel.views.birthdays : t.wheel.views.anniversaries}
           className="relative inline-flex p-0.5 rounded-full"
           style={{
             background: 'color-mix(in oklab, var(--bg-subtle) 90%, transparent)',
