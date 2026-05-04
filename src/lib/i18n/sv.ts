@@ -475,9 +475,10 @@ export const sv: Dictionary = {
       lessThanOneYear: 'mindre än 1 år',
       peopleLabel: 'Personer',
       combinedLabel: 'Totalt',
+      combinedAt: 'Totalt hos {org}',
+      combinedSubhead: '{count} personer · snitt {avg} år',
       averageLabel: 'Snitt',
       longestLabel: 'Längst anställd',
-      longestAt: 'Längst hos {org}',
     },
   },
   summer: {

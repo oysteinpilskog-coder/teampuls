@@ -162,135 +162,151 @@ function Hero({
   const initials = longest.member.initials ?? longest.member.display_name.slice(0, 2).toUpperCase()
   const longestYears = longest.completedYears
   const yearWord = stripYearWord(t.wheel.anniversaries.yearsLabel)
-  const longestLabel = orgName
-    ? t.wheel.anniversaries.longestAt.replace('{org}', orgName)
-    : t.wheel.anniversaries.longestLabel
-  const _ = today // silence unused warning; kept for future "live" updates
+  const totalRounded = Math.round(totalYears)
+  const combinedLabel = orgName
+    ? t.wheel.anniversaries.combinedAt.replace('{org}', orgName)
+    : t.wheel.anniversaries.combinedLabel
+  const subhead = t.wheel.anniversaries.combinedSubhead
+    .replace('{count}', String(memberCount))
+    .replace('{avg}', formatDecimal(avgYears, 1))
+  const _ = today // silence unused; reserved for future live updates
 
   return (
-    <header className="relative px-2 pt-2 pb-2 grid grid-cols-1 lg:grid-cols-[1fr,auto] gap-y-6 gap-x-10 items-end">
-      <div className="flex flex-col">
-        <span
-          className="text-[11px] font-semibold uppercase mb-3"
-          style={{ fontFamily: 'var(--font-body)', color: 'var(--text-tertiary)', letterSpacing: '0.32em' }}
-        >
-          {t.wheel.anniversaries.tenureHeader}
-        </span>
+    <header className="relative px-2 pt-2 pb-2">
+      <span
+        className="block text-[11px] font-semibold uppercase mb-4"
+        style={{ fontFamily: 'var(--font-body)', color: 'var(--text-tertiary)', letterSpacing: '0.32em' }}
+      >
+        {t.wheel.anniversaries.tenureHeader}
+      </span>
 
-        <div className="flex items-end gap-5 sm:gap-6 flex-wrap">
-          <motion.span
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 0.9, 0.33, 1] }}
-            className="leading-none"
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-8 gap-x-10 items-end">
+        <HeroNumber
+          eyebrow={combinedLabel}
+          value={totalRounded}
+          suffix={yearWord}
+          accent={accent}
+          delay={0}
+        >
+          <span
+            className="text-[13px]"
             style={{
               fontFamily: 'var(--font-fraunces), Georgia, serif',
               fontStyle: 'italic',
-              fontVariationSettings: '"opsz" 96, "SOFT" 80',
-              fontSize: 'clamp(72px, 12vw, 132px)',
-              fontWeight: 350,
-              letterSpacing: '-0.045em',
-              backgroundImage: `linear-gradient(135deg, var(--text-primary) 0%, ${accent} 100%)`,
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              color: 'transparent',
+              fontVariationSettings: '"opsz" 18, "SOFT" 60',
+              fontWeight: 450,
+              color: 'var(--text-secondary)',
+              letterSpacing: '-0.005em',
             }}
           >
-            {longestYears}
-          </motion.span>
+            {subhead}
+          </span>
+        </HeroNumber>
 
-          <div className="flex flex-col gap-2 pb-3 min-w-0">
-            <span
-              className="text-[10.5px] font-semibold uppercase"
-              style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)', letterSpacing: '0.22em' }}
-            >
-              {longestLabel}
-            </span>
-            <div className="flex items-center gap-2.5 min-w-0">
-              {longest.member.avatar_url ? (
-                <img
-                  src={longest.member.avatar_url}
-                  alt=""
-                  className="w-9 h-9 rounded-full object-cover flex-shrink-0"
-                  style={{ boxShadow: `0 0 0 2px ${accent}, 0 4px 12px rgba(0,0,0,0.10)` }}
-                />
-              ) : (
-                <div
-                  className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-semibold flex-shrink-0"
-                  style={{
-                    background: 'var(--bg-subtle)',
-                    color: 'var(--text-primary)',
-                    boxShadow: `0 0 0 2px ${accent}, 0 4px 12px rgba(0,0,0,0.10)`,
-                    fontFamily: 'var(--font-body)',
-                  }}
-                >
-                  {initials.slice(0, 2)}
-                </div>
-              )}
-              <span
-                className="text-[18px] truncate"
+        <HeroNumber
+          eyebrow={t.wheel.anniversaries.longestLabel}
+          value={longestYears}
+          suffix={yearWord}
+          accent={accent}
+          delay={0.08}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            {longest.member.avatar_url ? (
+              <img
+                src={longest.member.avatar_url}
+                alt=""
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                style={{ boxShadow: `0 0 0 2px ${accent}, 0 3px 10px rgba(0,0,0,0.10)` }}
+              />
+            ) : (
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0"
                 style={{
-                  fontFamily: 'var(--font-fraunces), Georgia, serif',
-                  fontStyle: 'italic',
-                  fontVariationSettings: '"opsz" 24, "SOFT" 60',
-                  fontWeight: 450,
+                  background: 'var(--bg-subtle)',
                   color: 'var(--text-primary)',
-                  letterSpacing: '-0.01em',
+                  boxShadow: `0 0 0 2px ${accent}, 0 3px 10px rgba(0,0,0,0.10)`,
+                  fontFamily: 'var(--font-body)',
                 }}
               >
-                {longest.member.full_name ?? longest.member.display_name}
-              </span>
-            </div>
+                {initials.slice(0, 2)}
+              </div>
+            )}
+            <span
+              className="text-[15px] truncate"
+              style={{
+                fontFamily: 'var(--font-fraunces), Georgia, serif',
+                fontStyle: 'italic',
+                fontVariationSettings: '"opsz" 20, "SOFT" 60',
+                fontWeight: 450,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {longest.member.full_name ?? longest.member.display_name}
+            </span>
           </div>
-        </div>
-      </div>
-
-      <div className="flex items-end gap-6 sm:gap-9 lg:pb-3 flex-wrap justify-start lg:justify-end">
-        <Stat label={t.wheel.anniversaries.peopleLabel} value={String(memberCount)} />
-        <Stat label={t.wheel.anniversaries.combinedLabel} value={String(Math.round(totalYears))} suffix={yearWord} />
-        <Stat label={t.wheel.anniversaries.averageLabel} value={formatDecimal(avgYears, 1)} suffix={yearWord} />
+        </HeroNumber>
       </div>
     </header>
   )
 }
 
-function Stat({ label, value, suffix }: { label: string; value: string; suffix?: string }) {
+function HeroNumber({
+  eyebrow, value, suffix, accent, delay, children,
+}: {
+  eyebrow: string
+  value: number
+  suffix: string
+  accent: string
+  delay: number
+  children: React.ReactNode
+}) {
   return (
-    <div className="flex flex-col items-start gap-1.5">
+    <div className="flex flex-col gap-2 min-w-0">
       <span
-        className="text-[10px] font-semibold uppercase"
+        className="text-[10.5px] font-semibold uppercase"
         style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)', letterSpacing: '0.24em' }}
       >
-        {label}
+        {eyebrow}
       </span>
-      <span
-        className="leading-none flex items-baseline gap-1.5"
+      <motion.span
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, delay, ease: [0.22, 0.9, 0.33, 1] }}
+        className="leading-none flex items-baseline gap-2"
         style={{
           fontFamily: 'var(--font-fraunces), Georgia, serif',
           fontStyle: 'italic',
-          fontVariationSettings: '"opsz" 48, "SOFT" 60',
-          fontSize: 38,
-          fontWeight: 400,
-          color: 'var(--text-primary)',
-          letterSpacing: '-0.025em',
+          fontVariationSettings: '"opsz" 96, "SOFT" 80',
+          fontSize: 'clamp(64px, 10.5vw, 116px)',
+          fontWeight: 350,
+          letterSpacing: '-0.045em',
         }}
       >
-        <span className="tabular-nums">{value}</span>
-        {suffix && (
-          <span
-            className="text-[14px]"
-            style={{
-              color: 'var(--text-tertiary)',
-              fontStyle: 'italic',
-              fontWeight: 400,
-              letterSpacing: '0',
-            }}
-          >
-            {suffix}
-          </span>
-        )}
-      </span>
+        <span
+          className="tabular-nums"
+          style={{
+            backgroundImage: `linear-gradient(135deg, var(--text-primary) 0%, ${accent} 100%)`,
+            WebkitBackgroundClip: 'text',
+            backgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            color: 'transparent',
+          }}
+        >
+          {value}
+        </span>
+        <span
+          style={{
+            fontSize: 'clamp(20px, 2.6vw, 30px)',
+            color: 'var(--text-tertiary)',
+            fontWeight: 400,
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {suffix}
+        </span>
+      </motion.span>
+      <div className="mt-1">{children}</div>
     </div>
   )
 }

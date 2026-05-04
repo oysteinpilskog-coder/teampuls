@@ -475,9 +475,10 @@ export const en: Dictionary = {
       lessThanOneYear: 'less than 1 year',
       peopleLabel: 'People',
       combinedLabel: 'Combined',
+      combinedAt: 'Combined at {org}',
+      combinedSubhead: '{count} people · avg {avg} yrs',
       averageLabel: 'Average',
       longestLabel: 'Longest tenure',
-      longestAt: 'Longest at {org}',
     },
   },
   summer: {
