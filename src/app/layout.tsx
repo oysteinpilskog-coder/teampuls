@@ -21,9 +21,9 @@ export const viewport: Viewport = {
   // the SW-cached offline page keep using env(safe-area-inset-*) if needed.
   viewportFit: 'cover',
   themeColor: [
-    // Light: Paper. Dark: Espresso.
-    { media: '(prefers-color-scheme: light)', color: '#F5EFE4' },
-    { media: '(prefers-color-scheme: dark)',  color: '#15110E' },
+    // Light: Silver Gray (CalWin BrandBook §3). Dark: deep Blue Violet.
+    { media: '(prefers-color-scheme: light)', color: '#EAEAE6' },
+    { media: '(prefers-color-scheme: dark)',  color: '#1F1C52' },
   ],
 }
 

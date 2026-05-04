@@ -5,11 +5,15 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================
-   OFFIVIEW DESIGN TOKENS
+   CALWIN DESIGN TOKENS
+   Per CalWin BrandBook (logo, typography, primary colors).
+   Token NAMES are unchanged from the Offiview era so the ~30
+   component files referencing --font-fraunces / --ember / etc.
+   keep working. Only values move.
    ============================================================ */
 
 @theme inline {
-  /* Fonts — Fraunces (display serif) + Manrope (UI body) */
+  /* Fonts — Orbitron (Good Times stand-in) + Josefin Sans (primary) */
   --font-display: var(--font-fraunces);
   --font-body:    var(--font-manrope);
   --font-sans:    var(--font-manrope);
@@ -64,34 +68,37 @@
 }
 
 /* ============================================================
-   LIGHT MODE — Offiview Paper / Ink / Ember
+   LIGHT MODE — CalWin Silver / Blue Violet / Light Blue
    ============================================================ */
 
 :root {
-  /* === Jord (Earth) ===
-     Light mode follows the "paper on a desk" metaphor: the canvas is the
-     warm desktop (deeper cream), elevated surfaces are the paper itself
-     (brighter, near-white). This gives real hierarchy — cards cast warm
-     shadows onto a darker surround instead of dissolving into it. */
-  --paper:       #EFE6D2;  /* canvas / desktop — deeper warm cream */
-  --paper-soft:  #FBF6EA;  /* elevated paper — brighter than canvas */
-  --stone:       #C7BAA0;  /* visible hairline border */
-  --stone-soft:  #E5DAC2;  /* muted surfaces, subtle hover */
-  --ink:         #0E0B08;
-  --espresso:    #15110E;
-  --dusk:        #1F1913;
-  --mist:        #6B5E4A;  /* readable tertiary — passes AA on paper */
+  /* === Surface (Silver Gray family — CalWin BrandBook §3 primary) ===
+     Canvas is Silver Gray; elevated surfaces step toward white so cards
+     have real hierarchy on the deeper canvas instead of dissolving in.
+     "Paper" naming is preserved from the previous palette so component
+     references keep resolving. */
+  --paper:       #EAEAE6;  /* canvas — Silver Gray (HEX eaeae6) */
+  --paper-soft:  #F7F7F4;  /* elevated surface — near-white */
+  --stone:       #C9C8C2;  /* visible hairline border */
+  --stone-soft:  #DCDBD5;  /* muted surfaces, subtle hover */
+  --ink:         #322E7A;  /* primary text — Blue Violet */
+  --espresso:    #1F1C52;  /* deepest brand blue */
+  --dusk:        #4A4595;  /* mid blue violet */
+  --mist:        #6B6694;  /* readable tertiary — passes AA on Silver */
 
-  /* === Glød (Ember) — action, primary accent === */
-  --ember:       #B45309;
-  --ember-soft:  #D97706;
-  --ember-deep:  #78350F;
-  --ember-glow:  #FBBF24;
+  /* === Accent (Light Blue — CalWin BrandBook §3 primary accent).
+         Token name "ember" is preserved; in CalWin land it's Light Blue. === */
+  --ember:       #66C4EF;  /* primary accent — Light Blue */
+  --ember-soft:  #93D6F3;  /* softened tint */
+  --ember-deep:  #2DA4D0;  /* deeper for hover/pressed */
+  --ember-glow:  #B3E2F7;  /* very pale glow */
 
-  /* === Nordlys (Aurora) — signature only, ONE per surface === */
-  --nordlys-a:   #00F5A0;
-  --nordlys-b:   #00D9F5;
-  --nordlys-c:   #7C3AED;
+  /* === Signature gradient stops (preserved name "Nordlys") ===
+     CalWin's allowed corporate gradient is Blue Violet → Light Blue, so
+     the signature here is reserved to that pairing. */
+  --nordlys-a:   #66C4EF;  /* Light Blue */
+  --nordlys-b:   #4A4595;  /* mid blue violet */
+  --nordlys-c:   #322E7A;  /* Blue Violet */
 
   /* Canonical Nordlys gradients — referenced by the dashboard hero clock,
      progress rails and the active-pill text fill so a single token tweak
@@ -111,15 +118,14 @@
   --text-tertiary:  var(--mist);
 
   --border-subtle: var(--stone);
-  --border-strong: #A89A7E;
+  --border-strong: #A8A6A0;
 
-  /* Accent — Ember is the default primary */
+  /* Accent — Light Blue is the CalWin primary accent */
   --accent-color: var(--ember);
-  --accent-glow:  rgba(180, 83, 9, 0.28);
+  --accent-glow:  rgba(102, 196, 239, 0.32);
 
   /* Semantic feedback colors — theme-aware so success/error/warning pills
-     don't read as flat lights against Paper or hot bursts against Espresso.
-     Light mode: deeper hues with low-alpha tints for backgrounds. */
+     read on Silver canvas and dark Blue Violet alike. */
   --success:        #16A362;
   --success-tint:   color-mix(in oklab, #16A362 12%, transparent);
   --error:          #C8323D;
@@ -127,14 +133,14 @@
   --warning:        #C77B0E;
   --warning-tint:   color-mix(in oklab, #C77B0E 12%, transparent);
 
-  /* Ambient aurora — restrained Ember-tint, lifted slightly so it actually
-     warms the deeper canvas instead of disappearing into it. */
-  --aurora-a: rgba(180, 83, 9, 0.18);
-  --aurora-b: rgba(251, 191, 36, 0.14);
+  /* Ambient aurora — Blue Violet + Light Blue mist, lifted so the cool
+     canvas gets a faint corporate-color wash instead of reading flat. */
+  --aurora-a: rgba(50, 46, 122, 0.16);
+  --aurora-b: rgba(102, 196, 239, 0.20);
   --aurora-opacity: 0.95;
   --aurora-blur: 90px;
 
-  /* Glass / gloss layering (Paper-tinted) */
+  /* Glass / gloss layering (Silver-tinted) */
   --glass-tint: var(--paper-soft);
   --glass-tint-strength: 86%;
   --glass-blur: 28px;
@@ -143,62 +149,63 @@
   --surface-sheen: linear-gradient(180deg, rgba(255,255,255,0.3), rgba(255,255,255,0) 45%);
   --surface-sheen-opacity: 0.32;
   --glass-edge-top:    rgba(255,255,255,0.65);
-  --glass-edge-ring:   rgba(14,11,8,0.10);
+  --glass-edge-ring:   rgba(31, 28, 82, 0.10);
   --glass-shadow:
-    0 36px 72px -20px rgba(14, 11, 8, 0.24),
-    0 16px 32px -14px rgba(14, 11, 8, 0.16),
-    0 1px 2px rgba(14, 11, 8, 0.08);
+    0 36px 72px -20px rgba(31, 28, 82, 0.24),
+    0 16px 32px -14px rgba(31, 28, 82, 0.16),
+    0 1px 2px rgba(31, 28, 82, 0.08);
 
-  /* Shadows — warm ink, never cold grey. Lifted so cards (now brighter
-     than canvas) actually pop off the desktop. */
+  /* Shadows — cool blue-tinted ink, never warm. Lifted so cards (brighter
+     than canvas) actually pop off the silver desktop. */
   --shadow-sm:
-    0 1px 2px rgba(14, 11, 8, 0.10),
-    0 0 0 1px rgba(14, 11, 8, 0.05);
+    0 1px 2px rgba(31, 28, 82, 0.10),
+    0 0 0 1px rgba(31, 28, 82, 0.05);
   --shadow-md:
-    0 6px 12px rgba(14, 11, 8, 0.10),
-    0 2px 4px rgba(14, 11, 8, 0.06),
-    0 0 0 1px rgba(14, 11, 8, 0.06);
+    0 6px 12px rgba(31, 28, 82, 0.10),
+    0 2px 4px rgba(31, 28, 82, 0.06),
+    0 0 0 1px rgba(31, 28, 82, 0.06);
   --shadow-lg:
-    0 18px 36px rgba(14, 11, 8, 0.14),
-    0 6px 12px rgba(14, 11, 8, 0.09),
-    0 0 0 1px rgba(14, 11, 8, 0.06);
+    0 18px 36px rgba(31, 28, 82, 0.14),
+    0 6px 12px rgba(31, 28, 82, 0.09),
+    0 0 0 1px rgba(31, 28, 82, 0.06);
   --shadow-xl:
-    0 32px 64px rgba(14, 11, 8, 0.18),
-    0 12px 24px rgba(14, 11, 8, 0.10),
-    0 0 0 1px rgba(14, 11, 8, 0.07);
+    0 32px 64px rgba(31, 28, 82, 0.18),
+    0 12px 24px rgba(31, 28, 82, 0.10),
+    0 0 0 1px rgba(31, 28, 82, 0.07);
   --shadow-accent:
     0 8px 24px color-mix(in oklab, var(--accent-color) 22%, transparent),
     0 2px 4px color-mix(in oklab, var(--accent-color) 12%, transparent);
 
-  /* shadcn semantic tokens — Paper/Ink with Ember primary */
-  --background:           #EFE6D2;
-  --foreground:           #0E0B08;
-  --card:                 #FBF6EA;
-  --card-foreground:      #0E0B08;
-  --popover:              #FBF6EA;
-  --popover-foreground:   #0E0B08;
-  --primary:              #B45309;
-  --primary-foreground:   #FBF6EA;
-  --secondary:            #DFD3B6;
-  --secondary-foreground: #0E0B08;
-  --muted:                #E5DAC2;
-  --muted-foreground:     #4A4036;
-  --accent-foreground:    #FBF6EA;
+  /* shadcn semantic tokens — Silver/Blue Violet with Light Blue accent.
+     Primary is Blue Violet (the dominant brand color). Buttons use it. */
+  --background:           #EAEAE6;
+  --foreground:           #322E7A;
+  --card:                 #F7F7F4;
+  --card-foreground:      #322E7A;
+  --popover:              #F7F7F4;
+  --popover-foreground:   #322E7A;
+  --primary:              #322E7A;
+  --primary-foreground:   #F7F7F4;
+  --secondary:            #DCDBD5;
+  --secondary-foreground: #322E7A;
+  --muted:                #DCDBD5;
+  --muted-foreground:     #6B6694;
+  --accent-foreground:    #322E7A;
   --destructive:          oklch(0.577 0.245 27.325);
-  --border:               #C7BAA0;
-  --input:                #D4C7AB;
-  --ring:                 #B45309;
+  --border:               #C9C8C2;
+  --input:                #D4D3CD;
+  --ring:                 #66C4EF;
   --radius:               0.875rem;
 
-  /* Sidebar — Paper-based */
-  --sidebar:                    #EFE6D2;
-  --sidebar-foreground:         #0E0B08;
-  --sidebar-primary:            #B45309;
-  --sidebar-primary-foreground: #FBF6EA;
-  --sidebar-accent:             #FBF6EA;
-  --sidebar-accent-foreground:  #0E0B08;
-  --sidebar-border:             #C7BAA0;
-  --sidebar-ring:               #B45309;
+  /* Sidebar — Silver Gray with Blue Violet text/primary */
+  --sidebar:                    #EAEAE6;
+  --sidebar-foreground:         #322E7A;
+  --sidebar-primary:            #322E7A;
+  --sidebar-primary-foreground: #F7F7F4;
+  --sidebar-accent:             #F7F7F4;
+  --sidebar-accent-foreground:  #322E7A;
+  --sidebar-border:             #C9C8C2;
+  --sidebar-ring:               #66C4EF;
 
   /* Liquid-glass surface stack — light mode mirror.
      Originally only defined in .dark; without these, components like the
@@ -210,57 +217,54 @@
   --lg-bg:          var(--paper);
   --lg-surface-1:   var(--paper-soft);
   --lg-surface-2:   var(--stone-soft);
-  --lg-surface-3:   #DCD0B7;
-  --lg-divider:     rgba(14, 11, 8, 0.12);
-  --lg-divider-soft:rgba(14, 11, 8, 0.06);
+  --lg-surface-3:   #D4D2CC;
+  --lg-divider:     rgba(31, 28, 82, 0.12);
+  --lg-divider-soft:rgba(31, 28, 82, 0.06);
 
   --lg-text-1:     var(--ink);
   --lg-text-2:     var(--dusk);
   --lg-text-3:     var(--mist);
 
-  /* Glass-pill / floating-panel material — was hardcoded as
-     rgba(22, 22, 27, 0.5/0.7) across nine components, which read as black
-     blobs on cream Paper. Now tokenized so a single switch flips light/dark. */
+  /* Glass-pill / floating-panel material — tokenized so the same light/dark
+     switch flips the AI input, week-nav, and my-plan rails. */
   --lg-panel-bg:   color-mix(in oklab, var(--paper-soft) 88%, transparent);
 }
 
 /* ============================================================
-   DARK MODE — warm Espresso, not cold grey
-   "Office after hours, not server room"
+   DARK MODE — CalWin Blue Violet, not cold grey or warm espresso
+   "Brand-color after hours" — the dominant brand HEX is the canvas.
    ============================================================ */
 
 .dark {
-  /* Bg stack */
-  --bg-primary:    #15110E;  /* espresso */
-  --bg-elevated:   #1F1913;  /* dusk */
-  --bg-subtle:     #0E0B08;  /* ink */
+  /* Bg stack — Blue Violet family, deepening toward black */
+  --bg-primary:    #1F1C52;  /* deep blue violet */
+  --bg-elevated:   #322E7A;  /* canonical Blue Violet */
+  --bg-subtle:     #15123E;  /* deepest, almost ink */
 
-  /* Liquid-glass surface stack — warmer, espresso-based */
-  --lg-bg:          #15110E;
-  --lg-surface-1:   #1F1913;
-  --lg-surface-2:   #261E17;
-  --lg-surface-3:   #2C231B;
-  --lg-divider:     rgba(245, 239, 228, 0.08);
-  --lg-divider-soft:rgba(245, 239, 228, 0.04);
+  /* Liquid-glass surface stack — Blue Violet family */
+  --lg-bg:          #1F1C52;
+  --lg-surface-1:   #2A2668;
+  --lg-surface-2:   #322E7A;
+  --lg-surface-3:   #3D3892;
+  --lg-divider:     rgba(234, 234, 230, 0.10);
+  --lg-divider-soft:rgba(234, 234, 230, 0.05);
 
-  --lg-text-1:     #F5EFE4;
-  --lg-text-2:     rgba(245, 239, 228, 0.75);
-  --lg-text-3:     rgba(245, 239, 228, 0.56);
+  --lg-text-1:     #EAEAE6;
+  --lg-text-2:     rgba(234, 234, 230, 0.78);
+  --lg-text-3:     rgba(234, 234, 230, 0.58);
 
-  --text-primary:   #F5EFE4;
-  --text-secondary: rgba(245, 239, 228, 0.75);
-  --text-tertiary:  rgba(245, 239, 228, 0.56);
+  --text-primary:   #EAEAE6;
+  --text-secondary: rgba(234, 234, 230, 0.78);
+  --text-tertiary:  rgba(234, 234, 230, 0.58);
 
-  --border-subtle: rgba(245, 239, 228, 0.08);
-  --border-strong: rgba(245, 239, 228, 0.16);
+  --border-subtle: rgba(234, 234, 230, 0.10);
+  --border-strong: rgba(234, 234, 230, 0.18);
 
-  /* Accent — Ember-glow in dark for warmth */
-  --accent-color: #FBBF24;
-  --accent-glow:  rgba(251, 191, 36, 0.28);
+  /* Accent — Light Blue glows on Blue Violet (primary brand pair) */
+  --accent-color: #66C4EF;
+  --accent-glow:  rgba(102, 196, 239, 0.32);
 
-  /* Semantic feedback (dark) — lift hues so they read on Espresso while
-     keeping the Ember-warmth of the palette. Tints are looser so the
-     glass surface peeks through. */
+  /* Semantic feedback (dark) — read on Blue Violet, kept saturated. */
   --success:        #5BD391;
   --success-tint:   color-mix(in oklab, #5BD391 16%, transparent);
   --error:          #FF8A93;
@@ -268,73 +272,72 @@
   --warning:        #F5B654;
   --warning-tint:   color-mix(in oklab, #F5B654 18%, transparent);
 
-  /* Aurora (dark) — espresso + ember, subtle */
-  --aurora-a: rgba(180, 83, 9, 0.18);
-  --aurora-b: rgba(0, 245, 160, 0.08); /* whisper of Nordlys */
+  /* Aurora (dark) — Light Blue + paler glow against Blue Violet */
+  --aurora-a: rgba(102, 196, 239, 0.20);
+  --aurora-b: rgba(179, 226, 247, 0.10);
   --aurora-opacity: 0.85;
 
-  /* Glass (dark) — espresso-tinted */
-  --glass-tint: #1F1913;
+  /* Glass (dark) — Blue Violet-tinted */
+  --glass-tint: #322E7A;
   --glass-tint-strength: 62%;
-  --glass-sheen: linear-gradient(180deg, rgba(245,239,228,0.10) 0%, rgba(245,239,228,0.02) 38%, rgba(245,239,228,0) 70%);
+  --glass-sheen: linear-gradient(180deg, rgba(234,234,230,0.10) 0%, rgba(234,234,230,0.02) 38%, rgba(234,234,230,0) 70%);
   --glass-sheen-opacity: 0.55;
   --surface-sheen-opacity: 0.18;
-  --glass-edge-top:    rgba(245,239,228,0.10);
-  --glass-edge-ring:   rgba(245,239,228,0.08);
+  --glass-edge-top:    rgba(234,234,230,0.10);
+  --glass-edge-ring:   rgba(234,234,230,0.08);
   --glass-shadow:
     0 30px 60px -18px rgba(0, 0, 0, 0.75),
     0 14px 30px -14px rgba(0, 0, 0, 0.55),
     0 1px 2px rgba(0, 0, 0, 0.4);
 
-  /* Shadows (deeper in dark mode) */
+  /* Shadows (deeper in dark mode) — black-on-blue, not warm */
   --shadow-sm:
     0 1px 2px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(245, 239, 228, 0.04);
+    0 0 0 1px rgba(234, 234, 230, 0.04);
   --shadow-md:
     0 4px 8px rgba(0, 0, 0, 0.45),
     0 2px 4px rgba(0, 0, 0, 0.2),
-    0 0 0 1px rgba(245, 239, 228, 0.04);
+    0 0 0 1px rgba(234, 234, 230, 0.04);
   --shadow-lg:
     0 12px 24px rgba(0, 0, 0, 0.55),
     0 4px 8px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(245, 239, 228, 0.05);
+    0 0 0 1px rgba(234, 234, 230, 0.05);
   --shadow-xl:
     0 24px 48px rgba(0, 0, 0, 0.65),
     0 8px 16px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(245, 239, 228, 0.06);
+    0 0 0 1px rgba(234, 234, 230, 0.06);
 
-  /* shadcn semantic tokens — Espresso/Paper with Ember-glow ring */
-  --background:           #15110E;
-  --foreground:           #F5EFE4;
-  --card:                 #1F1913;
-  --card-foreground:      #F5EFE4;
-  --popover:              #1F1913;
-  --popover-foreground:   #F5EFE4;
-  --primary:              #FBBF24;
-  --primary-foreground:   #0E0B08;
-  --secondary:            #261E17;
-  --secondary-foreground: #F5EFE4;
-  --muted:                #261E17;
-  --muted-foreground:     rgba(245, 239, 228, 0.75);
-  --accent-foreground:    #0E0B08;
+  /* shadcn semantic tokens — Blue Violet bg, Silver Gray text,
+     Light Blue accent + ring */
+  --background:           #1F1C52;
+  --foreground:           #EAEAE6;
+  --card:                 #322E7A;
+  --card-foreground:      #EAEAE6;
+  --popover:              #322E7A;
+  --popover-foreground:   #EAEAE6;
+  --primary:              #66C4EF;
+  --primary-foreground:   #1F1C52;
+  --secondary:            #3D3892;
+  --secondary-foreground: #EAEAE6;
+  --muted:                #2A2668;
+  --muted-foreground:     rgba(234, 234, 230, 0.75);
+  --accent-foreground:    #1F1C52;
   --destructive:          oklch(0.704 0.191 22.216);
-  --border:               rgba(245, 239, 228, 0.08);
-  --input:                rgba(245, 239, 228, 0.10);
-  --ring:                 #FBBF24;
+  --border:               rgba(234, 234, 230, 0.10);
+  --input:                rgba(234, 234, 230, 0.12);
+  --ring:                 #66C4EF;
 
-  --sidebar:                    #15110E;
-  --sidebar-foreground:         #F5EFE4;
-  --sidebar-primary:            #FBBF24;
-  --sidebar-primary-foreground: #0E0B08;
-  --sidebar-accent:             #1F1913;
-  --sidebar-accent-foreground:  #F5EFE4;
-  --sidebar-border:             rgba(245, 239, 228, 0.08);
-  --sidebar-ring:               #FBBF24;
+  --sidebar:                    #1F1C52;
+  --sidebar-foreground:         #EAEAE6;
+  --sidebar-primary:            #66C4EF;
+  --sidebar-primary-foreground: #1F1C52;
+  --sidebar-accent:             #322E7A;
+  --sidebar-accent-foreground:  #EAEAE6;
+  --sidebar-border:             rgba(234, 234, 230, 0.10);
+  --sidebar-ring:               #66C4EF;
 
-  /* Glass-pill / floating-panel material (dark) — preserves the existing
-     espresso translucency so the AI input, week-nav and my-plan rails read
-     the same as before this token existed. */
-  --lg-panel-bg:   rgba(22, 22, 27, 0.55);
+  /* Glass-pill / floating-panel material (dark) — Blue Violet translucency */
+  --lg-panel-bg:   rgba(31, 28, 82, 0.62);
 }
 
 /* ============================================================
@@ -347,12 +350,11 @@
   }
 
   html {
-    font-family: var(--font-manrope), system-ui, -apple-system, sans-serif;
+    font-family: var(--font-manrope), "Josefin Sans", system-ui, -apple-system, sans-serif;
     @apply antialiased;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: "ss01", "ss02";
-    letter-spacing: -0.011em;
+    letter-spacing: -0.005em;
     color-scheme: light;
   }
   html.dark {
@@ -366,23 +368,24 @@
     position: relative;
   }
 
-  /* Offiview grain — tactile fraktal-noise layer, fixed, beneath content.
-     Multiply on Paper (darkens subtly), overlay on Espresso (whispers).
-     Requires main to sit at z-index: 2 — set in layout.tsx. */
+  /* Subtle grain — tactile fraktal-noise layer, fixed, beneath content.
+     Reduced on Silver canvas (multiply on a cool grey reads heavy);
+     even quieter overlay on Blue Violet so the dark canvas doesn't
+     gather a "TV static" layer. Main sits at z-index: 2 (layout.tsx). */
   body::before {
     content: "";
     position: fixed;
     inset: 0;
     pointer-events: none;
     z-index: 1;
-    opacity: 0.5;
+    opacity: 0.28;
     mix-blend-mode: multiply;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
   .dark body::before {
     mix-blend-mode: overlay;
-    opacity: 0.35;
+    opacity: 0.22;
   }
 
   /* Tabular numbers everywhere for clocks, dates, counts */
@@ -412,19 +415,21 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Display (serif) font utility — Fraunces */
+  /* Display font utility — Orbitron (Good Times stand-in) */
   .font-display {
-    font-family: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
-    font-optical-sizing: auto;
+    font-family: var(--font-fraunces), "Orbitron", "Josefin Sans", system-ui, sans-serif;
+    font-feature-settings: "ss01";
   }
 
-  /* Italic Ember-words — Fraunces italic with opsz 32, SOFT 80 */
+  /* "Italic ember-word" slot — under CalWin we don't have a true italic
+     display face, so use Josefin Sans Light Italic for the same role.
+     The class name is preserved so existing component markup keeps
+     resolving without a sweep across the codebase. */
   .font-serif-italic {
-    font-family: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+    font-family: var(--font-manrope), "Josefin Sans", system-ui, sans-serif;
     font-style: italic;
     font-weight: 300;
-    font-variation-settings: "opsz" 32, "SOFT" 80;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.005em;
   }
 
   /* Focus ring — solid Ember ring, soft accent glow, gentle bounce */
@@ -501,7 +506,7 @@
       0 1px 2px rgba(14, 11, 8, 0.04),
       inset 0 1px 0 rgba(255, 255, 255, 0.55);
     color: var(--text-primary);
-    font-family: var(--font-manrope), system-ui, sans-serif;
+    font-family: var(--font-manrope), "Josefin Sans", system-ui, sans-serif;
     font-size: 13.5px;
     letter-spacing: -0.005em;
     line-height: 1.4;
@@ -986,18 +991,21 @@
    ============================================================ */
 
 :root {
-  /* "Now / aktiv" accent — Nordlys violet, but use sparingly.
-     For Offiview-brand surfaces prefer --accent-color (Ember). */
-  --lg-accent:       #8B5CF6;
-  --lg-accent-soft:  rgba(139, 92, 246, 0.15);
-  --lg-accent-glow:  rgba(139, 92, 246, 0.35);
+  /* "Now / aktiv" accent — Light Blue from the CalWin palette.
+     Use sparingly; for primary CTAs prefer Blue Violet (--accent-color
+     resolves to Light Blue, which is the highlight pair). */
+  --lg-accent:       #66C4EF;
+  --lg-accent-soft:  rgba(102, 196, 239, 0.18);
+  --lg-accent-glow:  rgba(102, 196, 239, 0.40);
 
-  /* Category colors — dempet, ikke neon */
-  --lg-cat-work:       #2DD4BF;
-  --lg-cat-personal:   #A78BFA;
-  --lg-cat-important:  #FB7185;
-  --lg-cat-travel:     #FBBF24;
-  --lg-cat-focus:      #6366F1;
+  /* Category colors — dempet, ikke neon. Tilted toward the brand pair
+     (Blue Violet + Light Blue) so categories live inside the same family
+     as the primary palette. */
+  --lg-cat-work:       #66C4EF;  /* Light Blue */
+  --lg-cat-personal:   #4A4595;  /* mid blue violet */
+  --lg-cat-important:  #C8323D;  /* warm — kept distinct for "important" */
+  --lg-cat-travel:     #7A6E2F;  /* Olive (CalWin secondary) */
+  --lg-cat-focus:      #322E7A;  /* Blue Violet */
 }
 
 .lg-panel {
@@ -1027,7 +1035,7 @@
 .lg-active {
   background: var(--lg-accent);
   box-shadow:
-    0 0 0 3px rgba(139, 92, 246, 0.18),
+    0 0 0 3px rgba(102, 196, 239, 0.22),
     0 0 20px var(--lg-accent-glow);
 }
 
@@ -1066,13 +1074,14 @@
   .lg-aurora::after { animation: none; }
 }
 
-/* Typography utilities — Fraunces serif + system mono */
+/* Typography utilities — Orbitron display + system mono.
+   .lg-serif keeps its name (referenced across the codebase) but now
+   maps to Josefin Sans Light Italic — CalWin doesn't ship a serif. */
 .lg-serif {
-  font-family: var(--font-fraunces), "Iowan Old Style", Georgia, serif;
+  font-family: var(--font-manrope), "Josefin Sans", system-ui, sans-serif;
   font-style: italic;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.01em;
   font-weight: 300;
-  font-variation-settings: "opsz" 32, "SOFT" 80;
 }
 .lg-mono {
   /* System mono — Apple's SF Mono on Mac/iOS, sensible fallbacks elsewhere */

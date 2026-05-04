@@ -141,20 +141,19 @@ export const OffiviewSignature = forwardRef<HTMLDivElement, OffiviewSignaturePro
             <span
               className="serif"
               style={{
-                fontFamily: 'var(--font-fraunces), Georgia, serif',
+                fontFamily: 'var(--font-manrope), "Josefin Sans", system-ui, sans-serif',
                 fontStyle: 'italic',
                 fontWeight: 300,
-                fontVariationSettings: '"opsz" 32, "SOFT" 60',
                 fontSize: 'var(--offiview-sig-wm)',
-                color: '#F5EFE4',
-                letterSpacing: '-0.02em',
+                color: '#EAEAE6',
+                letterSpacing: '-0.01em',
               }}
             >
               Offiview
             </span>
             <span
               style={{
-                fontFamily: 'var(--font-manrope), system-ui, sans-serif',
+                fontFamily: 'var(--font-manrope), "Josefin Sans", system-ui, sans-serif',
                 fontWeight: 400,
                 fontSize: 11,
                 letterSpacing: '0.14em',

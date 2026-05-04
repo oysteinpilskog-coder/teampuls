@@ -42,7 +42,7 @@ export function OffiviewWordmark({
 
   // Only Nordlys hard-bakes its own palette. Other variants inherit
   // `currentColor` so themes and dark-mode flip automatically.
-  const textColor = variant === 'nordlys' ? '#F5EFE4' : 'currentColor'
+  const textColor = variant === 'nordlys' ? '#EAEAE6' : 'currentColor'
 
   return (
     <span
@@ -70,12 +70,12 @@ export function OffiviewWordmark({
         <span
           aria-hidden
           style={{
-            fontFamily: 'var(--font-manrope), system-ui, sans-serif',
+            fontFamily: 'var(--font-manrope), "Josefin Sans", system-ui, sans-serif',
             fontWeight: 300,
             fontSize: `${size}px`,
             letterSpacing: '-0.04em',
             color: textColor,
-            // Optical alignment: shift text up a hair so Manrope x-height
+            // Optical alignment: shift text up a hair so the wordmark x-height
             // sits on the horizon line of the mark.
             transform: 'translateY(0.02em)',
             whiteSpace: 'nowrap',
@@ -113,7 +113,7 @@ function ShimmerMark({
 
   // Reuse the same stroke conventions as OffiviewMark so the mark reads
   // identical outside the hover pulse.
-  const ringStroke = variant === 'nordlys' ? '#F5EFE4' : 'currentColor'
+  const ringStroke = variant === 'nordlys' ? '#EAEAE6' : 'currentColor'
   const baseHorizonStroke =
     variant === 'nordlys' || variant === 'ember' ? 'currentColor' : 'currentColor'
 
@@ -126,10 +126,11 @@ function ShimmerMark({
       aria-hidden
     >
       <defs>
+        {/* Hover shimmer gradient — CalWin Blue Violet → Light Blue */}
         <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#B45309" />
-          <stop offset="55%" stopColor="#D97706" />
-          <stop offset="100%" stopColor="#FBBF24" />
+          <stop offset="0%" stopColor="#322E7A" />
+          <stop offset="55%" stopColor="#4A4595" />
+          <stop offset="100%" stopColor="#66C4EF" />
         </linearGradient>
         <filter id={glowFilterId} x="-30%" y="-30%" width="160%" height="160%">
           <feGaussianBlur stdDeviation="1.4" result="b" />

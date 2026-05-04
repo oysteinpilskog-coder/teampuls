@@ -90,8 +90,8 @@ export function OffiviewWordmarkAnimated({
 
   // Text color follows currentColor so caller's CSS tone applies.
   const textColor =
-    variant === 'paper' || variant === 'nordlys' ? '#F5EFE4' : 'currentColor'
-  const ringStroke = variant === 'nordlys' ? '#F5EFE4' : 'currentColor'
+    variant === 'paper' || variant === 'nordlys' ? '#EAEAE6' : 'currentColor'
+  const ringStroke = variant === 'nordlys' ? '#EAEAE6' : 'currentColor'
   const gap = Math.max(3, Math.round(size * 0.12))
 
   return (
@@ -115,9 +115,9 @@ export function OffiviewWordmarkAnimated({
       >
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#00F5A0" />
-            <stop offset="55%" stopColor="#00D9F5" />
-            <stop offset="100%" stopColor="#7C3AED" />
+            <stop offset="0%" stopColor="#66C4EF" />
+            <stop offset="55%" stopColor="#4A4595" />
+            <stop offset="100%" stopColor="#322E7A" />
           </linearGradient>
           <filter
             id={glowId}
