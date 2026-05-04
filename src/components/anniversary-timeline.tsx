@@ -296,6 +296,8 @@ function HeroNumber({
             backgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             color: 'transparent',
+            paddingRight: '0.08em',
+            marginRight: '-0.08em',
           }}
         >
           {value}
