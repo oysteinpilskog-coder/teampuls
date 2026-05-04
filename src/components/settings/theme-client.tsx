@@ -7,30 +7,25 @@ import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { useThemeVariant } from '@/components/theme-variant-provider'
+import { useDashboardMode } from '@/components/dashboard-mode-provider'
 import { CalwinMark } from '@/components/brand/calwin-mark'
-import {
-  getDashboardMode,
-  setDashboardMode,
-  type DashboardMode,
-} from '@/lib/dashboard-mode'
+import { type DashboardMode } from '@/lib/dashboard-mode'
 import { spring } from '@/lib/motion'
 import { THEMES, type ThemeId, type ThemeMeta } from '@/lib/themes'
 
 export function ThemeClient() {
   const { variant, setVariant } = useThemeVariant()
   const { resolvedTheme, setTheme } = useTheme()
+  const { mode: dashMode, setMode: setDashMode } = useDashboardMode()
   const [mounted, setMounted] = useState(false)
-  const [dashMode, setDashMode] = useState<DashboardMode>('standard')
 
   useEffect(() => {
     setMounted(true)
-    setDashMode(getDashboardMode())
   }, [])
 
   function chooseDashboardMode(next: DashboardMode) {
     if (next === dashMode) return
     setDashMode(next)
-    setDashboardMode(next)
     toast.success(
       next === 'brand'
         ? 'CalWin-merket dashboard er satt som standard'

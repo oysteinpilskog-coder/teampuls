@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { cookies } from 'next/headers'
 import { fontDisplay, fontBody } from '@/app/fonts'
 import { Providers } from '@/components/providers'
 import { ConditionalHeader } from '@/components/app-header'
@@ -6,6 +7,7 @@ import { themeVariantBootScript } from '@/components/theme-variant-provider'
 import { getOrgStatusColors } from '@/lib/status-colors/server'
 import { getServerLocale } from '@/lib/i18n/server'
 import { LOCALE_META } from '@/lib/i18n/types'
+import { DASHBOARD_MODE_COOKIE, type DashboardMode } from '@/lib/dashboard-mode'
 import { no } from '@/lib/i18n/no'
 import { en } from '@/lib/i18n/en'
 import { sv } from '@/lib/i18n/sv'
@@ -80,11 +82,14 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [initialStatusColors, initialLocale, session] = await Promise.all([
+  const [initialStatusColors, initialLocale, session, cookieStore] = await Promise.all([
     getOrgStatusColors(),
     getServerLocale(),
     getSessionMember(),
+    cookies(),
   ])
+  const initialDashboardMode: DashboardMode =
+    cookieStore.get(DASHBOARD_MODE_COOKIE)?.value === 'brand' ? 'brand' : 'standard'
 
   const activeWorkspace = session.activeWorkspace
   // Sanitize: only allow 3/4/6/8-digit hex so we can't inject
@@ -112,6 +117,7 @@ export default async function RootLayout({
     <html
       lang={LOCALE_META[initialLocale].htmlLang}
       className={`${fontDisplay.variable} ${fontBody.variable}`}
+      data-dashboard-mode={initialDashboardMode}
       suppressHydrationWarning
     >
       <head>
@@ -145,6 +151,7 @@ export default async function RootLayout({
           initialLocale={initialLocale}
           initialWorkspaces={session.workspaces}
           initialActiveSlug={activeWorkspace?.slug ?? null}
+          initialDashboardMode={initialDashboardMode}
         >
           {/* Ambient aurora backdrop — restrained Ember-tint, sits below grain */}
           <div className="ambient-aurora" aria-hidden />
