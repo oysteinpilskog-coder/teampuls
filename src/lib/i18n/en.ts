@@ -496,6 +496,10 @@ export const en: Dictionary = {
     youBadge: 'you',
     dragHint: 'Drag across days to log vacation',
     dragError: "Couldn't save vacation",
+    resizeHint: 'Drag the edge to adjust the length',
+    resizeExtended: 'Vacation extended',
+    resizeShortened: 'Vacation shortened',
+    resizeAdjusted: 'Vacation adjusted',
   },
   eventEditor: {
     titleNew: 'New event',

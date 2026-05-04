@@ -31,8 +31,12 @@ export default async function SommerPage({
 
   const orgIds = combinedScope?.org_ids ?? [member.org_id]
 
-  const start = new Date(year, 5, 1)   // June 1
-  const end = new Date(year, 7, 31)    // August 31
+  // Fetch the whole year so the client can extend the visual range to
+  // include any month with a vacation entry (April → October etc).
+  // Entries are tiny rows so a 12-month pull is cheap even for the full
+  // org. The client narrows the visible window per its own rules.
+  const start = new Date(year, 0, 1)    // Jan 1
+  const end = new Date(year, 11, 31)    // Dec 31
   const startStr = toDateString(start)
   const endStr = toDateString(end)
 

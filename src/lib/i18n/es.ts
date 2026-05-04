@@ -496,6 +496,10 @@ export const es: Dictionary = {
     youBadge: 'tú',
     dragHint: 'Arrastra sobre los días para registrar vacaciones',
     dragError: 'No se pudieron guardar las vacaciones',
+    resizeHint: 'Arrastra el borde para ajustar la duración',
+    resizeExtended: 'Vacaciones ampliadas',
+    resizeShortened: 'Vacaciones acortadas',
+    resizeAdjusted: 'Vacaciones ajustadas',
   },
   eventEditor: {
     titleNew: 'Nuevo evento',

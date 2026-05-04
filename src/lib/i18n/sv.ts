@@ -496,6 +496,10 @@ export const sv: Dictionary = {
     youBadge: 'du',
     dragHint: 'Dra över dagar för att lägga in semester',
     dragError: 'Kunde inte spara semester',
+    resizeHint: 'Dra kanten för att justera längden',
+    resizeExtended: 'Semester förlängd',
+    resizeShortened: 'Semester förkortad',
+    resizeAdjusted: 'Semester justerad',
   },
   eventEditor: {
     titleNew: 'Ny händelse',

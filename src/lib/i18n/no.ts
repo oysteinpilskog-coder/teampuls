@@ -494,6 +494,10 @@ export const no = {
     youBadge: 'deg',
     dragHint: 'Dra over dager for å legge inn ferie',
     dragError: 'Kunne ikke lagre ferie',
+    resizeHint: 'Dra kanten for å justere lengden',
+    resizeExtended: 'Ferie forlenget',
+    resizeShortened: 'Ferie forkortet',
+    resizeAdjusted: 'Ferie justert',
   },
   eventEditor: {
     titleNew: 'Ny hendelse',

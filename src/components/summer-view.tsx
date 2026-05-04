@@ -56,22 +56,45 @@ export function SummerView({
   useEffect(() => { setMounted(true) }, [])
   const isLight = mounted ? resolvedTheme !== 'dark' : true
 
-  const range = useMemo(() => {
-    const start = new Date(year, 5, 1)
-    const end = new Date(year, 7, 31)
+  // We always fetch the whole year — entries are tiny rows (≤ a few hundred
+  // even for a big org) and this lets the timeline expand to include any
+  // shoulder-season ferie outside the default June–Aug window without a
+  // refetch.
+  const yearRange = useMemo(() => {
+    const start = new Date(year, 0, 1)
+    const end = new Date(year, 11, 31)
     const totalDays = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1
     return { start, end, totalDays }
   }, [year])
 
   const dateStrings = useMemo(() => {
     const out: string[] = []
-    for (let i = 0; i < range.totalDays; i++) {
-      out.push(toDateString(addDays(range.start, i)))
+    for (let i = 0; i < yearRange.totalDays; i++) {
+      out.push(toDateString(addDays(yearRange.start, i)))
     }
     return out
-  }, [range])
+  }, [yearRange])
 
   const { entries, applyOptimistic, refetch } = useEntries(orgIds, dateStrings, { initial: initialEntries })
+
+  // Visible range = at least June–August, extended to include any month
+  // with a vacation entry. Reads off the realtime entries so it stays in
+  // sync with optimistic writes / drags.
+  const range = useMemo(() => {
+    let minMonth = 5  // June (0-indexed)
+    let maxMonth = 7  // August
+    for (const e of entries) {
+      if (e.status !== 'vacation') continue
+      const d = parseDateString(e.date)
+      if (d.getFullYear() !== year) continue
+      if (d.getMonth() < minMonth) minMonth = d.getMonth()
+      if (d.getMonth() > maxMonth) maxMonth = d.getMonth()
+    }
+    const start = new Date(year, minMonth, 1)
+    const end = new Date(year, maxMonth + 1, 0)  // last day of maxMonth
+    const totalDays = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1
+    return { start, end, totalDays, minMonth, maxMonth }
+  }, [year, entries])
 
   // Resolve which org the dragged member belongs to. In combined-mode the
   // page passes multiple orgIds, but a single member only lives in one.
@@ -148,6 +171,103 @@ export function SummerView({
     // Mirror ai-input.tsx — realtime can lag so emit a sync-now broadcast.
     window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
   }, [orgIdByMember, orgIds, range.start, applyOptimistic, refetch, t.status.vacation, t.summer.dayMany, t.summer.dragError])
+
+  // Resize commit: drag a block's edge → some days are added (extension)
+  // and/or some are removed (shrink). Computes the diff, upserts the new
+  // days as vacation, deletes the dropped days, then broadcasts.
+  const commitResize = useCallback(async (
+    memberId: string,
+    oldStartDay: number,
+    oldEndDay: number,
+    newStartDay: number,
+    newEndDay: number,
+    memberName: string,
+  ) => {
+    const memberOrgId = orgIdByMember.get(memberId) ?? orgIds[0]
+    const oldLo = Math.min(oldStartDay, oldEndDay)
+    const oldHi = Math.max(oldStartDay, oldEndDay)
+    const newLo = Math.min(newStartDay, newEndDay)
+    const newHi = Math.max(newStartDay, newEndDay)
+
+    const dayToISO = (d: number) => toDateString(addDays(range.start, d))
+    const oldDates = new Set<string>()
+    for (let i = oldLo; i <= oldHi; i++) oldDates.add(dayToISO(i))
+    const newDates = new Set<string>()
+    for (let i = newLo; i <= newHi; i++) newDates.add(dayToISO(i))
+
+    const toAdd: string[] = [...newDates].filter(d => !oldDates.has(d))
+    const toRemove: string[] = [...oldDates].filter(d => !newDates.has(d))
+
+    // No-op if the user dropped at the same edge they grabbed.
+    if (toAdd.length === 0 && toRemove.length === 0) return
+
+    const nowIso = new Date().toISOString()
+    applyOptimistic((prev) => {
+      // Drop any vacation rows the member has on `toRemove` dates AND
+      // any rows on `toAdd` dates (so we replace, not duplicate).
+      const drop = new Set([...toRemove, ...toAdd])
+      const keep = prev.filter(e => !(e.member_id === memberId && drop.has(e.date)))
+      const added: Entry[] = toAdd.map(d => ({
+        id: `optimistic-${memberId}-${d}`,
+        org_id: memberOrgId,
+        member_id: memberId,
+        date: d,
+        status: 'vacation',
+        location_label: null,
+        note: null,
+        source: 'manual',
+        source_text: null,
+        confidence: null,
+        created_by: null,
+        created_at: nowIso,
+        updated_at: nowIso,
+      }))
+      return [...keep, ...added]
+    })
+
+    // Toast — pick the verb that matches what dominated the diff so the
+    // copy reads honestly ("forlenget", "forkortet", or "justert" mix).
+    const totalNewDays = newHi - newLo + 1
+    const dayWord = totalNewDays === 1 ? t.summer.dayOne : t.summer.dayMany
+    let verb: string
+    if (toAdd.length > 0 && toRemove.length === 0) verb = t.summer.resizeExtended
+    else if (toRemove.length > 0 && toAdd.length === 0) verb = t.summer.resizeShortened
+    else verb = t.summer.resizeAdjusted
+    toast.success(`${verb} — ${memberName} · ${totalNewDays} ${dayWord}`)
+
+    const supabase = createClient()
+    let writeErr: unknown = null
+    if (toAdd.length > 0) {
+      const rows = toAdd.map(d => ({
+        org_id: memberOrgId,
+        member_id: memberId,
+        date: d,
+        status: 'vacation' as const,
+        location_label: null,
+        note: null,
+        source: 'manual' as const,
+        confidence: null,
+      }))
+      const { error } = await supabase
+        .from('entries')
+        .upsert(rows, { onConflict: 'org_id,member_id,date' })
+      if (error) writeErr = error
+    }
+    if (!writeErr && toRemove.length > 0) {
+      const { error } = await supabase
+        .from('entries')
+        .delete()
+        .eq('member_id', memberId)
+        .in('date', toRemove)
+      if (error) writeErr = error
+    }
+    if (writeErr) {
+      toast.error(t.summer.dragError)
+      await refetch()
+      return
+    }
+    window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
+  }, [orgIdByMember, orgIds, range.start, applyOptimistic, refetch, t.summer.dayOne, t.summer.dayMany, t.summer.dragError, t.summer.resizeExtended, t.summer.resizeShortened, t.summer.resizeAdjusted])
 
   // Per-member vacation blocks. We collapse consecutive vacation days into
   // a single visual block — including weekends, since "uke 28" reads as one
@@ -235,13 +355,13 @@ export function SummerView({
   }
 
   const monthSpans = useMemo(() => {
-    // June (30), July (31), August (31)
-    return [
-      { label: t.dates.monthsLong[5], days: 30 },
-      { label: t.dates.monthsLong[6], days: 31 },
-      { label: t.dates.monthsLong[7], days: 31 },
-    ]
-  }, [t])
+    const out: { label: string; days: number }[] = []
+    for (let m = range.minMonth; m <= range.maxMonth; m++) {
+      const days = new Date(year, m + 1, 0).getDate()
+      out.push({ label: t.dates.monthsLong[m], days })
+    }
+    return out
+  }, [t, year, range])
 
   // Week-tick positions (Mondays inside the range)
   const weekTicks = useMemo(() => {
@@ -293,6 +413,7 @@ export function SummerView({
         currentMemberId={currentMemberId}
         currentMemberRole={currentMemberRole}
         commitVacation={commitVacation}
+        commitResize={commitResize}
         t={t}
       />
     </div>
@@ -436,6 +557,7 @@ interface TimelineProps {
   currentMemberId: string
   currentMemberRole: MemberRole
   commitVacation: (memberId: string, startDay: number, endDay: number, memberName: string) => void | Promise<void>
+  commitResize: (memberId: string, oldStartDay: number, oldEndDay: number, newStartDay: number, newEndDay: number, memberName: string) => void | Promise<void>
   t: ReturnType<typeof useT>
 }
 
@@ -446,7 +568,7 @@ function Timeline({
   range, memberRows, monthSpans, weekTicks, coverage,
   peak, peakLabel, todayInRange, todayDayOffset, totalActiveMembers,
   barGradient, barGlow, isLight, reduce,
-  currentMemberId, currentMemberRole, commitVacation,
+  currentMemberId, currentMemberRole, commitVacation, commitResize,
   t,
 }: TimelineProps) {
   const canEditAny = currentMemberRole === 'admin'
@@ -617,6 +739,7 @@ function Timeline({
                   editable={editable}
                   isSelf={row.member.id === currentMemberId}
                   commitVacation={commitVacation}
+                  commitResize={commitResize}
                   t={t}
                 />
               )
@@ -641,7 +764,7 @@ function Timeline({
 
 function Row({
   row, idx, totalDays, dayPct, barGradient, barGlow, isLight, reduce,
-  editable, isSelf, commitVacation, t,
+  editable, isSelf, commitVacation, commitResize, t,
 }: {
   row: MemberRow
   idx: number
@@ -654,10 +777,22 @@ function Row({
   editable: boolean
   isSelf: boolean
   commitVacation: (memberId: string, startDay: number, endDay: number, memberName: string) => void | Promise<void>
+  commitResize: (memberId: string, oldStartDay: number, oldEndDay: number, newStartDay: number, newEndDay: number, memberName: string) => void | Promise<void>
   t: ReturnType<typeof useT>
 }) {
   const trackRef = useRef<HTMLDivElement | null>(null)
   const [drag, setDrag] = useState<{ startDay: number; endDay: number } | null>(null)
+  // Resize state — separate from create-drag so the two interactions can't
+  // collide. `blockIdx` identifies which existing block is being resized,
+  // `edge` is which side the user grabbed.
+  const [resize, setResize] = useState<{
+    blockIdx: number
+    edge: 'start' | 'end'
+    oldStart: number
+    oldEnd: number
+    newStart: number
+    newEnd: number
+  } | null>(null)
   const hasVacation = row.blocks.length > 0
 
   // Map a clientX to a 0..(totalDays-1) day index based on the track rect.
@@ -674,8 +809,9 @@ function Row({
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (!editable) return
     if (e.button !== 0) return
-    // Skip if the press started on an existing block (block is a child of the
-    // track). Empty-area presses target the track itself.
+    // Skip if the press started on an existing block or a resize handle —
+    // those sit as descendants of the track and have their own handlers.
+    // Empty-area presses target the track itself.
     if (e.target !== e.currentTarget) return
     e.preventDefault()
     const day = pointerToDay(e.clientX)
@@ -684,21 +820,70 @@ function Row({
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!drag) return
-    const day = pointerToDay(e.clientX)
-    setDrag(prev => (prev && prev.endDay !== day) ? { ...prev, endDay: day } : prev)
+    // Both create-drag and resize-drag funnel their move through the track
+    // since the track owns the pointer capture in both cases.
+    if (drag) {
+      const day = pointerToDay(e.clientX)
+      setDrag(prev => (prev && prev.endDay !== day) ? { ...prev, endDay: day } : prev)
+      return
+    }
+    if (resize) {
+      const day = pointerToDay(e.clientX)
+      setResize(prev => {
+        if (!prev) return prev
+        if (prev.edge === 'start') {
+          // Clamp to ≤ newEnd so the block can't flip inside-out.
+          const next = Math.min(day, prev.newEnd)
+          return next === prev.newStart ? prev : { ...prev, newStart: next }
+        } else {
+          const next = Math.max(day, prev.newStart)
+          return next === prev.newEnd ? prev : { ...prev, newEnd: next }
+        }
+      })
+    }
   }
 
   function handlePointerUp(e: React.PointerEvent<HTMLDivElement>) {
-    if (!drag) return
-    const { startDay, endDay } = drag
-    setDrag(null)
-    try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* noop */ }
-    void commitVacation(row.member.id, startDay, endDay, row.member.display_name)
+    if (drag) {
+      const { startDay, endDay } = drag
+      setDrag(null)
+      try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* noop */ }
+      void commitVacation(row.member.id, startDay, endDay, row.member.display_name)
+      return
+    }
+    if (resize) {
+      const { oldStart, oldEnd, newStart, newEnd } = resize
+      setResize(null)
+      try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* noop */ }
+      void commitResize(row.member.id, oldStart, oldEnd, newStart, newEnd, row.member.display_name)
+    }
   }
 
   function handlePointerCancel() {
     setDrag(null)
+    setResize(null)
+  }
+
+  // Resize-handle pointerdown — kicks off a resize and steals capture to
+  // the track so subsequent move/up flow through the same handlers.
+  function startResize(e: React.PointerEvent<HTMLDivElement>, blockIdx: number, edge: 'start' | 'end') {
+    if (!editable) return
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    const block = row.blocks[blockIdx]
+    if (!block) return
+    setResize({
+      blockIdx,
+      edge,
+      oldStart: block.startDay,
+      oldEnd: block.endDay,
+      newStart: block.startDay,
+      newEnd: block.endDay,
+    })
+    // Capture on the track (not the handle) — handlePointerMove/Up live
+    // there and need the events even if the pointer leaves the handle.
+    try { trackRef.current?.setPointerCapture(e.pointerId) } catch { /* noop */ }
   }
 
   const ghostLo = drag ? Math.min(drag.startDay, drag.endDay) : 0
@@ -774,11 +959,19 @@ function Row({
         onPointerCancel={handlePointerCancel}
       >
         {row.blocks.map((b, i) => {
-          const left = dayPct(b.startDay)
+          // During an active resize on this block, mirror the in-flight
+          // edges so the bar visibly stretches/contracts under the cursor.
+          // Other blocks render as normal.
+          const isResizingThis = resize?.blockIdx === i
+          const renderStart = isResizingThis ? resize.newStart : b.startDay
+          const renderEnd = isResizingThis ? resize.newEnd : b.endDay
+          const left = dayPct(renderStart)
           // Inclusive width: span = endDay - startDay + 1
-          const width = Math.max(dayPct(b.endDay - b.startDay + 1), 1.4)
-          const days = b.endDay - b.startDay + 1
-          const dateRange = formatBlockRange(b.startDate, b.endDate, t)
+          const width = Math.max(dayPct(renderEnd - renderStart + 1), 1.4)
+          const days = renderEnd - renderStart + 1
+          const labelStartDate = isResizingThis ? addDays(b.startDate, renderStart - b.startDay) : b.startDate
+          const labelEndDate = isResizingThis ? addDays(b.endDate, renderEnd - b.endDay) : b.endDate
+          const dateRange = formatBlockRange(labelStartDate, labelEndDate, t)
           const tooltip = b.locationLabel
             ? `${dateRange} · ${b.locationLabel}`
             : dateRange
@@ -791,7 +984,9 @@ function Row({
                 width: `${width}%`,
                 height: 30,
                 background: `linear-gradient(180deg, ${barGradient[0]}, ${barGradient[1]})`,
-                boxShadow: `0 4px 14px ${hexToRgba(barGlow, 0.32)}, 0 0 0 1px ${hexToRgba(barGlow, 0.18)} inset, inset 0 1px 0 ${isLight ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.10)'}`,
+                boxShadow: isResizingThis
+                  ? `0 6px 20px ${hexToRgba(barGlow, 0.55)}, 0 0 0 1px ${hexToRgba(barGlow, 0.5)} inset, inset 0 1px 0 rgba(255,255,255,0.45)`
+                  : `0 4px 14px ${hexToRgba(barGlow, 0.32)}, 0 0 0 1px ${hexToRgba(barGlow, 0.18)} inset, inset 0 1px 0 ${isLight ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.10)'}`,
               }}
               initial={reduce ? false : { scaleX: 0, opacity: 0 }}
               animate={{ scaleX: 1, opacity: 1 }}
@@ -828,9 +1023,43 @@ function Row({
                     letterSpacing: '0.01em',
                   }}
                 >
-                  <span className="truncate">{formatBlockShort(b.startDate, b.endDate, t)}</span>
+                  <span className="truncate">{formatBlockShort(labelStartDate, labelEndDate, t)}</span>
                   <span className="ml-2 tabular-nums opacity-90">{days}d</span>
                 </div>
+              )}
+
+              {/* Resize handles — invisible 10px hitboxes on each edge,
+                  only when the block is editable. The thin glow lines on
+                  hover are the visible affordance. */}
+              {editable && (
+                <>
+                  <div
+                    role="presentation"
+                    className="absolute top-0 bottom-0 left-0 z-10 group/handle"
+                    style={{ width: 10, cursor: 'ew-resize', touchAction: 'none' }}
+                    onPointerDown={(e) => startResize(e, i, 'start')}
+                    title={t.summer.resizeHint}
+                  >
+                    <span
+                      aria-hidden
+                      className="absolute top-1/2 -translate-y-1/2 left-1 w-[3px] h-3.5 rounded-full opacity-0 group-hover/handle:opacity-100 transition-opacity"
+                      style={{ background: 'rgba(255,255,255,0.85)' }}
+                    />
+                  </div>
+                  <div
+                    role="presentation"
+                    className="absolute top-0 bottom-0 right-0 z-10 group/handle"
+                    style={{ width: 10, cursor: 'ew-resize', touchAction: 'none' }}
+                    onPointerDown={(e) => startResize(e, i, 'end')}
+                    title={t.summer.resizeHint}
+                  >
+                    <span
+                      aria-hidden
+                      className="absolute top-1/2 -translate-y-1/2 right-1 w-[3px] h-3.5 rounded-full opacity-0 group-hover/handle:opacity-100 transition-opacity"
+                      style={{ background: 'rgba(255,255,255,0.85)' }}
+                    />
+                  </div>
+                </>
               )}
             </motion.div>
           )

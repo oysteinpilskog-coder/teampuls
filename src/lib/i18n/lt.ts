@@ -496,6 +496,10 @@ export const lt: Dictionary = {
     youBadge: 'tu',
     dragHint: 'Vilk per dienas, kad pažymėtum atostogas',
     dragError: 'Nepavyko išsaugoti atostogų',
+    resizeHint: 'Vilk kraštą, kad pakeistum trukmę',
+    resizeExtended: 'Atostogos pratęstos',
+    resizeShortened: 'Atostogos sutrumpintos',
+    resizeAdjusted: 'Atostogos pakoreguotos',
   },
   eventEditor: {
     titleNew: 'Naujas renginys',
