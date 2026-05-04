@@ -84,7 +84,7 @@ export function OfficeMapView({
   })
 
   return (
-    <div className="relative h-full flex flex-col px-10 pt-14 pb-4 gap-4">
+    <div className="relative h-full flex flex-col px-10 pt-20 pb-4 gap-4">
       {/* ── Header — org-navn og klokke eies av global topp-bar. */}
       <div className="flex-shrink-0">
         <motion.div

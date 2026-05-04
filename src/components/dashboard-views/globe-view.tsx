@@ -326,8 +326,11 @@ export function GlobeView({
         </div>
       )}
 
-      {/* ── HUD top-left: workspace wordmark ─────────────────────── */}
-      <div className={GLASS_CLS} style={{ ...glassStyle, position: 'absolute', top: 32, left: 32, padding: '18px 24px', zIndex: 10 }}>
+      {/* ── HUD top-left: workspace wordmark ───────────────────────
+          top: 88 reserverer plass til den globale shell-wordmarken
+          (top-5 left-10 → bunn ~62px). Tidligere top: 32 lå rett bak
+          logoen. */}
+      <div className={GLASS_CLS} style={{ ...glassStyle, position: 'absolute', top: 88, left: 32, padding: '18px 24px', zIndex: 10 }}>
         <div
           style={{
             margin: '0 0 4px 0',

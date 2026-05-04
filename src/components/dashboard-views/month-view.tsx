@@ -100,7 +100,7 @@ export function MonthView({ members, weekDays, entries, orgName: _orgName, time 
   let runningPct = 0
 
   return (
-    <div className="relative h-full flex flex-col px-10 pt-14 pb-6 gap-6">
+    <div className="relative h-full flex flex-col px-10 pt-20 pb-6 gap-6">
       {/* ── Header — eyebrow + Fraunces title. Org-navn og klokke eies av
             global topp-bar. */}
       <div className="flex-shrink-0">
