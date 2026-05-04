@@ -475,9 +475,10 @@ export const es: Dictionary = {
       lessThanOneYear: 'menos de 1 año',
       peopleLabel: 'Personas',
       combinedLabel: 'Total',
+      combinedAt: 'Total en {org}',
+      combinedSubhead: '{count} personas · promedio {avg} años',
       averageLabel: 'Promedio',
       longestLabel: 'Más antiguo',
-      longestAt: 'Más antiguo en {org}',
     },
   },
   summer: {

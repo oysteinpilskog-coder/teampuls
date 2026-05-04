@@ -473,9 +473,10 @@ export const no = {
       lessThanOneYear: 'mindre enn 1 år',
       peopleLabel: 'Personer',
       combinedLabel: 'Samlet',
+      combinedAt: 'Samlet hos {org}',
+      combinedSubhead: '{count} personer · snitt {avg} år',
       averageLabel: 'Snitt',
       longestLabel: 'Lengst ansatt',
-      longestAt: 'Lengst hos {org}',
     },
   },
   summer: {

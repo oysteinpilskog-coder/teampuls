@@ -475,9 +475,10 @@ export const lt: Dictionary = {
       lessThanOneYear: 'mažiau nei 1 m.',
       peopleLabel: 'Žmonės',
       combinedLabel: 'Iš viso',
+      combinedAt: 'Iš viso {org}',
+      combinedSubhead: '{count} žmonių · vid. {avg} m.',
       averageLabel: 'Vidutiniškai',
       longestLabel: 'Ilgiausias stažas',
-      longestAt: 'Ilgiausiai dirba {org}',
     },
   },
   summer: {
