@@ -18,7 +18,7 @@ export default async function DashboardBrandPage() {
   if (!member) redirect('/')
 
   const orgIds = combinedScope?.org_ids ?? [member.org_id]
-  const headerOrgId = activeWorkspace?.id ?? member.org_id
+  const headerOrgId = activeWorkspace?.org_id ?? member.org_id
 
   const supabase = await createClient()
   const [orgRes, membersRes, officesRes, customersRes] = await Promise.all([
