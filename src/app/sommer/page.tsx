@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
+import { AIInput } from '@/components/ai-input'
 import { SummerView } from '@/components/summer-view'
 import { getSessionMember } from '@/lib/supabase/session'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
@@ -52,8 +53,18 @@ export default async function SommerPage({
       .lte('date', endStr),
   ])
 
+  // Combined-mode hides the AI input — the parser can't disambiguate which
+  // workspace to write into when several share members ("Johan" could
+  // resolve to either side). Same rule as forsiden's HomePage.
+  const showAIInput = !combinedScope
+
   return (
-    <div className="mx-auto max-w-[1320px] px-4 sm:px-6 pt-8 md:pt-12 pb-12">
+    <div className="mx-auto max-w-[1320px] px-4 sm:px-6 pt-8 md:pt-12 pb-12 space-y-6">
+      {showAIInput && (
+        <div className="mx-auto max-w-3xl w-full">
+          <AIInput orgId={member.org_id} />
+        </div>
+      )}
       <Suspense fallback={null}>
         <SummerView
           year={year}
