@@ -41,6 +41,7 @@ const WelcomeView = dynamic(
 )
 import { AuroraBackground } from '@/components/dashboard-views/aurora-background'
 import { OffiviewSignature } from '@/components/brand/offiview-signature'
+import { CalwinMark } from '@/components/brand/calwin-mark'
 import { BrandTransition } from '@/components/brand/brand-transition'
 import { TimezoneStrip } from '@/components/dashboard/timezone-strip'
 import { applyQuietHours, resolveViewDuration, welcomeDwellSec } from '@/lib/dashboard-defaults'
@@ -79,6 +80,12 @@ interface DashboardClientProps {
    *  Seedes inn i `useWeather`-cachen ved første render så TV-en aldri viser
    *  bynavn uten ikon+grader på cold load. */
   initialWeather?: Record<string, WeatherSnapshot>
+  /** When true, applies the CalWin BrandBook skin to the entire rotating
+   *  dashboard — Blue Violet canvas, Silver Gray text, Light Blue accent.
+   *  Read from the `tp_dashboard_mode` cookie in the dashboard server page.
+   *  The full view rotation (Today, Month, Offices, Customers, Wheel,
+   *  Welcome, Globe) keeps its structure; only surface tokens swap. */
+  brandMode?: boolean
 }
 
 type ViewKey = DashboardViewKey
@@ -110,6 +117,7 @@ export function DashboardClient({
   initialOffices,
   initialCustomers,
   initialWeather,
+  brandMode = false,
 }: DashboardClientProps) {
   // Seed klient-cachen FØR noen `OfficeMapLabel` monterer. Idempotent
   // (skriver kun nøkler som ikke alt finnes) så det er trygt å kalle
@@ -683,14 +691,50 @@ export function DashboardClient({
   return (
     <div
       ref={containerRef}
-      className="relative h-screen w-screen overflow-hidden flex flex-col"
-      style={{ backgroundColor: '#050507', color: 'white' }}
+      className={
+        'relative h-screen w-screen overflow-hidden flex flex-col' +
+        (brandMode ? ' tp-dashboard-brand' : '')
+      }
+      data-brand-mode={brandMode ? 'calwin' : undefined}
+      style={
+        brandMode
+          ? ({
+              backgroundColor: '#1F1C52',
+              color: '#EAEAE6',
+              // Overstyrer accent-tokens i hele subtreet — alle barn som leser
+              // var(--accent-color) (Nordlys-klokke, BreathingDot, fokusringer,
+              // glow-skygger osv.) plukker opp CalWin Light Blue automatisk.
+              ['--accent-color' as string]: '#66C4EF',
+              ['--accent-glow' as string]: 'rgba(102, 196, 239, 0.34)',
+              ['--lg-accent' as string]: '#66C4EF',
+              ['--lg-accent-soft' as string]: 'rgba(102, 196, 239, 0.18)',
+              ['--lg-accent-glow' as string]: 'rgba(102, 196, 239, 0.4)',
+              ['--gradient-nordlys-clock' as string]:
+                'linear-gradient(120deg, #66C4EF 0%, #4A4595 55%, #322E7A 100%)',
+            } as React.CSSProperties)
+          : { backgroundColor: '#050507', color: 'white' }
+      }
     >
       {/* Ambient aurora backdrop. The phase prop shifts the base tone with
           time of day — cool morning, neutral midday, golden evening,
           espresso night. Cross-fades for ~4s so the change is felt, not
-          seen. */}
-      <AuroraBackground entries={todayEntries} phase={getDayPhase(time)} />
+          seen. Skipped in CalWin brand mode — the Blue Violet canvas owns
+          the atmosphere there, and aurora's warm bases would clash. */}
+      {!brandMode && (
+        <AuroraBackground entries={todayEntries} phase={getDayPhase(time)} />
+      )}
+      {brandMode && (
+        // Light Blue radial bloom in the corners to echo the brand pattern
+        // from the BrandBook §28 — subtle, never competes with content.
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(circle at 92% 6%, rgba(102,196,239,0.18), transparent 38%), radial-gradient(circle at 6% 94%, rgba(102,196,239,0.10), transparent 42%)',
+          }}
+        />
+      )}
 
       {/* Main content. Two render paths:
           - pendingViewIdx set: BrandTransition owns the screen for ~3.2s.
@@ -884,21 +928,42 @@ export function DashboardClient({
           Alt skjules under BrandTransition så brand-broa er helt ren. */}
       {orgName && (
         <div className="pointer-events-none absolute top-5 left-10 z-50">
-          <p
-            className="leading-none transition-opacity duration-500"
-            style={{
-              opacity: pendingViewIdx === null ? 1 : 0,
-              fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
-              fontWeight: 300,
-              fontStyle: 'italic',
-              fontVariationSettings: '"opsz" 32, "SOFT" 80',
-              fontSize: 30,
-              letterSpacing: '-0.025em',
-              color: 'var(--paper)',
-            }}
-          >
-            {orgName}
-          </p>
+          {brandMode ? (
+            <div
+              className="flex items-center gap-3 transition-opacity duration-500"
+              style={{ opacity: pendingViewIdx === null ? 1 : 0 }}
+            >
+              <CalwinMark size={42} title="CalWin" />
+              <span
+                className="leading-none"
+                style={{
+                  fontFamily: 'var(--font-manrope), Inter, system-ui, sans-serif',
+                  fontWeight: 600,
+                  fontSize: 24,
+                  letterSpacing: '-0.01em',
+                  color: '#EAEAE6',
+                }}
+              >
+                {orgName}
+              </span>
+            </div>
+          ) : (
+            <p
+              className="leading-none transition-opacity duration-500"
+              style={{
+                opacity: pendingViewIdx === null ? 1 : 0,
+                fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+                fontWeight: 300,
+                fontStyle: 'italic',
+                fontVariationSettings: '"opsz" 32, "SOFT" 80',
+                fontSize: 30,
+                letterSpacing: '-0.025em',
+                color: 'var(--paper)',
+              }}
+            >
+              {orgName}
+            </p>
+          )}
         </div>
       )}
       {currentView !== 'A' && (
@@ -919,7 +984,12 @@ export function DashboardClient({
 
       <OffiviewSignature
         ref={signatureRef}
-        visible={pendingViewIdx === null && currentView !== 'A' && currentView !== 'B'}
+        visible={
+          !brandMode &&
+          pendingViewIdx === null &&
+          currentView !== 'A' &&
+          currentView !== 'B'
+        }
         controlBarSafeArea
       />
     </div>

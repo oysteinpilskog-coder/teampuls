@@ -144,14 +144,14 @@ export function ThemeClient() {
           <DashboardModeCard
             id="standard"
             title="Standard"
-            description="Roterende multi-view (Nå · Måned · Kontorene · Kunder · Hjul · Globe)"
+            description="Original mørk presentasjon — varm aurora, Nordlys-klokke, Offiview-signatur"
             active={dashMode === 'standard'}
             onSelect={() => chooseDashboardMode('standard')}
           />
           <DashboardModeCard
             id="brand"
             title="CalWin-merket"
-            description="Fullskjerm BrandBook-strikt — Blue Violet canvas, prikkesirkel-logo, brand-streker"
+            description="Samme rotasjon (Nå · Måned · Kontorer · Kunder · Hjul · Globe), men på Blue Violet canvas med prikkesirkel-logo og Light Blue accent"
             active={dashMode === 'brand'}
             onSelect={() => chooseDashboardMode('brand')}
           />
@@ -256,7 +256,7 @@ function DashboardModeCard({
         className="mt-2 text-[10.5px] uppercase tracking-[0.18em]"
         style={{ color: active ? 'var(--accent-color)' : 'var(--text-tertiary)' }}
       >
-        {id === 'standard' ? '/dashboard' : '/dashboard → /dashboard-brand'}
+        Brukes på /dashboard
       </div>
     </button>
   )
