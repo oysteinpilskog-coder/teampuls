@@ -4,9 +4,11 @@ import dynamic from 'next/dynamic'
 import { ThemeProvider } from 'next-themes'
 import { Toaster } from 'sonner'
 import { ThemeVariantProvider } from '@/components/theme-variant-provider'
+import { DashboardModeProvider } from '@/components/dashboard-mode-provider'
 import { StatusColorsProvider } from '@/lib/status-colors/context'
 import { WorkspaceProvider } from '@/lib/workspace/context'
 import { PresenceProvider } from '@/lib/presence/context'
+import type { DashboardMode } from '@/lib/dashboard-mode'
 // Modals are dead weight on the first frame — none of them is visible until
 // the user explicitly summons them (⌘K, AI query, install nudge…). Lazy-
 // load so they don't bloat every route's first-load JS.
@@ -42,12 +44,14 @@ export function Providers({
   initialLocale,
   initialWorkspaces,
   initialActiveSlug,
+  initialDashboardMode,
 }: {
   children: React.ReactNode
   initialStatusColors?: StatusColorsPayload | null
   initialLocale?: Locale
   initialWorkspaces: WorkspaceSummary[]
   initialActiveSlug: string | null
+  initialDashboardMode: DashboardMode
 }) {
   return (
     // Offiview: marketing/product default to light (Paper). Users can toggle
@@ -60,6 +64,7 @@ export function Providers({
       disableTransitionOnChange
     >
       <ThemeVariantProvider>
+        <DashboardModeProvider initialMode={initialDashboardMode}>
         <StatusColorsProvider initialColors={initialStatusColors}>
           <I18nProvider initialLocale={initialLocale}>
             <WorkspaceProvider
@@ -97,6 +102,7 @@ export function Providers({
             </WorkspaceProvider>
           </I18nProvider>
         </StatusColorsProvider>
+        </DashboardModeProvider>
       </ThemeVariantProvider>
     </ThemeProvider>
   )

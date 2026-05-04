@@ -1,5 +1,14 @@
 'use client'
 
+import { useDashboardMode } from '@/components/dashboard-mode-provider'
+
+/** CalWin Light Blue (BrandBook §3) — RGB 101/195/238. Used as the
+ *  uniform avatar tint when "CalWin-merket" dashboard mode is active so
+ *  every member icon reads as part of the corporate identity. */
+const CALWIN_LIGHT_BLUE = '#65C3EE'
+const CALWIN_LIGHT_BLUE_HI = '#8AD3F2'
+const CALWIN_LIGHT_BLUE_LO = '#3FA9DC'
+
 function stringToHue(str: string): number {
   let hash = 0
   for (let i = 0; i < str.length; i++) {
@@ -44,7 +53,8 @@ export function MemberAvatar({
   className = '',
 }: MemberAvatarProps) {
   const { px, text } = SIZE_MAP[size]
-  const hue = stringToHue(name)
+  const { mode } = useDashboardMode()
+  const isBrand = mode === 'brand'
 
   if (avatarUrl) {
     return (
@@ -60,16 +70,28 @@ export function MemberAvatar({
     )
   }
 
+  // CalWin-merket: every initials avatar wears the brand Light Blue so the
+  // entire app reads as a single corporate identity. Standard mode keeps
+  // the per-name hashed gradient that gives each teammate a recognizable
+  // tint at a glance.
+  const hue = stringToHue(name)
   const hue2 = (hue + 35) % 360
+  const background = isBrand
+    ? `linear-gradient(135deg, ${CALWIN_LIGHT_BLUE_HI}, ${CALWIN_LIGHT_BLUE_LO})`
+    : `linear-gradient(135deg, hsl(${hue}, 70%, 56%), hsl(${hue2}, 65%, 42%))`
+  const boxShadow = isBrand
+    ? `0 3px 10px -2px ${CALWIN_LIGHT_BLUE}66, inset 0 1px 0 rgba(255,255,255,0.25)`
+    : `0 3px 10px -2px hsla(${hue}, 65%, 45%, 0.4), inset 0 1px 0 rgba(255,255,255,0.25)`
+
   return (
     <div
       className={`relative rounded-full flex items-center justify-center text-white font-semibold shrink-0 select-none ${className}`}
       style={{
         width: px,
         height: px,
-        background: `linear-gradient(135deg, hsl(${hue}, 70%, 56%), hsl(${hue2}, 65%, 42%))`,
+        background,
         fontSize: text,
-        boxShadow: `0 3px 10px -2px hsla(${hue}, 65%, 45%, 0.4), inset 0 1px 0 rgba(255,255,255,0.25)`,
+        boxShadow,
         letterSpacing: '-0.02em',
       }}
       title={name}
