@@ -77,6 +77,11 @@ export interface Organization {
   anniversaries_enabled?: boolean
   /** Org-wide kill switch for the quarterly-strategy wheel surface. */
   strategies_enabled?: boolean
+  /** Org-wide kill switch for the main "events" wheel (company events, holidays, collective periods). */
+  events_enabled?: boolean
+  /** Which wheel tab opens by default when visiting /wheel without ?view=.
+   *  Falls back to the first enabled view if the saved default is disabled. */
+  wheel_default_view?: 'events' | 'strategy' | 'birthdays' | 'anniversaries'
   /** Ukentlig statusmail — master-bryter. Sender-jobben fyrer kun når denne er TRUE. */
   weekly_email_enabled?: boolean
   /** ISO-ukedag (1=mandag, 7=søndag) for utsendelse. */

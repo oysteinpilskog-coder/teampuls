@@ -14,22 +14,27 @@ export default async function WheelPage() {
   const supabase = await createSupabaseServerClient()
   const { data: org } = await supabase
     .from('organizations')
-    .select('birthdays_enabled, anniversaries_enabled, strategies_enabled')
+    .select('events_enabled, birthdays_enabled, anniversaries_enabled, strategies_enabled, wheel_default_view')
     .eq('id', member.org_id)
     .maybeSingle()
 
+  const eventsEnabled = org?.events_enabled !== false
   const birthdaysEnabled = org?.birthdays_enabled !== false
   const anniversariesEnabled = org?.anniversaries_enabled !== false
   const strategiesEnabled = org?.strategies_enabled !== false
+  const defaultView = (org?.wheel_default_view ?? 'events') as
+    | 'events' | 'birthdays' | 'anniversaries' | 'strategy'
 
   return (
     <div className="mx-auto max-w-[1220px] px-4 sm:px-6 pt-10 md:pt-14 pb-10 md:pb-12">
       <Suspense fallback={<WheelFallback />}>
         <WheelShell
           orgId={member.org_id}
+          eventsEnabled={eventsEnabled}
           birthdaysEnabled={birthdaysEnabled}
           anniversariesEnabled={anniversariesEnabled}
           strategiesEnabled={strategiesEnabled}
+          defaultView={defaultView}
         />
       </Suspense>
     </div>
