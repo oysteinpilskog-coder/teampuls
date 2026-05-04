@@ -249,7 +249,7 @@ function Header({
           Historikk · {weeks} uker
         </div>
         <h2
-          className="lg-serif leading-none"
+          className="calwin-bar lg-serif leading-none"
           style={{
             color: 'var(--lg-text-1)',
             fontSize: 'clamp(28px, 3.4vw, 40px)',

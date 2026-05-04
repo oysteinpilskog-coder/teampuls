@@ -565,7 +565,7 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
           <div className="min-w-0">
             <div className="lg-eyebrow mb-1.5">{memberName}</div>
             <h1
-              className="lg-serif leading-[0.95]"
+              className="calwin-bar lg-serif leading-[0.95]"
               style={{
                 color: 'var(--lg-text-1)',
                 fontSize: 'clamp(40px, 5vw, 56px)',
