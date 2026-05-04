@@ -420,6 +420,44 @@
     font-family: var(--font-fraunces), Inter, system-ui, sans-serif;
   }
 
+  /* CalWin BrandBook signature bar — horizontal accent strip under
+     section headings. The brandbook uses these as a strong visual hook
+     beneath every chapter heading ("1. Logotype", "About Us", etc.).
+     Default: Light Blue (the primary accent — pops on Silver and on
+     Blue Violet alike). `--soft` variant: Silver Gray for quieter
+     supporting headings. */
+  .calwin-bar {
+    position: relative;
+    padding-bottom: 0.55em;
+  }
+  .calwin-bar::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 6.5em;
+    max-width: 100%;
+    height: 5px;
+    border-radius: 2px;
+    background: var(--ember);
+    pointer-events: none;
+  }
+  .calwin-bar--soft::after {
+    background: var(--stone);
+    opacity: 0.85;
+  }
+  .dark .calwin-bar--soft::after {
+    background: var(--paper);
+    opacity: 0.55;
+  }
+  .calwin-bar--ink::after {
+    background: var(--ink);
+  }
+  .dark .calwin-bar--ink::after {
+    background: var(--paper);
+    opacity: 0.7;
+  }
+
   /* "Italic ember-word" slot — Inter italic. The class name is preserved
      so existing component markup keeps resolving without a sweep. */
   .font-serif-italic {

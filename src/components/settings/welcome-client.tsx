@@ -338,7 +338,7 @@ export function WelcomeClient({
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
         <div className="min-w-0">
           <h1
-            className="text-[24px] font-semibold"
+            className="calwin-bar text-[24px] font-semibold"
             style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-fraunces)' }}
           >
             {t.settings.welcome.title}
