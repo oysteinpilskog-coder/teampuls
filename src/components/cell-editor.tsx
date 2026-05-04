@@ -186,6 +186,11 @@ export function CellEditor({
     setSaving(false)
     if (error) {
       toast.error(t.aiInput.error)
+    } else {
+      // Same-tab sync hint — other surfaces (Sommer, my-plan, presence
+      // heatmap) refetch immediately instead of waiting for realtime.
+      // Mirrors ai-input.tsx.
+      window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
     }
 
     // If the user is correcting an AI-written entry into something materially
@@ -279,6 +284,8 @@ export function CellEditor({
     setSaving(false)
     if (error) {
       toast.error(t.aiInput.error)
+    } else {
+      window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
     }
     await onMutated?.()
   }

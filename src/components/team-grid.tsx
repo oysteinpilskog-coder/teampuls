@@ -674,6 +674,9 @@ export function TeamGrid({
             .in('date', toDelete)
         }
         await refetch()
+        // Same-tab sync hint — Sommer / my-plan / heatmap refetch
+        // immediately instead of waiting for realtime to catch up.
+        window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
         return
       }
 
@@ -750,6 +753,7 @@ export function TeamGrid({
             .in('date', toDelete)
         }
         await refetch()
+        window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
         return
       }
 
