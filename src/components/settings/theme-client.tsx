@@ -8,6 +8,11 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { useThemeVariant } from '@/components/theme-variant-provider'
 import { CalwinMark } from '@/components/brand/calwin-mark'
+import {
+  getDashboardMode,
+  setDashboardMode,
+  type DashboardMode,
+} from '@/lib/dashboard-mode'
 import { spring } from '@/lib/motion'
 import { THEMES, type ThemeId, type ThemeMeta } from '@/lib/themes'
 
@@ -15,8 +20,29 @@ export function ThemeClient() {
   const { variant, setVariant } = useThemeVariant()
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const [dashMode, setDashMode] = useState<DashboardMode>('standard')
 
-  useEffect(() => setMounted(true), [])
+  useEffect(() => {
+    setMounted(true)
+    setDashMode(getDashboardMode())
+  }, [])
+
+  function chooseDashboardMode(next: DashboardMode) {
+    if (next === dashMode) return
+    setDashMode(next)
+    setDashboardMode(next)
+    toast.success(
+      next === 'brand'
+        ? 'CalWin-merket dashboard er satt som standard'
+        : 'Standard dashboard er gjenopprettet',
+      {
+        description:
+          next === 'brand'
+            ? '/dashboard åpner nå CalWin-versjonen'
+            : '/dashboard viser den roterende versjonen som før',
+      },
+    )
+  }
 
   function choose(id: ThemeId, meta: ThemeMeta) {
     if (id === variant) return
@@ -159,6 +185,53 @@ export function ThemeClient() {
             />
           </div>
         </Link>
+
+        {/* Default-velger: hvilken variant /dashboard skal lande på.
+            Cookie-basert (lest server-side i /dashboard/page.tsx), så valget
+            følger nettleseren – ingen DB-migrering. Hydration-trygg uten
+            mounted-gate fordi initial state er 'standard' og cookie-lesing
+            først skjer i useEffect. */}
+        <div
+          className="mt-4 flex rounded-xl p-1 w-fit"
+          style={{
+            backgroundColor: 'var(--bg-subtle)',
+            border: '1px solid var(--border-subtle)',
+          }}
+          suppressHydrationWarning
+        >
+          {(['standard', 'brand'] as const).map((opt) => {
+            const active = dashMode === opt
+            return (
+              <button
+                key={opt}
+                onClick={() => chooseDashboardMode(opt)}
+                className="relative px-4 py-1.5 text-[12px] font-medium transition-colors"
+                style={{
+                  color: active ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                }}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="dashboard-default-pill"
+                    className="absolute inset-0 rounded-lg"
+                    style={{ backgroundColor: 'var(--bg-elevated)', boxShadow: 'var(--shadow-sm)' }}
+                    transition={spring.snappy}
+                  />
+                )}
+                <span className="relative">
+                  {opt === 'standard' ? 'Standard /dashboard' : 'CalWin som standard'}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <p
+          className="text-[11.5px] mt-2"
+          style={{ color: 'var(--text-tertiary)' }}
+        >
+          Velg hvilken variant <code style={{ fontFamily: 'var(--font-body)' }}>/dashboard</code>
+          {' '}skal åpne. Innstillingen lagres i en cookie i nettleseren.
+        </p>
       </div>
     </div>
   )

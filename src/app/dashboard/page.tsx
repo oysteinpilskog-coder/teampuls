@@ -1,11 +1,21 @@
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { DashboardClient } from '@/components/dashboard-client'
 import { getSessionMember } from '@/lib/supabase/session'
 import { createClient } from '@/lib/supabase/server'
 import { resolveLocation } from '@/lib/geo'
 import { fetchOfficeWeatherMap } from '@/lib/weather/fetch-weather'
+import { DASHBOARD_MODE_COOKIE } from '@/lib/dashboard-mode'
 
 export default async function DashboardPage() {
+  // Per-browser preference: when the cookie says "brand", redirect to the
+  // CalWin BrandBook dashboard. The standard rotating dashboard is the
+  // fallback so existing users see no change unless they opt in.
+  const cookieStore = await cookies()
+  if (cookieStore.get(DASHBOARD_MODE_COOKIE)?.value === 'brand') {
+    redirect('/dashboard-brand')
+  }
+
   const { user, member, activeWorkspace, combinedScope } = await getSessionMember()
   if (!user) redirect('/login')
   if (!member) redirect('/')
