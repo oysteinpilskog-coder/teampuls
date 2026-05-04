@@ -1378,11 +1378,21 @@ export function TeamGrid({
                   return <GroupDivider key={row.key} />
                 }
                 const { member, rowIdx } = row
+                // Hairline above each row except the first — gives the
+                // matrix horizontal "rules" so it's easy to scan across
+                // a row and see which day belongs to which person. Same
+                // soft divider token used by the org GroupDivider for
+                // visual coherence.
+                const showDivider = rowIdx > 0
                 return (
                   <motion.div
                     key={member.id}
                     className="relative grid gap-2 items-center"
-                    style={{ gridTemplateColumns: GRID_COLS }}
+                    style={{
+                      gridTemplateColumns: GRID_COLS,
+                      borderTop: showDivider ? '1px solid var(--lg-divider-soft)' : undefined,
+                      paddingTop: showDivider ? 6 : undefined,
+                    }}
                     initial={{ y: 16, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     transition={{ ...spring.gentle, delay: rowIdx * 0.04 }}

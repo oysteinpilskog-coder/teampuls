@@ -691,13 +691,19 @@ function Row({
   const ghostLeft = drag ? colPct(ghostLo) : 0
   const ghostWidth = drag ? colPct(ghostHi - ghostLo + 1) : 0
 
+  // Hairline above each row except the first — same divider treatment
+  // as Oversikt's TeamGrid so it's easy to scan across a long row of
+  // weekdays and see which date belongs to which person.
+  const showDivider = idx > 0
   return (
     <motion.div
       className="grid items-center"
       style={{
         gridTemplateColumns: `${NAME_COL}px 1fr`,
-        height: ROW_H,
+        height: showDivider ? ROW_H + 7 : ROW_H,
         opacity: hasVacation ? 1 : 0.62,
+        borderTop: showDivider ? '1px solid var(--lg-divider-soft)' : undefined,
+        paddingTop: showDivider ? 6 : undefined,
       }}
       initial={reduce ? { opacity: hasVacation ? 1 : 0.62 } : { opacity: 0, x: -6 }}
       animate={{ opacity: hasVacation ? 1 : 0.62, x: 0 }}
