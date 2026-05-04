@@ -477,6 +477,7 @@ export const es: Dictionary = {
       combinedLabel: 'Total',
       combinedAt: 'Total en {org}',
       combinedSubhead: '{count} personas · promedio {avg} años',
+      monthsAbbr: 'mes',
       averageLabel: 'Promedio',
       longestLabel: 'Más antiguo',
     },
