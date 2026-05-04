@@ -4,6 +4,7 @@ import { SummerView } from '@/components/summer-view'
 import { getSessionMember } from '@/lib/supabase/session'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import { toDateString } from '@/lib/dates'
+import type { MemberRole } from '@/lib/supabase/types'
 
 const MIN_YEAR = 2020
 const MAX_YEAR = 2099
@@ -57,6 +58,8 @@ export default async function SommerPage({
         <SummerView
           year={year}
           orgIds={orgIds}
+          currentMemberId={member.id}
+          currentMemberRole={(member.role ?? 'member') as MemberRole}
           initialMembers={membersRes.data ?? []}
           initialEntries={entriesRes.data ?? []}
         />

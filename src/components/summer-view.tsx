@@ -1,21 +1,27 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useTheme } from 'next-themes'
 import { addDays, getISOWeek } from 'date-fns'
+import { toast } from 'sonner'
 import { useEntries } from '@/hooks/use-entries'
 import { useT } from '@/lib/i18n/context'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { MemberAvatar } from '@/components/member-avatar'
+import { createClient } from '@/lib/supabase/client'
 import { toDateString } from '@/lib/dates'
 import { spring, ease } from '@/lib/motion'
-import type { Entry, Member } from '@/lib/supabase/types'
+import type { Entry, Member, MemberRole } from '@/lib/supabase/types'
 
 interface SummerViewProps {
   year: number
   orgIds: string[]
+  /** UUID of the signed-in user's membership in this org. Used to gate
+   *  drag-create to "your own row" unless the user is an admin. */
+  currentMemberId: string
+  currentMemberRole: MemberRole
   initialMembers: Member[]
   initialEntries: Entry[]
 }
@@ -36,7 +42,10 @@ interface MemberRow {
   totalDays: number
 }
 
-export function SummerView({ year, orgIds, initialMembers, initialEntries }: SummerViewProps) {
+export function SummerView({
+  year, orgIds, currentMemberId, currentMemberRole,
+  initialMembers, initialEntries,
+}: SummerViewProps) {
   const t = useT()
   const router = useRouter()
   const pathname = usePathname()
@@ -62,7 +71,83 @@ export function SummerView({ year, orgIds, initialMembers, initialEntries }: Sum
     return out
   }, [range])
 
-  const { entries } = useEntries(orgIds, dateStrings, { initial: initialEntries })
+  const { entries, applyOptimistic, refetch } = useEntries(orgIds, dateStrings, { initial: initialEntries })
+
+  // Resolve which org the dragged member belongs to. In combined-mode the
+  // page passes multiple orgIds, but a single member only lives in one.
+  const orgIdByMember = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const m of initialMembers) map.set(m.id, m.org_id)
+    return map
+  }, [initialMembers])
+
+  // Drag-create commit: write a contiguous vacation block for one member.
+  // Optimistic-paint first, then UPSERT, then broadcast so other live
+  // surfaces (matrix, my-plan, dashboard) stay in lockstep.
+  const commitVacation = useCallback(async (
+    memberId: string,
+    startDay: number,
+    endDay: number,
+    memberName: string,
+  ) => {
+    const lo = Math.min(startDay, endDay)
+    const hi = Math.max(startDay, endDay)
+    const memberOrgId = orgIdByMember.get(memberId) ?? orgIds[0]
+    const dates: string[] = []
+    for (let i = lo; i <= hi; i++) {
+      dates.push(toDateString(addDays(range.start, i)))
+    }
+    if (dates.length === 0) return
+
+    // Paint immediately — replace any non-vacation rows the user had on
+    // these dates with vacation rows. Other statuses stay overwritten,
+    // matching the cell-editor's UPSERT semantics.
+    const nowIso = new Date().toISOString()
+    applyOptimistic((prev) => {
+      const keep = prev.filter(e => !(e.member_id === memberId && dates.includes(e.date)))
+      const added: Entry[] = dates.map(d => ({
+        id: `optimistic-${memberId}-${d}`,
+        org_id: memberOrgId,
+        member_id: memberId,
+        date: d,
+        status: 'vacation',
+        location_label: null,
+        note: null,
+        source: 'manual',
+        source_text: null,
+        confidence: null,
+        created_by: null,
+        created_at: nowIso,
+        updated_at: nowIso,
+      }))
+      return [...keep, ...added]
+    })
+
+    const suffix = dates.length === 1 ? '' : ` · ${dates.length} ${t.summer.dayMany}`
+    toast.success(`${t.status.vacation} — ${memberName}${suffix}`)
+
+    const supabase = createClient()
+    const rows = dates.map(d => ({
+      org_id: memberOrgId,
+      member_id: memberId,
+      date: d,
+      status: 'vacation' as const,
+      location_label: null,
+      note: null,
+      source: 'manual' as const,
+      confidence: null,
+    }))
+    const { error } = await supabase
+      .from('entries')
+      .upsert(rows, { onConflict: 'org_id,member_id,date' })
+    if (error) {
+      toast.error(t.summer.dragError)
+      await refetch()
+      return
+    }
+    // Mirror ai-input.tsx — realtime can lag so emit a sync-now broadcast.
+    window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
+  }, [orgIdByMember, orgIds, range.start, applyOptimistic, refetch, t.status.vacation, t.summer.dayMany, t.summer.dragError])
 
   // Per-member vacation blocks. We collapse consecutive vacation days into
   // a single visual block — including weekends, since "uke 28" reads as one
@@ -205,6 +290,9 @@ export function SummerView({ year, orgIds, initialMembers, initialEntries }: Sum
         barGlow={barGlow}
         isLight={isLight}
         reduce={!!reduce}
+        currentMemberId={currentMemberId}
+        currentMemberRole={currentMemberRole}
+        commitVacation={commitVacation}
         t={t}
       />
     </div>
@@ -345,6 +433,9 @@ interface TimelineProps {
   barGlow: string
   isLight: boolean
   reduce: boolean
+  currentMemberId: string
+  currentMemberRole: MemberRole
+  commitVacation: (memberId: string, startDay: number, endDay: number, memberName: string) => void | Promise<void>
   t: ReturnType<typeof useT>
 }
 
@@ -354,8 +445,11 @@ const ROW_H = 52
 function Timeline({
   range, memberRows, monthSpans, weekTicks, coverage,
   peak, peakLabel, todayInRange, todayDayOffset, totalActiveMembers,
-  barGradient, barGlow, isLight, reduce, t,
+  barGradient, barGlow, isLight, reduce,
+  currentMemberId, currentMemberRole, commitVacation,
+  t,
 }: TimelineProps) {
+  const canEditAny = currentMemberRole === 'admin'
   const total = range.totalDays
   const dayPct = (n: number) => (n / total) * 100
 
@@ -507,19 +601,26 @@ function Timeline({
           </div>
         ) : (
           <div className="flex flex-col">
-            {memberRows.map((row, idx) => (
-              <Row
-                key={row.member.id}
-                row={row}
-                idx={idx}
-                dayPct={dayPct}
-                barGradient={barGradient}
-                barGlow={barGlow}
-                isLight={isLight}
-                reduce={reduce}
-                t={t}
-              />
-            ))}
+            {memberRows.map((row, idx) => {
+              const editable = canEditAny || row.member.id === currentMemberId
+              return (
+                <Row
+                  key={row.member.id}
+                  row={row}
+                  idx={idx}
+                  totalDays={range.totalDays}
+                  dayPct={dayPct}
+                  barGradient={barGradient}
+                  barGlow={barGlow}
+                  isLight={isLight}
+                  reduce={reduce}
+                  editable={editable}
+                  isSelf={row.member.id === currentMemberId}
+                  commitVacation={commitVacation}
+                  t={t}
+                />
+              )
+            })}
           </div>
         )}
       </div>
@@ -539,21 +640,76 @@ function Timeline({
 }
 
 function Row({
-  row, idx, dayPct, barGradient, barGlow, isLight, reduce, t,
+  row, idx, totalDays, dayPct, barGradient, barGlow, isLight, reduce,
+  editable, isSelf, commitVacation, t,
 }: {
   row: MemberRow
   idx: number
+  totalDays: number
   dayPct: (n: number) => number
   barGradient: [string, string]
   barGlow: string
   isLight: boolean
   reduce: boolean
+  editable: boolean
+  isSelf: boolean
+  commitVacation: (memberId: string, startDay: number, endDay: number, memberName: string) => void | Promise<void>
   t: ReturnType<typeof useT>
 }) {
+  const trackRef = useRef<HTMLDivElement | null>(null)
+  const [drag, setDrag] = useState<{ startDay: number; endDay: number } | null>(null)
   const hasVacation = row.blocks.length > 0
+
+  // Map a clientX to a 0..(totalDays-1) day index based on the track rect.
+  // Recomputed on every move so a mid-drag scroll/resize doesn't drift.
+  const pointerToDay = useCallback((clientX: number): number => {
+    const el = trackRef.current
+    if (!el) return 0
+    const rect = el.getBoundingClientRect()
+    const ratio = (clientX - rect.left) / Math.max(rect.width, 1)
+    const day = Math.floor(ratio * totalDays)
+    return Math.max(0, Math.min(totalDays - 1, day))
+  }, [totalDays])
+
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (!editable) return
+    if (e.button !== 0) return
+    // Skip if the press started on an existing block (block is a child of the
+    // track). Empty-area presses target the track itself.
+    if (e.target !== e.currentTarget) return
+    e.preventDefault()
+    const day = pointerToDay(e.clientX)
+    setDrag({ startDay: day, endDay: day })
+    try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* noop */ }
+  }
+
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!drag) return
+    const day = pointerToDay(e.clientX)
+    setDrag(prev => (prev && prev.endDay !== day) ? { ...prev, endDay: day } : prev)
+  }
+
+  function handlePointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (!drag) return
+    const { startDay, endDay } = drag
+    setDrag(null)
+    try { e.currentTarget.releasePointerCapture(e.pointerId) } catch { /* noop */ }
+    void commitVacation(row.member.id, startDay, endDay, row.member.display_name)
+  }
+
+  function handlePointerCancel() {
+    setDrag(null)
+  }
+
+  const ghostLo = drag ? Math.min(drag.startDay, drag.endDay) : 0
+  const ghostHi = drag ? Math.max(drag.startDay, drag.endDay) : 0
+  const ghostDays = drag ? ghostHi - ghostLo + 1 : 0
+  const ghostLeft = drag ? dayPct(ghostLo) : 0
+  const ghostWidth = drag ? Math.max(dayPct(ghostHi - ghostLo + 1), 1.4) : 0
+
   return (
     <motion.div
-      className="grid items-center"
+      className="grid items-center group"
       style={{
         gridTemplateColumns: `${NAME_COL} 1fr`,
         height: ROW_H,
@@ -573,10 +729,24 @@ function Row({
         />
         <div className="min-w-0">
           <div
-            className="truncate text-[13px] font-medium"
+            className="truncate text-[13px] font-medium flex items-center gap-1"
             style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
           >
-            {row.member.display_name}
+            <span className="truncate">{row.member.display_name}</span>
+            {isSelf && (
+              <span
+                aria-hidden
+                className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.12em] px-1 py-px rounded"
+                style={{
+                  color: 'var(--text-tertiary)',
+                  background: 'color-mix(in oklab, var(--bg-subtle) 70%, transparent)',
+                  border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+                  letterSpacing: '0.08em',
+                }}
+              >
+                {t.summer.youBadge}
+              </span>
+            )}
           </div>
           {hasVacation && (
             <div
@@ -589,8 +759,20 @@ function Row({
         </div>
       </div>
 
-      {/* Bars track */}
-      <div className="relative h-full">
+      {/* Bars track — also the drag-create surface when editable. */}
+      <div
+        ref={trackRef}
+        className="relative h-full"
+        style={{
+          cursor: editable ? (drag ? 'grabbing' : 'crosshair') : 'default',
+          touchAction: editable ? 'none' : 'auto',
+        }}
+        title={editable && !drag ? t.summer.dragHint : undefined}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+      >
         {row.blocks.map((b, i) => {
           const left = dayPct(b.startDay)
           // Inclusive width: span = endDay - startDay + 1
@@ -653,6 +835,35 @@ function Row({
             </motion.div>
           )
         })}
+
+        {/* Drag-create ghost — pointer-events:none so it doesn't fight the
+            pointermove on the track underneath. Renders only while a drag
+            is in progress. */}
+        {drag && (
+          <div
+            className="absolute top-1/2 -translate-y-1/2 rounded-full pointer-events-none overflow-hidden"
+            style={{
+              left: `${ghostLeft}%`,
+              width: `${ghostWidth}%`,
+              height: 30,
+              background: `linear-gradient(180deg, ${barGradient[0]}, ${barGradient[1]})`,
+              boxShadow: `0 6px 18px ${hexToRgba(barGlow, 0.5)}, 0 0 0 1px ${hexToRgba(barGlow, 0.55)} inset, inset 0 1px 0 rgba(255,255,255,0.4)`,
+              opacity: 0.92,
+            }}
+          >
+            <div
+              className="relative h-full flex items-center justify-center text-[11px] font-semibold whitespace-nowrap"
+              style={{
+                color: isLight ? 'rgba(255,255,255,0.98)' : 'rgba(255,255,255,0.95)',
+                textShadow: '0 1px 2px rgba(0,0,0,0.22)',
+                fontFamily: 'var(--font-body)',
+                letterSpacing: '0.01em',
+              }}
+            >
+              {ghostDays}{' '}{ghostDays === 1 ? t.summer.dayOne : t.summer.dayMany}
+            </div>
+          </div>
+        )}
       </div>
     </motion.div>
   )
