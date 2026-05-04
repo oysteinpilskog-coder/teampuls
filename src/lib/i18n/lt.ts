@@ -477,6 +477,7 @@ export const lt: Dictionary = {
       combinedLabel: 'Iš viso',
       combinedAt: 'Iš viso {org}',
       combinedSubhead: '{count} žmonių · vid. {avg} m.',
+      monthsAbbr: 'mėn.',
       averageLabel: 'Vidutiniškai',
       longestLabel: 'Ilgiausias stažas',
     },

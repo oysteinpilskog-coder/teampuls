@@ -477,6 +477,7 @@ export const sv: Dictionary = {
       combinedLabel: 'Totalt',
       combinedAt: 'Totalt hos {org}',
       combinedSubhead: '{count} personer · snitt {avg} år',
+      monthsAbbr: 'mån',
       averageLabel: 'Snitt',
       longestLabel: 'Längst anställd',
     },

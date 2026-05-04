@@ -475,6 +475,7 @@ export const no = {
       combinedLabel: 'Samlet',
       combinedAt: 'Samlet hos {org}',
       combinedSubhead: '{count} personer · snitt {avg} år',
+      monthsAbbr: 'mnd',
       averageLabel: 'Snitt',
       longestLabel: 'Lengst ansatt',
     },

@@ -33,21 +33,22 @@ export function AnniversaryTimeline({ orgId }: { orgId: string }) {
 
   const stats = useMemo(() => {
     if (tenureRanked.length === 0) {
-      return { max: 1, longest: null, totalYears: 0, avgYears: 0, ticks: [] as number[] }
+      return { max: 1, longest: null, totalMonths: 0, avgYears: 0, ticks: [] as number[] }
     }
     let exactMax = 1
-    let totalYears = 0
+    let totalMonths = 0
     for (const r of tenureRanked) {
-      const exact = r.completedYears + monthsSince(r.startDate, today) / 12
-      totalYears += exact
+      const m = monthsSince(r.startDate, today)
+      totalMonths += m
+      const exact = m / 12
       if (exact > exactMax) exactMax = exact
     }
     const max = niceCeil(exactMax)
     return {
       max,
       longest: tenureRanked[0],
-      totalYears,
-      avgYears: totalYears / tenureRanked.length,
+      totalMonths,
+      avgYears: (totalMonths / 12) / tenureRanked.length,
       ticks: niceTicks(max),
     }
   }, [tenureRanked, today])
@@ -80,7 +81,7 @@ export function AnniversaryTimeline({ orgId }: { orgId: string }) {
 
       <Hero
         longest={stats.longest!}
-        totalYears={stats.totalYears}
+        totalMonths={stats.totalMonths}
         avgYears={stats.avgYears}
         memberCount={tenureRanked.length}
         orgName={orgName}
@@ -148,10 +149,10 @@ function Aurora({ accent }: { accent: string }) {
 // ─── Hero ─────────────────────────────────────────────────────────
 
 function Hero({
-  longest, totalYears, avgYears, memberCount, orgName, accent, t, today,
+  longest, totalMonths, avgYears, memberCount, orgName, accent, t, today,
 }: {
   longest: DerivedAnniversary
-  totalYears: number
+  totalMonths: number
   avgYears: number
   memberCount: number
   orgName: string
@@ -162,7 +163,9 @@ function Hero({
   const initials = longest.member.initials ?? longest.member.display_name.slice(0, 2).toUpperCase()
   const longestYears = longest.completedYears
   const yearWord = stripYearWord(t.wheel.anniversaries.yearsLabel)
-  const totalRounded = Math.round(totalYears)
+  const monthWord = t.wheel.anniversaries.monthsAbbr
+  const totalYearsInt = Math.floor(totalMonths / 12)
+  const totalMonthsRem = Math.round(totalMonths % 12)
   const combinedLabel = orgName
     ? t.wheel.anniversaries.combinedAt.replace('{org}', orgName)
     : t.wheel.anniversaries.combinedLabel
@@ -183,8 +186,9 @@ function Hero({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-8 gap-x-10 items-end">
         <HeroNumber
           eyebrow={combinedLabel}
-          value={totalRounded}
+          value={totalYearsInt}
           suffix={yearWord}
+          extra={totalMonthsRem > 0 ? { value: totalMonthsRem, suffix: monthWord } : undefined}
           accent={accent}
           delay={0}
         >
@@ -252,11 +256,12 @@ function Hero({
 }
 
 function HeroNumber({
-  eyebrow, value, suffix, accent, delay, children,
+  eyebrow, value, suffix, extra, accent, delay, children,
 }: {
   eyebrow: string
   value: number
   suffix: string
+  extra?: { value: number; suffix: string }
   accent: string
   delay: number
   children: React.ReactNode
@@ -273,7 +278,7 @@ function HeroNumber({
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, delay, ease: [0.22, 0.9, 0.33, 1] }}
-        className="leading-none flex items-baseline gap-2"
+        className="leading-none flex items-baseline gap-2 flex-wrap"
         style={{
           fontFamily: 'var(--font-fraunces), Georgia, serif',
           fontStyle: 'italic',
@@ -305,6 +310,43 @@ function HeroNumber({
         >
           {suffix}
         </span>
+        {extra && (
+          <>
+            <span
+              aria-hidden
+              style={{
+                fontSize: 'clamp(18px, 2.2vw, 26px)',
+                color: 'var(--text-tertiary)',
+                fontWeight: 400,
+                opacity: 0.6,
+                margin: '0 0.05em',
+              }}
+            >
+              ·
+            </span>
+            <span
+              className="tabular-nums"
+              style={{
+                fontSize: 'clamp(28px, 4vw, 44px)',
+                color: 'var(--text-secondary)',
+                fontWeight: 400,
+                letterSpacing: '-0.02em',
+              }}
+            >
+              {extra.value}
+            </span>
+            <span
+              style={{
+                fontSize: 'clamp(16px, 2vw, 22px)',
+                color: 'var(--text-tertiary)',
+                fontWeight: 400,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {extra.suffix}
+            </span>
+          </>
+        )}
       </motion.span>
       <div className="mt-1">{children}</div>
     </div>
