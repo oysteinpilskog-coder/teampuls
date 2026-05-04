@@ -1095,7 +1095,17 @@
   transform: translate3d(-9999px, -9999px, 0);
   pointer-events: none;
   font-family: var(--font-body);
-  --tp-stem-h: 28px;
+  /* Defaults — overskrives av JS positionLabels(). dx/dy er offset
+     fra pin (i px) til kortets sentrum. stem-len + stem-angle gir
+     en linje som viftekobler kort tilbake til pinnen i en hvilken
+     som helst retning. Det er denne radielle plasseringen som lar
+     tette klynger (f.eks. CalWins skandinaviske kontorer) spre
+     labels utover som blader fra blomstersentrum i stedet for å
+     stables vertikalt på toppen av hverandre. */
+  --tp-card-dx: 0px;
+  --tp-card-dy: -28px;
+  --tp-stem-len: 28px;
+  --tp-stem-angle: -90deg;
   --tp-status-color: #4ade80;
   opacity: 0;
   transition: opacity 0.45s ease;
@@ -1104,13 +1114,14 @@
 
 .tp-globe-label-stem {
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 0;
-  width: 1px;
-  height: var(--tp-stem-h);
-  transform: translate(-50%, 0);
+  width: var(--tp-stem-len);
+  height: 1px;
+  transform: rotate(var(--tp-stem-angle));
+  transform-origin: 0 50%;
   background: linear-gradient(
-    to top,
+    to right,
     var(--tp-status-color) 0%,
     rgba(255, 255, 255, 0.55) 55%,
     rgba(255, 255, 255, 0) 100%
@@ -1121,8 +1132,8 @@
 .tp-globe-label-card {
   position: absolute;
   left: 0;
-  bottom: var(--tp-stem-h);
-  transform: translate(-50%, 0);
+  top: 0;
+  transform: translate(calc(var(--tp-card-dx) - 50%), calc(var(--tp-card-dy) - 50%));
   display: flex;
   align-items: center;
   gap: 8px;

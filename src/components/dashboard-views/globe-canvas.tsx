@@ -2,6 +2,16 @@
 
 import { useEffect, useRef } from 'react'
 import type { GlobeInstance } from 'globe.gl'
+import * as THREE from 'three'
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
+import {
+  buildAuroraLayer,
+  buildCloudLayer,
+  buildDayNightMaterial,
+  buildShootingStars,
+  findGlobeMesh,
+  sunDirectionAt,
+} from './globe-effects'
 
 /**
  * One office input to the globe. Carries everything we need to render
@@ -217,18 +227,93 @@ export function GlobeCanvas({
       g.arcsData(arcs)
 
       // Initial camera + auto-rotate speed. controls() returns the
-      // OrbitControls instance — three.js convention.
+      // OrbitControls instance — three.js convention. Auto-rotate
+      // skrur vi av fordi kamera-koreografien lenger nede tar over
+      // (drifter mellom kontorer i stedet for konstant spinn).
       g.pointOfView(initialView, 0)
       const controls = g.controls()
-      controls.autoRotate = autoRotateSpeed > 0
-      controls.autoRotateSpeed = autoRotateSpeed
+      controls.autoRotate = false
       // Disable user interaction — TV surface is read-only and we
       // don't want a cleaner bumping the camera off-axis.
       controls.enableZoom = false
       controls.enablePan = false
       controls.enableRotate = false
+      // autoRotateSpeed beholdes i prop-API for bakoverkompatibilitet
+      // men brukes ikke når koreografien er aktiv.
+      void autoRotateSpeed
 
       globeRef.current = g
+
+      // ── WOW-effekter ─────────────────────────────────────────
+      // Hver effekt sitter i sin egen try/catch så en shader-feil
+      // (manglende WebGL-extension etc.) ikke tar ned hele scenen —
+      // pin/arc/ring-lagene drives uavhengig av disse.
+      const scene = g.scene()
+      const renderer = g.renderer()
+
+      // Globe-radius for sky/aurora-skalering. three-globe bruker 100
+      // i default; les fra mesh-en så koden står seg om libben endrer
+      // konvensjon i fremtiden.
+      const earthMesh = findGlobeMesh(scene)
+      let globeRadius = 100
+      if (earthMesh && earthMesh.geometry instanceof THREE.SphereGeometry) {
+        globeRadius = earthMesh.geometry.parameters.radius
+      }
+
+      // 1) Dag/natt-shader på selve globen.
+      let dayNight: ReturnType<typeof buildDayNightMaterial> | null = null
+      try {
+        if (earthMesh) {
+          dayNight = buildDayNightMaterial()
+          earthMesh.material = dayNight.material
+          dayNight.setSunDir(sunDirectionAt(new Date()))
+        }
+      } catch (err) {
+        console.warn('[globe] day/night shader failed:', err)
+      }
+
+      // 2) Volumetriske skyer
+      let clouds: ReturnType<typeof buildCloudLayer> | null = null
+      try {
+        clouds = buildCloudLayer(globeRadius)
+        scene.add(clouds.mesh)
+      } catch (err) {
+        console.warn('[globe] clouds failed:', err)
+      }
+
+      // 3) Nordlys
+      let aurora: ReturnType<typeof buildAuroraLayer> | null = null
+      try {
+        aurora = buildAuroraLayer(globeRadius)
+        scene.add(aurora.group)
+      } catch (err) {
+        console.warn('[globe] aurora failed:', err)
+      }
+
+      // 4) Stjerneskudd langt bak globen.
+      let shooters: ReturnType<typeof buildShootingStars> | null = null
+      try {
+        shooters = buildShootingStars()
+        scene.add(shooters.group)
+      } catch (err) {
+        console.warn('[globe] shooting stars failed:', err)
+      }
+
+      // 5) Bloom-postprocessing — mild så pin-glød og nordlys leser
+      // filmisk uten å tåkelegge tekst i HUD-kortene over canvas.
+      try {
+        const composer = g.postProcessingComposer()
+        const size = renderer.getSize(new THREE.Vector2())
+        const bloom = new UnrealBloomPass(
+          new THREE.Vector2(size.x, size.y),
+          0.45, // strength
+          0.6,  // radius
+          0.85, // threshold — kun lyseste piksler bloomer
+        )
+        composer.addPass(bloom)
+      } catch (err) {
+        console.warn('[globe] bloom failed:', err)
+      }
 
       // Build initial HTML label DOM nodes
       buildLabels(officesRef.current)
@@ -250,8 +335,111 @@ export function GlobeCanvas({
       // ride along; rAF keeps us in sync with the renderer's own
       // cadence. Cost: ~10 trig + DOM transform writes per frame
       // for a dozen offices. Negligible vs the WebGL draw call.
+      // Kamera-koreografi: drift mellom kontorer i 9-sek-segmenter
+      // med 3 sek hold på hver. Vision Pro-environment-stil — øyet
+      // får tid til å lese byen før vi glir videre. Bruker korteste
+      // vinkel-arc for lengdegrad så vi aldri panner gjennom bak-
+      // siden av globen.
+      const initialPose = { ...initialView }
+      interface Segment {
+        startTime: number
+        durationMs: number
+        from: { lat: number; lng: number; altitude: number }
+        to: { lat: number; lng: number; altitude: number }
+      }
+      let segment: Segment | null = null
+      let nextOfficeIdx = 0
+
+      function pickNextTarget(): { lat: number; lng: number; altitude: number } {
+        const list = officesRef.current
+        if (list.length === 0) return { ...initialPose }
+        const target = list[nextOfficeIdx % list.length]
+        nextOfficeIdx++
+        // Hold litt sør for kontoret så pinnen sitter midt i øvre
+        // tredjedel av rammen — leser som «kontoret er der oppe» og
+        // lar HUD-kortene puste på bunnen. Altitude 0.45 matcher
+        // initialView i globe-view.tsx — koreografien holder samme
+        // zoom-nivå hele veien så vi ikke pumper inn/ut og bryter
+        // illusjonen.
+        return { lat: target.lat - 6, lng: target.lng, altitude: 0.45 }
+      }
+
+      function shortestLngDelta(from: number, to: number): number {
+        let d = to - from
+        while (d > 180) d -= 360
+        while (d < -180) d += 360
+        return d
+      }
+
+      function easeInOut(t: number): number {
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+      }
+
+      function startSegment(now: number) {
+        const g2 = globeRef.current
+        if (!g2) return
+        const current = g2.pointOfView()
+        const target = pickNextTarget()
+        segment = {
+          startTime: now,
+          durationMs: 9000,
+          from: { lat: current.lat, lng: current.lng, altitude: current.altitude },
+          to: target,
+        }
+      }
+
       let raf = 0
+      let lastT = performance.now()
+      let totalT = 0
       const tick = () => {
+        const nowMs = performance.now()
+        const dt = Math.min(0.1, (nowMs - lastT) / 1000)
+        lastT = nowMs
+        totalT += dt
+
+        // Sol-retning hver frame — solen flytter seg bare ~0.004°/sek,
+        // men gratis å pushe og holder terminator smooth.
+        const sun = sunDirectionAt(new Date())
+        if (dayNight) dayNight.setSunDir(sun)
+        if (clouds) clouds.setSunDir(sun)
+
+        // Tikke effekter
+        if (clouds) clouds.tick(dt, totalT)
+        if (aurora) aurora.tick(dt, totalT)
+        if (shooters) shooters.tick(dt, totalT)
+
+        // Kamera-koreografi
+        const g2 = globeRef.current
+        if (g2 && officesRef.current.length > 0) {
+          if (!segment) {
+            startSegment(nowMs)
+          } else {
+            const t = (nowMs - segment.startTime) / segment.durationMs
+            if (t >= 1) {
+              // Hold på målet i 3 sek (33% av segment-lengden) før
+              // vi glir videre.
+              if (t >= 1 + 3000 / segment.durationMs) {
+                startSegment(nowMs)
+              } else {
+                g2.pointOfView({ ...segment.to }, 0)
+              }
+            } else {
+              const e = easeInOut(t)
+              const lngDelta = shortestLngDelta(segment.from.lng, segment.to.lng)
+              g2.pointOfView(
+                {
+                  lat: segment.from.lat + (segment.to.lat - segment.from.lat) * e,
+                  lng: segment.from.lng + lngDelta * e,
+                  altitude:
+                    segment.from.altitude +
+                    (segment.to.altitude - segment.from.altitude) * e,
+                },
+                0,
+              )
+            }
+          }
+        }
+
         positionLabels()
         raf = requestAnimationFrame(tick)
       }
@@ -260,6 +448,34 @@ export function GlobeCanvas({
       cleanup = () => {
         cancelAnimationFrame(raf)
         window.removeEventListener('resize', onResize)
+        // Slipp WOW-effekt-ressursene før globe.gl sin destructor —
+        // material/geometry på sky/aurora/shooters er våre, ikke
+        // libben sitt, og lever ellers videre gjennom GC-syklusen.
+        const disposeTree = (m: THREE.Object3D) => {
+          m.traverse(child => {
+            const mesh = child as THREE.Mesh | THREE.Line
+            const geom = (mesh as THREE.Mesh).geometry as THREE.BufferGeometry | undefined
+            if (geom && 'dispose' in geom) geom.dispose()
+            const mat = (mesh as THREE.Mesh).material
+            if (mat) {
+              if (Array.isArray(mat)) mat.forEach(m => m.dispose())
+              else (mat as THREE.Material).dispose()
+            }
+          })
+        }
+        if (clouds) {
+          scene.remove(clouds.mesh)
+          disposeTree(clouds.mesh)
+        }
+        if (aurora) {
+          scene.remove(aurora.group)
+          disposeTree(aurora.group)
+        }
+        if (shooters) {
+          scene.remove(shooters.group)
+          disposeTree(shooters.group)
+        }
+        if (dayNight) dayNight.material.dispose()
         // globe.gl exposes a destructor on the kapsule that releases
         // WebGL resources. The double-cast is because the type from
         // the library doesn't expose it but it exists at runtime —
@@ -426,9 +642,6 @@ export function GlobeCanvas({
         el.style.opacity = '0'
         continue
       }
-      // Measure on the fly — card width tracks the city name length.
-      // Falls back to a generous default if the rect hasn't settled
-      // (first frame after build, usually).
       const cardEl = el.querySelector<HTMLElement>('.tp-globe-label-card')
       let cardW = 130
       let cardH = 30
@@ -448,34 +661,166 @@ export function GlobeCanvas({
       })
     }
 
-    // HQ first, then by ascending screen y (top → bottom). Top-most
-    // gets first claim on its slot; later labels lift if they collide.
-    entries.sort((a, b) => b.priority - a.priority || a.y - b.y)
+    // ── Radial fan-out fra klyngesentrum ────────────────────────
+    // Tette klynger (CalWins Skandinavia-base) blir helt uleselig
+    // hvis vi stabler labelene rett opp — hver label havner i kø
+    // på toppen av den forrige, koblet via en lang vertikal stem.
+    // Dette er den klassiske «labelliste lønnsslip»-effekten.
+    //
+    // I stedet beregner vi tyngdepunktet av alle synlige pins i
+    // skjermrom, og vifter hver label utover langs vektoren fra
+    // centroid → pin. Resultatet leser som blomsterblader fra et
+    // sentrum, ikke en stabel: tette pins får distinkte, divergente
+    // retninger, mens spredte pins beholder sin naturlige posisjon
+    // (vektoren er da bare lenger ut og labelen ender uansett over
+    // pinnen sin).
+    const visibleEntries = entries.filter(e => e.visible)
+    let cx = 0
+    let cy = 0
+    if (visibleEntries.length > 0) {
+      for (const e of visibleEntries) {
+        cx += e.x
+        cy += e.y
+      }
+      cx /= visibleEntries.length
+      cy /= visibleEntries.length
+    }
+
+    // Sortering: HQ først, deretter nærmest centroid først. Det gir
+    // de innerste pinene i en klynge prioritet på sine «naturlige»
+    // korte radier — ytre pins får uansett god plass lenger ute.
+    entries.sort((a, b) => {
+      if (a.priority !== b.priority) return b.priority - a.priority
+      const da = Math.hypot(a.x - cx, a.y - cy)
+      const db = Math.hypot(b.x - cx, b.y - cy)
+      return da - db
+    })
+
+    const PIN_GAP = 18
+    const CARD_GAP = 10
+    // Radier vi prøver i økende rekkefølge før vi gir opp. Mer enn
+    // 5 pass blir dyrt per frame, men tette CalWin-klynger trenger
+    // 3–4 før de finner ledig plass.
+    const RADIUS_STEPS = [1.0, 1.6, 2.4, 3.4, 4.6]
+    // Når et kort havner direkte på centroidet (single-pin eller pin
+    // som tilfeldigvis sitter midt i klyngen), velg en N-vifte i
+    // stedet for en degenerert null-vektor.
+    const FALLBACK_ANGLES: number[] = []
+    for (let i = 0; i < 8; i++) FALLBACK_ANGLES.push((i / 8) * Math.PI * 2 - Math.PI / 2)
 
     const placed: Array<{ x: number; y: number; w: number; h: number }> = []
+
     for (const e of entries) {
-      const baseStemH = 28
-      let stemH = baseStemH
-      const cardLeft = e.x - e.cardW / 2
-      let cardTop = e.y - stemH - e.cardH
-      let attempts = 0
-      while (attempts < 8) {
-        const collides = placed.some(
-          p =>
-            cardLeft < p.x + p.w + 6 &&
-            cardLeft + e.cardW > p.x - 6 &&
-            cardTop < p.y + p.h + 4 &&
-            cardTop + e.cardH > p.y - 4,
-        )
-        if (!collides) break
-        stemH += e.cardH + 6
-        cardTop = e.y - stemH - e.cardH
-        attempts++
+      if (!e.visible) {
+        e.el.style.opacity = '0'
+        continue
       }
+
+      // Retning utover fra klyngesentrum. Hvis pinnen sitter ~på
+      // centroidet (sjelden, men mulig ved single visible pin),
+      // bruker vi en fallback-vifte.
+      const vx0 = e.x - cx
+      const vy0 = e.y - cy
+      const vlen = Math.hypot(vx0, vy0)
+      const baseUx = vlen > 0.5 ? vx0 / vlen : 0
+      const baseUy = vlen > 0.5 ? vy0 / vlen : -1
+      const baseAngle = Math.atan2(baseUy, baseUx)
+
+      // For hver pin prøver vi hovedvektoren først, så litt rotert
+      // til hver side hvis kollisjon. Det gir lokal «justering»
+      // uten å forlate radial-grunnformen. I siste fallback prøver
+      // vi de 8 kompass-vinklene — en pin som ikke får plass noe
+      // sted i klyngen vil i hvert fall finne et hjørne.
+      const angleOffsets = [0, -0.35, 0.35, -0.7, 0.7, -1.05, 1.05]
+
+      let chosenDx = 0
+      let chosenDy = 0
+      let found = false
+
+      outer: for (const scale of RADIUS_STEPS) {
+        for (const off of angleOffsets) {
+          const a = baseAngle + off
+          const ux = Math.cos(a)
+          const uy = Math.sin(a)
+          const r = (e.cardW / 2 + PIN_GAP) * scale
+          const dx = ux * r
+          const dy = uy * r
+          const cardLeft = e.x + dx - e.cardW / 2
+          const cardTop = e.y + dy - e.cardH / 2
+          const collides = placed.some(
+            p =>
+              cardLeft < p.x + p.w + CARD_GAP &&
+              cardLeft + e.cardW > p.x - CARD_GAP &&
+              cardTop < p.y + p.h + CARD_GAP &&
+              cardTop + e.cardH > p.y - CARD_GAP,
+          )
+          if (!collides) {
+            chosenDx = dx
+            chosenDy = dy
+            found = true
+            break outer
+          }
+        }
+      }
+      if (!found) {
+        // Siste forsøk: 8 kompass-retninger på største radius. Hvis
+        // selv det ikke gir plass, skjul labelen i stedet for å
+        // tegne den oppå et annet kort.
+        for (const a of FALLBACK_ANGLES) {
+          const r = (e.cardW / 2 + PIN_GAP) * 4.6
+          const dx = Math.cos(a) * r
+          const dy = Math.sin(a) * r
+          const cardLeft = e.x + dx - e.cardW / 2
+          const cardTop = e.y + dy - e.cardH / 2
+          const collides = placed.some(
+            p =>
+              cardLeft < p.x + p.w + CARD_GAP &&
+              cardLeft + e.cardW > p.x - CARD_GAP &&
+              cardTop < p.y + p.h + CARD_GAP &&
+              cardTop + e.cardH > p.y - CARD_GAP,
+          )
+          if (!collides) {
+            chosenDx = dx
+            chosenDy = dy
+            found = true
+            break
+          }
+        }
+      }
+      if (!found) {
+        e.el.style.opacity = '0'
+        continue
+      }
+
+      const cardLeft = e.x + chosenDx - e.cardW / 2
+      const cardTop = e.y + chosenDy - e.cardH / 2
       placed.push({ x: cardLeft, y: cardTop, w: e.cardW, h: e.cardH })
+
+      // Stem-lengde = avstand fra pin til kortets nærmeste kant.
+      // Stem-vinkelen peker fra pin → kortets sentrum, så linjen
+      // treffer kortet midt i siden. Solver same edge-fraction-
+      // logikken som compass-versjonen brukte: card er en
+      // axis-aligned boks rundt (chosenDx, chosenDy), pin sitter i
+      // origo; boksen treffes først der hvor den minste av
+      // halfW/|dx| og halfH/|dy| skjærer.
+      let edgeFraction = 1
+      const halfW = e.cardW / 2
+      const halfH = e.cardH / 2
+      if (chosenDx !== 0)
+        edgeFraction = Math.min(edgeFraction, halfW / Math.abs(chosenDx))
+      if (chosenDy !== 0)
+        edgeFraction = Math.min(edgeFraction, halfH / Math.abs(chosenDy))
+      const stemEndX = chosenDx * (1 - edgeFraction)
+      const stemEndY = chosenDy * (1 - edgeFraction)
+      const stemLen = Math.hypot(stemEndX, stemEndY)
+      const stemAngleDeg = (Math.atan2(stemEndY, stemEndX) * 180) / Math.PI
+
       e.el.style.transform = `translate3d(${e.x}px, ${e.y}px, 0)`
-      e.el.style.setProperty('--tp-stem-h', `${stemH}px`)
-      e.el.style.opacity = e.visible ? '1' : '0'
+      e.el.style.setProperty('--tp-card-dx', `${chosenDx}px`)
+      e.el.style.setProperty('--tp-card-dy', `${chosenDy}px`)
+      e.el.style.setProperty('--tp-stem-len', `${stemLen}px`)
+      e.el.style.setProperty('--tp-stem-angle', `${stemAngleDeg}deg`)
+      e.el.style.opacity = '1'
     }
   }
 
