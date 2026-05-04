@@ -1,59 +1,47 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { AIInput } from '@/components/ai-input'
-import { TeamGrid } from '@/components/team-grid'
+import { SommerMonthMatrix } from '@/components/sommer-month-matrix'
 import { getSessionMember } from '@/lib/supabase/session'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
-import {
-  getISOWeek,
-  getISOWeekYear,
-  getTodayWeekAndYear,
-  getWeekDays,
-  toDateString,
-} from '@/lib/dates'
-
-const STATUS_FILTER = ['vacation'] as const
+import { toDateString } from '@/lib/dates'
+import type { MemberRole } from '@/lib/supabase/types'
 
 /**
- * /sommer = Oversikt-matrisen filtrert til ferie. Samme Mon–Fri grid med
- * uke-navigasjon som forsiden, men cellene viser kun status='vacation'.
- * Drag/edit-handlerne i TeamGrid skriver fortsatt hva brukeren velger;
- * statusFilter er en ren visningsfilter.
+ * /sommer = ferie-matrise, måned-for-måned. Samme bar/linje-stil som
+ * Oversikt, men hele måneden vises på en gang istedenfor en uke.
+ * Vacation-only filter — andre statuser er gjemt for å holde fokuset
+ * på sommerplanleggingen.
  *
- * Default-uke: hvis dagens dato er innenfor jun–aug → bruk denne uka,
- * ellers hopp til ISO-uka som inneholder 1. juni for det relevante året
- * (neste sommer hvis vi er i sept–des, ellers denne sommeren).
+ * Default-måned: aktiv måned hvis vi er i jun–aug, ellers juni for
+ * kommende sommer (sep–des → neste år) eller årets sommer (jan–mai).
  */
 export default async function SommerPage() {
-  const { user, member, workspaces, combinedScope } = await getSessionMember()
+  const { user, member, combinedScope } = await getSessionMember()
   if (!user) redirect('/login')
   if (!member) redirect('/')
 
   const today = new Date()
   const todayMonth = today.getMonth()
   const todayYear = today.getFullYear()
-  const inSummer = todayMonth >= 5 && todayMonth <= 7  // jun–aug
-  const targetYear = inSummer
-    ? todayYear
-    : todayMonth >= 8                                  // sep–des → neste sommer
-      ? todayYear + 1
-      : todayYear                                      // jan–mai → denne sommeren
+  const inSummer = todayMonth >= 5 && todayMonth <= 7
 
-  let week: number
-  let year: number
-  if (inSummer) {
-    const t = getTodayWeekAndYear()
-    week = t.week
-    year = t.year
-  } else {
-    const summerStart = new Date(targetYear, 5, 1)    // 1. juni
-    week = getISOWeek(summerStart)
-    year = getISOWeekYear(summerStart)
-  }
+  const month = inSummer ? todayMonth : 5  // jun
+  const year = inSummer
+    ? todayYear
+    : todayMonth >= 8
+      ? todayYear + 1   // sep–des → neste sommer
+      : todayYear       // jan–mai → denne sommeren
 
   const orgIds = combinedScope?.org_ids ?? [member.org_id]
-  const weekDays = getWeekDays(week, year)
-  const dateStrings = weekDays.map(toDateString)
+
+  // Pull only weekday entries (Mon–Fri) for the active month, filtered
+  // server-side to vacation. Tiny payload, matches the client-side
+  // filter so SSR paint is correct.
+  const monthStart = new Date(year, month, 1)
+  const monthEnd = new Date(year, month + 1, 0)
+  const startStr = toDateString(monthStart)
+  const endStr = toDateString(monthEnd)
 
   const supabase = await createSupabaseServerClient()
   const [membersRes, entriesRes] = await Promise.all([
@@ -64,19 +52,15 @@ export default async function SommerPage() {
       .eq('is_active', true)
       .eq('hidden_from_overview', false)
       .order('display_name'),
-    // Pre-filter to vacation server-side too — saves bytes on the wire,
-    // and matches the client-side statusFilter so the SSR paint is
-    // already correct without a re-render flicker.
     supabase
       .from('entries')
       .select('*')
       .in('org_id', orgIds)
-      .in('date', dateStrings)
+      .gte('date', startStr)
+      .lte('date', endStr)
       .eq('status', 'vacation'),
   ])
 
-  // Combined-mode hides the AI input — parser can't disambiguate which
-  // workspace to write into when several share members.
   const showAIInput = !combinedScope
 
   return (
@@ -87,15 +71,14 @@ export default async function SommerPage() {
         </div>
       )}
       <Suspense fallback={null}>
-        <TeamGrid
-          orgId={member.org_id}
+        <SommerMonthMatrix
+          orgIds={orgIds}
+          currentMemberId={member.id}
+          currentMemberRole={(member.role ?? 'member') as MemberRole}
           initialMembers={membersRes.data ?? []}
           initialEntries={entriesRes.data ?? []}
-          initialWeek={week}
+          initialMonth={month}
           initialYear={year}
-          workspaces={workspaces}
-          combinedView={!!combinedScope}
-          statusFilter={[...STATUS_FILTER]}
         />
       </Suspense>
     </div>
