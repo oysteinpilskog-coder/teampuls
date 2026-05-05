@@ -356,8 +356,6 @@ export function SommerMonthMatrix({
 
   const canEditAny = currentMemberRole === 'admin'
   const palette = palettes.vacation
-  const barGradient = isLight ? palette.gradient.light : palette.gradient.dark
-  const barGlow = palette.glow
 
   return (
     <div className="w-full flex flex-col gap-5">
@@ -466,8 +464,7 @@ export function SommerMonthMatrix({
                     weekGroups={weekGroups}
                     colPct={colPct}
                     todayCol={todayCol}
-                    barGradient={barGradient}
-                    barGlow={barGlow}
+                    palette={palette}
                     isLight={isLight}
                     reduce={!!reduce}
                     editable={editable}
@@ -581,7 +578,7 @@ const ROW_H = 44
 
 function Row({
   row, idx, totalCols, weekGroups, colPct, todayCol,
-  barGradient, barGlow, isLight, reduce,
+  palette, isLight, reduce,
   editable, isSelf, commitVacation, commitResize, t,
 }: {
   row: MemberRow
@@ -590,8 +587,7 @@ function Row({
   weekGroups: { weekNo: number; startCol: number; endCol: number }[]
   colPct: (n: number) => number
   todayCol: number
-  barGradient: [string, string]
-  barGlow: string
+  palette: import('@/lib/status-colors/derive').StatusPalette
   isLight: boolean
   reduce: boolean
   editable: boolean
@@ -600,6 +596,18 @@ function Row({
   commitResize: (memberId: string, oldStartCol: number, oldEndCol: number, newStartCol: number, newEndCol: number, memberName: string) => void | Promise<void>
   t: ReturnType<typeof useT>
 }) {
+  // Match StatusSegment's translucent tile look so /sommer reads as the same
+  // bar as Oversikt: tone-tinted fill (not saturated), tinted text/icon, left
+  // rim accent + inner rim + soft outer glow. Alphas mirror StatusSegment.
+  const tone = palette.icon
+  const baseTint = isLight ? palette.text : palette.textDark
+  const tint = `color-mix(in oklab, ${baseTint} 65%, ${isLight ? '#000' : '#fff'})`
+  const fillTopAlpha    = isLight ? '6E' : '38'
+  const fillBottomAlpha = isLight ? '47' : '22'
+  const innerRimAlpha   = isLight ? '70' : '4D'
+  const tileFill = `linear-gradient(180deg, ${tone}${fillTopAlpha} 0%, ${tone}${fillBottomAlpha} 100%)`
+  const tileShadow = `inset 3px 0 0 ${tone}, inset 0 0 0 1px ${tone}${innerRimAlpha}, 0 0 14px -4px ${tone}66`
+  const tileShadowResizing = `inset 3px 0 0 ${tone}, inset 0 0 0 1px ${tone}${innerRimAlpha}, 0 0 22px -4px ${tone}99`
   const trackRef = useRef<HTMLDivElement | null>(null)
   const [drag, setDrag] = useState<{ startCol: number; endCol: number } | null>(null)
   const [resize, setResize] = useState<{
@@ -811,32 +819,39 @@ function Row({
           return (
             <motion.div
               key={i}
-              className="absolute top-1/2 -translate-y-1/2 rounded-full overflow-hidden"
+              className="absolute top-1/2 -translate-y-1/2 rounded-[8px] overflow-hidden"
               style={{
                 left: `calc(${left}% + 2px)`,
                 width: `calc(${width}% - 4px)`,
-                height: 28,
-                background: `linear-gradient(180deg, ${barGradient[0]}, ${barGradient[1]})`,
-                boxShadow: isResizingThis
-                  ? `0 6px 20px ${hexToRgba(barGlow, 0.55)}, 0 0 0 1px ${hexToRgba(barGlow, 0.5)} inset, inset 0 1px 0 rgba(255,255,255,0.45)`
-                  : `0 3px 12px ${hexToRgba(barGlow, 0.32)}, 0 0 0 1px ${hexToRgba(barGlow, 0.18)} inset, inset 0 1px 0 ${isLight ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.10)'}`,
+                height: 32,
+                background: tileFill,
+                boxShadow: isResizingThis ? tileShadowResizing : tileShadow,
               }}
               initial={reduce ? false : { scaleX: 0, opacity: 0 }}
               animate={{ scaleX: 1, opacity: 1 }}
               transition={reduce ? { duration: 0 } : { delay: 0.12 + i * 0.04, duration: 0.5, ease: ease.horizon }}
               title={tooltip}
             >
+              {/* Top sheen — same quiet 35% white-fade as StatusSegment so the
+                  tile doesn't read flat. */}
+              <div
+                aria-hidden
+                className="absolute top-0 left-0 right-0 pointer-events-none z-[2]"
+                style={{
+                  height: '35%',
+                  background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 100%)',
+                }}
+              />
               {width > 8 && (
                 <div
-                  className="relative h-full flex items-center justify-center gap-1 px-2 text-[10.5px] font-semibold whitespace-nowrap"
+                  className="relative h-full flex items-center justify-center gap-1 px-2 text-[11px] font-semibold whitespace-nowrap z-10"
                   style={{
-                    color: isLight ? 'rgba(255,255,255,0.96)' : 'rgba(255,255,255,0.92)',
-                    textShadow: '0 1px 2px rgba(0,0,0,0.18)',
+                    color: tint,
                     fontFamily: 'var(--font-body)',
-                    letterSpacing: '0.01em',
+                    letterSpacing: '-0.005em',
                   }}
                 >
-                  <VacationIcon size={12} color="rgba(255,255,255,0.96)" />
+                  <VacationIcon size={12} color={tint} />
                   {days}d
                 </div>
               )}
@@ -844,28 +859,28 @@ function Row({
                 <>
                   <div
                     role="presentation"
-                    className="absolute top-0 bottom-0 left-0 z-10 group/handle"
-                    style={{ width: 8, cursor: 'ew-resize', touchAction: 'none' }}
+                    className="absolute top-0 bottom-0 left-0 z-30 group/handle"
+                    style={{ width: 10, cursor: 'ew-resize', touchAction: 'none' }}
                     onPointerDown={(e) => startResize(e, i, 'start')}
                     title={t.summer.resizeHint}
                   >
                     <span
                       aria-hidden
-                      className="absolute top-1/2 -translate-y-1/2 left-0.5 w-[2.5px] h-3 rounded-full opacity-0 group-hover/handle:opacity-100 transition-opacity"
-                      style={{ background: 'rgba(255,255,255,0.85)' }}
+                      className="absolute top-1/2 -translate-y-1/2 left-0.5 w-[2px] h-3 rounded-full opacity-0 group-hover/handle:opacity-80 transition-opacity"
+                      style={{ background: tone }}
                     />
                   </div>
                   <div
                     role="presentation"
-                    className="absolute top-0 bottom-0 right-0 z-10 group/handle"
-                    style={{ width: 8, cursor: 'ew-resize', touchAction: 'none' }}
+                    className="absolute top-0 bottom-0 right-0 z-30 group/handle"
+                    style={{ width: 10, cursor: 'ew-resize', touchAction: 'none' }}
                     onPointerDown={(e) => startResize(e, i, 'end')}
                     title={t.summer.resizeHint}
                   >
                     <span
                       aria-hidden
-                      className="absolute top-1/2 -translate-y-1/2 right-0.5 w-[2.5px] h-3 rounded-full opacity-0 group-hover/handle:opacity-100 transition-opacity"
-                      style={{ background: 'rgba(255,255,255,0.85)' }}
+                      className="absolute top-1/2 -translate-y-1/2 right-0.5 w-[2px] h-3 rounded-full opacity-0 group-hover/handle:opacity-80 transition-opacity"
+                      style={{ background: tone }}
                     />
                   </div>
                 </>
@@ -877,25 +892,33 @@ function Row({
         {/* Drag-create ghost */}
         {drag && (
           <div
-            className="absolute top-1/2 -translate-y-1/2 rounded-full pointer-events-none overflow-hidden"
+            className="absolute top-1/2 -translate-y-1/2 rounded-[8px] pointer-events-none overflow-hidden"
             style={{
               left: `calc(${ghostLeft}% + 2px)`,
               width: `calc(${ghostWidth}% - 4px)`,
-              height: 28,
-              background: `linear-gradient(180deg, ${barGradient[0]}, ${barGradient[1]})`,
-              boxShadow: `0 6px 18px ${hexToRgba(barGlow, 0.5)}, 0 0 0 1px ${hexToRgba(barGlow, 0.55)} inset, inset 0 1px 0 rgba(255,255,255,0.4)`,
-              opacity: 0.92,
+              height: 32,
+              background: tileFill,
+              boxShadow: tileShadowResizing,
+              opacity: 0.95,
             }}
           >
             <div
-              className="relative h-full flex items-center justify-center gap-1 text-[10.5px] font-semibold whitespace-nowrap"
+              aria-hidden
+              className="absolute top-0 left-0 right-0 pointer-events-none z-[2]"
               style={{
-                color: isLight ? 'rgba(255,255,255,0.98)' : 'rgba(255,255,255,0.95)',
-                textShadow: '0 1px 2px rgba(0,0,0,0.22)',
+                height: '35%',
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 100%)',
+              }}
+            />
+            <div
+              className="relative h-full flex items-center justify-center gap-1 text-[11px] font-semibold whitespace-nowrap z-10"
+              style={{
+                color: tint,
                 fontFamily: 'var(--font-body)',
+                letterSpacing: '-0.005em',
               }}
             >
-              <VacationIcon size={12} color="rgba(255,255,255,0.98)" />
+              <VacationIcon size={12} color={tint} />
               {ghostDays}d
             </div>
           </div>
@@ -911,16 +934,6 @@ function Row({
 function parseDateString(s: string): Date {
   const [y, m, d] = s.split('-').map(Number)
   return new Date(y, m - 1, d)
-}
-
-function hexToRgba(hex: string, a: number): string {
-  const m = /^#?([a-f\d]{6})$/i.exec(hex.trim())
-  if (!m) return `rgba(180, 83, 9, ${a})`
-  const n = parseInt(m[1], 16)
-  const r = (n >> 16) & 0xff
-  const g = (n >> 8) & 0xff
-  const b = n & 0xff
-  return `rgba(${r}, ${g}, ${b}, ${a})`
 }
 
 function formatBlockRange(start: Date, end: Date, t: ReturnType<typeof useT>): string {
