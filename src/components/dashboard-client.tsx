@@ -624,6 +624,8 @@ export function DashboardClient({
             todayEntries={displayTodayEntries}
             time={time}
             offices={offices}
+            viewIdx={safeIdx}
+            viewCount={VIEWS.length}
           />
         )
       case 'B':
