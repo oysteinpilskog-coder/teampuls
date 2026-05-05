@@ -10,6 +10,7 @@ import { useEntries } from '@/hooks/use-entries'
 import { useT } from '@/lib/i18n/context'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { MemberAvatar } from '@/components/member-avatar'
+import { VacationIcon } from '@/components/icons/status-icons'
 import { createClient } from '@/lib/supabase/client'
 import { toDateString } from '@/lib/dates'
 import { ease } from '@/lib/motion'
@@ -827,7 +828,7 @@ function Row({
             >
               {width > 8 && (
                 <div
-                  className="relative h-full flex items-center justify-center px-2 text-[10.5px] font-semibold whitespace-nowrap"
+                  className="relative h-full flex items-center justify-center gap-1 px-2 text-[10.5px] font-semibold whitespace-nowrap"
                   style={{
                     color: isLight ? 'rgba(255,255,255,0.96)' : 'rgba(255,255,255,0.92)',
                     textShadow: '0 1px 2px rgba(0,0,0,0.18)',
@@ -835,6 +836,7 @@ function Row({
                     letterSpacing: '0.01em',
                   }}
                 >
+                  <VacationIcon size={12} color="rgba(255,255,255,0.96)" />
                   {days}d
                 </div>
               )}
@@ -886,13 +888,14 @@ function Row({
             }}
           >
             <div
-              className="relative h-full flex items-center justify-center text-[10.5px] font-semibold whitespace-nowrap"
+              className="relative h-full flex items-center justify-center gap-1 text-[10.5px] font-semibold whitespace-nowrap"
               style={{
                 color: isLight ? 'rgba(255,255,255,0.98)' : 'rgba(255,255,255,0.95)',
                 textShadow: '0 1px 2px rgba(0,0,0,0.22)',
                 fontFamily: 'var(--font-body)',
               }}
             >
+              <VacationIcon size={12} color="rgba(255,255,255,0.98)" />
               {ghostDays}d
             </div>
           </div>
