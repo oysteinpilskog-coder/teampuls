@@ -1,14 +1,17 @@
 'use client'
 
-import { useMemo, useId } from 'react'
+import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useStatusColors } from '@/lib/status-colors/context'
+
+type StatusColors = ReturnType<typeof useStatusColors>
 import { MemberAvatar } from '@/components/member-avatar'
 import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
-import { getDayLabel, getISOWeek, isToday } from '@/lib/dates'
+import { getISOWeek, isToday } from '@/lib/dates'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
+import type { Dictionary } from '@/lib/i18n/types'
 import { dedupeEntriesByMemberDate } from '@/lib/entries/dedupe'
 
 interface MonthViewProps {
@@ -16,26 +19,45 @@ interface MonthViewProps {
   weekDays: Date[]
   /** Current week's entries — real rows merged with presence-assumed
    *  syntheses (one row per member × weekday). Same merged shape som
-   *  Oversikt-matrisa, slik at donut, «Fordeling denne uken», dagstrip og
-   *  «Borte denne uken» rapporterer eksakt det matrisa viser. */
+   *  Oversikt-matrisa, slik at kortene rapporterer eksakt det matrisa viser. */
   entries: Entry[]
   orgName: string
   time: Date
 }
 
 function pad(n: number) { return String(n).padStart(2, '0') }
+function toIso(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
 
-const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
+const STATUS_ORDER: EntryStatus[] = [
+  'office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off',
+]
 
-// Same grouping as Oversikt's «Akkurat nå»-strip and TodayView's week-strip,
-// so the four colored segments on the bottom day-cells read identically to
-// what the team sees on the matrix.
-const DAY_STATUS_GROUPS: Array<{ key: string; statuses: EntryStatus[]; representative: EntryStatus }> = [
+type GroupKey = 'office' | 'remote' | 'customer' | 'away'
+
+const DAY_STATUS_GROUPS: Array<{
+  key: GroupKey
+  statuses: EntryStatus[]
+  representative: EntryStatus
+}> = [
   { key: 'office',   statuses: ['office'],                          representative: 'office'   },
   { key: 'remote',   statuses: ['remote'],                          representative: 'remote'   },
   { key: 'customer', statuses: ['customer', 'event', 'travel'],     representative: 'customer' },
   { key: 'away',     statuses: ['vacation', 'sick', 'off'],         representative: 'vacation' },
 ]
+
+type AwayReason = 'vacation' | 'sick' | 'off'
+
+interface DayStat {
+  date: Date
+  dateStr: string
+  total: number
+  regPct: number
+  groupCounts: Array<{ group: typeof DAY_STATUS_GROUPS[number]; count: number }>
+  dominant: { group: typeof DAY_STATUS_GROUPS[number]; count: number }
+  today: boolean
+}
 
 export function MonthView({ members, weekDays, entries, orgName: _orgName, time }: MonthViewProps) {
   const STATUS_COLORS = useStatusColors()
@@ -53,14 +75,8 @@ export function MonthView({ members, weekDays, entries, orgName: _orgName, time 
   const weekNum = getISOWeek(time)
   const year    = time.getFullYear()
 
-  // Stable id for SVG <defs> so the gradient never collides if the view ever
-  // mounts twice (carousel preload, brand-transition, …). useId() avoids the
-  // hydration-mismatch trap that hard-coded ids would have.
-  const gradientId = useId().replace(/:/g, '_') + '_week_hero'
-
   // Dedup: one Entry per (member_id, date) — keeps tallies aligned with
-  // TodayView's HeroBigNumber so «Fordeling denne uken» summerer 100% og
-  // donut-arcer leser eksakt det resepsjonen ser på «Akkurat nå».
+  // Oversikt-matrisa.
   const weekDeduped = useMemo(
     () => dedupeEntriesByMemberDate(entries, members),
     [entries, members],
@@ -72,17 +88,56 @@ export function MonthView({ members, weekDays, entries, orgName: _orgName, time 
     return m
   }, [weekDeduped])
 
-  // Members away at any point this week
-  const onVacation = members.filter(m =>
-    weekDays.some(d => {
-      const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-      const entry = entryMap.get(`${m.id}_${dateStr}`)
-      return entry && (entry.status === 'vacation' || entry.status === 'off' || entry.status === 'sick')
+  // Per-day stats — drives both the headline "ukens topp" og selve dag-rutene.
+  const dayStats: DayStat[] = useMemo(() => {
+    return weekDays.map(date => {
+      const dateStr = toIso(date)
+      const dayDeduped = weekDeduped.filter(e => e.date === dateStr)
+      const groupCounts = DAY_STATUS_GROUPS.map(g => ({
+        group: g,
+        count: dayDeduped.filter(e => g.statuses.includes(e.status)).length,
+      }))
+      const total = dayDeduped.length
+      const dominant = groupCounts.reduce(
+        (a, b) => (b.count > a.count ? b : a),
+        groupCounts[0],
+      )
+      const regPct = members.length > 0 ? Math.round((total / members.length) * 100) : 0
+      return { date, dateStr, total, regPct, groupCounts, dominant, today: isToday(date) }
     })
-  )
+  }, [weekDays, weekDeduped, members.length])
+
+  const peak = useMemo(() => {
+    const candidates = dayStats.filter(d => d.total > 0)
+    if (candidates.length === 0) return null
+    return candidates.reduce((a, b) => (b.total > a.total ? b : a), candidates[0])
+  }, [dayStats])
+
+  // Members away at any point this week, with their primary "borte"-grunn.
+  // Prioritet: vacation > sick > off så «Anna har ferie hele uka» ikke blir
+  // overskrevet av en ekstra «syk fredag»-rad.
+  const awayList = useMemo(() => {
+    const list: Array<{ member: Member; reason: AwayReason }> = []
+    for (const m of members) {
+      let reason: AwayReason | null = null
+      for (const d of weekDays) {
+        const dateStr = toIso(d)
+        const e = entryMap.get(`${m.id}_${dateStr}`)
+        if (!e) continue
+        if (e.status === 'vacation') {
+          reason = 'vacation'
+          break
+        }
+        if (e.status === 'sick') reason = reason ?? 'sick'
+        else if (e.status === 'off') reason = reason ?? 'off'
+      }
+      if (reason) list.push({ member: m, reason })
+    }
+    return list
+  }, [members, weekDays, entryMap])
 
   // Tallies for full week — bygd på deduped entries så én ekstra rad
-  // per medlem-dag ikke inflaterer donut/Fordeling.
+  // per medlem-dag ikke inflaterer aggregert «I sum».
   const weekTotals = STATUS_ORDER.map(s => ({
     status: s,
     count: weekDeduped.filter(e => e.status === s).length,
@@ -90,443 +145,503 @@ export function MonthView({ members, weekDays, entries, orgName: _orgName, time 
   const weekTotal = weekDeduped.length
   const topStatuses = weekTotals.filter(w => w.count > 0).sort((a, b) => b.count - a.count)
 
-  // Donut arithmetic. The week-number is rendered as SVG <text> inside the
-  // same canvas so it can never be clipped by CSS line-box quirks (the old
-  // background-clip:text trick lopped the bottom of 8/3/9 even with
-  // lineHeight bumps). dominantBaseline='central' centers around y=0.
-  const DONUT_R = 200
-  const STROKE_W = 30
-  const CIRC = 2 * Math.PI * DONUT_R
-  let runningPct = 0
+  const peakWeekdayLong = peak
+    ? t.dates.weekdaysLong[peak.date.getDay()].toLowerCase()
+    : ''
+
+  // Tailwind kan ikke generere grid-cols-N dynamisk uten safelist, så vi
+  // setter rad-templaten med inline style i stedet.
+  const horizonGridStyle: React.CSSProperties = {
+    gridTemplateColumns: `repeat(${weekDays.length}, minmax(0, 1fr))`,
+  }
 
   return (
-    <div className="relative h-full flex flex-col px-10 pt-20 pb-6 gap-6">
-      {/* ── Header — eyebrow + Fraunces title. Org-navn og klokke eies av
-            global topp-bar. */}
-      <div className="flex-shrink-0">
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.gentle, delay: 0.05 }}
-          className="flex flex-col gap-1.5"
+    <div className="relative h-full flex flex-col px-10 pt-20 pb-6 gap-5">
+      {/* ── HEADER — eyebrow + Fraunces-tittel + storyline.
+            Storyline gir resepsjonen ETT lesbart fakta før øyet faller ned i
+            dag-rutene. Tom uke ⇒ tilgivende fallback. */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ ...spring.gentle, delay: 0.05 }}
+        className="flex-shrink-0 flex flex-col gap-1"
+      >
+        <span
+          className="text-[11px] font-semibold tracking-[0.28em] uppercase"
+          style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
         >
-          <span
-            className="text-[11px] font-semibold tracking-[0.28em] uppercase"
-            style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
-          >
-            Uke {weekNum} · {year}
-          </span>
-          <p
-            className="text-[34px] font-light tracking-tight leading-none"
-            style={{
-              fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
-              fontStyle: 'italic',
-              fontVariationSettings: '"opsz" 32, "SOFT" 80',
-              letterSpacing: '-0.025em',
-              color: 'var(--paper)',
-            }}
-          >
-            {t.dashboard.month.title}
-          </p>
-        </motion.div>
-      </div>
-
-      {/* ── Hero row: donut (left) + status breakdown (right) ───────── */}
-      <div className="flex-1 grid grid-cols-12 gap-8 min-h-0">
-        {/* Donut card */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...spring.gentle, delay: 0.18 }}
-          className="col-span-7 relative rounded-3xl flex items-center justify-center"
+          {t.matrix.weekLabel} {weekNum} · {year}
+        </span>
+        <p
+          className="text-[34px] font-light tracking-tight leading-none"
           style={{
-            background:
-              'linear-gradient(155deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)',
-            border: '1px solid rgba(255,255,255,0.07)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+            fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+            fontStyle: 'italic',
+            fontVariationSettings: '"opsz" 32, "SOFT" 80',
+            letterSpacing: '-0.025em',
+            color: 'var(--paper)',
           }}
         >
-          {/* Single quiet halo behind the donut — replaces the four orbital
-              rings that were competing with the hero. */}
-          <div
-            aria-hidden
-            className="absolute rounded-full pointer-events-none"
-            style={{
-              width: 560,
-              height: 560,
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              background:
-                'radial-gradient(circle, rgba(0,217,245,0.08) 0%, rgba(0,245,160,0.04) 35%, transparent 70%)',
-              filter: 'blur(20px)',
-            }}
+          {t.dashboard.month.title}
+        </p>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.18 }}
+          className="text-[15px] mt-1"
+          style={{ fontFamily: 'var(--font-body)' }}
+        >
+          {peak ? (
+            <>
+              <span style={{ color: 'rgba(255,255,255,0.5)' }}>
+                {t.dashboard.month.storyMost}
+              </span>{' '}
+              <span
+                style={{
+                  color: 'color-mix(in oklab, var(--accent-color) 55%, white)',
+                  fontWeight: 600,
+                }}
+              >
+                {peakWeekdayLong}
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.3)' }}>{' · '}</span>
+              <span
+                className="tabular-nums"
+                style={{
+                  color: 'rgba(255,255,255,0.92)',
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-fraunces)',
+                }}
+              >
+                {peak.total}
+              </span>{' '}
+              <span style={{ color: 'rgba(255,255,255,0.55)' }}>
+                {t.dashboard.month.storyIn}
+              </span>
+            </>
+          ) : (
+            <span style={{ color: 'rgba(255,255,255,0.4)' }}>
+              {t.dashboard.month.storyEmpty}
+            </span>
+          )}
+        </motion.p>
+      </motion.div>
+
+      {/* ── HORIZON — 5 dag-kort, hero av visningen. Hver rute er sin egen
+            «Apple Weather-kolonne»: vertikal stack-bar der høyden er andelen
+            av teamet som er registrert, og fargesegmentene er fordelingen
+            mellom Kontor/Hjemme/Hos kunde/Borte. Onsdag (peak) får en gull-
+            stjerne, dagens dato får aurora-glød — så øyet finner takeaway-en
+            før det leser et eneste tall. */}
+      <div
+        className="flex-1 grid gap-3 min-h-0"
+        style={horizonGridStyle}
+      >
+        {dayStats.map((stat, i) => (
+          <DayHorizonCard
+            key={stat.dateStr}
+            stat={stat}
+            isPeak={!!peak && stat.dateStr === peak.dateStr}
+            membersTotal={members.length}
+            statusColors={STATUS_COLORS}
+            weekdayShort={t.dates.weekdaysShort[stat.date.getDay()].toUpperCase()}
+            todayLabel={t.dashboard.month.todayChip}
+            t={t}
+            delay={0.18 + i * 0.05}
           />
+        ))}
+      </div>
 
-          {/* Donut SVG. Both the rings and the hero text live inside the same
-              viewBox so a) no z-index gymnastics, b) the text is glyph-perfect
-              centered, c) nothing can clip the digits. */}
-          <svg
-            width={560}
-            height={560}
-            viewBox="-280 -280 560 560"
-            className="relative"
-            aria-label={`Uke ${weekNum} ${year}`}
-          >
-            <defs>
-              <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%"  stopColor="#00F5A0" />
-                <stop offset="55%" stopColor="#00D9F5" />
-                <stop offset="100%" stopColor="#7C3AED" />
-              </linearGradient>
-            </defs>
-
-            {/* Base track */}
-            <circle
-              r={DONUT_R}
-              fill="none"
-              stroke="rgba(255,255,255,0.05)"
-              strokeWidth={STROKE_W}
+      {/* ── LEGEND — fargenøkkel for søylene over. Fire chips, sentrert.
+            Uten denne forblir den fargete bunnstrip-en en gåte: orange =
+            borte? hjemme? — nå er det aldri tvil. */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.55 }}
+        className="flex-shrink-0 flex items-center justify-center gap-6 flex-wrap"
+      >
+        {DAY_STATUS_GROUPS.map(g => {
+          const label =
+            g.key === 'office'   ? STATUS_LABELS.office
+          : g.key === 'remote'   ? STATUS_LABELS.remote
+          : g.key === 'customer' ? STATUS_LABELS.customer
+          :                        t.pulse.away
+          return (
+            <LegendChip
+              key={g.key}
+              color={STATUS_COLORS[g.representative].icon}
+              label={label}
             />
+          )
+        })}
+      </motion.div>
 
-            {/* Stacked status arcs */}
-            {weekTotal > 0 && weekTotals.map(({ status, count }) => {
-              if (count === 0) return null
-              const pct = count / weekTotal
-              const dash = CIRC * pct
-              const gap = CIRC - dash
-              const offset = -runningPct * CIRC
-              runningPct += pct
-              return (
-                <motion.circle
-                  key={status}
-                  r={DONUT_R}
-                  fill="none"
-                  stroke={STATUS_COLORS[status].icon}
-                  strokeWidth={STROKE_W}
-                  strokeLinecap="butt"
-                  strokeDasharray={`${dash} ${gap}`}
-                  initial={{ strokeDashoffset: 0, opacity: 0 }}
-                  animate={{ strokeDashoffset: offset, opacity: 1 }}
-                  transition={{
-                    strokeDashoffset: { duration: 1.2, ease: [0.16, 1, 0.3, 1], delay: 0.4 },
-                    opacity: { duration: 0.6, delay: 0.4 },
-                  }}
-                  transform="rotate(-90)"
-                  style={{
-                    filter: `drop-shadow(0 0 14px ${STATUS_COLORS[status].icon}55)`,
-                  }}
-                />
-              )
-            })}
-
-            {/* «Uke»-eyebrow */}
-            <text
-              x={0}
-              y={-78}
-              textAnchor="middle"
-              fill="rgba(255,255,255,0.4)"
-              fontFamily="var(--font-body)"
-              fontWeight={600}
-              fontSize={14}
-              letterSpacing={3}
-              style={{ textTransform: 'uppercase' }}
+      {/* ── BOTTOM — «I sum» + «Borte» side-by-side. Drar status-totaler og
+            borte-listen ned i en kompakt rad så hero-en (dag-rutene) får
+            beholde luft. Borte-chips bærer nå et lite Ferie/Syk/Fri-merke,
+            så resepsjonen ser HVORFOR noen er borte uten å klikke. */}
+      <div className="flex-shrink-0 grid grid-cols-2 gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...spring.gentle, delay: 0.6 }}
+          className="rounded-2xl p-4 flex flex-col gap-2.5"
+          style={{
+            background:
+              'linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          <div className="flex items-baseline justify-between">
+            <h3
+              className="text-[11px] font-semibold uppercase tracking-[0.22em]"
+              style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
             >
-              UKE
-            </text>
-
-            {/* Hero week number — Fraunces, Nordlys gradient. Inside SVG so
-                no CSS line-box can clip 8/3/9 descenders ever again. */}
-            <motion.text
-              x={0}
-              y={0}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fill={`url(#${gradientId})`}
-              fontFamily='var(--font-fraunces), "Iowan Old Style", Georgia, serif'
-              fontWeight={300}
-              fontSize={216}
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ ...spring.gentle, delay: 0.5 }}
-              style={{
-                fontVariationSettings: '"opsz" 144, "SOFT" 80',
-                letterSpacing: '-0.045em',
-                filter: 'drop-shadow(0 0 28px rgba(0,245,160,0.22))',
-              }}
+              {t.dashboard.month.inSum}
+            </h3>
+            {weekTotal > 0 && (
+              <span
+                className="tabular-nums text-[12px] font-semibold"
+                style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'var(--font-fraunces)' }}
+              >
+                {weekTotal} {t.dashboard.month.registrations}
+              </span>
+            )}
+          </div>
+          {topStatuses.length === 0 ? (
+            <p
+              className="text-[14px]"
+              style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-body)' }}
             >
-              {weekNum}
-            </motion.text>
-
-            {/* Year */}
-            <text
-              x={0}
-              y={94}
-              textAnchor="middle"
-              fill="rgba(255,255,255,0.45)"
-              fontFamily="var(--font-body)"
-              fontWeight={500}
-              fontSize={22}
-            >
-              {year}
-            </text>
-          </svg>
+              {t.dashboard.noMonthEntries}
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-1.5">
+              {topStatuses.map(({ status, count }, i) => {
+                const pct = (count / weekTotal) * 100
+                const c = STATUS_COLORS[status]
+                return (
+                  <PulseRow
+                    key={status}
+                    status={status}
+                    label={STATUS_LABELS[status]}
+                    count={count}
+                    pct={pct}
+                    tone={c.icon}
+                    labelColor={c.textDark}
+                    delay={0.7 + i * 0.04}
+                  />
+                )
+              })}
+            </div>
+          )}
         </motion.div>
 
-        {/* Right column — Akkurat nå-style status breakdown, mirrors how the
-            distribution reads on Oversikt's TodayPulse. Below: «Borte denne
-            uken» avatar chips. */}
-        <div className="col-span-5 flex flex-col gap-5 min-h-0">
-          {/* Fordeling card */}
-          <motion.div
-            initial={{ opacity: 0, x: 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ ...spring.gentle, delay: 0.25 }}
-            className="rounded-2xl p-5 flex flex-col gap-3"
-            style={{
-              background:
-                'linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
-              border: '1px solid rgba(255,255,255,0.08)',
-            }}
-          >
-            <div className="flex items-baseline justify-between">
-              <h3
-                className="text-[11px] font-semibold uppercase tracking-[0.22em]"
-                style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...spring.gentle, delay: 0.66 }}
+          className="rounded-2xl p-4 flex flex-col gap-2.5 overflow-hidden"
+          style={{
+            background:
+              'linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          <div className="flex items-baseline justify-between gap-2">
+            <h3
+              className="text-[11px] font-semibold uppercase tracking-[0.22em]"
+              style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
+            >
+              {t.dashboard.month.awayThisWeek}
+            </h3>
+            {awayList.length > 0 && (
+              <span
+                className="tabular-nums text-[12px] font-semibold"
+                style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'var(--font-fraunces)' }}
               >
-                Fordeling denne uken
-              </h3>
-              {weekTotal > 0 && (
-                <span
-                  className="tabular-nums text-[11px] font-semibold"
-                  style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-fraunces)' }}
-                >
-                  {weekTotal} reg.
-                </span>
-              )}
-            </div>
-
-            {topStatuses.length === 0 ? (
-              <p
-                className="text-[14px]"
-                style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-body)' }}
-              >
-                {t.dashboard.noMonthEntries}
-              </p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {topStatuses.map(({ status, count }, i) => {
-                  const pct = (count / weekTotal) * 100
-                  const c = STATUS_COLORS[status]
-                  return (
-                    <PulseRow
-                      key={status}
-                      status={status}
-                      label={STATUS_LABELS[status]}
-                      count={count}
-                      pct={pct}
-                      tone={c.icon}
-                      labelColor={c.textDark}
-                      delay={0.35 + i * 0.06}
-                    />
-                  )
-                })}
-              </div>
+                {awayList.length}
+              </span>
             )}
-          </motion.div>
-
-          {/* Borte denne uken */}
-          <motion.div
-            initial={{ opacity: 0, x: 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ ...spring.gentle, delay: 0.32 }}
-            className="flex-1 rounded-2xl p-5 flex flex-col gap-3 min-h-0 overflow-hidden"
-            style={{
-              background:
-                'linear-gradient(155deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
-              border: '1px solid rgba(255,255,255,0.08)',
-            }}
-          >
-            <div className="flex items-baseline justify-between gap-2">
-              <h3
-                className="text-[11px] font-semibold uppercase tracking-[0.22em]"
-                style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-body)' }}
-              >
-                Borte denne uken
-              </h3>
-              {onVacation.length > 0 && (
-                <span
-                  className="tabular-nums text-[11px] font-semibold"
-                  style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-fraunces)' }}
-                >
-                  {onVacation.length}
-                </span>
-              )}
-            </div>
-            {onVacation.length === 0 ? (
-              <p
-                className="text-[14px]"
-                style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-body)' }}
-              >
-                Alle er på jobb.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5 content-start">
-                {onVacation.map((m, i) => (
+          </div>
+          {awayList.length === 0 ? (
+            <p
+              className="text-[14px]"
+              style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'var(--font-body)' }}
+            >
+              {t.dashboard.month.awayEmpty}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5 content-start">
+              {awayList.map(({ member, reason }, i) => {
+                const reasonColor = STATUS_COLORS[reason].icon
+                return (
                   <motion.div
-                    key={m.id}
+                    key={member.id}
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ ...spring.gentle, delay: 0.45 + i * 0.03 }}
-                    className="flex items-center gap-1.5 pl-0.5 pr-2.5 py-0.5 rounded-full"
+                    transition={{ ...spring.gentle, delay: 0.75 + i * 0.03 }}
+                    className="flex items-center gap-1.5 pl-0.5 pr-1.5 py-0.5 rounded-full"
                     style={{
                       background: 'rgba(255,255,255,0.04)',
                       border: '1px solid rgba(255,255,255,0.08)',
                     }}
                   >
                     <MemberAvatar
-                      name={m.full_name || m.display_name}
-                      initials={m.initials}
-                      avatarUrl={m.avatar_url}
+                      name={member.full_name || member.display_name}
+                      initials={member.initials}
+                      avatarUrl={member.avatar_url}
                       size="sm"
                     />
                     <span
                       className="text-[12px] font-medium truncate"
                       style={{
-                        color: 'rgba(255,255,255,0.78)',
+                        color: 'rgba(255,255,255,0.85)',
                         fontFamily: 'var(--font-body)',
-                        maxWidth: 160,
+                        maxWidth: 120,
                       }}
                     >
-                      {m.full_name || m.display_name}
+                      {member.full_name || member.display_name}
+                    </span>
+                    <span
+                      className="text-[9.5px] font-semibold uppercase tracking-[0.14em] px-1.5 py-[1px] rounded-full"
+                      style={{
+                        background: `color-mix(in oklab, ${reasonColor} 18%, transparent)`,
+                        color: `color-mix(in oklab, ${reasonColor} 55%, white)`,
+                        fontFamily: 'var(--font-body)',
+                      }}
+                    >
+                      {STATUS_LABELS[reason]}
                     </span>
                   </motion.div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        </div>
+                )
+              })}
+            </div>
+          )}
+        </motion.div>
       </div>
-
-      {/* ── Bottom 7-day strip ─ daily distribution. Same visual language as
-            TodayView's week strip so navigating Nå → Uken stays coherent. */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ ...spring.gentle, delay: 0.5 }}
-        className="relative rounded-2xl px-5 py-3 flex gap-3 flex-shrink-0"
-        style={{
-          background:
-            'linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-        }}
-      >
-        {weekDays.map((date, di) => {
-          const { weekday, day } = getDayLabel(date)
-          const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-          const dayEntries = weekDeduped.filter(e => e.date === dateStr)
-          const today = isToday(date)
-
-          const counts = DAY_STATUS_GROUPS.map(g => ({
-            group: g,
-            count: dayEntries.filter(e => g.statuses.includes(e.status)).length,
-          }))
-          const registered = dayEntries.length
-          const regPct = members.length > 0 ? Math.round((registered / members.length) * 100) : 0
-
-          return (
-            <motion.div
-              key={date.toISOString()}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ ...spring.gentle, delay: 0.6 + di * 0.04 }}
-              className="relative flex-1 flex flex-col items-center gap-1 rounded-xl py-2 px-2"
-              style={{
-                background: today
-                  ? 'linear-gradient(180deg, color-mix(in oklab, var(--accent-color) 20%, transparent) 0%, color-mix(in oklab, var(--accent-color) 0%, transparent) 100%)'
-                  : 'transparent',
-                border: today
-                  ? '1px solid color-mix(in oklab, var(--accent-color) 50%, transparent)'
-                  : '1px solid transparent',
-                boxShadow: today
-                  ? '0 0 32px -8px color-mix(in oklab, var(--accent-color) 65%, transparent), inset 0 1px 0 color-mix(in oklab, var(--accent-color) 30%, transparent)'
-                  : 'none',
-              }}
-            >
-              <span
-                className="text-[11px] font-semibold uppercase tracking-[0.18em]"
-                style={{
-                  color: today ? 'color-mix(in oklab, var(--accent-color) 60%, white)' : 'rgba(255,255,255,0.35)',
-                  fontFamily: 'var(--font-body)',
-                }}
-              >
-                {weekday}
-              </span>
-              <span
-                className="tabular-nums text-[20px] font-semibold leading-none"
-                style={{
-                  fontFamily: 'var(--font-fraunces)',
-                  color: today ? '#ffffff' : 'rgba(255,255,255,0.55)',
-                  // Padding-bottom på Fraunces-glyfen sikrer at descenderne på
-                  // 8/3/9 aldri klippes av line-box-en — en bug som tidligere
-                  // beit på den store week-hero, og som vi her forebygger
-                  // proaktivt på alle dag-tallene også.
-                  paddingBottom: 2,
-                }}
-              >
-                {day}
-              </span>
-
-              <div
-                className="flex w-full h-[6px] rounded-full overflow-hidden mt-0.5"
-                style={{ background: 'rgba(255,255,255,0.05)' }}
-              >
-                {counts.map(({ group, count }) =>
-                  count > 0 ? (
-                    <div
-                      key={group.key}
-                      style={{
-                        flex: count,
-                        background: STATUS_COLORS[group.representative].icon,
-                        boxShadow: `0 0 8px ${STATUS_COLORS[group.representative].icon}55`,
-                      }}
-                    />
-                  ) : null
-                )}
-              </div>
-
-              <div className="flex items-baseline gap-1">
-                <span
-                  className="tabular-nums text-[13px] font-semibold"
-                  style={{
-                    color: today ? '#ffffff' : 'rgba(255,255,255,0.6)',
-                    fontFamily: 'var(--font-fraunces)',
-                  }}
-                >
-                  {registered}
-                </span>
-                <span
-                  className="text-[10px]"
-                  style={{
-                    color: today ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.28)',
-                    fontFamily: 'var(--font-body)',
-                  }}
-                >
-                  / {members.length} · {regPct}%
-                </span>
-              </div>
-            </motion.div>
-          )
-        })}
-      </motion.div>
     </div>
   )
 }
 
+/* ───────────────────────────── Day card ─────────────────────────────── */
+
+interface DayHorizonCardProps {
+  stat: DayStat
+  isPeak: boolean
+  membersTotal: number
+  statusColors: StatusColors
+  weekdayShort: string
+  todayLabel: string
+  t: Dictionary
+  delay: number
+}
+
+function DayHorizonCard({
+  stat, isPeak, membersTotal, statusColors,
+  weekdayShort, todayLabel, t, delay,
+}: DayHorizonCardProps) {
+  const { date, total, regPct, groupCounts, dominant, today } = stat
+  const dominantColor = statusColors[dominant.group.representative].icon
+  const fillPct = membersTotal > 0 ? Math.min(1, total / membersTotal) : 0
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ ...spring.gentle, delay }}
+      className="relative rounded-3xl flex flex-col p-4 gap-3 min-h-0 overflow-hidden"
+      style={{
+        background: today
+          ? 'linear-gradient(180deg, color-mix(in oklab, var(--accent-color) 14%, transparent) 0%, color-mix(in oklab, var(--accent-color) 0%, transparent) 55%, rgba(255,255,255,0.012) 100%)'
+          : 'linear-gradient(155deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)',
+        border: today
+          ? '1px solid color-mix(in oklab, var(--accent-color) 50%, transparent)'
+          : '1px solid rgba(255,255,255,0.07)',
+        boxShadow: today
+          ? '0 0 48px -14px color-mix(in oklab, var(--accent-color) 70%, transparent), inset 0 1px 0 color-mix(in oklab, var(--accent-color) 30%, transparent)'
+          : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+      }}
+    >
+      {/* Top row — weekday + date number. PeakStar sitter helt til høyre,
+          TODAY-chip absolutt-posisjonert over weekday slik at weekday alltid
+          står på samme x-koordinat på tvers av kortene (ingen vekslende
+          venstrekant når 1 av 5 har en chip). */}
+      <div className="flex items-baseline justify-between relative">
+        <span
+          className="text-[12px] font-semibold uppercase tracking-[0.24em]"
+          style={{
+            color: today
+              ? 'color-mix(in oklab, var(--accent-color) 60%, white)'
+              : 'rgba(255,255,255,0.45)',
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          {weekdayShort}
+        </span>
+        <span
+          className="tabular-nums text-[20px] font-semibold leading-none"
+          style={{
+            fontFamily: 'var(--font-fraunces)',
+            color: today ? '#ffffff' : 'rgba(255,255,255,0.6)',
+            paddingBottom: 2,
+          }}
+        >
+          {date.getDate()}
+        </span>
+      </div>
+
+      {today && (
+        <span
+          className="absolute top-3 left-1/2 -translate-x-1/2 text-[9px] font-semibold uppercase tracking-[0.22em] px-2 py-[2px] rounded-full"
+          style={{
+            background: 'color-mix(in oklab, var(--accent-color) 22%, transparent)',
+            border: '1px solid color-mix(in oklab, var(--accent-color) 45%, transparent)',
+            color: 'color-mix(in oklab, var(--accent-color) 60%, white)',
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          {todayLabel}
+        </span>
+      )}
+
+      {isPeak && total > 0 && (
+        <span
+          aria-hidden
+          className="absolute top-3 right-3 text-[10px] leading-none"
+          style={{
+            color: '#d4a017',
+            filter: 'drop-shadow(0 0 6px rgba(212,160,23,0.7))',
+          }}
+        >
+          ★
+        </span>
+      )}
+
+      {/* Vertical stack-bar — Apple Weather kolonne. Høyden = registrert /
+          totalt; segmenter inni = fordeling. Renderes med flex-col-reverse
+          så stack-en bygger fra bunn (stable for både 1 og 4 segmenter). */}
+      <div className="flex-1 flex items-end justify-center min-h-0 py-1">
+        <div
+          className="rounded-2xl overflow-hidden relative"
+          style={{
+            width: 56,
+            height: '100%',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+          }}
+        >
+          {fillPct > 0 && (
+            <motion.div
+              initial={{ height: 0 }}
+              animate={{ height: `${fillPct * 100}%` }}
+              transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: delay + 0.15 }}
+              className="absolute inset-x-0 bottom-0 flex flex-col-reverse overflow-hidden"
+            >
+              {groupCounts.map(({ group, count }) =>
+                count > 0 ? (
+                  <div
+                    key={group.key}
+                    style={{
+                      flex: count,
+                      background: statusColors[group.representative].icon,
+                      boxShadow: `inset 0 0 12px color-mix(in oklab, ${statusColors[group.representative].icon} 60%, transparent)`,
+                    }}
+                  />
+                ) : null,
+              )}
+            </motion.div>
+          )}
+        </div>
+      </div>
+
+      {/* Big total — Fraunces large, lap-read fra resepsjonen. «av N · X%»
+          sitter under, mut, så hierarki «13 → av 15» leser i ett øyekast. */}
+      <div className="flex flex-col items-center gap-0.5">
+        <span
+          className="tabular-nums leading-none"
+          style={{
+            fontSize: 48,
+            fontWeight: 300,
+            fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+            fontVariationSettings: '"opsz" 96, "SOFT" 80',
+            letterSpacing: '-0.035em',
+            color: today ? '#ffffff' : 'rgba(255,255,255,0.92)',
+            paddingBottom: 2,
+            // Liten ekstra glød på dagens dato — gjør at øyet aldri lurer på
+            // hva «her er vi nå» betyr.
+            filter: today
+              ? 'drop-shadow(0 0 16px color-mix(in oklab, var(--accent-color) 55%, transparent))'
+              : 'none',
+          }}
+        >
+          {total}
+        </span>
+        <span
+          className="text-[11px]"
+          style={{ color: 'rgba(255,255,255,0.42)', fontFamily: 'var(--font-body)' }}
+        >
+          {t.dashboard.month.dayOf
+            .replace('{total}', String(membersTotal))
+            .replace('{pct}', String(regPct))}
+        </span>
+      </div>
+
+      {/* Dominant pattern — én linje som forteller dagens karakter. Stille
+          dot + label, samme språk som «I sum» under. Skjules om dagen er
+          tom (ingenting å være «mest av»). */}
+      {total > 0 && (
+        <div className="flex items-center justify-center gap-1.5">
+          <span
+            className="w-1.5 h-1.5 rounded-full inline-block"
+            style={{ background: dominantColor, boxShadow: `0 0 6px ${dominantColor}aa` }}
+          />
+          <span
+            className="text-[11px]"
+            style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'var(--font-body)' }}
+          >
+            {dominantSubtitle(dominant.group.key, t)}
+          </span>
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
+function dominantSubtitle(key: GroupKey, t: Dictionary): string {
+  switch (key) {
+    case 'office':   return t.dashboard.month.dominantOffice
+    case 'remote':   return t.dashboard.month.dominantRemote
+    case 'customer': return t.dashboard.month.dominantCustomer
+    case 'away':     return t.dashboard.month.dominantAway
+  }
+}
+
+/* ───────────────────────────── Legend chip ──────────────────────────── */
+
+function LegendChip({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className="w-1.5 h-1.5 rounded-full inline-block"
+        style={{ background: color, boxShadow: `0 0 6px ${color}aa` }}
+      />
+      <span
+        className="text-[11px] font-semibold uppercase tracking-[0.18em]"
+        style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-body)' }}
+      >
+        {label}
+      </span>
+    </span>
+  )
+}
+
+/* ───────────────────────────── PulseRow ─────────────────────────────── */
+
 /**
- * Akkurat nå-style row used in «Fordeling denne uken». Mirrors TodayPulse's
+ * Akkurat nå-style row used in «I sum denne uken». Mirrors TodayPulse's
  * PulseRow on Oversikt so navigating Oversikt → Dashboard reads as the same
  * surface, not two designs of the same thing.
  */
@@ -552,38 +667,35 @@ function PulseRow({
       initial={{ opacity: 0, x: 12 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ ...spring.gentle, delay }}
-      className="relative rounded-xl overflow-hidden flex items-center gap-3 px-3 py-2.5"
+      className="relative rounded-xl overflow-hidden flex items-center gap-2.5 px-2.5 py-2"
       style={{
         background: 'rgba(255,255,255,0.025)',
         border: '1px solid rgba(255,255,255,0.06)',
         boxShadow: `inset 2px 0 0 ${tone}`,
       }}
     >
-      {/* Icon pill — same affordance as TodayPulse */}
       <div
         className="flex items-center justify-center rounded-lg flex-shrink-0"
         style={{
-          width: 28,
-          height: 28,
+          width: 24,
+          height: 24,
           background: `color-mix(in oklab, ${tone} 18%, transparent)`,
           boxShadow: `0 0 0 1px color-mix(in oklab, ${tone} 32%, transparent)`,
         }}
       >
-        <StatusIcon status={status} size={14} color={tone} />
+        <StatusIcon status={status} size={12} color={tone} />
       </div>
 
-      {/* Label */}
       <span
-        className="text-[14px] font-medium flex-1 truncate"
+        className="text-[13px] font-medium flex-1 truncate"
         style={{ color: labelColor, fontFamily: 'var(--font-body)' }}
       >
         {label}
       </span>
 
-      {/* Mini pct bar — sits between label and count, fills to share */}
       <div
         className="h-[5px] rounded-full overflow-hidden flex-shrink-0"
-        style={{ width: 84, background: 'rgba(255,255,255,0.05)' }}
+        style={{ width: 56, background: 'rgba(255,255,255,0.05)' }}
       >
         <motion.div
           initial={{ width: 0 }}
@@ -597,16 +709,12 @@ function PulseRow({
         />
       </div>
 
-      {/* Count — Fraunces, generous min-width so 100+ never reflows */}
       <span
-        className="tabular-nums text-[20px] font-semibold leading-none flex-shrink-0 text-right"
+        className="tabular-nums text-[18px] font-semibold leading-none flex-shrink-0 text-right"
         style={{
           color: 'rgba(255,255,255,0.92)',
           fontFamily: 'var(--font-fraunces)',
-          // Generøs min-width sikrer at trekksifrede tall (100+) ikke
-          // skubber bar-bredden — og bevisst paddingBottom på 2px så
-          // descender-glyfer (8/3/9) aldri klippes av line-box-en.
-          minWidth: 36,
+          minWidth: 28,
           paddingBottom: 2,
         }}
       >
