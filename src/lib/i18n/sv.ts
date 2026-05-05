@@ -104,6 +104,12 @@ export const sv: Dictionary = {
       'Øystein och Johan Vilnius ons-fre',
       'Kontoret imorgon',
     ],
+    vacationPlaceholder: [
+      'Semester vecka 19-21',
+      'Semester hela juli',
+      'Semester 1-15 juli',
+      'Sommarsemester vecka 28-30',
+    ],
     label: 'Skriv en statusuppdatering',
     sending: 'Skickar...',
     success: 'Uppdaterat',

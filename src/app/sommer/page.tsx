@@ -4,6 +4,7 @@ import { AIInput } from '@/components/ai-input'
 import { SommerMonthMatrix } from '@/components/sommer-month-matrix'
 import { getSessionMember } from '@/lib/supabase/session'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
+import { getServerDict } from '@/lib/i18n/server'
 import { toDateString } from '@/lib/dates'
 import type { MemberRole } from '@/lib/supabase/types'
 
@@ -43,6 +44,8 @@ export default async function SommerPage() {
   const startStr = toDateString(monthStart)
   const endStr = toDateString(monthEnd)
 
+  const dict = await getServerDict()
+
   const supabase = await createSupabaseServerClient()
   const [membersRes, entriesRes] = await Promise.all([
     supabase
@@ -67,7 +70,7 @@ export default async function SommerPage() {
     <div className="mx-auto max-w-7xl px-3 sm:px-6 pt-3 pb-10 space-y-5">
       {showAIInput && (
         <div className="mx-auto max-w-3xl">
-          <AIInput orgId={member.org_id} />
+          <AIInput orgId={member.org_id} placeholders={dict.aiInput.vacationPlaceholder} />
         </div>
       )}
       <Suspense fallback={null}>

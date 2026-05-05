@@ -102,6 +102,12 @@ export const no = {
       'Øystein og Johan Vilnius ons-fre',
       'Kontoret i morgen',
     ],
+    vacationPlaceholder: [
+      'Ferie uke 19-21',
+      'Ferie hele juli',
+      'Ferie 1.-15. juli',
+      'Sommerferie uke 28-30',
+    ],
     label: 'Skriv en statusoppdatering',
     sending: 'Sender...',
     success: 'Oppdatert',

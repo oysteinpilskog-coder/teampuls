@@ -104,6 +104,12 @@ export const es: Dictionary = {
       'Øystein y Johan Vilnius mié-vie',
       'Oficina mañana',
     ],
+    vacationPlaceholder: [
+      'Vacaciones semanas 19-21',
+      'Vacaciones todo julio',
+      'Vacaciones 1-15 julio',
+      'Vacaciones de verano semanas 28-30',
+    ],
     label: 'Escribe una actualización de estado',
     sending: 'Enviando...',
     success: 'Actualizado',
