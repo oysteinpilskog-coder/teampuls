@@ -19,6 +19,13 @@ interface TodayViewProps {
   todayEntries: Entry[]
   time: Date
   offices?: Office[]
+  /** Posisjon i den aktive rotasjonen (0-indeksert). Brukes til den
+   *  diskrete prikk-indikatoren nederst i Nå-visningen så TV-seeren
+   *  ser «du er på 1 av 6». */
+  viewIdx?: number
+  /** Antall visninger i den aktive rotasjonen. Når <= 1 skjules
+   *  prikk-indikatoren — én visning trenger ikke posisjonsmarkør. */
+  viewCount?: number
 }
 
 const WEEK_STATUS_GROUPS: Array<{ key: string; statuses: EntryStatus[]; representative: EntryStatus }> = [
@@ -39,7 +46,7 @@ function greetingFor(h: number, g: Dictionary['dashboard']['greetings']): string
   return g.night
 }
 
-export function TodayView({ members, weekDays, entries, todayEntries, time, offices }: TodayViewProps) {
+export function TodayView({ members, weekDays, entries, todayEntries, time, offices, viewIdx, viewCount }: TodayViewProps) {
   const STATUS_COLORS = useStatusColors()
   const t = useT()
   const hours   = pad(time.getHours())
@@ -74,7 +81,47 @@ export function TodayView({ members, weekDays, entries, todayEntries, time, offi
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...spring.gentle, delay: 0.05 }}
         >
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* ── View identity: "NÅ" + subtitle ─────────────────────────
+              Eksplisitt navn på visningen så folk som ser TV-en for
+              første gang umiddelbart skjønner *hva* de ser på, før
+              hjernen rekker å rangere alle tallene. Sora caps på navnet,
+              Fraunces italic på underlinjen — samme språkpar som
+              wordmark/clock-aksen, så det føles som ett system.
+              Subtilen ligger i samme dempede paper-tone som klokka-
+              underlinjen. */}
+          <div className="flex items-baseline gap-3 leading-none">
+            <span
+              className="text-[15px] font-semibold uppercase tracking-[0.32em]"
+              style={{
+                fontFamily: 'var(--font-display), var(--font-body)',
+                color: 'rgba(255,255,255,0.85)',
+              }}
+            >
+              {t.dashboard.views.now}
+            </span>
+            <span
+              aria-hidden
+              className="inline-block w-1 h-1 rounded-full"
+              style={{
+                background: 'color-mix(in oklab, var(--accent-color) 70%, white)',
+                boxShadow: '0 0 6px color-mix(in oklab, var(--accent-color) 70%, transparent)',
+              }}
+            />
+            <span
+              className="text-[14px]"
+              style={{
+                fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
+                fontStyle: 'italic',
+                fontWeight: 300,
+                fontVariationSettings: '"opsz" 24, "SOFT" 80',
+                color: 'rgba(245,239,228,0.6)',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {t.dashboard.nowSubtitle}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap mt-2">
             <span
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-[0.16em] uppercase whitespace-nowrap flex-shrink-0"
               style={{
@@ -94,6 +141,11 @@ export function TodayView({ members, weekDays, entries, todayEntries, time, offi
               {greeting}
             </span>
           </div>
+          {/* ── Status legend: fader inn første ~0.6s, holder ~3s, fader
+              ut igjen. Forklarer fargekoden for breakdown-prikkene
+              (kontor / hjemme / kunde / borte) uten å eie skjermen.
+              Når den er borte, eier hero-tallet flata — som før. */}
+          <StatusLegend STATUS_COLORS={STATUS_COLORS} t={t} />
         </motion.div>
 
         {/* Clock */}
@@ -272,6 +324,109 @@ export function TodayView({ members, weekDays, entries, todayEntries, time, offi
         })}
       </motion.div>
 
+      {/* ── Rotasjons-prikker ──────────────────────────────────────
+          Diskret «du er på X av Y»-indikator nederst i Nå-visningen.
+          Den tynne Nordlys-progresjonen rett under kontroll-baren
+          beviser at rotasjonen *lever*; disse prikkene gir
+          *posisjonen*. Vises kun når det er mer enn én visning i
+          rotasjonen — én visning trenger ingen indikator. */}
+      {viewCount !== undefined && viewIdx !== undefined && viewCount > 1 && (
+        <RotationDots idx={viewIdx} count={viewCount} />
+      )}
+
     </div>
+  )
+}
+
+/**
+ * Liten fade-in/fade-ut legend som sitter rett under header-banden i
+ * Nå-visningen. Forklarer hva fargeprikkene i breakdown-chipsene betyr
+ * uten å permanent okkupere flate. Resepsjonisten ser dem akkurat lenge
+ * nok til å lære koden, så forsvinner de ut igjen så hero-tallet får
+ * eie skjermen. Sekvensen: 0.4s usynlig → 0.6s fade in → 3.0s synlig →
+ * 1.0s fade ut. Total tid: ~5s.
+ */
+function StatusLegend({
+  STATUS_COLORS,
+  t,
+}: {
+  STATUS_COLORS: ReturnType<typeof useStatusColors>
+  t: ReturnType<typeof useT>
+}) {
+  const items: Array<{ label: string; color: string }> = [
+    { label: t.pulse.atOffice, color: STATUS_COLORS.office.icon },
+    { label: t.pulse.atHomeShort, color: STATUS_COLORS.remote.icon },
+    { label: t.pulse.atCustomer, color: STATUS_COLORS.customer.icon },
+    { label: t.pulse.away, color: STATUS_COLORS.vacation.icon },
+  ]
+  return (
+    <motion.div
+      aria-hidden
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: [0, 1, 1, 0], y: [4, 0, 0, -2] }}
+      transition={{
+        duration: 5.0,
+        times: [0, 0.12, 0.8, 1],
+        delay: 0.4,
+        ease: [0.4, 0, 0.2, 1],
+      }}
+      className="mt-2 flex items-center gap-3 flex-wrap"
+    >
+      {items.map(it => (
+        <span
+          key={it.label}
+          className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em]"
+          style={{
+            color: 'rgba(255,255,255,0.5)',
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full inline-block"
+            style={{ background: it.color, boxShadow: `0 0 6px ${it.color}aa` }}
+          />
+          {it.label.toLowerCase()}
+        </span>
+      ))}
+    </motion.div>
+  )
+}
+
+/**
+ * Diskret «X av Y»-prikk-indikator nederst i Nå-visningen. Aktiv prikk
+ * er litt større og lyser i accent-fargen; de andre er rolige hvite
+ * prikker. Holder seg ute av veien for hero-tallet og uke-stripa, men
+ * gjør rotasjonsstatus lesbar fra avstand uten å måtte se på
+ * kontroll-baren.
+ */
+function RotationDots({ idx, count }: { idx: number; count: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6, delay: 0.8 }}
+      className="absolute left-1/2 -translate-x-1/2 bottom-2 flex items-center gap-1.5 pointer-events-none"
+      aria-hidden
+    >
+      {Array.from({ length: count }).map((_, i) => {
+        const active = i === idx
+        return (
+          <span
+            key={i}
+            className="rounded-full transition-all duration-500"
+            style={{
+              width: active ? 16 : 4,
+              height: 4,
+              background: active
+                ? 'color-mix(in oklab, var(--accent-color) 70%, white)'
+                : 'rgba(255,255,255,0.22)',
+              boxShadow: active
+                ? '0 0 10px color-mix(in oklab, var(--accent-color) 55%, transparent)'
+                : 'none',
+            }}
+          />
+        )
+      })}
+    </motion.div>
   )
 }

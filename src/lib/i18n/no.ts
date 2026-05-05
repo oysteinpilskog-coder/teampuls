@@ -275,6 +275,8 @@ export const no = {
       welcome: 'Velkomst',
       globe: 'Globus',
     },
+    nowSubtitle: 'Hvor folk er akkurat nå',
+    nowLegendHint: 'Fargekode',
     globe: {
       heading: 'Global tilstedeværelse',
       subtitle: 'ERP for vindus- og dørprodusenter',
@@ -303,6 +305,25 @@ export const no = {
     },
     month: {
       title: 'Ukehorisonten',
+      // Story-headline øverst — gir resepsjonen ETT lesbart fakta før øyet
+      // forsvinner ned i dag-rutene.
+      storyMost: 'Mest sammen',
+      storyIn: 'inn',
+      storyEmpty: 'Ingen registreringer ennå denne uken',
+      // Hver dag-rute får én linje som forteller dagens karakter — så fargen
+      // i søylen alltid har et ord knyttet til seg.
+      dominantOffice: 'mest på kontoret',
+      dominantRemote: 'mest hjemme',
+      dominantCustomer: 'mest hos kunde',
+      dominantAway: 'mest borte',
+      // «Av N · X%» under det store dag-tallet.
+      dayOf: 'av {total} · {pct}%',
+      // Bunn-row.
+      inSum: 'I sum denne uken',
+      registrations: 'registreringer',
+      awayThisWeek: 'Borte denne uken',
+      awayEmpty: 'Alle er på jobb hele uken.',
+      todayChip: 'I dag',
     },
     noRegistrations: 'Ingen registreringer.',
     noCustomerVisits: 'Ingen kundebesøk denne uken.',
@@ -482,7 +503,7 @@ export const no = {
   },
   summer: {
     eyebrow: 'Sommerplan',
-    title: 'Sommer',
+    title: 'Sommerferie',
     subline: '{withVac} av {total} har planlagt ferie · totalt {days} dager registrert',
     yearSwitcherAria: 'Velg år',
     weekShort: 'u',
