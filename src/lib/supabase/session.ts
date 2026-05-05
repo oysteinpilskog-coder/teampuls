@@ -97,6 +97,10 @@ async function resolveSession() {
     logo_url?: string | null
     archived_at?: string | null
     status_colors?: Record<string, string> | null
+    /** Pre-migration-030 orgs won't have these in the row payload —
+     *  fall back to the canonical CalWin BrandBook pair downstream. */
+    brand_primary?: string | null
+    brand_accent?: string | null
   }
   type Row = {
     id: string
@@ -242,6 +246,8 @@ async function resolveSession() {
         logo_url: o.logo_url,
         role: r.role,
         status_colors: o.status_colors ?? null,
+        brand_primary: o.brand_primary ?? '#322E7A',
+        brand_accent: o.brand_accent ?? '#66C4EF',
       }
     })
     .filter((w): w is WorkspaceSummary => w !== null)
@@ -299,6 +305,10 @@ async function resolveSession() {
       // getOrgStatusColors() for the rationale (avoid favouring one
       // workspace's overrides when the combined surface spans many).
       status_colors: null,
+      // Combined view defaults to the canonical CalWin BrandBook pair.
+      // Per-org brand colors only apply when a specific workspace is active.
+      brand_primary: '#322E7A',
+      brand_accent: '#66C4EF',
     }
 
     return {
