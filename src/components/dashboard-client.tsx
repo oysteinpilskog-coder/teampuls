@@ -985,7 +985,6 @@ export function DashboardClient({
       <OffiviewSignature
         ref={signatureRef}
         visible={
-          !brandMode &&
           pendingViewIdx === null &&
           currentView !== 'A' &&
           currentView !== 'B'
