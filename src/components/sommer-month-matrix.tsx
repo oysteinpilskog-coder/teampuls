@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useTheme } from 'next-themes'
 import { getISOWeek } from 'date-fns'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEntries } from '@/hooks/use-entries'
 import { useT } from '@/lib/i18n/context'
@@ -359,14 +360,18 @@ export function SommerMonthMatrix({
 
   return (
     <div className="w-full flex flex-col gap-5">
-      {/* Month nav */}
-      <div className="flex items-center justify-between gap-3 px-1">
+      {/* Month nav — same chevron icons as Oversikt's WeekNav (Lucide
+          ChevronLeft / ChevronRight, not text arrows), and the "I dag"
+          affordance uses the CalWin Light Blue brand accent (--lg-accent)
+          so this page lives in the same color family as the rest of the
+          app instead of riding the workspace tint. */}
+      <div className="flex items-center justify-between gap-3 px-1 flex-wrap">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => navMonth(-1)}
             aria-label={prevMonthName}
-            className="px-3 h-8 rounded-xl text-[12.5px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+            className="inline-flex items-center gap-1 pl-2 pr-3 h-8 rounded-xl text-[12.5px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lg-accent)]"
             style={{
               color: 'var(--text-secondary)',
               background: 'color-mix(in oklab, var(--bg-elevated) 70%, transparent)',
@@ -374,7 +379,8 @@ export function SommerMonthMatrix({
               fontFamily: 'var(--font-body)',
             }}
           >
-            ← {prevMonthName}
+            <ChevronLeft className="w-3.5 h-3.5" strokeWidth={1.75} />
+            {prevMonthName}
           </button>
           <h2
             className="text-[20px] sm:text-[24px] font-semibold mx-2 tabular-nums"
@@ -391,7 +397,7 @@ export function SommerMonthMatrix({
             type="button"
             onClick={() => navMonth(+1)}
             aria-label={nextMonthName}
-            className="px-3 h-8 rounded-xl text-[12.5px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+            className="inline-flex items-center gap-1 pl-3 pr-2 h-8 rounded-xl text-[12.5px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lg-accent)]"
             style={{
               color: 'var(--text-secondary)',
               background: 'color-mix(in oklab, var(--bg-elevated) 70%, transparent)',
@@ -399,7 +405,8 @@ export function SommerMonthMatrix({
               fontFamily: 'var(--font-body)',
             }}
           >
-            {nextMonthName} →
+            {nextMonthName}
+            <ChevronRight className="w-3.5 h-3.5" strokeWidth={1.75} />
           </button>
         </div>
         {!isCurrentMonth && (
@@ -408,9 +415,9 @@ export function SommerMonthMatrix({
             onClick={navToday}
             className="px-3 h-8 rounded-xl text-[12.5px] font-medium"
             style={{
-              color: 'var(--accent-color)',
-              background: 'color-mix(in oklab, var(--accent-color) 10%, transparent)',
-              border: '1px solid color-mix(in oklab, var(--accent-color) 30%, transparent)',
+              color: 'var(--lg-accent)',
+              background: 'color-mix(in oklab, var(--lg-accent) 10%, transparent)',
+              border: '1px solid color-mix(in oklab, var(--lg-accent) 30%, transparent)',
               fontFamily: 'var(--font-body)',
             }}
           >
@@ -419,15 +426,13 @@ export function SommerMonthMatrix({
         )}
       </div>
 
-      {/* Matrix card */}
+      {/* Matrix card — same liquid-glass surface treatment as Oversikt's
+          TeamGrid panel so both pages read as the same product. */}
       <section
-        className="relative w-full rounded-[24px] overflow-hidden overflow-x-auto"
+        className="relative w-full rounded-2xl overflow-hidden overflow-x-auto"
         style={{
-          background: 'color-mix(in oklab, var(--bg-elevated) 86%, transparent)',
-          border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
-          boxShadow: isLight
-            ? '0 18px 48px -28px rgba(180, 83, 9, 0.16), 0 1px 0 rgba(255,255,255,0.6) inset'
-            : '0 18px 48px -28px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.04) inset',
+          background: 'var(--lg-surface-1)',
+          border: '1px solid var(--lg-divider)',
         }}
       >
         <div className="min-w-[720px]">
@@ -776,7 +781,8 @@ function Row({
           />
         ))}
 
-        {/* Today marker */}
+        {/* Today marker — Light Blue brand accent, matching Oversikt's
+            today edges. */}
         {todayCol >= 0 && (
           <div
             aria-hidden
@@ -784,7 +790,7 @@ function Row({
             style={{
               left: `${colPct(todayCol)}%`,
               width: `${colPct(1)}%`,
-              background: 'color-mix(in oklab, var(--nordlys-b) 12%, transparent)',
+              background: 'color-mix(in oklab, var(--lg-accent) 12%, transparent)',
             }}
           />
         )}
