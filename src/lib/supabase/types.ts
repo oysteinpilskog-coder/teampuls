@@ -49,6 +49,12 @@ export interface Organization {
   primary_color: string
   /** Per-workspace brand accent (hex) — drives the header pill + glow. */
   accent_color: string | null
+  /** SaaS-grade brand pair. Override the dominant Blue Violet / Light Blue
+   *  pair from globals.css across the entire UI (header, gradients,
+   *  shadcn primary, dark-mode canvas). Always populated — defaults to
+   *  the CalWin BrandBook pair `#322E7A` / `#66C4EF` for existing orgs. */
+  brand_primary: string
+  brand_accent: string
   /** Short 2–4 letter badge shown in the switcher pill, e.g. "UK", "NO". */
   short_name: string | null
   /** ISO 3166-1 alpha-2, drives a flag hint in the switcher. */
@@ -129,6 +135,11 @@ export interface WorkspaceSummary {
   // (Json) since the live type lives in @/lib/status-colors/defaults and
   // pulling it in here would create a cycle.
   status_colors: Record<string, string> | null
+  /** SaaS-grade brand pair — see Organization.brand_primary/brand_accent.
+   *  Carried on the workspace so RootLayout can inject CSS-var overrides
+   *  in one server round-trip. */
+  brand_primary: string
+  brand_accent: string
 }
 
 export interface Office {

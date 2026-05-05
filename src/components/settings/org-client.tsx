@@ -16,6 +16,11 @@ import {
 import { DEFAULT_HEX_COLORS, mergeHexColors, type HexColors } from '@/lib/status-colors/defaults'
 import { derivePalette } from '@/lib/status-colors/derive'
 import { useStatusColorsController } from '@/lib/status-colors/context'
+import {
+  CALWIN_BRAND_PRIMARY,
+  CALWIN_BRAND_ACCENT,
+  safeHex,
+} from '@/lib/branding/css-overrides'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useT } from '@/lib/i18n/context'
 
@@ -60,6 +65,15 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
   // denne fiksen, slik at vi ikke "nullstiller" valgt farge ved lasting.
   const [accentColor, setAccentColor] = useState(
     initialOrg.accent_color ?? initialOrg.primary_color ?? '#0066FF'
+  )
+  // SaaS-grade brand pair — drives the dominant colors across the app
+  // (header, gradients, shadcn primary, dark canvas). Independent of
+  // accent_color above (which is only the workspace-pill tint).
+  const [brandPrimary, setBrandPrimary] = useState(
+    initialOrg.brand_primary ?? CALWIN_BRAND_PRIMARY
+  )
+  const [brandAccent, setBrandAccent] = useState(
+    initialOrg.brand_accent ?? CALWIN_BRAND_ACCENT
   )
   const [presenceAssumption, setPresenceAssumption] = useState<PresenceAssumption>(
     initialOrg.default_presence_assumption ?? 'none'
@@ -110,6 +124,8 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     name !== org.name ||
     timezone !== org.timezone ||
     accentColor !== (org.accent_color ?? org.primary_color ?? '#0066FF') ||
+    brandPrimary !== (org.brand_primary ?? CALWIN_BRAND_PRIMARY) ||
+    brandAccent !== (org.brand_accent ?? CALWIN_BRAND_ACCENT) ||
     presenceAssumption !== (org.default_presence_assumption ?? 'none') ||
     dashboardShowSick !== (org.dashboard_show_sick ?? true) ||
     rotationDirty ||
@@ -226,12 +242,19 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     const rotation_payload = dashboardRotationViews.length > 0
       ? [...dashboardRotationViews]
       : [...DASHBOARD_VIEW_KEYS]
+    // Normalize brand pair before write — DB has a CHECK constraint, so
+    // any malformed input would fail the round-trip. Fall back to the
+    // canonical CalWin pair if the user typed something invalid.
+    const brand_primary_payload = safeHex(brandPrimary) ?? CALWIN_BRAND_PRIMARY
+    const brand_accent_payload  = safeHex(brandAccent)  ?? CALWIN_BRAND_ACCENT
     const { error } = await supabase
       .from('organizations')
       .update({
         name: name.trim(),
         timezone,
         accent_color: accentColor,
+        brand_primary: brand_primary_payload,
+        brand_accent: brand_accent_payload,
         status_colors: status_colors_payload,
         default_presence_assumption: presenceAssumption,
         dashboard_show_sick: dashboardShowSick,
@@ -250,12 +273,16 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       name: name.trim(),
       timezone,
       accent_color: accentColor,
+      brand_primary: brand_primary_payload,
+      brand_accent: brand_accent_payload,
       status_colors: status_colors_payload,
       default_presence_assumption: presenceAssumption,
       dashboard_show_sick: dashboardShowSick,
       dashboard_rotation_views: rotation_payload,
       dashboard_view_durations: { ...viewDurations },
     }))
+    setBrandPrimary(brand_primary_payload)
+    setBrandAccent(brand_accent_payload)
     // Push fresh colors through the context so the rest of the app updates immediately.
     statusColorsCtx?.setHex(statusColors)
     // accent_color leses gjennom WorkspaceProvider (RSC). Refresh slik at den
@@ -458,6 +485,45 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
               onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
               onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
             />
+          </div>
+        </SettingsField>
+
+        {/* Brand identity — SaaS-grade per-org theming. The two fields
+            below replace the dominant Blue Violet / Light Blue pair from
+            the design system across the entire app (header, gradients,
+            shadcn primary, dark canvas). Defaults to the CalWin
+            BrandBook pair. */}
+        <SettingsField
+          label="Merkevare"
+          description="Hovedfargene som driver hele appen. Hovedfarge erstatter Blue Violet, aksent erstatter Light Blue. Lagre for å se endringen overalt."
+        >
+          <div className="flex flex-col gap-3">
+            <BrandColorRow
+              label="Hovedfarge"
+              hint="Dominant merkefarge. Driver knapper, overskrifter og mørk-modus-bakgrunn."
+              hex={brandPrimary}
+              onChange={setBrandPrimary}
+            />
+            <BrandColorRow
+              label="Aksent"
+              hint="Komplementærfarge. Driver lenker, fokus-ringer og signatur-gradienter."
+              hex={brandAccent}
+              onChange={setBrandAccent}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setBrandPrimary(CALWIN_BRAND_PRIMARY)
+                setBrandAccent(CALWIN_BRAND_ACCENT)
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium self-start transition-colors mt-1"
+              style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-color)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-tertiary)')}
+            >
+              <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.5} />
+              Tilbakestill til CalWin BrandBook
+            </button>
           </div>
         </SettingsField>
 
@@ -1010,6 +1076,73 @@ function StatusColorRow({
             {label}
           </span>
         </div>
+      </div>
+    </div>
+  )
+}
+
+/** A single brand-color row. Picker + hex input + a tall preview swatch
+ *  that uses the same color-mix derivation as the runtime overrides, so
+ *  the user sees the *real* shade ramp before saving. */
+function BrandColorRow({
+  label,
+  hint,
+  hex,
+  onChange,
+}: {
+  label: string
+  hint: string
+  hex: string
+  onChange: (hex: string) => void
+}) {
+  const safe = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#999999'
+  const previewGradient = `linear-gradient(90deg, color-mix(in oklab, ${safe} 70%, #FFFFFF) 0%, ${safe} 50%, color-mix(in oklab, ${safe} 65%, #000000) 100%)`
+  return (
+    <div className="flex items-start gap-3">
+      <input
+        type="color"
+        value={safe}
+        onChange={e => onChange(e.target.value.toUpperCase())}
+        className="w-12 h-10 rounded-lg cursor-pointer border-0 p-0.5 shrink-0 mt-0.5"
+        style={{ backgroundColor: 'var(--bg-subtle)' }}
+        aria-label={`Velg ${label.toLowerCase()}`}
+      />
+      <input
+        type="text"
+        value={hex}
+        onChange={e => {
+          const v = e.target.value.trim()
+          if (/^#?[0-9a-fA-F]{0,6}$/.test(v)) {
+            onChange(v.startsWith('#') ? v.toUpperCase() : `#${v.toUpperCase()}`)
+          }
+        }}
+        maxLength={7}
+        className="w-28 px-3 py-2 rounded-xl text-[13px] outline-none font-mono shrink-0 mt-0.5"
+        style={inputStyle}
+        onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+        onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+        aria-label={`${label} HEX`}
+      />
+      <div className="flex-1 flex flex-col gap-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span
+            className="text-[12.5px] font-semibold"
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+          >
+            {label}
+          </span>
+        </div>
+        <span
+          className="text-[11.5px] leading-snug"
+          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+        >
+          {hint}
+        </span>
+        <div
+          aria-hidden
+          className="h-[10px] rounded-full mt-0.5"
+          style={{ background: previewGradient }}
+        />
       </div>
     </div>
   )

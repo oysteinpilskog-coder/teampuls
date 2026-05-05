@@ -14,6 +14,11 @@ import { sv } from '@/lib/i18n/sv'
 import { es } from '@/lib/i18n/es'
 import { lt } from '@/lib/i18n/lt'
 import { getSessionMember } from '@/lib/supabase/session'
+import {
+  brandPairFromWorkspace,
+  buildBrandOverrideCss,
+  isDefaultBrand,
+} from '@/lib/branding/css-overrides'
 import './globals.css'
 
 const DICT_FOR_METADATA = { no, en, sv, es, lt }
@@ -98,6 +103,14 @@ export default async function RootLayout({
     ? activeWorkspace.accent_color
     : null
 
+  // Per-org SaaS brand pair (Blue Violet / Light Blue slot replacements).
+  // Skip the override block entirely for orgs running the canonical
+  // CalWin defaults — globals.css already nails those pixel-perfect.
+  const brandPair = brandPairFromWorkspace(activeWorkspace)
+  const brandOverrideCss = isDefaultBrand(brandPair)
+    ? null
+    : buildBrandOverrideCss(brandPair)
+
   // Override the theme's --accent-color with the active workspace's tint so
   // every downstream consumer (focus rings, year-wheel, buttons, the
   // switcher pill's outer ring, breathing accent orb, etc.) visually
@@ -140,6 +153,12 @@ export default async function RootLayout({
           </>
         )}
         <script dangerouslySetInnerHTML={{ __html: themeVariantBootScript }} />
+        {brandOverrideCss && (
+          <style
+            id="tp-brand-overrides"
+            dangerouslySetInnerHTML={{ __html: brandOverrideCss }}
+          />
+        )}
       </head>
       <body
         className="min-h-screen flex flex-col"
