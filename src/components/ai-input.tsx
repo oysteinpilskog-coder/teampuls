@@ -31,11 +31,16 @@ const PHRASE_COMPLETIONS: Array<{ match: string; rest: string }> = [
 
 interface AIInputProps {
   orgId: string
+  /**
+   * Override the rotating placeholder examples. Use to scope hints to the
+   * page's intent — e.g. only vacation phrases on /sommer.
+   */
+  placeholders?: readonly string[]
 }
 
 type InputState = 'idle' | 'loading' | 'success' | 'error'
 
-export function AIInput({ orgId }: AIInputProps) {
+export function AIInput({ orgId, placeholders }: AIInputProps) {
   const [value, setValue] = useState('')
   const [state, setState] = useState<InputState>('idle')
   const [focused, setFocused] = useState(false)
@@ -47,7 +52,7 @@ export function AIInput({ orgId }: AIInputProps) {
   const rotateRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const haptic = useHaptic()
   const t = useT()
-  const PLACEHOLDERS = t.aiInput.placeholder
+  const PLACEHOLDERS = placeholders ?? t.aiInput.placeholder
 
   // Fetch just the display names for ghost-completion. Cheap and cached by
   // Supabase; we only need the string list so the payload is tiny.

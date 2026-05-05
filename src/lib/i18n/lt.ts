@@ -104,6 +104,12 @@ export const lt: Dictionary = {
       'Øystein ir Johan Vilnius tr-pn',
       'Biure rytoj',
     ],
+    vacationPlaceholder: [
+      'Atostogos 19-21 sav.',
+      'Atostogos visą liepą',
+      'Atostogos liepos 1-15',
+      'Vasaros atostogos 28-30 sav.',
+    ],
     label: 'Rašyk būsenos atnaujinimą',
     sending: 'Siunčiama...',
     success: 'Atnaujinta',
