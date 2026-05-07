@@ -829,17 +829,21 @@ function Row({
       animate={{ opacity: hasVacation ? 1 : 0.62, x: 0 }}
       transition={reduce ? { duration: 0 } : { delay: 0.03 + idx * 0.02, duration: 0.4, ease: ease.horizon }}
     >
-      <div className="flex items-center gap-2 pr-3 min-w-0 pl-1">
+      <div className="flex items-center gap-2 px-1 min-w-0 w-full">
         <MemberAvatar
           name={row.member.display_name}
           initials={row.member.initials}
           avatarUrl={row.member.avatar_url}
           size="sm"
         />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           <div
-            className="truncate text-[12.5px] font-medium flex items-center gap-1"
-            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+            className="truncate text-[13px] flex items-center gap-1"
+            style={{
+              color: 'var(--lg-text-1)',
+              fontWeight: 500,
+              letterSpacing: '-0.01em',
+            }}
           >
             <span className="truncate">{row.member.full_name || row.member.display_name}</span>
             {isSelf && (
@@ -867,7 +871,7 @@ function Row({
           )}
         </div>
         {workspace && (
-          <span className="shrink-0">
+          <span className="ml-auto flex-shrink-0">
             <WorkspaceBadge workspace={workspace} size="sm" />
           </span>
         )}
