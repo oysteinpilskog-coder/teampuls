@@ -165,7 +165,7 @@ function Aurora({ accent }: { accent: string }) {
         className="absolute"
         style={{
           right: '-15%', top: '-10%', width: '55%', height: '110%',
-          background: 'radial-gradient(60% 60% at 50% 50%, hsla(330, 80%, 60%, 0.14), transparent 70%)',
+          background: 'radial-gradient(60% 60% at 50% 50%, color-mix(in oklab, var(--ink) 16%, transparent), transparent 70%)',
           filter: 'blur(70px)',
         }}
       />
