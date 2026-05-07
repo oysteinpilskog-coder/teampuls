@@ -10,9 +10,13 @@ import { AnniversaryWheel } from '@/components/anniversary-wheel'
 import { AnniversaryTimeline } from '@/components/anniversary-timeline'
 import { StrategyWheel } from '@/components/strategy-wheel'
 import { WheelViewSwitcher, type WheelView, type WheelLayout } from '@/components/wheel-view-switcher'
+import type { WorkspaceSummary } from '@/lib/supabase/types'
 
 export function WheelShell({
   orgId,
+  orgIds,
+  workspaces,
+  combinedView,
   eventsEnabled,
   birthdaysEnabled,
   anniversariesEnabled,
@@ -20,6 +24,9 @@ export function WheelShell({
   defaultView,
 }: {
   orgId: string
+  orgIds: string[]
+  workspaces: WorkspaceSummary[]
+  combinedView: boolean
   eventsEnabled: boolean
   birthdaysEnabled: boolean
   anniversariesEnabled: boolean
@@ -100,13 +107,13 @@ export function WheelShell({
   const renderView = () => {
     if (view === 'birthdays' && birthdaysEnabled) {
       return sub === 'timeline'
-        ? <motion.div key="birthdays-timeline" {...fade}><BirthdayTimeline orgId={orgId} /></motion.div>
-        : <motion.div key="birthdays-wheel" {...fade}><BirthdayWheel orgId={orgId} /></motion.div>
+        ? <motion.div key="birthdays-timeline" {...fade}><BirthdayTimeline orgId={orgId} orgIds={orgIds} workspaces={workspaces} combinedView={combinedView} /></motion.div>
+        : <motion.div key="birthdays-wheel" {...fade}><BirthdayWheel orgId={orgId} orgIds={orgIds} workspaces={workspaces} combinedView={combinedView} /></motion.div>
     }
     if (view === 'anniversaries' && anniversariesEnabled) {
       return sub === 'timeline'
-        ? <motion.div key="anniversaries-timeline" {...fade}><AnniversaryTimeline orgId={orgId} /></motion.div>
-        : <motion.div key="anniversaries-wheel" {...fade}><AnniversaryWheel orgId={orgId} /></motion.div>
+        ? <motion.div key="anniversaries-timeline" {...fade}><AnniversaryTimeline orgId={orgId} orgIds={orgIds} workspaces={workspaces} combinedView={combinedView} /></motion.div>
+        : <motion.div key="anniversaries-wheel" {...fade}><AnniversaryWheel orgId={orgId} orgIds={orgIds} workspaces={workspaces} combinedView={combinedView} /></motion.div>
     }
     if (view === 'strategy' && strategiesEnabled) {
       return <motion.div key="strategy" {...fade}><StrategyWheel orgId={orgId} /></motion.div>
