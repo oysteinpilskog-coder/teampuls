@@ -1023,7 +1023,7 @@ function RotationHairline({ pct }: { pct: number }) {
         style={{
           width: fillWidth,
           background:
-            'linear-gradient(90deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%)',
+            'var(--gradient-nordlys-rail)',
           filter: 'blur(7px) saturate(140%)',
           opacity: 0.475,
           transform: 'scaleY(4)',
@@ -1037,11 +1037,13 @@ function RotationHairline({ pct }: { pct: number }) {
         style={{
           width: fillWidth,
           background:
-            'linear-gradient(90deg, #00F5A0 0%, #00D9F5 50%, #7C3AED 100%)',
+            'var(--gradient-nordlys-rail)',
           backgroundSize: '100% 100%',
           backgroundRepeat: 'no-repeat',
+          // Femstegs glow — bruker Nordlys-tokens slik at per-org brand
+          // restainer hele bloom-kjeden, ikke bare gradient-fyllet.
           boxShadow:
-            '0 0 4px 1px rgba(255,255,255,0.45), 0 0 10px 2px rgba(0,245,160,0.5), 0 0 24px 4px rgba(0,217,245,0.475), 0 0 48px 6px rgba(0,217,245,0.35), 0 0 80px 10px rgba(124,58,237,0.275)',
+            '0 0 4px 1px rgba(255,255,255,0.45), 0 0 10px 2px color-mix(in oklab, var(--nordlys-a) 50%, transparent), 0 0 24px 4px color-mix(in oklab, var(--nordlys-b) 47%, transparent), 0 0 48px 6px color-mix(in oklab, var(--nordlys-b) 35%, transparent), 0 0 80px 10px color-mix(in oklab, var(--nordlys-c) 28%, transparent)',
         }}
       />
     </div>

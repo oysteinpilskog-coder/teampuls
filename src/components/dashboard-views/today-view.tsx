@@ -173,7 +173,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, time, offi
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
-              filter: 'drop-shadow(0 0 28px rgba(0,245,160,0.22))',
+              filter: 'drop-shadow(0 0 28px color-mix(in oklab, var(--nordlys-a) 22%, transparent))',
             }}
           >
             {hours}

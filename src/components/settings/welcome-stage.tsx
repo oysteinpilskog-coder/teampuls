@@ -128,8 +128,9 @@ export function WelcomeStage({
             right: '0%',
             width: '70%',
             height: '70%',
+            // Ambient orb i Nordlys-mid-tone — restaines per org-brand.
             background:
-              'radial-gradient(circle, rgba(0,217,245,0.28) 0%, transparent 65%)',
+              'radial-gradient(circle, color-mix(in oklab, var(--nordlys-b) 28%, transparent) 0%, transparent 65%)',
             filter: 'blur(32px)',
             mixBlendMode: 'screen',
             animation: 'ws-orb-b 28s ease-in-out infinite',
@@ -222,9 +223,10 @@ export function WelcomeStage({
                   marginTop: 'clamp(8px, 1.6cqw, 18px)',
                   height: 1.5,
                   width: 'clamp(80px, 18cqw, 180px)',
+                  // CalWin-fallbacks — ingen pre-CSS-flash av gammel mint.
                   backgroundImage:
-                    'linear-gradient(90deg, transparent 0%, var(--nordlys-a, #00F5A0) 30%, var(--nordlys-b, #00D9F5) 50%, var(--nordlys-c, #7C3AED) 70%, transparent 100%)',
-                  filter: 'drop-shadow(0 0 10px rgba(0,217,245,0.45))',
+                    'linear-gradient(90deg, transparent 0%, var(--nordlys-a, #66C4EF) 30%, var(--nordlys-b, #4A4595) 50%, var(--nordlys-c, #322E7A) 70%, transparent 100%)',
+                  filter: 'drop-shadow(0 0 10px color-mix(in oklab, var(--nordlys-b) 45%, transparent))',
                 }}
               />
 

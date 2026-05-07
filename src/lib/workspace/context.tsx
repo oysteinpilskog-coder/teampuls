@@ -56,7 +56,11 @@ export function WorkspaceProvider({
       short_name: 'ALL',
       region: initialWorkspaces[0].region,
       country_code: null,
-      accent_color: '#7C3AED',
+      // CalWin --dusk: mid Blue Violet. Distinkt fra Light Blue (primary
+      // accent) og deep Blue Violet (canvas i mørk modus), så combined-vyen
+      // leser som sin egen overflate uten å impersonere en av de aktive
+      // workspace-merkene.
+      accent_color: '#4A4595',
       logo_url: null,
       role: 'admin',
     } as WorkspaceSummary

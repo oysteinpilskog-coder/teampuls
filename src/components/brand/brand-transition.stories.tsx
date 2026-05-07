@@ -15,11 +15,15 @@ export default meta
 
 type Story = StoryObj<typeof BrandTransition>
 
+// Storybook-data oppdatert til CalWin-paletten så previews speiler det
+// produktet faktisk renderer. Bg-er vandrer gjennom Blue Violet-stack
+// (deepest -> canonical -> elevated -> mid), accenter veksler mellom
+// Silver Gray (paper-tekst på dyp blå) og Light Blue / Light Blue glow.
 const VIEWS = [
-  { label: 'Dagen', bg: '#0F172A', accent: '#F5EFE4' },
-  { label: 'Måned', bg: '#15110E', accent: '#FBBF24' },
-  { label: 'Kontor', bg: '#0E0B08', accent: '#00D9F5' },
-  { label: 'Kunder', bg: '#1F1913', accent: '#7C3AED' },
+  { label: 'Dagen',  bg: '#15123E', accent: '#EAEAE6' },
+  { label: 'Måned',  bg: '#1F1C52', accent: '#B3E2F7' },
+  { label: 'Kontor', bg: '#322E7A', accent: '#66C4EF' },
+  { label: 'Kunder', bg: '#2A2668', accent: '#93D6F3' },
 ] as const
 
 function PlaceholderView({

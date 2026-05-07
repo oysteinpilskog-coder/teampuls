@@ -781,10 +781,12 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
                               bottom: 0,
                               left: `calc(152px + ${todayWeekdayIdx} * ((100% - 200px) / 5 + 8px) + ((100% - 200px) / 5) / 2 - 1px)`,
                               width: 2,
+                              // Vertikal Nordlys-tråd via tokens — restaines
+                              // automatisk per org-brand.
                               background:
-                                'linear-gradient(180deg, rgba(0, 245, 160, 0) 0%, #00F5A0 20%, #00D9F5 50%, #7C3AED 80%, rgba(124, 58, 237, 0) 100%)',
+                                'linear-gradient(180deg, transparent 0%, var(--nordlys-a) 20%, var(--nordlys-b) 50%, var(--nordlys-c) 80%, transparent 100%)',
                               boxShadow:
-                                '0 0 12px rgba(0, 217, 245, 0.45), 0 0 24px rgba(0, 245, 160, 0.22)',
+                                '0 0 12px color-mix(in oklab, var(--nordlys-b) 45%, transparent), 0 0 24px color-mix(in oklab, var(--nordlys-a) 22%, transparent)',
                             }}
                           />
                         )}

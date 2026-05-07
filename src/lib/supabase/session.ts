@@ -295,10 +295,11 @@ async function resolveSession() {
       short_name: 'ALL',
       region: workspaces[0].region,
       country_code: null,
-      // Neutral violet — readable in both light/dark, distinct from
-      // either workspace's brand accent so the combined-view UI reads
-      // as its own surface rather than impersonating one of them.
-      accent_color: '#7C3AED',
+      // CalWin --dusk: mid Blue Violet. Readable in both light/dark,
+      // distinct from Light Blue (primary accent) and deep Blue Violet
+      // (canvas) so the combined-view UI reads as its own surface
+      // rather than impersonating one of the active workspace brands.
+      accent_color: '#4A4595',
       logo_url: null,
       role: adminRow.role,
       // Combined view falls back to default status palette — see
