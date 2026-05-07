@@ -11,10 +11,11 @@ import { useT } from '@/lib/i18n/context'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { MemberAvatar } from '@/components/member-avatar'
 import { VacationIcon } from '@/components/icons/status-icons'
+import { WorkspaceBadge } from '@/components/workspace-switcher'
 import { createClient } from '@/lib/supabase/client'
 import { toDateString } from '@/lib/dates'
 import { ease } from '@/lib/motion'
-import type { Entry, Member, MemberRole } from '@/lib/supabase/types'
+import type { Entry, Member, MemberRole, WorkspaceSummary } from '@/lib/supabase/types'
 
 interface Props {
   orgIds: string[]
@@ -24,6 +25,17 @@ interface Props {
   initialEntries: Entry[]
   initialMonth: number   // 0–11
   initialYear: number    // calendar year
+  /** All workspaces the user belongs to. Used in combined view for the
+   *  per-row workspace badge and to rank the UK org (country_code='GB')
+   *  to the bottom of the list. */
+  workspaces?: WorkspaceSummary[]
+  /** When true: render workspace badge per row + group rows by org with
+   *  a divider between groups. Mirrors Oversikt's TeamGrid combined view. */
+  combinedView?: boolean
+  /** Office ids whose country_code='GB'. Single-workspace UK detection
+   *  hooks `member.home_office_id` against this set so UK-based members
+   *  always sort to the bottom — same rule TeamGrid uses. */
+  ukOfficeIds?: string[]
 }
 
 interface VacationBlock {
@@ -42,6 +54,10 @@ interface MemberRow {
   firstCol: number       // POSITIVE_INFINITY when no vacation
 }
 
+type GridRow =
+  | { kind: 'member'; row: MemberRow; rowIdx: number }
+  | { kind: 'divider'; key: string }
+
 /**
  * Month-by-month vacation matrix for /sommer. Members on rows, every
  * weekday (Mon–Fri) of the month as a column. Vacation registers as
@@ -57,6 +73,9 @@ export function SommerMonthMatrix({
   initialEntries,
   initialMonth,
   initialYear,
+  workspaces,
+  combinedView,
+  ukOfficeIds,
 }: Props) {
   const t = useT()
   const reduce = useReducedMotion()
@@ -122,9 +141,23 @@ export function SommerMonthMatrix({
     return map
   }, [dateStrings])
 
+  // Workspace lookup keyed by org_id — drives the per-row badge in
+  // combined view and the UK-org rank in the sort below.
+  const workspaceByOrgId = useMemo(() => {
+    const map = new Map<string, WorkspaceSummary>()
+    if (workspaces) for (const w of workspaces) map.set(w.org_id, w)
+    return map
+  }, [workspaces])
+
+  // Set of UK home office ids — used in single-workspace view to push
+  // UK-based members to the bottom even when the org itself isn't UK.
+  const ukOfficeIdSet = useMemo(() => new Set(ukOfficeIds ?? []), [ukOfficeIds])
+
   // Build vacation blocks per member. We collapse consecutive weekday
   // entries — including over weekends — so "uke 28" reads as one bar.
-  const memberRows = useMemo<MemberRow[]>(() => {
+  // Sort puts UK members/orgs at the bottom (matches Oversikt's TeamGrid)
+  // and otherwise keeps the alphabetical order from .order('display_name').
+  const { memberRows, gridRows } = useMemo(() => {
     const byMember = new Map<string, Entry[]>()
     for (const e of entries) {
       if (e.status !== 'vacation') continue
@@ -143,9 +176,6 @@ export function SommerMonthMatrix({
         const col = colByDate.get(e.date)
         if (col === undefined) continue
         const date = parseDateString(e.date)
-        // Bridge over weekend gaps: column index increments by 1 per
-        // weekday in the array, so consecutive weekdays differ by 1
-        // even across a Sat/Sun boundary. Allow gap ≤ 1.
         if (cur && col - cur.endCol <= 1) {
           cur.endCol = col
           cur.endDate = date
@@ -168,12 +198,67 @@ export function SommerMonthMatrix({
       const firstCol = blocks.length > 0 ? blocks[0].startCol : Number.POSITIVE_INFINITY
       rows.push({ member, blocks, totalDays, firstCol })
     }
+
+    if (combinedView && workspaces && workspaces.length > 1) {
+      // Group by org with UK org (country_code='GB') always at the bottom;
+      // remaining orgs alphabetised on workspace name. Mirrors TeamGrid.
+      const ukOrgIds = new Set(
+        workspaces.filter((w) => w.country_code === 'GB').map((w) => w.org_id),
+      )
+      const orgRank = new Map<string, number>()
+      workspaces
+        .slice()
+        .sort((a, b) => {
+          const aUk = ukOrgIds.has(a.org_id) ? 1 : 0
+          const bUk = ukOrgIds.has(b.org_id) ? 1 : 0
+          if (aUk !== bUk) return aUk - bUk
+          return a.name.localeCompare(b.name)
+        })
+        .forEach((w, i) => orgRank.set(w.org_id, i))
+      rows.sort((a, b) => {
+        const ra = orgRank.get(a.member.org_id) ?? 999
+        const rb = orgRank.get(b.member.org_id) ?? 999
+        if (ra !== rb) return ra - rb
+        return a.member.display_name.localeCompare(b.member.display_name)
+      })
+      const out: GridRow[] = []
+      let lastOrg: string | null = null
+      let memberIdx = 0
+      for (const r of rows) {
+        if (lastOrg !== null && r.member.org_id !== lastOrg) {
+          out.push({ kind: 'divider', key: `divider-${r.member.org_id}` })
+        }
+        out.push({ kind: 'member', row: r, rowIdx: memberIdx++ })
+        lastOrg = r.member.org_id
+      }
+      return { memberRows: rows, gridRows: out }
+    }
+
+    // Single workspace (or unfiltered): UK home-office members sort to
+    // the bottom; alphabetical order is preserved otherwise. A divider
+    // sits between the non-UK and UK groups so the split reads at a
+    // glance, matching the combined-view treatment.
+    const isUK = (m: Member) =>
+      !!m.home_office_id && ukOfficeIdSet.has(m.home_office_id)
     rows.sort((a, b) => {
-      if (a.firstCol === b.firstCol) return a.member.display_name.localeCompare(b.member.display_name)
-      return a.firstCol - b.firstCol
+      const ua = isUK(a.member) ? 1 : 0
+      const ub = isUK(b.member) ? 1 : 0
+      if (ua !== ub) return ua - ub
+      return a.member.display_name.localeCompare(b.member.display_name)
     })
-    return rows
-  }, [initialMembers, entries, colByDate])
+    const out: GridRow[] = []
+    let memberIdx = 0
+    let lastUK = false
+    for (const r of rows) {
+      const ukNow = isUK(r.member)
+      if (memberIdx > 0 && ukNow && !lastUK) {
+        out.push({ kind: 'divider', key: 'divider-uk' })
+      }
+      out.push({ kind: 'member', row: r, rowIdx: memberIdx++ })
+      lastUK = ukNow
+    }
+    return { memberRows: rows, gridRows: out }
+  }, [initialMembers, entries, colByDate, combinedView, workspaces, ukOfficeIdSet])
 
   // Today marker — only shown when today is one of the visible weekdays.
   const todayCol = useMemo(() => {
@@ -453,13 +538,18 @@ export function SommerMonthMatrix({
             </div>
           ) : (
             <div className="px-3 pb-4">
-              {memberRows.map((row, idx) => {
+              {gridRows.map((gr) => {
+                if (gr.kind === 'divider') {
+                  return <GroupDivider key={gr.key} />
+                }
+                const { row, rowIdx } = gr
                 const editable = canEditAny || row.member.id === currentMemberId
+                const workspace = combinedView ? workspaceByOrgId.get(row.member.org_id) ?? null : null
                 return (
                   <Row
                     key={row.member.id}
                     row={row}
-                    idx={idx}
+                    idx={rowIdx}
                     totalCols={totalCols}
                     weekGroups={weekGroups}
                     colPct={colPct}
@@ -469,6 +559,7 @@ export function SommerMonthMatrix({
                     reduce={!!reduce}
                     editable={editable}
                     isSelf={row.member.id === currentMemberId}
+                    workspace={workspace}
                     commitVacation={commitVacation}
                     commitResize={commitResize}
                     t={t}
@@ -485,7 +576,21 @@ export function SommerMonthMatrix({
 
 // --------------------------------------------------------------------------
 
-const NAME_COL = 152
+// Hairline between org groups (combined view) or between the non-UK and
+// UK members of a single workspace. Mirrors TeamGrid.GroupDivider so both
+// surfaces share the same visual language.
+function GroupDivider() {
+  return (
+    <div aria-hidden className="relative h-2 my-1">
+      <div
+        className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-px"
+        style={{ background: 'var(--lg-divider-soft)' }}
+      />
+    </div>
+  )
+}
+
+const NAME_COL = 200
 
 function Header({
   weekdays, weekGroups, colPct, t,
@@ -579,7 +684,7 @@ const ROW_H = 44
 function Row({
   row, idx, totalCols, weekGroups, colPct, todayCol,
   palette, isLight, reduce,
-  editable, isSelf, commitVacation, commitResize, t,
+  editable, isSelf, workspace, commitVacation, commitResize, t,
 }: {
   row: MemberRow
   idx: number
@@ -592,6 +697,7 @@ function Row({
   reduce: boolean
   editable: boolean
   isSelf: boolean
+  workspace: WorkspaceSummary | null
   commitVacation: (memberId: string, startCol: number, endCol: number, memberName: string) => void | Promise<void>
   commitResize: (memberId: string, oldStartCol: number, oldEndCol: number, newStartCol: number, newEndCol: number, memberName: string) => void | Promise<void>
   t: ReturnType<typeof useT>
@@ -730,12 +836,12 @@ function Row({
           avatarUrl={row.member.avatar_url}
           size="sm"
         />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div
             className="truncate text-[12.5px] font-medium flex items-center gap-1"
             style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
           >
-            <span className="truncate">{row.member.display_name}</span>
+            <span className="truncate">{row.member.full_name || row.member.display_name}</span>
             {isSelf && (
               <span
                 aria-hidden
@@ -760,6 +866,11 @@ function Row({
             </div>
           )}
         </div>
+        {workspace && (
+          <span className="shrink-0">
+            <WorkspaceBadge workspace={workspace} size="sm" />
+          </span>
+        )}
       </div>
 
       <div
