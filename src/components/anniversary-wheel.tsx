@@ -4,9 +4,15 @@ import { useEffect, useId, useMemo, useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { spring } from '@/lib/motion'
 import {
-  CX, CY, MONTH_HSL,
+  CX, CY,
   polarPoint, monthDayToDeg,
 } from '@/lib/wheel-geometry'
+
+// Brand pair drives every people-marker on the wheel — pin halos, agenda
+// avatar rings, month labels — so per-org `(brand_primary, brand_accent)`
+// flows through automatically. Milestone gold (#E8B400) stays as the
+// celebratory marker; the wheel's month ring keeps its seasonal palette.
+const BRAND_HALO = 'var(--ink)'
 import {
   StaticAurora, WheelDefs, StaticMonthRing, StaticWeekRing, CenterGlass,
   seasonHueFor, monthLabelsFor,
@@ -208,8 +214,7 @@ function AnniversaryPin({
   workspace: WorkspaceSummary | null
 }) {
   const { x, y } = polarPoint(entry.pinR, entry.deg)
-  const m = entry.nextDate.getMonth()
-  const halo = MONTH_HSL[m][1]
+  const halo = BRAND_HALO
   const [hovered, setHovered] = useState(false)
   const isToday = entry.daysUntil === 0
   const r = entry.isMilestone ? MILESTONE_PIN_R : PIN_R
@@ -374,7 +379,7 @@ function AnniversaryCenter({
   const avatarSize = 64
   const ax = CX - avatarSize / 2
   const ay = CY - avatarSize - 14
-  const haloColor = isMilestone ? '#E8B400' : MONTH_HSL[nextDate.getMonth()][1]
+  const haloColor = isMilestone ? '#E8B400' : BRAND_HALO
 
   return (
     <g style={{ pointerEvents: 'none' }}>
@@ -500,7 +505,7 @@ function AnniversaryCenter({
 
 function AnniversaryRow({ entry, t, workspace }: { entry: DerivedAnniversary; t: Dictionary; workspace: WorkspaceSummary | null }) {
   const m = entry.nextDate.getMonth()
-  const halo = entry.isMilestone ? '#E8B400' : MONTH_HSL[m][1]
+  const halo = entry.isMilestone ? '#E8B400' : BRAND_HALO
   const initials = entry.member.initials ?? entry.member.display_name.slice(0, 2).toUpperCase()
 
   return (
@@ -591,7 +596,7 @@ function UpcomingHireRow({
   workspace: WorkspaceSummary | null
 }) {
   const m = entry.startDate.getMonth()
-  const halo = MONTH_HSL[m][1]
+  const halo = BRAND_HALO
   const initials = entry.member.initials ?? entry.member.display_name.slice(0, 2).toUpperCase()
 
   return (
