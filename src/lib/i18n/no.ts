@@ -91,7 +91,7 @@ export const no = {
     travel: 'Reise',
     vacation: 'Ferie',
     sick: 'Syk',
-    off: 'Fri',
+    off: 'Avspasering',
   },
   aiInput: {
     placeholder: [
