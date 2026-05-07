@@ -99,9 +99,9 @@ export function WheelDefs({
       ))}
 
       <linearGradient id={`${idPrefix}-week-active`} x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stopColor="#00F5A0" />
-        <stop offset="55%" stopColor="#00D9F5" />
-        <stop offset="100%" stopColor="#7C3AED" />
+        <stop offset="0%" stopColor="var(--nordlys-a)" />
+        <stop offset="55%" stopColor="var(--nordlys-b)" />
+        <stop offset="100%" stopColor="var(--nordlys-c)" />
       </linearGradient>
 
       <radialGradient id={`${idPrefix}-aurora`} cx="50%" cy="50%" r="50%">
@@ -213,7 +213,7 @@ export function StaticWeekRing({
             {isCurrent && (
               <motion.path
                 d={annularArc(R.weekOuter + 6, R.weekInner - 6, w.start, w.end, 0.2)}
-                fill="#00D9F5"
+                fill="var(--nordlys-b)"
                 style={{ filter: `url(#${idPrefix}-bloom)` }}
                 initial={{ opacity: 0.3 }}
                 animate={reduce ? { opacity: 0.5 } : { opacity: [0.35, 0.7, 0.35] }}

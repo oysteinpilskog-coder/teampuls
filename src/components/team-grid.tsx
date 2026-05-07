@@ -1141,10 +1141,13 @@ export function TeamGrid({
                 bottom: 0,
                 left,
                 width: 2,
+                // Vertikal Nordlys-tråd — fades ved kantene så den ikke
+                // klipper hardt mot toppbar/bunn. Bruker tokens slik at
+                // per-org brand-pair restainer hele linjen i ett.
                 background:
-                  'linear-gradient(180deg, rgba(0, 245, 160, 0) 0%, #00F5A0 20%, #00D9F5 50%, #7C3AED 80%, rgba(124, 58, 237, 0) 100%)',
+                  'linear-gradient(180deg, transparent 0%, var(--nordlys-a) 20%, var(--nordlys-b) 50%, var(--nordlys-c) 80%, transparent 100%)',
                 boxShadow:
-                  '0 0 12px rgba(0, 217, 245, 0.45), 0 0 24px rgba(0, 245, 160, 0.22)',
+                  '0 0 12px color-mix(in oklab, var(--nordlys-b) 45%, transparent), 0 0 24px color-mix(in oklab, var(--nordlys-a) 22%, transparent)',
               }}
             />
           )
@@ -1164,7 +1167,7 @@ export function TeamGrid({
               onClick={() => setOrgFilter(null)}
               label={t.workspace.combinedFilterAll}
               count={members.length}
-              accent="#7C3AED"
+              accent="var(--accent-color)"
             />
             {workspaces.map((w) => (
               <FilterPill
@@ -1269,14 +1272,14 @@ export function TeamGrid({
                     height: today || noHoliday ? 40 : 'auto',
                     borderRadius: 9999,
                     background: today
-                      ? 'linear-gradient(135deg, #00F5A0 0%, #00D9F5 55%, #7C3AED 100%)'
+                      ? 'linear-gradient(135deg, var(--nordlys-a) 0%, var(--nordlys-b) 55%, var(--nordlys-c) 100%)'
                       : noHoliday
                         ? 'linear-gradient(135deg, #FB7185 0%, #F43F5E 55%, #E11D48 100%)'
                         : 'transparent',
                     boxShadow: today && noHoliday
-                      ? '0 0 0 3px rgba(244, 63, 94, 0.55), 0 0 28px rgba(0, 217, 245, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
+                      ? '0 0 0 3px rgba(244, 63, 94, 0.55), 0 0 28px color-mix(in oklab, var(--nordlys-b) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
                       : today
-                        ? '0 0 0 3px rgba(0, 245, 160, 0.18), 0 0 28px rgba(0, 217, 245, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
+                        ? '0 0 0 3px color-mix(in oklab, var(--nordlys-a) 18%, transparent), 0 0 28px color-mix(in oklab, var(--nordlys-b) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
                         : noHoliday
                           ? '0 0 0 3px rgba(244, 63, 94, 0.18), 0 0 28px rgba(244, 63, 94, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
                           : 'none',

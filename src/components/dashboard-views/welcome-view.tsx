@@ -118,9 +118,11 @@ export function WelcomeView({ visits }: WelcomeViewProps) {
               transition={{ duration: 1.2, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
               className="mt-8 h-[2px] w-[min(280px,40vw)] origin-center rounded-full"
               style={{
+                // Fallback-hex matcher CalWin-paletten slik at SSR-fallback
+                // før CSS-variabler resolves ikke flasher feil farge.
                 backgroundImage:
-                  'linear-gradient(90deg, transparent 0%, var(--nordlys-a, #00F5A0) 30%, var(--nordlys-b, #00D9F5) 50%, var(--nordlys-c, #7C3AED) 70%, transparent 100%)',
-                filter: 'drop-shadow(0 0 12px rgba(0,217,245,0.45))',
+                  'linear-gradient(90deg, transparent 0%, var(--nordlys-a, #66C4EF) 30%, var(--nordlys-b, #4A4595) 50%, var(--nordlys-c, #322E7A) 70%, transparent 100%)',
+                filter: 'drop-shadow(0 0 12px color-mix(in oklab, var(--nordlys-b) 45%, transparent))',
               }}
             />
 

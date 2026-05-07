@@ -946,9 +946,12 @@ function EmailPreview({
             style={{
               width: 56,
               height: 2,
+              // CalWin-paletten via tokens. NB: dette er settings-preview;
+              // selve sendt e-post bygges separat (egen template) der
+              // CSS-variabler ikke fungerer — der må vi bruke literal hex.
               background:
-                'linear-gradient(90deg, #00F5A0 0%, #00D9F5 55%, #7C3AED 100%)',
-              boxShadow: '0 0 12px rgba(0,217,245,0.35)',
+                'linear-gradient(90deg, var(--nordlys-a) 0%, var(--nordlys-b) 55%, var(--nordlys-c) 100%)',
+              boxShadow: '0 0 12px color-mix(in oklab, var(--nordlys-b) 35%, transparent)',
             }}
           />
 

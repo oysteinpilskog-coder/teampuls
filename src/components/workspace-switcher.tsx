@@ -170,13 +170,18 @@ export function WorkspaceSwitcher() {
                     onBlur={() => setHoveredSlug((s) => (s === COMBINED_SLUG ? null : s))}
                     className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-[background,box-shadow] duration-150"
                     style={{
+                      // Combined-pill bruker --accent-color slik at den
+                      // dynamisk plukker accent-fargen som combined-vyen
+                      // setter (via layout.tsx bodyStyle): for CalWin er
+                      // det `--dusk` (mid Blue Violet) som skiller seg
+                      // fra Light Blue og brand-accenter for hver org.
                       background: isCombined
-                        ? 'linear-gradient(135deg, color-mix(in oklab, #7C3AED 28%, transparent), color-mix(in oklab, #7C3AED 18%, transparent))'
+                        ? 'linear-gradient(135deg, color-mix(in oklab, var(--accent-color) 28%, transparent), color-mix(in oklab, var(--accent-color) 18%, transparent))'
                         : hoveredSlug === COMBINED_SLUG
                           ? 'color-mix(in oklab, var(--bg-subtle) 70%, transparent)'
                           : 'transparent',
                       boxShadow: isCombined
-                        ? 'inset 0 0 0 1px color-mix(in oklab, #7C3AED 55%, transparent), 0 1px 0 color-mix(in oklab, #7C3AED 18%, transparent)'
+                        ? 'inset 0 0 0 1px color-mix(in oklab, var(--accent-color) 55%, transparent), 0 1px 0 color-mix(in oklab, var(--accent-color) 18%, transparent)'
                         : 'none',
                     }}
                   >
@@ -197,7 +202,7 @@ export function WorkspaceSwitcher() {
                       </div>
                     </div>
                     {isCombined ? (
-                      <Check className="w-4 h-4 shrink-0" style={{ color: '#7C3AED' }} aria-hidden />
+                      <Check className="w-4 h-4 shrink-0" style={{ color: 'var(--accent-color)' }} aria-hidden />
                     ) : (
                       <span
                         className="shrink-0 inline-flex items-center justify-center min-w-[28px] h-5 px-1.5 rounded-md text-[10px] font-semibold"
@@ -369,8 +374,11 @@ export function CombinedBadge({
   const accents = workspaces
     .map((w) => safeHex(w.accent_color))
     .filter((x): x is string => !!x)
-  const left = accents[0] ?? '#7C3AED'
-  const right = accents[1] ?? '#7C3AED'
+  // Fallback: CalWin --dusk (mid Blue Violet). Treffer når <CombinedBadge>
+  // rendres for en tom workspace-liste — sjelden, men trenger en farge
+  // som ikke kolliderer med Light Blue accent eller deep Blue Violet bg.
+  const left = accents[0] ?? '#4A4595'
+  const right = accents[1] ?? '#4A4595'
   const px = size === 'sm' ? 20 : 26
   return (
     <span
@@ -380,7 +388,7 @@ export function CombinedBadge({
         width: px,
         height: px,
         background: `linear-gradient(135deg, ${left} 0%, ${left} 48%, ${right} 52%, ${right} 100%)`,
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.35), 0 1px 2px rgba(124, 58, 237, 0.35)`,
+        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.35), 0 1px 2px color-mix(in oklab, var(--ink) 35%, transparent)`,
         position: 'relative',
         overflow: 'hidden',
       }}

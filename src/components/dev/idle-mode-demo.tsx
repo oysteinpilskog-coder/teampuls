@@ -74,8 +74,14 @@ export function IdleModeDemo({
           padding: '8px 16px',
           borderRadius: 999,
           width: 'fit-content',
-          background: isIdle ? 'rgba(124, 58, 237, 0.18)' : 'rgba(0, 245, 160, 0.14)',
-          border: `1px solid ${isIdle ? 'rgba(124, 58, 237, 0.55)' : 'rgba(0, 245, 160, 0.55)'}`,
+          background: isIdle
+            ? 'color-mix(in oklab, var(--mist) 18%, transparent)'
+            : 'color-mix(in oklab, var(--ember) 14%, transparent)',
+          border: `1px solid ${
+            isIdle
+              ? 'color-mix(in oklab, var(--mist) 55%, transparent)'
+              : 'color-mix(in oklab, var(--ember) 55%, transparent)'
+          }`,
           fontSize: 12,
           letterSpacing: '0.18em',
           textTransform: 'uppercase',
@@ -86,8 +92,10 @@ export function IdleModeDemo({
             width: 8,
             height: 8,
             borderRadius: '50%',
-            background: isIdle ? '#7C3AED' : '#00F5A0',
-            boxShadow: `0 0 10px ${isIdle ? '#7C3AED' : '#00F5A0'}`,
+            // CalWin-paletten: --mist (mid-violet) for idle, --ember
+            // (Light Blue) for busy. Ingen rå hex i dev-demoer heller.
+            background: isIdle ? 'var(--mist)' : 'var(--ember)',
+            boxShadow: `0 0 10px ${isIdle ? 'var(--mist)' : 'var(--ember)'}`,
           }}
         />
         State: <strong data-state-label>{isIdle ? 'IDLE' : 'BUSY'}</strong>
