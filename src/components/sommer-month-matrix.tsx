@@ -544,7 +544,7 @@ export function SommerMonthMatrix({
                 }
                 const { row, rowIdx } = gr
                 const editable = canEditAny || row.member.id === currentMemberId
-                const workspace = combinedView ? workspaceByOrgId.get(row.member.org_id) ?? null : null
+                const workspace = workspaceByOrgId.get(row.member.org_id) ?? null
                 return (
                   <Row
                     key={row.member.id}
