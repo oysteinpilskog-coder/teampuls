@@ -18,7 +18,7 @@ import type { MemberRole } from '@/lib/supabase/types'
  * kommende sommer (sep–des → neste år) eller årets sommer (jan–mai).
  */
 export default async function SommerPage() {
-  const { user, member, combinedScope } = await getSessionMember()
+  const { user, member, workspaces, combinedScope } = await getSessionMember()
   if (!user) redirect('/login')
   if (!member) redirect('/')
 
@@ -47,7 +47,7 @@ export default async function SommerPage() {
   const dict = await getServerDict()
 
   const supabase = await createSupabaseServerClient()
-  const [membersRes, entriesRes] = await Promise.all([
+  const [membersRes, entriesRes, officesRes] = await Promise.all([
     supabase
       .from('members')
       .select('*')
@@ -62,6 +62,10 @@ export default async function SommerPage() {
       .gte('date', startStr)
       .lte('date', endStr)
       .eq('status', 'vacation'),
+    supabase
+      .from('offices')
+      .select('id, org_id, country_code')
+      .in('org_id', orgIds),
   ])
 
   const showAIInput = !combinedScope
@@ -82,6 +86,11 @@ export default async function SommerPage() {
           initialEntries={entriesRes.data ?? []}
           initialMonth={month}
           initialYear={year}
+          workspaces={workspaces}
+          combinedView={!!combinedScope}
+          ukOfficeIds={(officesRes.data ?? [])
+            .filter(o => o.country_code === 'GB')
+            .map(o => o.id)}
         />
       </Suspense>
     </div>
