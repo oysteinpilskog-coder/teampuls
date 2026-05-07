@@ -5,9 +5,15 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { useTeamMembers, type DerivedBirthday } from '@/hooks/use-team-members'
 import { useT } from '@/lib/i18n/context'
 import { formatDateT } from './year-wheel-shared'
-import { MONTH_HSL } from '@/lib/wheel-geometry'
 import { createClient } from '@/lib/supabase/client'
 import type { Dictionary } from '@/lib/i18n/types'
+
+// Brand pair drives the timeline. Both stops + the avatar ring read from
+// CSS tokens, so per-org `(brand_primary, brand_accent)` overrides flow
+// through automatically. CalWin defaults: Light Blue → Blue Violet.
+const BRAND_BAR_GRADIENT = 'linear-gradient(90deg, var(--ember) 0%, var(--ink) 100%)'
+const BRAND_RING = 'var(--ink)'
+const BRAND_HERO_ACCENT = 'var(--accent-color)'
 
 const NAME_COL = 240
 const ROW_H = 76
@@ -96,8 +102,7 @@ export function BirthdayTimeline({ orgId }: { orgId: string }) {
     )
   }
 
-  const oldestHueIdx = stats.oldest!.birthDate.getMonth()
-  const heroAccent = MONTH_HSL[oldestHueIdx][1]
+  const heroAccent = BRAND_HERO_ACCENT
 
   return (
     <div className="relative w-full max-w-[1180px] mx-auto">
@@ -382,8 +387,6 @@ function AgeRow({
   t: Dictionary
   reduce: boolean
 }) {
-  const monthIdx = entry.birthDate.getMonth()
-  const [colorLight, colorDark] = MONTH_HSL[monthIdx]
   const widthPct = Math.min(100, Math.max(2.5, (entry.exactAge / max) * 100))
   const initials = entry.member.initials ?? entry.member.display_name.slice(0, 2).toUpperCase()
   const isUpcoming = entry.daysUntil <= 30
@@ -404,7 +407,7 @@ function AgeRow({
               src={entry.member.avatar_url}
               alt=""
               className="w-11 h-11 rounded-full object-cover"
-              style={{ boxShadow: `0 0 0 2px ${colorDark}, 0 4px 12px rgba(0,0,0,0.08)` }}
+              style={{ boxShadow: `0 0 0 2px ${BRAND_RING}, 0 4px 12px rgba(0,0,0,0.08)` }}
             />
           ) : (
             <div
@@ -412,7 +415,7 @@ function AgeRow({
               style={{
                 background: 'var(--bg-subtle)',
                 color: 'var(--text-primary)',
-                boxShadow: `0 0 0 2px ${colorDark}, 0 4px 12px rgba(0,0,0,0.08)`,
+                boxShadow: `0 0 0 2px ${BRAND_RING}, 0 4px 12px rgba(0,0,0,0.08)`,
                 fontFamily: 'var(--font-body)',
               }}
             >
@@ -476,8 +479,8 @@ function AgeRow({
           transition={{ duration: 1.0, delay: idx * 0.045 + 0.15, ease: [0.22, 0.9, 0.33, 1] }}
           className="absolute inset-y-1.5 left-0 rounded-2xl flex items-center justify-end pr-3 overflow-hidden"
           style={{
-            background: `linear-gradient(90deg, ${colorLight} 0%, ${colorDark} 100%)`,
-            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px -6px ${colorDark}66`,
+            background: BRAND_BAR_GRADIENT,
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.28), 0 6px 20px -6px color-mix(in oklab, var(--ink) 40%, transparent)',
           }}
         >
           {!reduce && (
@@ -528,7 +531,7 @@ function AgeRow({
             style={{
               left: `min(calc(${widthPct}% + 10px), calc(100% - 60px))`,
               transform: 'translateY(-50%)',
-              color: colorDark,
+              color: 'var(--ink)',
               fontFamily: 'var(--font-body)',
               letterSpacing: '0.04em',
             }}
