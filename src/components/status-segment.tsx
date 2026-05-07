@@ -95,7 +95,15 @@ export function StatusSegment({
   const singleDay = span === 1
   const singleDayIsToday = singleDay && todayIdx === 0
 
-  const label = location || note
+  // Hver bar skal lese «hva DET ER» — typen står alltid, og evt. sted/notat
+  // kommer som detaljering etter en separator. Tidligere ble typen kun
+  // formidlet via ikon + farge, som krevde at brukeren tolket fargekoden;
+  // å skrive ut «Ferie» / «Hjemmekontor» eksplisitt fjerner det leddet.
+  const statusName = status ? t.status[status] : null
+  const detail = location || note
+  const label = statusName && detail
+    ? `${statusName} · ${detail}`
+    : statusName || detail
 
   const palette = status ? palettes[status] : null
   const tone = palette?.icon ?? ''        // primary category color
@@ -244,7 +252,7 @@ export function StatusSegment({
               onMouseEnter={onDayMouseEnter ? () => onDayMouseEnter(i) : undefined}
               aria-label={
                 status
-                  ? `${t.status[status]}${label ? `, ${label}` : ''} — ${d.dateLabel}`
+                  ? `${label ?? t.status[status]} — ${d.dateLabel}`
                   : `${t.matrix.noStatus} — ${d.dateLabel}`
               }
               className={`segment-day flex-1 relative focus:outline-none focus-visible:z-10 ${isHi ? 'is-highlighted' : ''}`}
