@@ -4,9 +4,15 @@ import { useEffect, useId, useMemo, useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { spring } from '@/lib/motion'
 import {
-  CX, CY, R, MONTH_HSL,
+  CX, CY,
   polarPoint, monthDayToDeg,
 } from '@/lib/wheel-geometry'
+
+// Brand pair drives every people-marker on the wheel — pin halos, agenda
+// avatar rings, month labels — so per-org `(brand_primary, brand_accent)`
+// flows through automatically. The wheel's outer month ring keeps its
+// seasonal palette (calendar information design).
+const BRAND_HALO = 'var(--ink)'
 import {
   StaticAurora, WheelDefs, StaticMonthRing, StaticWeekRing, CenterGlass,
   seasonHueFor, monthLabelsFor,
@@ -173,8 +179,7 @@ function BirthdayPin({
   delay: number
 }) {
   const { x, y } = polarPoint(entry.pinR, entry.deg)
-  const m = entry.nextDate.getMonth()
-  const halo = MONTH_HSL[m][1]
+  const halo = BRAND_HALO
   const isToday = entry.daysUntil === 0
   const initials = entry.member.initials ?? entry.member.display_name.charAt(0).toUpperCase()
   const [hovered, setHovered] = useState(false)
@@ -340,7 +345,7 @@ function BirthdayCenter({
 
       {member.avatar_url ? (
         <>
-          <circle cx={CX} cy={ay + avatarSize / 2} r={avatarSize / 2 + 2} fill={MONTH_HSL[nextDate.getMonth()][1]} opacity={0.65} />
+          <circle cx={CX} cy={ay + avatarSize / 2} r={avatarSize / 2 + 2} fill={BRAND_HALO} opacity={0.65} />
           <image
             href={member.avatar_url}
             x={ax} y={ay}
@@ -351,7 +356,7 @@ function BirthdayCenter({
         </>
       ) : (
         <>
-          <circle cx={CX} cy={ay + avatarSize / 2} r={avatarSize / 2 + 2} fill={MONTH_HSL[nextDate.getMonth()][1]} opacity={0.65} />
+          <circle cx={CX} cy={ay + avatarSize / 2} r={avatarSize / 2 + 2} fill={BRAND_HALO} opacity={0.65} />
           <circle cx={CX} cy={ay + avatarSize / 2} r={avatarSize / 2} fill="var(--bg-elevated)" />
           <text
             x={CX} y={ay + avatarSize / 2}
@@ -434,7 +439,7 @@ function BirthdayRow({
   t: Dictionary
 }) {
   const m = entry.nextDate.getMonth()
-  const halo = MONTH_HSL[m][1]
+  const halo = BRAND_HALO
   const initials = entry.member.initials ?? entry.member.display_name.slice(0, 2).toUpperCase()
 
   return (
