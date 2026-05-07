@@ -20,12 +20,24 @@ import {
 } from './year-wheel-shared'
 import type { Dictionary } from '@/lib/i18n/types'
 import { createClient } from '@/lib/supabase/client'
+import type { WorkspaceSummary } from '@/lib/supabase/types'
+import { WorkspaceBadge } from '@/components/workspace-switcher'
 
 const PIN_R = 14
 const MILESTONE_PIN_R = 18
 const PIN_RING_RADII = [245, 263, 281, 227, 209]
 
-export function AnniversaryWheel({ orgId }: { orgId: string }) {
+export function AnniversaryWheel({
+  orgId,
+  orgIds,
+  workspaces,
+  combinedView,
+}: {
+  orgId: string
+  orgIds?: string[]
+  workspaces?: WorkspaceSummary[]
+  combinedView?: boolean
+}) {
   const t = useT()
   const uid = useId().replace(/[^a-z0-9]/gi, '')
   const idPrefix = `aw-${uid}`
@@ -49,7 +61,18 @@ export function AnniversaryWheel({ orgId }: { orgId: string }) {
   const seasonHue = useMemo(() => seasonHueFor(today), [today])
   const monthLabels = monthLabelsFor(t)
 
-  const { anniversaries, upcomingHires, nextAnniversary, loading } = useTeamMembers(orgId)
+  const effectiveOrgIds = orgIds ?? [orgId]
+  const { anniversaries, upcomingHires, nextAnniversary, loading } = useTeamMembers(effectiveOrgIds)
+
+  const workspaceByOrgId = useMemo(() => {
+    const map = new Map<string, WorkspaceSummary>()
+    workspaces?.forEach((w) => map.set(w.org_id, w))
+    return map
+  }, [workspaces])
+
+  const showBadges = !!combinedView && (workspaces?.length ?? 0) > 1
+  const workspaceFor = (orgId: string) =>
+    showBadges ? workspaceByOrgId.get(orgId) ?? null : null
 
   const placed = useMemo(() => {
     const byKey = new Map<string, DerivedAnniversary[]>()
@@ -110,6 +133,7 @@ export function AnniversaryWheel({ orgId }: { orgId: string }) {
               entry={p}
               idPrefix={idPrefix}
               delay={0.18 + idx * 0.025}
+              workspace={workspaceFor(p.member.org_id)}
             />
           ))}
 
@@ -131,7 +155,7 @@ export function AnniversaryWheel({ orgId }: { orgId: string }) {
           empty={t.wheel.anniversaries.sections.todayEmpty}
         >
           {sections.today.map(a => (
-            <AnniversaryRow key={a.member.id} entry={a} t={t} />
+            <AnniversaryRow key={a.member.id} entry={a} t={t} workspace={workspaceFor(a.member.org_id)} />
           ))}
         </WheelAgendaSection>
 
@@ -140,7 +164,7 @@ export function AnniversaryWheel({ orgId }: { orgId: string }) {
           empty={t.wheel.anniversaries.sections.weekEmpty}
         >
           {sections.week.map(a => (
-            <AnniversaryRow key={a.member.id} entry={a} t={t} />
+            <AnniversaryRow key={a.member.id} entry={a} t={t} workspace={workspaceFor(a.member.org_id)} />
           ))}
         </WheelAgendaSection>
 
@@ -149,14 +173,14 @@ export function AnniversaryWheel({ orgId }: { orgId: string }) {
           empty={t.wheel.anniversaries.sections.monthEmpty}
         >
           {sections.month.map(a => (
-            <AnniversaryRow key={a.member.id} entry={a} t={t} />
+            <AnniversaryRow key={a.member.id} entry={a} t={t} workspace={workspaceFor(a.member.org_id)} />
           ))}
         </WheelAgendaSection>
 
         {sections.later.length > 0 && (
           <WheelAgendaSection title={t.wheel.anniversaries.sections.laterThisYear}>
             {sections.later.map(a => (
-              <AnniversaryRow key={a.member.id} entry={a} t={t} />
+              <AnniversaryRow key={a.member.id} entry={a} t={t} workspace={workspaceFor(a.member.org_id)} />
             ))}
           </WheelAgendaSection>
         )}
@@ -164,7 +188,7 @@ export function AnniversaryWheel({ orgId }: { orgId: string }) {
         {upcomingHires.length > 0 && (
           <WheelAgendaSection title={t.wheel.anniversaries.sections.upcomingHires}>
             {upcomingHires.map(h => (
-              <UpcomingHireRow key={h.member.id} entry={h} t={t} />
+              <UpcomingHireRow key={h.member.id} entry={h} t={t} workspace={workspaceFor(h.member.org_id)} />
             ))}
           </WheelAgendaSection>
         )}
@@ -176,11 +200,12 @@ export function AnniversaryWheel({ orgId }: { orgId: string }) {
 // ─── Pin ──────────────────────────────────────────────────────────
 
 function AnniversaryPin({
-  entry, idPrefix, delay,
+  entry, idPrefix, delay, workspace,
 }: {
   entry: DerivedAnniversary & { deg: number; pinR: number }
   idPrefix: string
   delay: number
+  workspace: WorkspaceSummary | null
 }) {
   const { x, y } = polarPoint(entry.pinR, entry.deg)
   const m = entry.nextDate.getMonth()
@@ -296,8 +321,9 @@ function AnniversaryPin({
                 textAlign: 'center',
               }}
             >
-              <div style={{ fontWeight: 600 }}>
-                {entry.member.full_name ?? entry.member.display_name}
+              <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <span>{entry.member.full_name ?? entry.member.display_name}</span>
+                {workspace && <WorkspaceBadge workspace={workspace} size="sm" />}
               </div>
               <div style={{ color: 'var(--text-tertiary)', fontSize: 11, marginTop: 2 }}>
                 {entry.yearsOnDate} år · {entry.daysUntil === 0 ? 'i dag' : entry.daysUntil === 1 ? 'i morgen' : `om ${entry.daysUntil} dager`}
@@ -472,7 +498,7 @@ function AnniversaryCenter({
 
 // ─── Agenda rows ──────────────────────────────────────────────────
 
-function AnniversaryRow({ entry, t }: { entry: DerivedAnniversary; t: Dictionary }) {
+function AnniversaryRow({ entry, t, workspace }: { entry: DerivedAnniversary; t: Dictionary; workspace: WorkspaceSummary | null }) {
   const m = entry.nextDate.getMonth()
   const halo = entry.isMilestone ? '#E8B400' : MONTH_HSL[m][1]
   const initials = entry.member.initials ?? entry.member.display_name.slice(0, 2).toUpperCase()
@@ -532,12 +558,19 @@ function AnniversaryRow({ entry, t }: { entry: DerivedAnniversary; t: Dictionary
       </div>
 
       <div className="flex-1 min-w-0 flex flex-col gap-0.5 py-0.5 self-center">
-        <p
-          className="text-[13.5px] font-medium truncate leading-snug"
-          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
-        >
-          {entry.member.full_name ?? entry.member.display_name}
-        </p>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p
+            className="text-[13.5px] font-medium truncate leading-snug"
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+          >
+            {entry.member.full_name ?? entry.member.display_name}
+          </p>
+          {workspace && (
+            <span className="flex-shrink-0">
+              <WorkspaceBadge workspace={workspace} size="sm" />
+            </span>
+          )}
+        </div>
         <span
           className="text-[10.5px] font-medium tabular-nums"
           style={{ color: entry.isMilestone ? '#E8B400' : 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
@@ -551,10 +584,11 @@ function AnniversaryRow({ entry, t }: { entry: DerivedAnniversary; t: Dictionary
 }
 
 function UpcomingHireRow({
-  entry, t,
+  entry, t, workspace,
 }: {
   entry: { member: { id: string; display_name: string; full_name: string | null; initials: string | null; avatar_url: string | null }; startDate: Date; daysUntil: number }
   t: Dictionary
+  workspace: WorkspaceSummary | null
 }) {
   const m = entry.startDate.getMonth()
   const halo = MONTH_HSL[m][1]
@@ -606,12 +640,19 @@ function UpcomingHireRow({
         )}
       </div>
       <div className="flex-1 min-w-0 flex flex-col gap-0.5 py-0.5 self-center">
-        <p
-          className="text-[13.5px] font-medium truncate leading-snug"
-          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
-        >
-          {entry.member.full_name ?? entry.member.display_name}
-        </p>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p
+            className="text-[13.5px] font-medium truncate leading-snug"
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+          >
+            {entry.member.full_name ?? entry.member.display_name}
+          </p>
+          {workspace && (
+            <span className="flex-shrink-0">
+              <WorkspaceBadge workspace={workspace} size="sm" />
+            </span>
+          )}
+        </div>
         <span
           className="text-[10.5px] font-medium"
           style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}

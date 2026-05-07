@@ -19,11 +19,23 @@ import {
   formatDateT, weekdayFullT, weekdayAbbrT,
 } from './year-wheel-shared'
 import type { Dictionary } from '@/lib/i18n/types'
+import type { WorkspaceSummary } from '@/lib/supabase/types'
+import { WorkspaceBadge } from '@/components/workspace-switcher'
 
 const PIN_R = 14
 const PIN_RING_RADII = [245, 263, 281, 227, 209] // ring2-mid first, then fan out/in
 
-export function BirthdayWheel({ orgId }: { orgId: string }) {
+export function BirthdayWheel({
+  orgId,
+  orgIds,
+  workspaces,
+  combinedView,
+}: {
+  orgId: string
+  orgIds?: string[]
+  workspaces?: WorkspaceSummary[]
+  combinedView?: boolean
+}) {
   const t = useT()
   const uid = useId().replace(/[^a-z0-9]/gi, '')
   const idPrefix = `bw-${uid}`
@@ -40,7 +52,18 @@ export function BirthdayWheel({ orgId }: { orgId: string }) {
   const seasonHue = useMemo(() => seasonHueFor(today), [today])
   const monthLabels = monthLabelsFor(t)
 
-  const { birthdays, nextBirthday, loading } = useTeamMembers(orgId)
+  const effectiveOrgIds = orgIds ?? [orgId]
+  const { birthdays, nextBirthday, loading } = useTeamMembers(effectiveOrgIds)
+
+  const workspaceByOrgId = useMemo(() => {
+    const map = new Map<string, WorkspaceSummary>()
+    workspaces?.forEach((w) => map.set(w.org_id, w))
+    return map
+  }, [workspaces])
+
+  const showBadges = !!combinedView && (workspaces?.length ?? 0) > 1
+  const workspaceFor = (orgId: string) =>
+    showBadges ? workspaceByOrgId.get(orgId) ?? null : null
 
   // Cluster birthdays by month-day → assign each pin a slot in the cluster.
   const placed = useMemo(() => {
@@ -108,6 +131,7 @@ export function BirthdayWheel({ orgId }: { orgId: string }) {
               entry={p}
               idPrefix={idPrefix}
               delay={0.18 + idx * 0.025}
+              workspace={workspaceFor(p.member.org_id)}
             />
           ))}
 
@@ -128,7 +152,7 @@ export function BirthdayWheel({ orgId }: { orgId: string }) {
           empty={t.wheel.birthdays.sections.todayEmpty}
         >
           {sections.today.map(b => (
-            <BirthdayRow key={b.member.id} entry={b} t={t} />
+            <BirthdayRow key={b.member.id} entry={b} t={t} workspace={workspaceFor(b.member.org_id)} />
           ))}
         </WheelAgendaSection>
 
@@ -137,7 +161,7 @@ export function BirthdayWheel({ orgId }: { orgId: string }) {
           empty={t.wheel.birthdays.sections.weekEmpty}
         >
           {sections.week.map(b => (
-            <BirthdayRow key={b.member.id} entry={b} t={t} />
+            <BirthdayRow key={b.member.id} entry={b} t={t} workspace={workspaceFor(b.member.org_id)} />
           ))}
         </WheelAgendaSection>
 
@@ -146,14 +170,14 @@ export function BirthdayWheel({ orgId }: { orgId: string }) {
           empty={t.wheel.birthdays.sections.monthEmpty}
         >
           {sections.month.map(b => (
-            <BirthdayRow key={b.member.id} entry={b} t={t} />
+            <BirthdayRow key={b.member.id} entry={b} t={t} workspace={workspaceFor(b.member.org_id)} />
           ))}
         </WheelAgendaSection>
 
         {sections.later.length > 0 && (
           <WheelAgendaSection title={t.wheel.birthdays.sections.laterThisYear}>
             {sections.later.map(b => (
-              <BirthdayRow key={b.member.id} entry={b} t={t} />
+              <BirthdayRow key={b.member.id} entry={b} t={t} workspace={workspaceFor(b.member.org_id)} />
             ))}
           </WheelAgendaSection>
         )}
@@ -165,12 +189,13 @@ export function BirthdayWheel({ orgId }: { orgId: string }) {
 // ─── Pin ──────────────────────────────────────────────────────────
 
 function BirthdayPin({
-  entry, idPrefix, delay,
+  entry, idPrefix, delay, workspace,
 }: {
   entry: { member: { id: string; display_name: string; full_name: string | null; initials: string | null; avatar_url: string | null }
     nextDate: Date; daysUntil: number; ageOnDate: number | null; deg: number; pinR: number }
   idPrefix: string
   delay: number
+  workspace: WorkspaceSummary | null
 }) {
   const { x, y } = polarPoint(entry.pinR, entry.deg)
   const m = entry.nextDate.getMonth()
@@ -263,8 +288,9 @@ function BirthdayPin({
                 textAlign: 'center',
               }}
             >
-              <div style={{ fontWeight: 600 }}>
-                {entry.member.full_name ?? entry.member.display_name}
+              <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <span>{entry.member.full_name ?? entry.member.display_name}</span>
+                {workspace && <WorkspaceBadge workspace={workspace} size="sm" />}
               </div>
               <div style={{ color: 'var(--text-tertiary)', fontSize: 11, marginTop: 2 }}>
                 {entry.ageOnDate !== null ? `${entry.ageOnDate} år` : ''}
@@ -428,10 +454,11 @@ function BirthdayCenter({
 // ─── Agenda row ───────────────────────────────────────────────────
 
 function BirthdayRow({
-  entry, t,
+  entry, t, workspace,
 }: {
   entry: DerivedBirthday
   t: Dictionary
+  workspace: WorkspaceSummary | null
 }) {
   const m = entry.nextDate.getMonth()
   const halo = MONTH_HSL[m][1]
@@ -505,12 +532,19 @@ function BirthdayRow({
       </div>
 
       <div className="flex-1 min-w-0 flex flex-col gap-0.5 py-0.5 self-center">
-        <p
-          className="text-[13.5px] font-medium truncate leading-snug"
-          style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
-        >
-          {entry.member.full_name ?? entry.member.display_name}
-        </p>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <p
+            className="text-[13.5px] font-medium truncate leading-snug"
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+          >
+            {entry.member.full_name ?? entry.member.display_name}
+          </p>
+          {workspace && (
+            <span className="flex-shrink-0">
+              <WorkspaceBadge workspace={workspace} size="sm" />
+            </span>
+          )}
+        </div>
         <span
           className="text-[10.5px] font-medium"
           style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}

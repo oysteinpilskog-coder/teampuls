@@ -7,6 +7,8 @@ import { useT } from '@/lib/i18n/context'
 import { formatDateT } from './year-wheel-shared'
 import { createClient } from '@/lib/supabase/client'
 import type { Dictionary } from '@/lib/i18n/types'
+import type { WorkspaceSummary } from '@/lib/supabase/types'
+import { WorkspaceBadge } from '@/components/workspace-switcher'
 
 // Brand pair drives the timeline. Both stops + the avatar ring read from
 // CSS tokens, so per-org `(brand_primary, brand_accent)` overrides flow
@@ -18,7 +20,17 @@ const BRAND_HERO_ACCENT = 'var(--accent-color)'
 const NAME_COL = 240
 const ROW_H = 76
 
-export function AnniversaryTimeline({ orgId }: { orgId: string }) {
+export function AnniversaryTimeline({
+  orgId,
+  orgIds,
+  workspaces,
+  combinedView,
+}: {
+  orgId: string
+  orgIds?: string[]
+  workspaces?: WorkspaceSummary[]
+  combinedView?: boolean
+}) {
   const t = useT()
   const reduce = useReducedMotion()
 
@@ -35,7 +47,16 @@ export function AnniversaryTimeline({ orgId }: { orgId: string }) {
       .then(({ data }) => setOrgName(data?.name ?? ''))
   }, [orgId])
 
-  const { tenureRanked, loading } = useTeamMembers(orgId)
+  const effectiveOrgIds = orgIds ?? [orgId]
+  const { tenureRanked, loading } = useTeamMembers(effectiveOrgIds)
+
+  const workspaceByOrgId = useMemo(() => {
+    const map = new Map<string, WorkspaceSummary>()
+    workspaces?.forEach((w) => map.set(w.org_id, w))
+    return map
+  }, [workspaces])
+
+  const showBadges = !!combinedView && (workspaces?.length ?? 0) > 1
 
   const stats = useMemo(() => {
     if (tenureRanked.length === 0) {
@@ -118,6 +139,7 @@ export function AnniversaryTimeline({ orgId }: { orgId: string }) {
               today={today}
               t={t}
               reduce={!!reduce}
+              workspace={showBadges ? workspaceByOrgId.get(entry.member.org_id) ?? null : null}
             />
           ))}
         </ul>
@@ -418,7 +440,7 @@ function YearAxis({ ticks, max, t }: { ticks: number[]; max: number; t: Dictiona
 // ─── Row ──────────────────────────────────────────────────────────
 
 function TenureRow({
-  entry, idx, max, ticks, today, t, reduce,
+  entry, idx, max, ticks, today, t, reduce, workspace,
 }: {
   entry: DerivedAnniversary
   idx: number
@@ -427,6 +449,7 @@ function TenureRow({
   today: Date
   t: Dictionary
   reduce: boolean
+  workspace: WorkspaceSummary | null
 }) {
   const exact = entry.completedYears + monthsSince(entry.startDate, today) / 12
   const widthPct = Math.min(100, Math.max(2.5, (exact / max) * 100))
@@ -476,13 +499,20 @@ function TenureRow({
             </span>
           )}
         </div>
-        <div className="min-w-0 flex flex-col">
-          <span
-            className="text-[14.5px] font-medium truncate leading-tight"
-            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
-          >
-            {entry.member.full_name ?? entry.member.display_name}
-          </span>
+        <div className="min-w-0 flex-1 flex flex-col">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span
+              className="text-[14.5px] font-medium truncate leading-tight"
+              style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+            >
+              {entry.member.full_name ?? entry.member.display_name}
+            </span>
+            {workspace && (
+              <span className="flex-shrink-0">
+                <WorkspaceBadge workspace={workspace} size="sm" />
+              </span>
+            )}
+          </div>
           <span
             className="text-[10.5px] font-medium mt-0.5"
             style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)', letterSpacing: '0.02em' }}

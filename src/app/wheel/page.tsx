@@ -5,12 +5,14 @@ import { getSessionMember } from '@/lib/supabase/session'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 
 export default async function WheelPage() {
-  const { user, member } = await getSessionMember()
+  const { user, member, workspaces, combinedScope } = await getSessionMember()
   if (!user) redirect('/login')
   if (!member) redirect('/')
 
   // Org-level kill switches for the wheel views. Default each on if the
-  // column is null/undefined — matches the migration default.
+  // column is null/undefined — matches the migration default. In combined
+  // view we read flags from the user's primary workspace; if any side has
+  // a feature off the user can still toggle into the active one.
   const supabase = await createSupabaseServerClient()
   const { data: org } = await supabase
     .from('organizations')
@@ -30,6 +32,9 @@ export default async function WheelPage() {
       <Suspense fallback={<WheelFallback />}>
         <WheelShell
           orgId={member.org_id}
+          orgIds={combinedScope?.org_ids ?? [member.org_id]}
+          workspaces={workspaces}
+          combinedView={!!combinedScope}
           eventsEnabled={eventsEnabled}
           birthdaysEnabled={birthdaysEnabled}
           anniversariesEnabled={anniversariesEnabled}

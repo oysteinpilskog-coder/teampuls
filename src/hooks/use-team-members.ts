@@ -83,7 +83,20 @@ function nextOccurrence(month: number, day: number, today: Date): {
   return tryYear(today.getFullYear() + 1)
 }
 
-export function useTeamMembers(orgId: string) {
+/**
+ * Accepts a single orgId or an array — combined "Alle" view passes
+ * multiple ids so the wheel/timeline aggregates across every workspace
+ * the user belongs to. Single-string callers stay source-compatible.
+ */
+export function useTeamMembers(orgIdOrIds: string | string[]) {
+  const orgIds = useMemo(
+    () => (Array.isArray(orgIdOrIds) ? orgIdOrIds : [orgIdOrIds]),
+    [orgIdOrIds],
+  )
+  // Stable key for deps so [a,b] vs new array with same contents doesn't
+  // refetch. Sorted to make order-insensitive.
+  const orgIdsKey = useMemo(() => [...orgIds].sort().join(','), [orgIds])
+
   const [members, setMembers] = useState<MemberSlim[]>([])
   const [loading, setLoading] = useState(true)
   const visible = useDocumentVisibility()
@@ -97,18 +110,21 @@ export function useTeamMembers(orgId: string) {
     return () => clearInterval(id)
   }, [])
 
+  const orgIdsSet = useMemo(() => new Set(orgIds), [orgIds])
+
   const fetchMembers = useCallback(async () => {
     const supabase = createClient()
     const { data } = await supabase
       .from('members')
       .select(SELECT)
-      .eq('org_id', orgId)
+      .in('org_id', orgIds)
       .eq('is_active', true)
       .eq('hidden_from_overview', false)
       .order('display_name')
     setMembers((data as MemberSlim[]) ?? [])
     setLoading(false)
-  }, [orgId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgIdsKey])
 
   useEffect(() => {
     setLoading(true)
@@ -124,7 +140,7 @@ export function useTeamMembers(orgId: string) {
 
     function upsertHandler(payload: { new: MemberSlim }) {
       const upserted = payload.new
-      if (upserted.org_id !== orgId) return
+      if (!orgIdsSet.has(upserted.org_id)) return
       if (!upserted.is_active || upserted.hidden_from_overview) {
         setMembers(prev => prev.filter(m => m.id !== upserted.id))
         return
@@ -137,16 +153,20 @@ export function useTeamMembers(orgId: string) {
       })
     }
 
-    const channel = supabase
-      .channel(`members:org:${orgId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'members', filter: `org_id=eq.${orgId}` }, upsertHandler)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'members', filter: `org_id=eq.${orgId}` }, upsertHandler)
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'members' }, (payload) => {
-        const deletedId = (payload.old as Partial<MemberSlim>)?.id
-        if (!deletedId) return
-        setMembers(prev => prev.filter(m => m.id !== deletedId))
-      })
-      .subscribe()
+    // One channel per org so combined view receives realtime from every
+    // side — mirrors the entries hook.
+    const channels = orgIds.map((id) =>
+      supabase
+        .channel(`members:org:${id}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'members', filter: `org_id=eq.${id}` }, upsertHandler)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'members', filter: `org_id=eq.${id}` }, upsertHandler)
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'members' }, (payload) => {
+          const deletedId = (payload.old as Partial<MemberSlim>)?.id
+          if (!deletedId) return
+          setMembers(prev => prev.filter(m => m.id !== deletedId))
+        })
+        .subscribe(),
+    )
 
     if (wasHiddenRef.current) {
       wasHiddenRef.current = false
@@ -154,9 +174,10 @@ export function useTeamMembers(orgId: string) {
     }
 
     return () => {
-      supabase.removeChannel(channel)
+      channels.forEach((ch) => supabase.removeChannel(ch))
     }
-  }, [orgId, visible, fetchMembers])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgIdsKey, visible, fetchMembers])
 
   const derived = useMemo(() => {
     const today = new Date(todayKey)
