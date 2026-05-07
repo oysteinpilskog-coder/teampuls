@@ -1262,24 +1262,26 @@ export function TeamGrid({
                   style={{
                     fontSize: today ? 22 : 26,
                     fontWeight: today ? 600 : 400,
-                    // Nordlys-signature: today's day number sits inside a
-                    // gradient orb. Norwegian holidays swap that for a red
-                    // ember-orb. If today is *also* a Norwegian holiday we
-                    // keep the Nordlys gradient (today wins visually) but
-                    // wrap it in a red ring so the holiday still reads.
+                    // Today-orb: Light Blue solo (var(--ember)). Nordlys-
+                    // signaturen på Oversikt eier den vertikale today-tråden
+                    // (matcher /min-plan); orb-en dempes så Nordlys ikke
+                    // dukker opp to ganger på samme flate. Norwegian
+                    // holidays swap to red. If today is *also* a NO holiday
+                    // we keep the Light Blue but wrap it in a red ring so
+                    // the holiday still reads.
                     color: today || noHoliday ? '#0E0B08' : 'var(--lg-text-1)',
                     width: today || noHoliday ? 40 : 'auto',
                     height: today || noHoliday ? 40 : 'auto',
                     borderRadius: 9999,
                     background: today
-                      ? 'linear-gradient(135deg, var(--nordlys-a) 0%, var(--nordlys-b) 55%, var(--nordlys-c) 100%)'
+                      ? 'var(--ember)'
                       : noHoliday
                         ? 'linear-gradient(135deg, #FB7185 0%, #F43F5E 55%, #E11D48 100%)'
                         : 'transparent',
                     boxShadow: today && noHoliday
-                      ? '0 0 0 3px rgba(244, 63, 94, 0.55), 0 0 28px color-mix(in oklab, var(--nordlys-b) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
+                      ? '0 0 0 3px rgba(244, 63, 94, 0.55), 0 0 28px color-mix(in oklab, var(--ember) 50%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
                       : today
-                        ? '0 0 0 3px color-mix(in oklab, var(--nordlys-a) 18%, transparent), 0 0 28px color-mix(in oklab, var(--nordlys-b) 35%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
+                        ? '0 0 0 3px color-mix(in oklab, var(--ember) 22%, transparent), 0 0 28px color-mix(in oklab, var(--ember) 45%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35)'
                         : noHoliday
                           ? '0 0 0 3px rgba(244, 63, 94, 0.18), 0 0 28px rgba(244, 63, 94, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25)'
                           : 'none',
