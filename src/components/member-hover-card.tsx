@@ -96,12 +96,17 @@ export function MemberHoverCard({
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger
         render={
-          <span
+          // Native <button> så Base UI's `nativeButton` (default true) faktisk
+          // ser et knappe-element — uten dette spammer den en a11y-warning per
+          // medlemsrad. `cursor-default` beholder det visuelle språket
+          // (kortet åpnes av hover/focus, ikke klikk).
+          <button
+            type="button"
             onMouseEnter={scheduleOpen}
             onMouseLeave={scheduleClose}
             onFocus={scheduleOpen}
             onBlur={scheduleClose}
-            className="flex w-full min-w-0 items-center gap-2 cursor-default outline-none"
+            className="flex w-full min-w-0 items-center gap-2 cursor-default outline-none bg-transparent border-0 p-0 text-left"
           />
         }
       >
