@@ -7,12 +7,6 @@ import {
   CX, CY,
   polarPoint, monthDayToDeg,
 } from '@/lib/wheel-geometry'
-
-// Brand pair drives every people-marker on the wheel — pin halos, agenda
-// avatar rings, month labels — so per-org `(brand_primary, brand_accent)`
-// flows through automatically. The wheel's outer month ring keeps its
-// seasonal palette (calendar information design).
-const BRAND_HALO = 'var(--ink)'
 import {
   StaticAurora, WheelDefs, StaticMonthRing, StaticWeekRing, CenterGlass,
   seasonHueFor, monthLabelsFor,
@@ -27,6 +21,12 @@ import {
 import type { Dictionary } from '@/lib/i18n/types'
 import type { WorkspaceSummary } from '@/lib/supabase/types'
 import { WorkspaceBadge } from '@/components/workspace-switcher'
+
+// Brand pair drives every people-marker on the wheel — pin halos, agenda
+// avatar rings, month labels — so per-org `(brand_primary, brand_accent)`
+// flows through automatically. The wheel's outer month ring keeps its
+// seasonal palette (calendar information design).
+const BRAND_HALO = 'var(--ink)'
 
 const PIN_R = 14
 const PIN_RING_RADII = [245, 263, 281, 227, 209] // ring2-mid first, then fan out/in

@@ -7,12 +7,6 @@ import {
   CX, CY,
   polarPoint, monthDayToDeg,
 } from '@/lib/wheel-geometry'
-
-// Brand pair drives every people-marker on the wheel — pin halos, agenda
-// avatar rings, month labels — so per-org `(brand_primary, brand_accent)`
-// flows through automatically. Milestone gold (#E8B400) stays as the
-// celebratory marker; the wheel's month ring keeps its seasonal palette.
-const BRAND_HALO = 'var(--ink)'
 import {
   StaticAurora, WheelDefs, StaticMonthRing, StaticWeekRing, CenterGlass,
   seasonHueFor, monthLabelsFor,
@@ -28,6 +22,12 @@ import type { Dictionary } from '@/lib/i18n/types'
 import { createClient } from '@/lib/supabase/client'
 import type { WorkspaceSummary } from '@/lib/supabase/types'
 import { WorkspaceBadge } from '@/components/workspace-switcher'
+
+// Brand pair drives every people-marker on the wheel — pin halos, agenda
+// avatar rings, month labels — so per-org `(brand_primary, brand_accent)`
+// flows through automatically. Milestone gold (#E8B400) stays as the
+// celebratory marker; the wheel's month ring keeps its seasonal palette.
+const BRAND_HALO = 'var(--ink)'
 
 const PIN_R = 14
 const MILESTONE_PIN_R = 18
