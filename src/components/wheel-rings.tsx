@@ -3,7 +3,7 @@
 import { Fragment } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import {
-  CX, CY, R, MONTH_HSL,
+  CX, CY, R, MONTH_HSL, monthSweepStops,
   polarPoint, f, annularArc, labelArcPath,
   getMonthSegments, getWeekSegments,
 } from '@/lib/wheel-geometry'
@@ -85,18 +85,21 @@ export function WheelDefs({
         <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.12" />
       </filter>
 
-      {MONTH_HSL.map(([light, dark], i) => (
-        <radialGradient
-          key={i}
-          id={`${idPrefix}-month-${i}`}
-          cx={CX} cy={CY}
-          r={R.monthOuter}
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop offset={R.monthInner / R.monthOuter} stopColor={dark} />
-          <stop offset="1" stopColor={light} />
-        </radialGradient>
-      ))}
+      {Array.from({ length: 12 }, (_, i) => {
+        const { dark, light } = monthSweepStops(i)
+        return (
+          <radialGradient
+            key={i}
+            id={`${idPrefix}-month-${i}`}
+            cx={CX} cy={CY}
+            r={R.monthOuter}
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset={R.monthInner / R.monthOuter} stopColor={dark} />
+            <stop offset="1" stopColor={light} />
+          </radialGradient>
+        )
+      })}
 
       <linearGradient id={`${idPrefix}-week-active`} x1="0" y1="0" x2="1" y2="0">
         <stop offset="0%" stopColor="var(--nordlys-a)" />

@@ -22,7 +22,7 @@ import { ListView } from './year-wheel-list'
 import { CalendarView } from './year-wheel-calendar'
 import { WheelAgendaShell, WheelAgendaSection } from './wheel-agenda'
 import {
-  CX, CY, R, MONTH_HSL,
+  CX, CY, R, MONTH_HSL, monthSweepStops,
   polarPoint, f, annularArc, pieSlice, radialLinePath, labelArcPath,
   dayOfYear, dateStringToDeg,
   getMonthSegments, getWeekSegments,
@@ -900,19 +900,22 @@ export function DiskView({
               <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.12" />
             </filter>
 
-            {/* Month gradients */}
-            {MONTH_HSL.map(([light, dark], i) => (
-              <radialGradient
-                key={i}
-                id={ID.month(i)}
-                cx={CX} cy={CY}
-                r={R.monthOuter}
-                gradientUnits="userSpaceOnUse"
-              >
-                <stop offset={R.monthInner / R.monthOuter} stopColor={dark} />
-                <stop offset="1" stopColor={light} />
-              </radialGradient>
-            ))}
+            {/* Month gradients — brand-pair sweep around the wheel */}
+            {Array.from({ length: 12 }, (_, i) => {
+              const { dark, light } = monthSweepStops(i)
+              return (
+                <radialGradient
+                  key={i}
+                  id={ID.month(i)}
+                  cx={CX} cy={CY}
+                  r={R.monthOuter}
+                  gradientUnits="userSpaceOnUse"
+                >
+                  <stop offset={R.monthInner / R.monthOuter} stopColor={dark} />
+                  <stop offset="1" stopColor={light} />
+                </radialGradient>
+              )
+            })}
 
             {/* Per-event gradients — positioned at the actual sub-row bounds
                 so colliding events keep their colour saturated even when

@@ -21,7 +21,10 @@ export const R = {
 } as const
 
 // ─── Month palette ───────────────────────────────────────────────
-// Smooth seasonal HSL — each month has [lighter outer, darker inner] for radial depth.
+// Smooth seasonal HSL — each month has [lighter outer, darker inner] for
+// radial depth. Kept for atmospheric helpers (`seasonHueFor`) and other
+// places that key visuals to time-of-year. The wheel's outer month ring
+// now uses `monthSweepStops` (brand-pair sweep), see below.
 export const MONTH_HSL: Array<[string, string]> = [
   ['hsl(220, 75%, 68%)', 'hsl(220, 70%, 48%)'],
   ['hsl(200, 70%, 66%)', 'hsl(200, 65%, 46%)'],
@@ -36,6 +39,21 @@ export const MONTH_HSL: Array<[string, string]> = [
   ['hsl(290, 50%, 56%)', 'hsl(285, 45%, 38%)'],
   ['hsl(250, 60%, 62%)', 'hsl(245, 55%, 44%)'],
 ]
+
+// Brand-pair sweep around the wheel: each month is a cosine-eased blend
+// between `--ember` (Jan/Dec) and `--ink` (Jul). The cosine keeps the
+// transition continuous across the Dec/Jan boundary so the ring looks
+// like one circular gradient instead of 12 chunky segments. Light/dark
+// stops give the radial depth the seasonal palette used to provide.
+export function monthSweepStops(monthIdx: number): { dark: string; light: string } {
+  const t = (1 - Math.cos((2 * Math.PI * monthIdx) / 12)) / 2
+  const emberPct = ((1 - t) * 100).toFixed(1)
+  const base = `color-mix(in oklab, var(--ember) ${emberPct}%, var(--ink))`
+  return {
+    dark:  `color-mix(in oklab, ${base}, black 22%)`,
+    light: `color-mix(in oklab, ${base}, white 22%)`,
+  }
+}
 
 // ─── Math helpers ────────────────────────────────────────────────
 
