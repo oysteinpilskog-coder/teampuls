@@ -37,6 +37,7 @@ import type { Dictionary } from '@/lib/i18n/types'
 import type { Entry, EntryStatus, PresenceAssumption, WorkspaceSummary } from '@/lib/supabase/types'
 import { WorkspaceBadge } from '@/components/workspace-switcher'
 import { inferStatus } from '@/lib/presence'
+import { redactSickEntries, redactSickStatusOrNull } from '@/lib/privacy'
 import {
   getHolidayForDate,
   getHolidaysForCountries,
@@ -280,6 +281,11 @@ export function TeamGrid({
   const [members, setMembers] = useState<Member[]>(initialMembers ?? [])
   const [offices, setOffices] = useState<Office[]>([])
   const [presenceAssumption, setPresenceAssumption] = useState<PresenceAssumption>('none')
+  // Privacy: når org-en har valgt «Skjul syk — vis som «borte»» mappes
+  // status='sick' til 'off' overalt der entries leses (matrise, Akkurat nå,
+  // segments, og antakelser fra default_status). Standard er true så
+  // eksisterende installer ikke endrer oppførsel før admin tar et valg.
+  const [showSick, setShowSick] = useState<boolean>(true)
   const [membersLoading, setMembersLoading] = useState(!initialMembers)
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null)
 
@@ -314,15 +320,25 @@ export function TeamGrid({
   )
   const loading = membersLoading || entriesLoading
 
+  // Privacy: når «Skjul syk — vis som «borte»» er aktivt mappes status='sick'
+  // til 'off' før noe annet konsumerer entries. Da slipper Akkurat nå-pillen,
+  // matrisecellene, segmentene og hover-cardet å hver for seg huske å
+  // redacte. Skjer FØR statusFilter slik at /sommer-filteret (vacation only)
+  // ikke utilsiktet slipper gjennom redacted sick-rader merket som 'off'.
+  const redactedEntries = useMemo(
+    () => redactSickEntries(rawEntries, showSick),
+    [rawEntries, showSick],
+  )
+
   // When the host scopes us to a subset of statuses (e.g. /sommer →
   // vacation only), drop everything else BEFORE downstream consumers see
   // the data. The drag/edit handlers still write whatever status the user
   // picks — we only filter what's *displayed*.
   const entries = useMemo(() => {
-    if (!statusFilter || statusFilter.length === 0) return rawEntries
+    if (!statusFilter || statusFilter.length === 0) return redactedEntries
     const allowed = new Set(statusFilter)
-    return rawEntries.filter((e) => allowed.has(e.status))
-  }, [rawEntries, statusFilter])
+    return redactedEntries.filter((e) => allowed.has(e.status))
+  }, [redactedEntries, statusFilter])
 
   // Build entry lookup: member_id + date → Entry
   const entryMap = useMemo(() => {
@@ -511,12 +527,13 @@ export function TeamGrid({
           .order('sort_order'),
         supabase
           .from('organizations')
-          .select('default_presence_assumption')
+          .select('default_presence_assumption, dashboard_show_sick')
           .eq('id', orgId)
           .maybeSingle(),
       ])
       setOffices(os ?? [])
       setPresenceAssumption((org?.default_presence_assumption ?? 'none') as PresenceAssumption)
+      setShowSick(org?.dashboard_show_sick ?? true)
       setMembersLoading(false)
       return
     }
@@ -535,13 +552,14 @@ export function TeamGrid({
         .order('sort_order'),
       supabase
         .from('organizations')
-        .select('default_presence_assumption')
+        .select('default_presence_assumption, dashboard_show_sick')
         .eq('id', orgId)
         .maybeSingle(),
     ])
     setMembers(ms ?? [])
     setOffices(os ?? [])
     setPresenceAssumption((org?.default_presence_assumption ?? 'none') as PresenceAssumption)
+    setShowSick(org?.dashboard_show_sick ?? true)
     setMembersLoading(false)
   }, [orgId, scopedOrgIds])
 
@@ -820,7 +838,10 @@ export function TeamGrid({
     const dateStr = toDateString(weekDays[dayIdx])
     const entry = entryMap.get(`${memberId}_${dateStr}`)
     if (entry) {
-      const memberDefault = members.find((m) => m.id === memberId)?.default_status ?? null
+      const memberDefault = redactSickStatusOrNull(
+        members.find((m) => m.id === memberId)?.default_status ?? null,
+        showSick,
+      )
       const segments = buildRowSegments(weekDays, memberId, entryMap, t, memberDefault, presenceAssumption)
       let cursor = 0
       for (const seg of segments) {
@@ -991,7 +1012,10 @@ export function TeamGrid({
           assumed: false,
         }
       }
-      const assumed = inferStatus({ default_status: m.default_status }, presenceAssumption)
+      const assumed = inferStatus(
+        { default_status: redactSickStatusOrNull(m.default_status, showSick) },
+        presenceAssumption,
+      )
       if (!assumed) return null
       return {
         id: m.id,
@@ -1462,7 +1486,7 @@ export function TeamGrid({
                         member.id,
                         entryMap,
                         t,
-                        member.default_status ?? null,
+                        redactSickStatusOrNull(member.default_status ?? null, showSick),
                         presenceAssumption,
                       )
                       const highlights = dayHighlightsForMember(member.id)

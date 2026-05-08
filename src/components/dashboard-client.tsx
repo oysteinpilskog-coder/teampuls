@@ -49,6 +49,7 @@ import { trackBrandImpression } from '@/lib/analytics'
 import { getDayPhase, getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
 import type { Entry, Member, Office, Organization, Customer, DashboardViewKey, PresenceAssumption } from '@/lib/supabase/types'
 import { inferStatus } from '@/lib/presence'
+import { redactSickEntries, redactSickStatusOrNull } from '@/lib/privacy'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { seedWeatherCache, type WeatherSnapshot } from '@/lib/weather/use-weather'
@@ -452,13 +453,13 @@ export function DashboardClient({
   // matrix and «Akkurat nå»-widget stay live across every workspace.
   const { entries: rawEntries } = useEntries(orgIds, dateStrings)
 
-  // Privacy: when the org has opted out of exposing sick leave on the public
-  // dashboard, collapse sick → off so the display only reveals that someone
-  // is away, not why. Keeps the count honest while hiding the health detail.
+  // Privacy: when the org has opted out of exposing sick leave, collapse
+  // sick → off so the display only reveals that someone is away, not why.
+  // Keeps the count honest while hiding the health detail. Mirror-applied
+  // i team-grid + Akkurat nå-pillen, slik at det aldri finnes en flate som
+  // røper hvorfor noen er borte når org-en har slått av sykefravær.
   const entries = useMemo(
-    () => showSick
-      ? rawEntries
-      : rawEntries.map(e => (e.status === 'sick' ? { ...e, status: 'off' as const } : e)),
+    () => redactSickEntries(rawEntries, showSick),
     [rawEntries, showSick]
   )
 
@@ -498,7 +499,10 @@ export function DashboardClient({
         out.push(real)
         continue
       }
-      const assumed = inferStatus({ default_status: m.default_status }, presenceAssumption)
+      const assumed = inferStatus(
+        { default_status: redactSickStatusOrNull(m.default_status, showSick) },
+        presenceAssumption,
+      )
       if (!assumed) continue
       // Syntetisk ID med 'assumed:'-prefix kan ikke kollidere med Postgres-uuid-er,
       // så CustomerMapView sin id-match fortsatt avviser disse hvis de skulle gå
@@ -520,7 +524,7 @@ export function DashboardClient({
       })
     }
     return out
-  }, [todayEntries, members, presenceAssumption, todayStr])
+  }, [todayEntries, members, presenceAssumption, todayStr, showSick])
 
   // Same speilflate som displayTodayEntries, men for hele uken — en syntetisk
   // entry per (member × weekday) der ekte rad mangler, basert på org-en sin
@@ -545,7 +549,10 @@ export function DashboardClient({
     const nowIso = new Date().toISOString()
     const out: Entry[] = []
     for (const m of members) {
-      const assumed = inferStatus({ default_status: m.default_status }, presenceAssumption)
+      const assumed = inferStatus(
+        { default_status: redactSickStatusOrNull(m.default_status, showSick) },
+        presenceAssumption,
+      )
       for (const dateStr of dateStrings) {
         const real = realByKey.get(`${m.id}_${dateStr}`)
         if (real) {
@@ -571,7 +578,7 @@ export function DashboardClient({
       }
     }
     return out
-  }, [entries, members, presenceAssumption, dateStrings])
+  }, [entries, members, presenceAssumption, dateStrings, showSick])
 
   // Fullscreen API
   function toggleFullscreen() {
