@@ -17,20 +17,6 @@ const BRAND_BAR_GRADIENT = 'linear-gradient(90deg, var(--ember) 0%, var(--ink) 1
 const BRAND_RING = 'var(--ink)'
 const BRAND_HERO_ACCENT = 'var(--accent-color)'
 
-// Brand pair drives the timeline. Both stops + the avatar ring read from
-// CSS tokens, so per-org `(brand_primary, brand_accent)` overrides flow
-// through automatically. CalWin defaults: Light Blue → Blue Violet.
-const BRAND_BAR_GRADIENT = 'linear-gradient(90deg, var(--ember) 0%, var(--ink) 100%)'
-const BRAND_RING = 'var(--ink)'
-const BRAND_HERO_ACCENT = 'var(--accent-color)'
-
-// Brand pair drives the timeline. Both stops + the avatar ring read from
-// CSS tokens, so per-org `(brand_primary, brand_accent)` overrides flow
-// through automatically. CalWin defaults: Light Blue → Blue Violet.
-const BRAND_BAR_GRADIENT = 'linear-gradient(90deg, var(--ember) 0%, var(--ink) 100%)'
-const BRAND_RING = 'var(--ink)'
-const BRAND_HERO_ACCENT = 'var(--accent-color)'
-
 const NAME_COL = 240
 const ROW_H = 76
 
