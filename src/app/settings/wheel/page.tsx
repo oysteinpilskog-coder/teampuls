@@ -14,5 +14,5 @@ export default async function WheelSettingsPage() {
     .eq('id', member.org_id)
     .maybeSingle()
 
-  return <WheelSettingsClient org={org!} />
+  return <WheelSettingsClient key={member.org_id} org={org!} />
 }

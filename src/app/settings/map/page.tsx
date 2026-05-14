@@ -14,5 +14,5 @@ export default async function MapSettingsPage() {
     .eq('id', member.org_id)
     .maybeSingle()
 
-  return <MapColorsClient org={org!} />
+  return <MapColorsClient key={member.org_id} org={org!} />
 }

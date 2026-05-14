@@ -57,6 +57,7 @@ export default async function EmailSettingsPage() {
 
   return (
     <WeeklyEmailClient
+      key={member.org_id}
       org={orgRes.data!}
       members={membersRes.data ?? []}
       offices={officesRes.data ?? []}

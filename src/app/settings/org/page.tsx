@@ -14,5 +14,5 @@ export default async function OrgSettingsPage() {
     .eq('id', member.org_id)
     .maybeSingle()
 
-  return <OrgClient org={org!} />
+  return <OrgClient key={member.org_id} org={org!} />
 }
