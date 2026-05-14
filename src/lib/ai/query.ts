@@ -29,7 +29,7 @@ export interface QueryResult {
 }
 
 const VALID_STATUSES: EntryStatus[] = [
-  'office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off',
+  'office', 'remote', 'customer', 'event', 'travel', 'vacation', 'absent', 'off',
 ]
 
 /**
@@ -68,8 +68,8 @@ Valid statuses:
   customer  = at a customer site ("hos kunde")
   travel    = travelling ("reise", "på reise")
   vacation  = on holiday ("ferie")
-  sick      = sick leave ("syk")
-  off       = day off / personal leave ("fri")
+  absent    = away / not present ("borte", "fraværende"). Also matches "syk", "sjuk", "sykmeldt" — we don't track sickness as a separate category.
+  off       = day off in lieu ("avspasering", "fri")
 
 Team members:
 ${memberList}

@@ -813,7 +813,7 @@ function EmailPreview({
   const usedStatuses = new Set<EntryStatus>()
   for (const e of entries) usedStatuses.add(e.status)
   const legendStatuses: EntryStatus[] = (
-    ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off'] as const
+    ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'absent', 'off'] as const
   ).filter((s) => usedStatuses.has(s))
 
   // Premium paper-tone — varmt, ikke kalt hvitt. Speiler design-systemets

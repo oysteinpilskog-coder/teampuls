@@ -15,7 +15,7 @@ export const DEFAULT_HEX_COLORS: Record<EntryStatus, string> = {
   event:    '#F472B6',  // pink — "messe / konferanse / kurs"
   travel:   '#FBBF24',  // amber — "reise"
   vacation: '#FB7185',  // rose — "viktig / ferie"
-  sick:     '#F87171',  // coral-dempet — "syk"
+  absent:   '#94A3B8',  // slate — "fraværende / borte"
   off:      '#94A3B8',  // slate — "fri / borte"
 }
 

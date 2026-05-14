@@ -1,12 +1,12 @@
 /**
- * Team-health score — four lightweight signals, each normalised to 0-100,
+ * Team-health score — three lightweight signals, each normalised to 0-100,
  * combined into an overall score and a letter grade. Pure function: takes
  * entries + member count, returns a self-contained report. No LLM, no I/O.
  *
- * The four signals are deliberately shallow — they shouldn't feel like
+ * The three signals are deliberately shallow — they shouldn't feel like
  * judgement or surveillance. They answer "does this team register status?
- * does it lean too hard in one direction? are a lot of people sick?" and
- * each one is actionable.
+ * does it lean too hard in one direction? does it meet on the same day?"
+ * and each one is actionable.
  */
 
 import type { Entry, EntryStatus } from '@/lib/supabase/types'
@@ -14,7 +14,7 @@ import type { Entry, EntryStatus } from '@/lib/supabase/types'
 export type HealthGrade = 'A' | 'B' | 'C' | 'D'
 
 export interface HealthMetric {
-  id: 'coverage' | 'diversity' | 'wellness' | 'coordination'
+  id: 'coverage' | 'diversity' | 'coordination'
   label: string
   /** 0-100 */
   score: number
@@ -34,7 +34,6 @@ export interface HealthReport {
 }
 
 const WORKING_STATUSES: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel']
-const OUT_STATUSES: EntryStatus[] = ['vacation', 'sick', 'off']
 
 interface ScoreInput {
   /** Active member count — the scoring denominator. */
@@ -71,8 +70,8 @@ export function scoreTeamHealth({ memberCount, entries, weekdays }: ScoreInput):
 
   // ── 2. Diversity — Shannon entropy over the status mix.
   // A team where 95% of entries are "office" scores worse than one with a
-  // healthier mix across office/remote/customer. We ignore `off` / `sick`
-  // in this signal; those belong to the Wellness metric.
+  // healthier mix across office/remote/customer. Only working statuses count
+  // — `vacation`/`absent`/`off` ikke representerer hvordan teamet jobber.
   const workingStatusCounts: Record<string, number> = {}
   let workingTotal = 0
   for (const e of entries) {
@@ -93,13 +92,7 @@ export function scoreTeamHealth({ memberCount, entries, weekdays }: ScoreInput):
     diversity = clamp(Math.round((H / maxH) * 100))
   }
 
-  // ── 3. Wellness — inverse of the sickness ratio. Low sickness = high score.
-  // We cap at a 15% threshold: anything above that saturates to 0.
-  const sickCount = entries.filter((e) => e.status === 'sick').length
-  const sickRatio = sickCount / Math.max(1, entries.length)
-  const wellness = clamp(Math.round((1 - Math.min(1, sickRatio / 0.15)) * 100))
-
-  // ── 4. Coordination — how many weekdays had ≥ 3 people in the office?
+  // ── 3. Coordination — how many weekdays had ≥ 3 people in the office?
   // Scaled against the number of weekdays: 1 such day per week is healthy,
   // so 6/30 days ≈ baseline "good".
   const goodDays = weekdays.filter((d) => {
@@ -137,17 +130,6 @@ export function scoreTeamHealth({ memberCount, entries, weekdays }: ScoreInput):
             : 'Nesten alle jobber på samme måte hver dag.',
     },
     {
-      id: 'wellness',
-      label: 'Velvære',
-      score: wellness,
-      note:
-        wellness >= 85
-          ? 'Lav sykefravær-andel.'
-          : wellness >= 60
-            ? 'Normal sykefravær.'
-            : 'Høy sykefravær-andel — følg opp trivsel.',
-    },
-    {
       id: 'coordination',
       label: 'Koordinering',
       score: coordination,
@@ -160,13 +142,12 @@ export function scoreTeamHealth({ memberCount, entries, weekdays }: ScoreInput):
     },
   ]
 
-  // Weighted overall: dekning og variasjon veier mest.
+  // Weighted overall: dekning veier mest, deretter variasjon og koordinering.
   const overall = clamp(
     Math.round(
-      coverage * 0.35 +
-      diversity * 0.25 +
-      wellness * 0.2 +
-      coordination * 0.2,
+      coverage * 0.45 +
+      diversity * 0.30 +
+      coordination * 0.25,
     ),
   )
 
@@ -194,8 +175,6 @@ function pickRecommendation(metrics: HealthMetric[]): string {
       return 'Oppfordre teamet til å registrere status for kommende uke — selv grove anslag hjelper planleggingen.'
     case 'diversity':
       return 'Vurder om én arbeidsform dominerer og om det stemmer med hva teamet ønsker.'
-    case 'wellness':
-      return 'Høy sykefravær-andel kan være et tidlig signal — ta en temperatursjekk i neste 1:1.'
     case 'coordination':
       return 'Prøv å samle teamet på kontoret én fast ukedag — bruk "Foreslå samlingsdager" for forslag.'
   }

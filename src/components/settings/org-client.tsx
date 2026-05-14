@@ -24,7 +24,7 @@ import {
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useT } from '@/lib/i18n/context'
 
-const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
+const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'absent', 'off']
 
 // Bare A–E + G er konfigurerbare i Settings — Velkomst-view F injiseres
 // dynamisk på dashboardet og skal aldri lagres til
@@ -78,9 +78,6 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
   const [presenceAssumption, setPresenceAssumption] = useState<PresenceAssumption>(
     initialOrg.default_presence_assumption ?? 'none'
   )
-  const [dashboardShowSick, setDashboardShowSick] = useState<boolean>(
-    initialOrg.dashboard_show_sick ?? true
-  )
   const [dashboardRotationViews, setDashboardRotationViews] = useState<DashboardViewKey[]>(
     initialOrg.dashboard_rotation_views && initialOrg.dashboard_rotation_views.length > 0
       ? initialOrg.dashboard_rotation_views
@@ -127,7 +124,6 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     brandPrimary !== (org.brand_primary ?? CALWIN_BRAND_PRIMARY) ||
     brandAccent !== (org.brand_accent ?? CALWIN_BRAND_ACCENT) ||
     presenceAssumption !== (org.default_presence_assumption ?? 'none') ||
-    dashboardShowSick !== (org.dashboard_show_sick ?? true) ||
     rotationDirty ||
     durationsDirty ||
     statusColorsDirty
@@ -257,7 +253,6 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
         brand_accent: brand_accent_payload,
         status_colors: status_colors_payload,
         default_presence_assumption: presenceAssumption,
-        dashboard_show_sick: dashboardShowSick,
         dashboard_rotation_views: rotation_payload,
         dashboard_view_durations: { ...viewDurations },
       })
@@ -277,7 +272,6 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       brand_accent: brand_accent_payload,
       status_colors: status_colors_payload,
       default_presence_assumption: presenceAssumption,
-      dashboard_show_sick: dashboardShowSick,
       dashboard_rotation_views: rotation_payload,
       dashboard_view_durations: { ...viewDurations },
     }))
@@ -535,19 +529,6 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
           <PresenceAssumptionPicker value={presenceAssumption} onChange={setPresenceAssumption} />
         </SettingsField>
 
-        {/* Dashboard — sick leave privacy */}
-        <SettingsField
-          label={t.settings.org.dashboardShowSick}
-          description={t.settings.org.dashboardShowSickDesc}
-        >
-          <SickPrivacyPicker
-            value={dashboardShowSick}
-            onChange={setDashboardShowSick}
-            labelOn={t.settings.org.dashboardShowSickOn}
-            labelOff={t.settings.org.dashboardShowSickOff}
-          />
-        </SettingsField>
-
         {/* Dashboard — carousel rotation */}
         <SettingsField
           label={t.settings.org.dashboardRotation}
@@ -763,68 +744,6 @@ function PresenceAssumptionPicker({
   )
 }
 
-
-function SickPrivacyPicker({
-  value,
-  onChange,
-  labelOn,
-  labelOff,
-}: {
-  value: boolean
-  onChange: (v: boolean) => void
-  labelOn: string
-  labelOff: string
-}) {
-  const options: Array<{ v: boolean; label: string }> = [
-    { v: true, label: labelOn },
-    { v: false, label: labelOff },
-  ]
-  return (
-    <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="Sykefravær på dashboard">
-      {options.map((opt) => {
-        const active = value === opt.v
-        return (
-          <button
-            key={String(opt.v)}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            onClick={() => onChange(opt.v)}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-[background,border-color] duration-150"
-            style={{
-              background: active ? 'color-mix(in oklab, var(--lg-accent) 10%, transparent)' : 'var(--lg-surface-2, var(--bg-subtle))',
-              border: `1px solid ${active ? 'color-mix(in oklab, var(--lg-accent) 45%, transparent)' : 'var(--lg-divider, var(--border-subtle))'}`,
-              fontFamily: 'var(--font-body)',
-            }}
-          >
-            <span
-              aria-hidden
-              className="inline-flex items-center justify-center rounded-full shrink-0"
-              style={{
-                width: 14,
-                height: 14,
-                background: active ? 'var(--lg-accent)' : 'transparent',
-                boxShadow: active
-                  ? '0 0 0 3px color-mix(in oklab, var(--lg-accent) 18%, transparent), 0 0 10px var(--lg-accent-glow)'
-                  : `inset 0 0 0 1.5px var(--lg-divider, var(--border-subtle))`,
-              }}
-            >
-              {active && (
-                <span className="rounded-full" style={{ width: 5, height: 5, background: '#ffffff' }} />
-              )}
-            </span>
-            <span
-              className="text-[13px] font-medium"
-              style={{ color: 'var(--lg-text-1, var(--text-primary))' }}
-            >
-              {opt.label}
-            </span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 function DashboardRotationPicker({
   selected,

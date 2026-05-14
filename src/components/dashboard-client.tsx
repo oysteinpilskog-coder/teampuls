@@ -49,13 +49,12 @@ import { trackBrandImpression } from '@/lib/analytics'
 import { getDayPhase, getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
 import type { Entry, Member, Office, Organization, Customer, DashboardViewKey, PresenceAssumption } from '@/lib/supabase/types'
 import { inferStatus } from '@/lib/presence'
-import { redactSickEntries, redactSickStatusOrNull } from '@/lib/privacy'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { seedWeatherCache, type WeatherSnapshot } from '@/lib/weather/use-weather'
 import { useTodaysVisits, filterActiveWelcomes } from '@/hooks/use-todays-visits'
 
-type OrgRow = Pick<Organization, 'name' | 'timezone' | 'dashboard_show_sick' | 'dashboard_rotation_views' | 'dashboard_view_durations' | 'default_presence_assumption'>
+type OrgRow = Pick<Organization, 'name' | 'timezone' | 'dashboard_rotation_views' | 'dashboard_view_durations' | 'default_presence_assumption'>
 
 interface DashboardClientProps {
   /** All workspace org_ids the dashboard scopes to. Single-workspace
@@ -200,7 +199,6 @@ export function DashboardClient({
     })()
     return activeWelcomes.length > 0 ? (['F', ...baseList] as ViewKey[]) : baseList
   }, [org?.dashboard_rotation_views, activeWelcomes.length])
-  const showSick = org?.dashboard_show_sick ?? true
   // Mirror Oversikt: når org-en lener seg på en presence-antakelse skal
   // hero-tallet og strip-buckets på TV-en telle medlemmer uten registrering
   // på samme måte som «Akkurat nå» gjør på Oversikt-siden. 'none' betyr
@@ -325,7 +323,7 @@ export function DashboardClient({
       const [orgRes, membersRes, officesRes, customersRes] = await Promise.all([
         supabase
           .from('organizations')
-          .select('name, timezone, dashboard_show_sick, dashboard_rotation_views, dashboard_view_durations, default_presence_assumption')
+          .select('name, timezone, dashboard_rotation_views, dashboard_view_durations, default_presence_assumption')
           .eq('id', headerOrgId)
           .maybeSingle(),
         supabase
@@ -453,15 +451,7 @@ export function DashboardClient({
   // matrix and «Akkurat nå»-widget stay live across every workspace.
   const { entries: rawEntries } = useEntries(orgIds, dateStrings)
 
-  // Privacy: when the org has opted out of exposing sick leave, collapse
-  // sick → off so the display only reveals that someone is away, not why.
-  // Keeps the count honest while hiding the health detail. Mirror-applied
-  // i team-grid + Akkurat nå-pillen, slik at det aldri finnes en flate som
-  // røper hvorfor noen er borte når org-en har slått av sykefravær.
-  const entries = useMemo(
-    () => redactSickEntries(rawEntries, showSick),
-    [rawEntries, showSick]
-  )
+  const entries = rawEntries
 
   // Today's entries only, deduped to one per member (most recently updated wins)
   const todayStr = toDateString(new Date())
@@ -500,7 +490,7 @@ export function DashboardClient({
         continue
       }
       const assumed = inferStatus(
-        { default_status: redactSickStatusOrNull(m.default_status, showSick) },
+        { default_status: m.default_status },
         presenceAssumption,
       )
       if (!assumed) continue
@@ -524,7 +514,7 @@ export function DashboardClient({
       })
     }
     return out
-  }, [todayEntries, members, presenceAssumption, todayStr, showSick])
+  }, [todayEntries, members, presenceAssumption, todayStr])
 
   // Same speilflate som displayTodayEntries, men for hele uken — en syntetisk
   // entry per (member × weekday) der ekte rad mangler, basert på org-en sin
@@ -550,7 +540,7 @@ export function DashboardClient({
     const out: Entry[] = []
     for (const m of members) {
       const assumed = inferStatus(
-        { default_status: redactSickStatusOrNull(m.default_status, showSick) },
+        { default_status: m.default_status },
         presenceAssumption,
       )
       for (const dateStr of dateStrings) {
@@ -578,7 +568,7 @@ export function DashboardClient({
       }
     }
     return out
-  }, [entries, members, presenceAssumption, dateStrings, showSick])
+  }, [entries, members, presenceAssumption, dateStrings])
 
   // Fullscreen API
   function toggleFullscreen() {

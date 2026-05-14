@@ -11,7 +11,6 @@ import { createClient } from '@/lib/supabase/server'
 import { getTodayWeekAndYear, getWeekDays, toDateString } from '@/lib/dates'
 import type { CombinedScope } from '@/lib/supabase/session'
 import type { WorkspaceSummary, Visit } from '@/lib/supabase/types'
-import { redactSickEntries } from '@/lib/privacy'
 
 export default async function HomePage() {
   const { user, member, workspaces, combinedScope } = await getSessionMember()
@@ -134,7 +133,7 @@ async function TeamGridLoader({
   const weekDays = getWeekDays(week, year)
   const dateStrings = weekDays.map(toDateString)
 
-  const [membersRes, entriesRes, orgRes] = await Promise.all([
+  const [membersRes, entriesRes] = await Promise.all([
     supabase
       .from('members')
       .select('*')
@@ -147,26 +146,15 @@ async function TeamGridLoader({
       .select('*')
       .in('org_id', orgIds)
       .in('date', dateStrings),
-    // Privacy-flagget mat-es inn på SSR slik at første frame av Akkurat nå
-    // / matrisa ikke flasher syk-segmenter før klienten hydrerer og
-    // re-redacter. Vi leser fra brukerens egen org (memberOrgId) — i
-    // kombinert visning er det fortsatt brukerens hjemmeworkspace som
-    // styrer flagget for hennes økt.
-    supabase
-      .from('organizations')
-      .select('dashboard_show_sick')
-      .eq('id', memberOrgId)
-      .maybeSingle(),
   ])
 
-  const showSick = orgRes.data?.dashboard_show_sick ?? true
-  const redactedEntries = redactSickEntries(entriesRes.data ?? [], showSick)
+  const allEntries = entriesRes.data ?? []
 
   // Today's live metrics (rendered once in the compact strip under the AI
   // input). Only truth-on-the-ground counts — assumed presence is a UI
   // affordance on the matrix, not a headline signal.
   const todayStr = toDateString(new Date())
-  const todayEntries = redactedEntries.filter(e => e.date === todayStr)
+  const todayEntries = allEntries.filter(e => e.date === todayStr)
   const todayMemberIds = new Set(todayEntries.map(e => e.member_id))
   const distinctLocations = new Set(
     todayEntries
@@ -180,7 +168,7 @@ async function TeamGridLoader({
     <TeamGrid
       orgId={memberOrgId}
       initialMembers={membersRes.data ?? []}
-      initialEntries={redactedEntries}
+      initialEntries={allEntries}
       initialWeek={week}
       initialYear={year}
       todayMetrics={{

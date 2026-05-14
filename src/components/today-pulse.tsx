@@ -49,7 +49,7 @@ export function TodayPulse({ entries }: TodayPulseProps) {
     { status: 'customer', label: t.status.customer },
     { status: 'travel',   label: t.status.travel },
     { status: 'vacation', label: t.status.vacation },
-    { status: 'sick',     label: t.status.sick },
+    { status: 'absent',   label: t.status.absent },
     { status: 'off',      label: t.status.off },
   ]
 

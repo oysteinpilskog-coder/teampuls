@@ -31,7 +31,7 @@ function toIso(d: Date) {
 }
 
 const STATUS_ORDER: EntryStatus[] = [
-  'office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off',
+  'office', 'remote', 'customer', 'event', 'travel', 'vacation', 'absent', 'off',
 ]
 
 type GroupKey = 'office' | 'remote' | 'customer' | 'away'
@@ -44,10 +44,10 @@ const DAY_STATUS_GROUPS: Array<{
   { key: 'office',   statuses: ['office'],                          representative: 'office'   },
   { key: 'remote',   statuses: ['remote'],                          representative: 'remote'   },
   { key: 'customer', statuses: ['customer', 'event', 'travel'],     representative: 'customer' },
-  { key: 'away',     statuses: ['vacation', 'sick', 'off'],         representative: 'vacation' },
+  { key: 'away',     statuses: ['vacation', 'absent', 'off'],       representative: 'vacation' },
 ]
 
-type AwayReason = 'vacation' | 'sick' | 'off'
+type AwayReason = 'vacation' | 'absent' | 'off'
 
 interface DayStat {
   date: Date
@@ -69,7 +69,7 @@ export function MonthView({ members, weekDays, entries, orgName: _orgName, time 
     event: t.status.event,
     travel: t.status.travel,
     vacation: t.status.vacation,
-    sick: t.status.sick,
+    absent: t.status.absent,
     off: t.status.off,
   }
   const weekNum = getISOWeek(time)
@@ -114,8 +114,8 @@ export function MonthView({ members, weekDays, entries, orgName: _orgName, time 
   }, [dayStats])
 
   // Members away at any point this week, with their primary "borte"-grunn.
-  // Prioritet: vacation > sick > off så «Anna har ferie hele uka» ikke blir
-  // overskrevet av en ekstra «syk fredag»-rad.
+  // Prioritet: vacation > absent > off så «Anna har ferie hele uka» ikke blir
+  // overskrevet av en ekstra «fraværende fredag»-rad.
   const awayList = useMemo(() => {
     const list: Array<{ member: Member; reason: AwayReason }> = []
     for (const m of members) {
@@ -128,7 +128,7 @@ export function MonthView({ members, weekDays, entries, orgName: _orgName, time 
           reason = 'vacation'
           break
         }
-        if (e.status === 'sick') reason = reason ?? 'sick'
+        if (e.status === 'absent') reason = reason ?? 'absent'
         else if (e.status === 'off') reason = reason ?? 'off'
       }
       if (reason) list.push({ member: m, reason })
@@ -279,8 +279,8 @@ export function MonthView({ members, weekDays, entries, orgName: _orgName, time 
 
       {/* ── BOTTOM — «I sum» + «Borte» side-by-side. Drar status-totaler og
             borte-listen ned i en kompakt rad så hero-en (dag-rutene) får
-            beholde luft. Borte-chips bærer nå et lite Ferie/Syk/Fri-merke,
-            så resepsjonen ser HVORFOR noen er borte uten å klikke. */}
+            beholde luft. Borte-chips bærer et lite Ferie/Fraværende/Fri-
+            merke, så resepsjonen ser hvilken kategori uten å klikke. */}
       <div className="flex-shrink-0 grid grid-cols-2 gap-4">
         <motion.div
           initial={{ opacity: 0, y: 12 }}

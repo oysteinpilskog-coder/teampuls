@@ -228,7 +228,7 @@ export function TeamBoard({ members, todayMap }: TeamBoardProps) {
     { key: 'office',   label: t.pulse.atOffice,   statuses: ['office'],                      representative: 'office'   },
     { key: 'remote',   label: t.pulse.atHome,     statuses: ['remote'],                      representative: 'remote'   },
     { key: 'customer', label: t.pulse.atCustomer, statuses: ['customer', 'event', 'travel'],          representative: 'customer' },
-    { key: 'away',     label: t.pulse.away,       statuses: ['vacation', 'sick', 'off'],     representative: 'vacation' },
+    { key: 'away',     label: t.pulse.away,       statuses: ['vacation', 'absent', 'off'],   representative: 'vacation' },
   ]
 
   const buckets = STRIPS.map(strip => ({

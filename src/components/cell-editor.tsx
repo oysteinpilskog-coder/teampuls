@@ -16,7 +16,7 @@ import { DateRangePicker } from '@/components/date-range-picker'
 import { addDays, differenceInDays, parseISO } from 'date-fns'
 import { toDateString, MONTH_LONG_NB } from '@/lib/dates'
 
-const ALL_STATUSES: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
+const ALL_STATUSES: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'absent', 'off']
 
 interface CellEditorProps {
   open: boolean

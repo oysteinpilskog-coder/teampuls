@@ -2,7 +2,7 @@
 // Run `npx supabase gen types typescript --project-id $PROJECT_ID > src/lib/supabase/types.ts`
 // to regenerate from the live schema.
 
-export type EntryStatus = 'office' | 'remote' | 'customer' | 'event' | 'travel' | 'vacation' | 'sick' | 'off'
+export type EntryStatus = 'office' | 'remote' | 'customer' | 'event' | 'travel' | 'vacation' | 'absent' | 'off'
 export type MemberRole = 'admin' | 'member'
 export type EntrySource = 'manual' | 'ai_web' | 'ai_email'
 export type EventCategory = 'company' | 'trade_show' | 'training' | 'milestone' | 'holiday' | 'deadline' | 'other'
@@ -71,8 +71,6 @@ export interface Organization {
     | null
   /** How the UI should render unregistered days — see PresenceAssumption. */
   default_presence_assumption?: PresenceAssumption
-  /** Privacy toggle: when false, sick entries are collapsed into "off" on the public TV dashboard. */
-  dashboard_show_sick?: boolean
   /** Which dashboard views take part in the auto-rotate carousel. View keys: A/B/C/D/E. */
   dashboard_rotation_views?: DashboardViewKey[]
   /** Per-view auto-rotation dwell time in seconds. Missing keys fall back to DEFAULT_VIEW_DURATIONS. */

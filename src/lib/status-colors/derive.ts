@@ -72,7 +72,7 @@ export function derivePalettes(colors: HexColors): Record<EntryStatus, StatusPal
     event:    derivePalette(colors.event),
     travel:   derivePalette(colors.travel),
     vacation: derivePalette(colors.vacation),
-    sick:     derivePalette(colors.sick),
+    absent:   derivePalette(colors.absent),
     off:      derivePalette(colors.off),
   }
 }
