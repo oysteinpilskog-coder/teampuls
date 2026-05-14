@@ -317,50 +317,66 @@ export function WelcomeClient({
       source: 'manual' as const,
     }
 
+    const sortVisits = (rows: Visit[]) => rows.slice().sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date)
+      return a.start_time.localeCompare(b.start_time)
+    })
+
     if (modalMode === 'edit' && editTarget) {
+      const snapshot = editTarget
+      setVisits(prev => sortVisits(
+        prev.map(v => (v.id === editTarget.id ? { ...v, ...row } : v)),
+      ))
+      closeModal()
+      toast.success(t.settings.welcome.toastUpdated)
+
       const { error } = await supabase.from('visits').update(row).eq('id', editTarget.id)
       setSaving(false)
       if (error) {
+        setVisits(prev => prev.map(v => v.id === snapshot.id ? snapshot : v))
         toast.error(t.common.errorShort)
         return
       }
-      setVisits(prev =>
-        prev.map(v => (v.id === editTarget.id ? { ...v, ...row } : v)),
-      )
       router.refresh()
-      toast.success(t.settings.welcome.toastUpdated)
     } else {
+      const tempId = `optimistic-${Date.now()}`
+      const placeholder = { ...row, id: tempId } as Visit
+      setVisits(prev => sortVisits([...prev, placeholder]))
+      closeModal()
+      toast.success(t.settings.welcome.toastAdded)
+
       const { data, error } = await supabase.from('visits').insert(row).select().single()
       setSaving(false)
       if (error) {
+        setVisits(prev => prev.filter(v => v.id !== tempId))
         toast.error(t.common.errorShort)
         return
       }
-      setVisits(prev => {
-        const without = prev.filter(v => v.id !== data.id)
-        return [...without, data].sort((a, b) => {
-          if (a.date !== b.date) return a.date.localeCompare(b.date)
-          return a.start_time.localeCompare(b.start_time)
-        })
-      })
+      setVisits(prev => sortVisits(
+        prev.map(v => v.id === tempId ? (data as Visit) : v),
+      ))
       router.refresh()
-      toast.success(t.settings.welcome.toastAdded)
     }
-    closeModal()
   }
 
   async function handleDelete(id: string) {
-    setDeleting(id)
     const supabase = createClient()
+    let snapshot: Visit | null = null
+    setVisits(prev => {
+      snapshot = prev.find(v => v.id === id) ?? null
+      return prev.filter(v => v.id !== id)
+    })
+    setDeleting(id)
+    toast.success(t.settings.welcome.toastDeleted)
+
     const { error } = await supabase.from('visits').delete().eq('id', id)
     setDeleting(null)
     if (error) {
+      if (snapshot) setVisits(prev => [...prev, snapshot as Visit])
       toast.error(t.common.errorShort)
       return
     }
-    setVisits(prev => prev.filter(v => v.id !== id))
     router.refresh()
-    toast.success(t.settings.welcome.toastDeleted)
   }
 
   return (

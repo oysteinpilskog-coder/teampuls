@@ -260,38 +260,63 @@ export function CustomersClient({
     }
 
     if (modalMode === 'edit' && editTarget) {
+      // Optimistic patch + close + toast — DB races behind. On failure we
+      // restore the snapshot so the row reverts visibly.
+      const snapshot = editTarget
+      setCustomers(prev => prev.map(c => c.id === editTarget.id ? { ...c, ...row } : c))
+      closeModal()
+      toast.success(t.settings.customers.toastUpdated)
+
       const { error } = await supabase.from('customers').update(row).eq('id', editTarget.id)
       setSaving(false)
       if (error) {
+        setCustomers(prev => prev.map(c => c.id === snapshot.id ? snapshot : c))
         toast.error(error.message.includes('duplicate') ? t.settings.customers.errorDuplicate : t.common.errorShort)
         return
       }
-      setCustomers(prev => prev.map(c => c.id === editTarget.id ? { ...c, ...row } : c))
       router.refresh()
-      toast.success(t.settings.customers.toastUpdated)
     } else {
+      // Optimistic add — placeholder row keyed with a temp id so it renders
+      // the same frame the user clicks Save. Swap for the canonical row when
+      // the insert returns; remove on failure.
+      const tempId = `optimistic-${Date.now()}`
+      const placeholder = { ...row, id: tempId } as Customer
+      setCustomers(prev => [...prev, placeholder])
+      closeModal()
+      toast.success(`${row.name} ${t.settings.customers.toastAddedSuffix}`)
+
       const { data, error } = await supabase.from('customers').insert(row).select().single()
       setSaving(false)
       if (error) {
+        setCustomers(prev => prev.filter(c => c.id !== tempId))
         toast.error(error.message.includes('duplicate') ? t.settings.customers.errorDuplicate : t.common.errorShort)
         return
       }
-      setCustomers(prev => [...prev, data])
+      setCustomers(prev => prev.map(c => c.id === tempId ? (data as Customer) : c))
       router.refresh()
-      toast.success(`${row.name} ${t.settings.customers.toastAddedSuffix}`)
     }
-    closeModal()
   }
 
   async function handleDelete(id: string) {
-    setDeleting(id)
     const supabase = createClient()
+    // Optimistic delete — pluck the row out of state immediately so the list
+    // tightens up. Snapshot lets us restore on RLS / network failure.
+    let snapshot: Customer | null = null
+    setCustomers(prev => {
+      snapshot = prev.find(c => c.id === id) ?? null
+      return prev.filter(c => c.id !== id)
+    })
+    setDeleting(id)
+    toast.success(t.settings.customers.toastDeleted)
+
     const { error } = await supabase.from('customers').delete().eq('id', id)
     setDeleting(null)
-    if (error) { toast.error(t.common.errorShort); return }
-    setCustomers(prev => prev.filter(c => c.id !== id))
+    if (error) {
+      if (snapshot) setCustomers(prev => [...prev, snapshot as Customer])
+      toast.error(t.common.errorShort)
+      return
+    }
     router.refresh()
-    toast.success(t.settings.customers.toastDeleted)
   }
 
   return (

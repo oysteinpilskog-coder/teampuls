@@ -230,29 +230,51 @@ export function OfficesClient({
     }
 
     if (modalMode === 'edit' && editTarget) {
+      const snapshot = editTarget
+      setOffices(prev => prev.map(o => o.id === editTarget.id ? { ...o, ...row } : o))
+      closeModal()
+      toast.success(t.settings.offices.toastUpdated)
+
       const { error } = await supabase.from('offices').update(row).eq('id', editTarget.id)
       setSaving(false)
-      if (error) { toast.error(t.common.errorShort); return }
-      setOffices(prev => prev.map(o => o.id === editTarget.id ? { ...o, ...row } : o))
-      toast.success(t.settings.offices.toastUpdated)
+      if (error) {
+        setOffices(prev => prev.map(o => o.id === snapshot.id ? snapshot : o))
+        toast.error(t.common.errorShort)
+      }
     } else {
+      const tempId = `optimistic-${Date.now()}`
+      const placeholder = { ...row, id: tempId } as Office
+      setOffices(prev => [...prev, placeholder])
+      closeModal()
+      toast.success(`${row.name} ${t.settings.offices.toastAddedSuffix}`)
+
       const { data, error } = await supabase.from('offices').insert(row).select().single()
       setSaving(false)
-      if (error) { toast.error(t.common.errorShort); return }
-      setOffices(prev => [...prev, data])
-      toast.success(`${row.name} ${t.settings.offices.toastAddedSuffix}`)
+      if (error) {
+        setOffices(prev => prev.filter(o => o.id !== tempId))
+        toast.error(t.common.errorShort)
+        return
+      }
+      setOffices(prev => prev.map(o => o.id === tempId ? (data as Office) : o))
     }
-    closeModal()
   }
 
   async function handleDelete(id: string) {
-    setDeleting(id)
     const supabase = createClient()
+    let snapshot: Office | null = null
+    setOffices(prev => {
+      snapshot = prev.find(o => o.id === id) ?? null
+      return prev.filter(o => o.id !== id)
+    })
+    setDeleting(id)
+    toast.success(t.settings.offices.toastDeleted)
+
     const { error } = await supabase.from('offices').delete().eq('id', id)
     setDeleting(null)
-    if (error) { toast.error(t.common.errorShort); return }
-    setOffices(prev => prev.filter(o => o.id !== id))
-    toast.success(t.settings.offices.toastDeleted)
+    if (error) {
+      if (snapshot) setOffices(prev => [...prev, snapshot as Office])
+      toast.error(t.common.errorShort)
+    }
   }
 
   // Flere HQ per org er lov (Nordic + UK osv.). Toggler ett enkelt
