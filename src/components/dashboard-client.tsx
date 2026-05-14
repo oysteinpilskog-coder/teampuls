@@ -55,7 +55,7 @@ import { useT } from '@/lib/i18n/context'
 import { seedWeatherCache, type WeatherSnapshot } from '@/lib/weather/use-weather'
 import { useTodaysVisits, filterActiveWelcomes } from '@/hooks/use-todays-visits'
 
-type OrgRow = Pick<Organization, 'name' | 'timezone' | 'dashboard_rotation_views' | 'dashboard_view_durations' | 'default_presence_assumption'>
+type OrgRow = Pick<Organization, 'name' | 'timezone' | 'dashboard_rotation_views' | 'dashboard_view_durations' | 'default_presence_assumption' | 'logo_url'>
 
 interface DashboardClientProps {
   /** All workspace org_ids the dashboard scopes to. Single-workspace
@@ -326,7 +326,7 @@ export function DashboardClient({
       const [orgRes, membersRes, officesRes, customersRes] = await Promise.all([
         supabase
           .from('organizations')
-          .select('name, timezone, dashboard_rotation_views, dashboard_view_durations, default_presence_assumption')
+          .select('name, timezone, dashboard_rotation_views, dashboard_view_durations, default_presence_assumption, logo_url')
           .eq('id', headerOrgId)
           .maybeSingle(),
         supabase
@@ -709,6 +709,7 @@ export function DashboardClient({
           <WheelView
             orgIds={orgIds}
             logoOrgId={headerOrgId}
+            initialLogoUrl={org?.logo_url ?? null}
             orgName={orgName}
             time={time}
           />
