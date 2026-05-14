@@ -90,7 +90,7 @@ interface DashboardClientProps {
 }
 
 type ViewKey = DashboardViewKey
-const ALL_VIEWS: ViewKey[] = ['A', 'B', 'C', 'D', 'E', 'G']
+const ALL_VIEWS: ViewKey[] = ['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I']
 // View F (Velkomst) er IKKE i ALL_VIEWS — den injiseres dynamisk når et
 // besøk er innenfor sitt vindu (60 min før → 15 min etter start_time).
 // Den lagres aldri i organizations.dashboard_rotation_views.
@@ -140,6 +140,8 @@ export function DashboardClient({
     E: t.dashboard.views.wheel,
     F: t.dashboard.views.welcome,
     G: t.dashboard.views.globe,
+    H: t.dashboard.views.customersUk,
+    I: t.dashboard.views.customersNordic,
   }), [t])
   const searchParams = useSearchParams()
   // ?brand=off disables the 3.2s brand-transition moment for the entire
@@ -662,6 +664,30 @@ export function DashboardClient({
             customers={customers}
             orgName={orgName}
             time={time}
+          />
+        )
+      case 'H':
+        return (
+          <CustomerMapView
+            members={members}
+            entries={entries}
+            todayEntries={dedupedTodayEntries}
+            customers={customers}
+            orgName={orgName}
+            time={time}
+            region="uk"
+          />
+        )
+      case 'I':
+        return (
+          <CustomerMapView
+            members={members}
+            entries={entries}
+            todayEntries={dedupedTodayEntries}
+            customers={customers}
+            orgName={orgName}
+            time={time}
+            region="nordic"
           />
         )
       case 'E':

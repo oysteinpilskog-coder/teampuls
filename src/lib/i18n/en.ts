@@ -279,6 +279,8 @@ export const en: Dictionary = {
       week: 'Week',
       offices: 'Offices',
       customers: 'Customers',
+      customersUk: 'Customers UK',
+      customersNordic: 'Customers Nordic',
       wheel: 'Year',
       welcome: 'Welcome',
       globe: 'Globe',
@@ -340,6 +342,8 @@ export const en: Dictionary = {
     },
     customer: {
       title: 'At customer',
+      titleUk: 'Customers UK',
+      titleNordic: 'Customers Nordic',
       todayWeekCount: '{today} at customers now · {week} this week',
       portfolio: 'Customer portfolio',
       visited: 'visited',

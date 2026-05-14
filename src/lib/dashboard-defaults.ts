@@ -24,6 +24,9 @@ export const DEFAULT_VIEW_DURATIONS: Record<DashboardViewKey, number> = {
   // Globus: long enough that the auto-tour can land on every office once
   // (~6.4s/office × ~5 offices = ~32s) before the rotation hands off.
   G: 32,
+  // Kunder UK / Kunder Nordic — samme tempo som D.
+  H: 15,
+  I: 15,
 }
 
 /**

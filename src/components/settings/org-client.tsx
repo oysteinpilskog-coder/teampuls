@@ -26,10 +26,10 @@ import { useT } from '@/lib/i18n/context'
 
 const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
 
-// Bare A–E + G er konfigurerbare i Settings — Velkomst-view F injiseres
-// dynamisk på dashboardet og skal aldri lagres til
-// organizations.dashboard_rotation_views.
-const DASHBOARD_VIEW_KEYS = ['A', 'B', 'C', 'D', 'E', 'G'] as const
+// Konfigurerbare visninger i Settings — Velkomst-view F injiseres dynamisk
+// på dashboardet og skal aldri lagres til organizations.dashboard_rotation_views.
+// H/I er kunder splittet på avdeling (UK vs Nordic).
+const DASHBOARD_VIEW_KEYS = ['A', 'B', 'C', 'D', 'H', 'I', 'E', 'G'] as const
 
 function sameSet(a: DashboardViewKey[], b: DashboardViewKey[]): boolean {
   if (a.length !== b.length) return false
@@ -563,6 +563,8 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
               D: t.dashboard.views.customers,
               E: t.dashboard.views.wheel,
               G: t.dashboard.views.globe,
+              H: t.dashboard.views.customersUk,
+              I: t.dashboard.views.customersNordic,
             }}
             minHint={t.settings.org.dashboardRotationMinOne}
           />
@@ -585,6 +587,8 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
               D: t.dashboard.views.customers,
               E: t.dashboard.views.wheel,
               G: t.dashboard.views.globe,
+              H: t.dashboard.views.customersUk,
+              I: t.dashboard.views.customersNordic,
             }}
             secondsSuffix={t.settings.org.dashboardDurationsSecondsSuffix}
             onReset={() => setViewDurations({ ...DEFAULT_VIEW_DURATIONS })}
@@ -834,7 +838,7 @@ function DashboardRotationPicker({
 }: {
   selected: DashboardViewKey[]
   onToggle: (v: DashboardViewKey) => void
-  labels: Record<'A' | 'B' | 'C' | 'D' | 'E' | 'G', string>
+  labels: Record<'A' | 'B' | 'C' | 'D' | 'E' | 'G' | 'H' | 'I', string>
   minHint: string
 }) {
   const isLastOne = selected.length === 1
@@ -902,7 +906,7 @@ function DashboardDurationsEditor({
 }: {
   durations: Record<DashboardViewKey, number>
   onChange: (view: DashboardViewKey, value: number) => void
-  labels: Record<'A' | 'B' | 'C' | 'D' | 'E' | 'G', string>
+  labels: Record<'A' | 'B' | 'C' | 'D' | 'E' | 'G' | 'H' | 'I', string>
   secondsSuffix: string
   onReset: () => void
   resetLabel: string
