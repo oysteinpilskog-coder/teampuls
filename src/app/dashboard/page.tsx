@@ -34,8 +34,37 @@ export default async function DashboardPage() {
   // populated state instead of a brief empty frame. Toggles and rotation
   // settings still come from a single canonical org (headerOrgId); members,
   // offices and customers fan out across the active scope.
+  // Server-prefetch alt som DashboardClient pleide å hente på mount. Sparer
+  // fire round-trips på cold load — dashbordet hydrerer rett inn i populated
+  // state i stedet for et kort tomt frame. Toggles og rotasjon kommer fra
+  // én kanonisk org (headerOrgId); members, offices og customers fan-out
+  // over hele scopet.
+  //
+  // Vær-prefetchen ble tidligere awaited ETTER hovedrunden — la til
+  // 200-500 ms (cache-treff) eller 1-3 s (cold Open-Meteo) sekvensielt før
+  // dashbordet kunne rendres. Nå chainer vi den av officesPromise og
+  // inkluderer den i samme Promise.all, så vær-runden overlapper
+  // org/members/customers — total tid = den TREGSTE av dem, ikke summen.
   const supabase = await createClient()
-  const [orgRes, membersRes, officesRes, customersRes] = await Promise.all([
+  const officesPromise = supabase
+    .from('offices')
+    .select('*')
+    .in('org_id', orgIds)
+    .order('sort_order')
+  const weatherPromise = officesPromise.then(({ data }) => {
+    const coords = (data ?? [])
+      .map(o => {
+        const cityHit = resolveLocation(o.city ?? o.name)
+        const lat = cityHit?.lat ?? o.latitude
+        const lng = cityHit?.lng ?? o.longitude
+        if (typeof lat !== 'number' || typeof lng !== 'number') return null
+        return { lat, lng }
+      })
+      .filter((c): c is { lat: number; lng: number } => c !== null)
+    return fetchOfficeWeatherMap(coords)
+  })
+
+  const [orgRes, membersRes, officesRes, customersRes, initialWeather] = await Promise.all([
     supabase
       .from('organizations')
       .select('name, timezone, dashboard_rotation_views, dashboard_view_durations, default_presence_assumption, logo_url')
@@ -48,35 +77,16 @@ export default async function DashboardPage() {
       .eq('is_active', true)
       .eq('hidden_from_overview', false)
       .order('display_name'),
-    supabase
-      .from('offices')
-      .select('*')
-      .in('org_id', orgIds)
-      .order('sort_order'),
+    officesPromise,
     supabase
       .from('customers')
       .select('*')
       .in('org_id', orgIds)
       .order('name'),
+    weatherPromise,
   ])
 
-  // Server-prefetch vær for hver kontor-koordinat. Speiler `office-map-view.tsx`-
-  // logikken: bydict-treff vinner over lagret lat/lng, så vi cacher med samme
-  // (rundede) koordinat som klient-hooken slår opp på. Resultatet sendes som
-  // `initialWeather` til DashboardClient og seedes inn i `useWeather`-cachen
-  // før første render — TV-en viser navn + ikon + grader fra første frame
-  // i stedet for et 1–3 s vær-vindu.
   const offices = officesRes.data ?? []
-  const officeCoords = offices
-    .map(o => {
-      const cityHit = resolveLocation(o.city ?? o.name)
-      const lat = cityHit?.lat ?? o.latitude
-      const lng = cityHit?.lng ?? o.longitude
-      if (typeof lat !== 'number' || typeof lng !== 'number') return null
-      return { lat, lng }
-    })
-    .filter((c): c is { lat: number; lng: number } => c !== null)
-  const initialWeather = await fetchOfficeWeatherMap(officeCoords)
 
   return (
     <DashboardClient

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { cookies } from 'next/headers'
-import { fontDisplay, fontBody } from '@/app/fonts'
+import { fontBody } from '@/app/fonts'
 import { Providers } from '@/components/providers'
 import { ConditionalHeader } from '@/components/app-header'
 import { themeVariantBootScript } from '@/components/theme-variant-provider'
@@ -129,7 +129,7 @@ export default async function RootLayout({
   return (
     <html
       lang={LOCALE_META[initialLocale].htmlLang}
-      className={`${fontDisplay.variable} ${fontBody.variable}`}
+      className={fontBody.variable}
       data-dashboard-mode={initialDashboardMode}
       suppressHydrationWarning
     >
