@@ -354,19 +354,29 @@ async function resolveSession() {
  *   1. (user_id, active-workspace cookie slug) — happy path
  *   2. (user_id, first membership) — cookie missing / invalid
  *   3. (email, first membership) + backfill user_id — first login
+ *
+ * `combined_org_ids` is non-null only when the cookie carries the
+ * `__all__` sentinel AND the caller has ≥2 memberships under the
+ * same account. Callers that support combined view (e.g. AI parse)
+ * use it to fan IN-queries across all involved workspaces.
  */
 export async function resolveActiveMember<T extends SupabaseClient>(
   admin: T,
   userId: string,
   userEmail: string | null | undefined,
-): Promise<{ id: string; org_id: string; email: string; display_name: string } | null> {
+): Promise<
+  | (
+      | { id: string; org_id: string; email: string; display_name: string }
+    ) & { combined_org_ids: string[] | null }
+  | null
+> {
   const cookieStore = await cookies()
   const requestedSlug = cookieStore.get(ACTIVE_WORKSPACE_COOKIE)?.value ?? null
 
   // 1 & 2: lookup by user_id.
   const { data: byUser } = await admin
     .from('members')
-    .select('id, org_id, email, display_name, organizations!inner(slug)')
+    .select('id, org_id, email, display_name, role, organizations!inner(slug, account_id)')
     .eq('user_id', userId)
     .eq('is_active', true)
 
@@ -375,12 +385,35 @@ export async function resolveActiveMember<T extends SupabaseClient>(
     org_id: string
     email: string
     display_name: string
-    organizations: { slug: string } | { slug: string }[]
+    role: MemberRole
+    organizations: { slug: string; account_id: string | null } | { slug: string; account_id: string | null }[]
   }
   const rows = (byUser ?? []) as Row[]
   if (rows.length > 0) {
     const slugOf = (r: Row) =>
       Array.isArray(r.organizations) ? r.organizations[0]?.slug : r.organizations?.slug
+    const accountOf = (r: Row) =>
+      Array.isArray(r.organizations) ? r.organizations[0]?.account_id : r.organizations?.account_id
+
+    // Combined "Alle CalWin"-mode: same rules as resolveSession() — cookie
+    // carries the sentinel and caller has ≥2 memberships sharing an account.
+    // We synthesize the active member from the highest-privileged row (admin
+    // preferred) so writes resolve through someone with permission, then
+    // hand back every involved org so the caller can fan queries out.
+    if (requestedSlug === COMBINED_WORKSPACE_SLUG) {
+      const accountIds = new Set(rows.map(accountOf).filter((x): x is string => !!x))
+      if (accountIds.size === 1 && rows.length >= 2) {
+        const adminRow = rows.find((r) => r.role === 'admin') ?? rows[0]
+        return {
+          id: adminRow.id,
+          org_id: adminRow.org_id,
+          email: adminRow.email,
+          display_name: adminRow.display_name,
+          combined_org_ids: rows.map((r) => r.org_id),
+        }
+      }
+    }
+
     const match = requestedSlug ? rows.find((r) => slugOf(r) === requestedSlug) : undefined
     const picked = match ?? rows[0]
     return {
@@ -388,6 +421,7 @@ export async function resolveActiveMember<T extends SupabaseClient>(
       org_id: picked.org_id,
       email: picked.email,
       display_name: picked.display_name,
+      combined_org_ids: null,
     }
   }
 
@@ -431,5 +465,6 @@ export async function resolveActiveMember<T extends SupabaseClient>(
     org_id: picked.org_id,
     email: picked.email,
     display_name: picked.display_name,
+    combined_org_ids: null,
   }
 }

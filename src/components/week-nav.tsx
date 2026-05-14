@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   getMonthForWeek,
   getISOWeekForMonth,
+  getLastISOWeek,
   getTodayWeekAndYear,
   getWeekDays,
   getDayLabel,
@@ -75,11 +76,12 @@ export function WeekNav({
     >
       {/* Left: single-line meta — week · range · NÅ · metrics · month picker */}
       <div className="flex items-center gap-2 flex-wrap min-w-0">
-        <span className="lg-eyebrow tabular-nums whitespace-nowrap">
-          {t.matrix.weekLabel} {week}
-          <span className="mx-2 opacity-50">·</span>
-          {rangeLabel}
-        </span>
+        <WeekPickerTrigger
+          week={week}
+          year={year}
+          rangeLabel={rangeLabel}
+          onChange={onJumpTo}
+        />
 
         {isCurrentWeek && (
           <motion.span
@@ -174,6 +176,146 @@ export function WeekNav({
         </button>
       </div>
     </motion.div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Compact week picker — wraps the "Uke N · 11–17 mai" eyebrow as a trigger
+// that opens a grid of every ISO week in the viewed year. Replaces the
+// keyboard-only week paging with a one-click jump to any week.
+
+interface WeekPickerTriggerProps {
+  week: number
+  year: number
+  rangeLabel: string
+  onChange: (next: { week: number; year: number }) => void
+}
+
+function WeekPickerTrigger({ week, year, rangeLabel, onChange }: WeekPickerTriggerProps) {
+  const t = useT()
+  const [open, setOpen] = useState(false)
+  const [viewYear, setViewYear] = useState(year)
+  const today = getTodayWeekAndYear()
+  const totalWeeks = getLastISOWeek(viewYear)
+
+  function selectWeek(w: number) {
+    onChange({ week: w, year: viewYear })
+    setOpen(false)
+  }
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next: boolean) => {
+        setOpen(next)
+        if (next) setViewYear(year)
+      }}
+    >
+      <PopoverTrigger
+        className="lg-eyebrow tabular-nums whitespace-nowrap inline-flex items-center gap-1.5 group focus:outline-none rounded-full px-2.5 h-7 transition-colors duration-150 hover:bg-[var(--lg-surface-2)]"
+        style={{ border: '1px solid var(--lg-divider)', background: 'transparent' }}
+        aria-label={t.matrix.selectWeek}
+      >
+        <span>
+          {t.matrix.weekLabel} {week}
+          <span className="mx-2 opacity-50">·</span>
+          {rangeLabel}
+        </span>
+        <motion.span
+          aria-hidden
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={spring.snappy}
+          style={{ color: 'var(--lg-text-3)' }}
+        >
+          <svg viewBox="0 0 12 12" width="9" height="9" fill="none">
+            <path d="M3 4.5 6 7.5 9 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </motion.span>
+      </PopoverTrigger>
+
+      <PopoverContent align="start" sideOffset={8} className="w-80 p-3">
+        <div className="flex items-center justify-between mb-3">
+          <motion.button
+            onClick={() => setViewYear(viewYear - 1)}
+            whileHover={{ scale: 1.06 }}
+            whileTap={{ scale: 0.94 }}
+            transition={spring.snappy}
+            className="flex items-center justify-center w-7 h-7 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+            aria-label={t.matrix.prevYear}
+          >
+            <ChevronLeft className="w-4 h-4" strokeWidth={1.75} />
+          </motion.button>
+          <span
+            className="text-[15px] font-semibold tabular-nums"
+            style={{ fontFamily: 'var(--font-fraunces)', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}
+          >
+            {viewYear}
+          </span>
+          <motion.button
+            onClick={() => setViewYear(viewYear + 1)}
+            whileHover={{ scale: 1.06 }}
+            whileTap={{ scale: 0.94 }}
+            transition={spring.snappy}
+            className="flex items-center justify-center w-7 h-7 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-subtle)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)]"
+            aria-label={t.matrix.nextYear}
+          >
+            <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
+          </motion.button>
+        </div>
+
+        <div className="grid grid-cols-6 gap-1">
+          {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((w) => {
+            const isSelected = viewYear === year && w === week
+            const isThisWeek = viewYear === today.year && w === today.week
+            return (
+              <motion.button
+                key={w}
+                onClick={() => selectWeek(w)}
+                whileTap={{ scale: 0.95 }}
+                transition={spring.snappy}
+                className="h-9 rounded-lg text-[12px] font-medium tabular-nums focus:outline-none transition-colors duration-150"
+                style={{
+                  fontFamily: 'var(--font-body)',
+                  color: isSelected ? '#fff' : 'var(--lg-text-1)',
+                  background: isSelected
+                    ? 'var(--lg-accent)'
+                    : isThisWeek
+                      ? 'color-mix(in oklab, var(--lg-accent) 10%, transparent)'
+                      : 'transparent',
+                  boxShadow: isSelected
+                    ? '0 0 0 3px color-mix(in oklab, var(--lg-accent) 18%, transparent), 0 0 20px var(--lg-accent-glow)'
+                    : undefined,
+                  border: isThisWeek && !isSelected
+                    ? '1px solid color-mix(in oklab, var(--lg-accent) 35%, transparent)'
+                    : '1px solid transparent',
+                }}
+              >
+                {w}
+              </motion.button>
+            )
+          })}
+        </div>
+
+        <motion.button
+          onClick={() => {
+            onChange({ week: today.week, year: today.year })
+            setOpen(false)
+          }}
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.97 }}
+          transition={spring.snappy}
+          disabled={week === today.week && year === today.year}
+          className="mt-3 w-full h-8 rounded-lg text-[12px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] disabled:opacity-50 disabled:cursor-default"
+          style={{
+            color: 'var(--text-secondary)',
+            background: 'var(--bg-subtle)',
+            fontFamily: 'var(--font-body)',
+          }}
+        >
+          {t.hotkeys.k.today}
+        </motion.button>
+      </PopoverContent>
+    </Popover>
   )
 }
 

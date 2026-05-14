@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { useTheme } from 'next-themes'
 import { getISOWeek } from 'date-fns'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEntries } from '@/hooks/use-entries'
 import { useT } from '@/lib/i18n/context'
@@ -439,6 +439,93 @@ export function SommerMonthMatrix({
     window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
   }, [orgIdByMember, orgIds, weekdays, applyOptimistic, refetch, t.summer.dayOne, t.summer.dayMany, t.summer.dragError, t.summer.resizeExtended, t.summer.resizeShortened, t.summer.resizeAdjusted])
 
+  // Delete an entire vacation block. The toast carries an "Angre"
+  // action so a misclick is reversible — we restore the same dates
+  // back into entries on undo.
+  const commitDelete = useCallback(async (
+    memberId: string,
+    startCol: number,
+    endCol: number,
+    memberName: string,
+  ) => {
+    const lo = Math.min(startCol, endCol)
+    const hi = Math.max(startCol, endCol)
+    const memberOrgId = orgIdByMember.get(memberId) ?? orgIds[0]
+    const dates: string[] = []
+    for (let i = lo; i <= hi; i++) {
+      const d = weekdays[i]
+      if (d) dates.push(toDateString(d))
+    }
+    if (dates.length === 0) return
+
+    applyOptimistic((prev) =>
+      prev.filter(e => !(e.member_id === memberId && dates.includes(e.date))),
+    )
+
+    const days = dates.length
+    const dayWord = days === 1 ? t.summer.dayOne : t.summer.dayMany
+    toast.success(`${t.summer.deleted} — ${memberName} · ${days} ${dayWord}`, {
+      action: {
+        label: t.summer.undo,
+        onClick: async () => {
+          const nowIso = new Date().toISOString()
+          applyOptimistic((prev) => {
+            const keep = prev.filter(e => !(e.member_id === memberId && dates.includes(e.date)))
+            const added: Entry[] = dates.map(d => ({
+              id: `optimistic-${memberId}-${d}`,
+              org_id: memberOrgId,
+              member_id: memberId,
+              date: d,
+              status: 'vacation',
+              location_label: null,
+              note: null,
+              source: 'manual',
+              source_text: null,
+              confidence: null,
+              created_by: null,
+              created_at: nowIso,
+              updated_at: nowIso,
+            }))
+            return [...keep, ...added]
+          })
+          const supabase = createClient()
+          const rows = dates.map(d => ({
+            org_id: memberOrgId,
+            member_id: memberId,
+            date: d,
+            status: 'vacation' as const,
+            location_label: null,
+            note: null,
+            source: 'manual' as const,
+            confidence: null,
+          }))
+          const { error } = await supabase
+            .from('entries')
+            .upsert(rows, { onConflict: 'org_id,member_id,date' })
+          if (error) {
+            toast.error(t.summer.dragError)
+            await refetch()
+            return
+          }
+          window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
+        },
+      },
+    })
+
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('entries')
+      .delete()
+      .eq('member_id', memberId)
+      .in('date', dates)
+    if (error) {
+      toast.error(t.summer.deleteError)
+      await refetch()
+      return
+    }
+    window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
+  }, [orgIdByMember, orgIds, weekdays, applyOptimistic, refetch, t.summer.dayOne, t.summer.dayMany, t.summer.deleted, t.summer.deleteError, t.summer.dragError, t.summer.undo])
+
   const canEditAny = currentMemberRole === 'admin'
   const palette = palettes.vacation
 
@@ -562,6 +649,7 @@ export function SommerMonthMatrix({
                     workspace={workspace}
                     commitVacation={commitVacation}
                     commitResize={commitResize}
+                    commitDelete={commitDelete}
                     t={t}
                   />
                 )
@@ -684,7 +772,7 @@ const ROW_H = 44
 function Row({
   row, idx, totalCols, weekGroups, colPct, todayCol,
   palette, isLight, reduce,
-  editable, isSelf, workspace, commitVacation, commitResize, t,
+  editable, isSelf, workspace, commitVacation, commitResize, commitDelete, t,
 }: {
   row: MemberRow
   idx: number
@@ -700,6 +788,7 @@ function Row({
   workspace: WorkspaceSummary | null
   commitVacation: (memberId: string, startCol: number, endCol: number, memberName: string) => void | Promise<void>
   commitResize: (memberId: string, oldStartCol: number, oldEndCol: number, newStartCol: number, newEndCol: number, memberName: string) => void | Promise<void>
+  commitDelete: (memberId: string, startCol: number, endCol: number, memberName: string) => void | Promise<void>
   t: ReturnType<typeof useT>
 }) {
   // Match StatusSegment's translucent tile look so /sommer reads as the same
@@ -934,7 +1023,7 @@ function Row({
           return (
             <motion.div
               key={i}
-              className="absolute top-1/2 -translate-y-1/2 rounded-[8px] overflow-hidden"
+              className="absolute top-1/2 -translate-y-1/2 rounded-[8px] overflow-hidden group/bar"
               style={{
                 left: `calc(${left}% + 2px)`,
                 width: `calc(${width}% - 4px)`,
@@ -998,6 +1087,30 @@ function Row({
                       style={{ background: tone }}
                     />
                   </div>
+                  {/* Delete chip — hover-revealed × in the center so users
+                      can remove a whole vacation block in one click. Sits
+                      above the resize handles' z-index and stops pointer
+                      propagation so it doesn't trigger drag/resize. */}
+                  <button
+                    type="button"
+                    aria-label={t.summer.deleteHint}
+                    title={t.summer.deleteHint}
+                    onPointerDown={(e) => { e.stopPropagation() }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void commitDelete(row.member.id, b.startCol, b.endCol, row.member.display_name)
+                    }}
+                    className="absolute top-1/2 -translate-y-1/2 right-3 z-40 flex items-center justify-center rounded-full opacity-0 group-hover/bar:opacity-100 focus-visible:opacity-100 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lg-accent)]"
+                    style={{
+                      width: 18,
+                      height: 18,
+                      background: `color-mix(in oklab, ${tone} 92%, transparent)`,
+                      color: isLight ? '#fff' : '#fff',
+                      boxShadow: `0 1px 3px ${tone}66`,
+                    }}
+                  >
+                    <X size={11} strokeWidth={2.5} />
+                  </button>
                 </>
               )}
             </motion.div>

@@ -32,6 +32,12 @@ const PHRASE_COMPLETIONS: Array<{ match: string; rest: string }> = [
 interface AIInputProps {
   orgId: string
   /**
+   * In combined «Alle CalWin»-mode, pass every involved org so ghost
+   * completion knows about members across all workspaces. Defaults to
+   * `[orgId]` when omitted.
+   */
+  orgIds?: string[]
+  /**
    * Override the rotating placeholder examples. Use to scope hints to the
    * page's intent — e.g. only vacation phrases on /sommer.
    */
@@ -40,7 +46,7 @@ interface AIInputProps {
 
 type InputState = 'idle' | 'loading' | 'success' | 'error'
 
-export function AIInput({ orgId, placeholders }: AIInputProps) {
+export function AIInput({ orgId, orgIds, placeholders }: AIInputProps) {
   const [value, setValue] = useState('')
   const [state, setState] = useState<InputState>('idle')
   const [focused, setFocused] = useState(false)
@@ -54,22 +60,27 @@ export function AIInput({ orgId, placeholders }: AIInputProps) {
   const t = useT()
   const PLACEHOLDERS = placeholders ?? t.aiInput.placeholder
 
+  // Join orgIds into a stable string so the effect doesn't re-run on every
+  // render just because the parent rebuilt the array.
+  const orgIdsKey = (orgIds ?? [orgId]).join(',')
+
   // Fetch just the display names for ghost-completion. Cheap and cached by
   // Supabase; we only need the string list so the payload is tiny.
   useEffect(() => {
     let cancelled = false
     const supabase = createClient()
+    const ids = orgIdsKey.split(',')
     supabase
       .from('members')
       .select('display_name')
-      .eq('org_id', orgId)
+      .in('org_id', ids)
       .eq('is_active', true)
       .then(({ data }) => {
         if (cancelled) return
         setMemberNames((data ?? []).map((m: { display_name: string }) => m.display_name))
       })
     return () => { cancelled = true }
-  }, [orgId])
+  }, [orgIdsKey])
 
   // Compute an inline ghost completion for the current input value.
   // Completes against member names first (most valuable), then canonical phrases.

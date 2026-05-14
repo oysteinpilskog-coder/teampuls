@@ -137,6 +137,7 @@ export const sv: Dictionary = {
     noMembers: 'Inga teammedlemmar ännu.',
     noEntriesWeek: 'Inga poster denna vecka.',
     selectMonth: 'Välj månad',
+    selectWeek: 'Välj vecka',
     prevYear: 'Föregående år',
     nextYear: 'Nästa år',
   },
@@ -527,6 +528,10 @@ export const sv: Dictionary = {
     resizeExtended: 'Semester förlängd',
     resizeShortened: 'Semester förkortad',
     resizeAdjusted: 'Semester justerad',
+    deleteHint: 'Ta bort semester',
+    deleted: 'Semester borttagen',
+    deleteError: 'Kunde inte ta bort semester',
+    undo: 'Ångra',
   },
   eventEditor: {
     titleNew: 'Ny händelse',

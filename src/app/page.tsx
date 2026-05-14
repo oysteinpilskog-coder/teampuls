@@ -49,22 +49,19 @@ export default async function HomePage() {
     )
   }
 
-  // In combined view we hide the AI input — Claude can't disambiguate
-  // which workspace to write into when several share members ("Johan"
-  // could resolve to either side). The user picks a single workspace
-  // first if they want to log a status. The InactivityNudge is also
-  // workspace-scoped so we hide it.
+  // In combined view AI input parses across all workspaces in the
+  // account and routes each write to the matched member's actual org
+  // (see /api/ai/parse + applyUpdates memberOrgIds). InactivityNudge
+  // is still single-workspace by design so we keep that gated.
   const showSingleWorkspaceAffordances = !combinedScope
   const { week, year } = getTodayWeekAndYear()
   const orgIds = combinedScope?.org_ids ?? [member.org_id]
 
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-6 pt-3 pb-10 space-y-5">
-      {showSingleWorkspaceAffordances && (
-        <div className="mx-auto max-w-3xl">
-          <AIInput orgId={member.org_id} />
-        </div>
-      )}
+      <div className="mx-auto max-w-3xl">
+        <AIInput orgId={member.org_id} orgIds={orgIds} />
+      </div>
 
       {/* «Dagens gjester» — annonserer Velkomst-modus ved sin egen
           tilstedeværelse. Empty state forklarer feature, fylt rail blir

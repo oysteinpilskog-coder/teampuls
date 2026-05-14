@@ -137,6 +137,7 @@ export const es: Dictionary = {
     noMembers: 'Aún no hay miembros en el equipo.',
     noEntriesWeek: 'Sin entradas esta semana.',
     selectMonth: 'Elegir mes',
+    selectWeek: 'Elegir semana',
     prevYear: 'Año anterior',
     nextYear: 'Año siguiente',
   },
@@ -527,6 +528,10 @@ export const es: Dictionary = {
     resizeExtended: 'Vacaciones ampliadas',
     resizeShortened: 'Vacaciones acortadas',
     resizeAdjusted: 'Vacaciones ajustadas',
+    deleteHint: 'Eliminar vacaciones',
+    deleted: 'Vacaciones eliminadas',
+    deleteError: 'No se pudieron eliminar las vacaciones',
+    undo: 'Deshacer',
   },
   eventEditor: {
     titleNew: 'Nuevo evento',
