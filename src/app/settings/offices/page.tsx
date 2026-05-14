@@ -15,5 +15,5 @@ export default async function OfficesSettingsPage() {
     .order('sort_order')
     .order('name')
 
-  return <OfficesClient orgId={member.org_id} initialOffices={offices ?? []} />
+  return <OfficesClient key={member.org_id} orgId={member.org_id} initialOffices={offices ?? []} />
 }
