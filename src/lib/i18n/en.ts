@@ -137,6 +137,7 @@ export const en: Dictionary = {
     noMembers: 'No team members yet.',
     noEntriesWeek: 'No entries this week.',
     selectMonth: 'Select month',
+    selectWeek: 'Select week',
     prevYear: 'Previous year',
     nextYear: 'Next year',
   },

@@ -137,6 +137,7 @@ export const sv: Dictionary = {
     noMembers: 'Inga teammedlemmar ännu.',
     noEntriesWeek: 'Inga poster denna vecka.',
     selectMonth: 'Välj månad',
+    selectWeek: 'Välj vecka',
     prevYear: 'Föregående år',
     nextYear: 'Nästa år',
   },

@@ -137,6 +137,7 @@ export const es: Dictionary = {
     noMembers: 'Aún no hay miembros en el equipo.',
     noEntriesWeek: 'Sin entradas esta semana.',
     selectMonth: 'Elegir mes',
+    selectWeek: 'Elegir semana',
     prevYear: 'Año anterior',
     nextYear: 'Año siguiente',
   },
