@@ -199,6 +199,17 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
   const [loading, setLoading] = useState(true)
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null)
 
+  // Derive distinct locations from entries we already hold so the CellEditor
+  // can paint suggestions instantly instead of doing its own per-open fetch.
+  const locationSuggestions = useMemo(() => {
+    const set = new Set<string>()
+    for (const e of entries) {
+      const loc = e.location_label?.trim()
+      if (loc) set.add(loc)
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [entries])
+
   const [dragStart, setDragStart] = useState<DragPoint | null>(null)
   const [dragCurrent, setDragCurrent] = useState<DragPoint | null>(null)
   const isDragging = dragStart !== null
@@ -1021,6 +1032,7 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
             prev.filter((e) => !(e.member_id === memberId && affected.has(e.date))),
           )
         }}
+        locationSuggestions={locationSuggestions}
       />
     </div>
   )

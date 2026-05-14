@@ -173,18 +173,42 @@ export function MembersClient({
     }
 
     if (modalMode === 'edit' && editTarget) {
+      // Optimistic edit — paint the new values immediately and close the
+      // modal. The DB write races behind; on failure we restore the prior
+      // row from the snapshot we captured before mutating.
+      const snapshot = editTarget
+      setMembers(prev => prev.map(m => m.id === editTarget.id ? { ...m, ...baseFields } : m))
+      closeModal()
+      toast.success(t.settings.members.toastSaved)
+
       const { error } = await supabase
         .from('members')
         .update(baseFields)
         .eq('id', editTarget.id)
       setSaving(false)
       if (error) {
+        // Roll back the optimistic patch
+        setMembers(prev => prev.map(m => m.id === snapshot.id ? snapshot : m))
         toast.error(describeSaveError(error, t.settings.members.errorEmailTaken))
-        return
       }
-      setMembers(prev => prev.map(m => m.id === editTarget.id ? { ...m, ...baseFields } : m))
-      toast.success(t.settings.members.toastSaved)
     } else {
+      // Optimistic add — synthesize a placeholder row keyed with a temp id
+      // so the table renders the new member the same frame the user clicks
+      // Save. When the insert returns, swap the placeholder for the canonical
+      // server row so subsequent edits reference the real id. On failure,
+      // remove the placeholder.
+      const tempId = `optimistic-${Date.now()}`
+      const placeholder = {
+        ...baseFields,
+        id: tempId,
+        org_id: scopeOrgId,
+        is_active: true,
+        nicknames: [] as string[],
+      } as Member
+      setMembers(prev => [...prev, placeholder].sort((a, b) => a.display_name.localeCompare(b.display_name)))
+      closeModal()
+      toast.success(`${baseFields.display_name} ${t.settings.members.toastAddedSuffix}`)
+
       const { data, error } = await supabase
         .from('members')
         .insert({ ...baseFields, org_id: scopeOrgId, is_active: true, nicknames: [] })
@@ -192,13 +216,18 @@ export function MembersClient({
         .single()
       setSaving(false)
       if (error) {
+        setMembers(prev => prev.filter(m => m.id !== tempId))
         toast.error(describeSaveError(error, t.settings.members.errorEmailTaken))
         return
       }
-      setMembers(prev => [...prev, data].sort((a, b) => a.display_name.localeCompare(b.display_name)))
-      toast.success(`${baseFields.display_name} ${t.settings.members.toastAddedSuffix}`)
+      // Replace the placeholder with the canonical row (in case realtime
+      // also delivers it, the dedupe-by-id in the realtime handler keeps
+      // the list clean).
+      setMembers(prev => prev
+        .map(m => m.id === tempId ? (data as Member) : m)
+        .sort((a, b) => a.display_name.localeCompare(b.display_name)),
+      )
     }
-    closeModal()
   }
 
   async function confirmDelete() {
