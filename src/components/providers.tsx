@@ -7,7 +7,7 @@ import { ThemeVariantProvider } from '@/components/theme-variant-provider'
 import { DashboardModeProvider } from '@/components/dashboard-mode-provider'
 import { StatusColorsProvider } from '@/lib/status-colors/context'
 import { WorkspaceProvider } from '@/lib/workspace/context'
-import { PresenceProvider } from '@/lib/presence/context'
+import { PresenceProvider, type PresenceMe } from '@/lib/presence/context'
 import type { DashboardMode } from '@/lib/dashboard-mode'
 // Modals are dead weight on the first frame — none of them is visible until
 // the user explicitly summons them (⌘K, AI query, install nudge…). Lazy-
@@ -45,6 +45,7 @@ export function Providers({
   initialWorkspaces,
   initialActiveSlug,
   initialDashboardMode,
+  initialPresenceMe,
 }: {
   children: React.ReactNode
   initialStatusColors?: StatusColorsPayload | null
@@ -52,6 +53,7 @@ export function Providers({
   initialWorkspaces: WorkspaceSummary[]
   initialActiveSlug: string | null
   initialDashboardMode: DashboardMode
+  initialPresenceMe: PresenceMe | null
 }) {
   return (
     // Offiview: marketing/product default to light (Paper). Users can toggle
@@ -71,7 +73,7 @@ export function Providers({
               initialWorkspaces={initialWorkspaces}
               initialActiveSlug={initialActiveSlug}
             >
-              <PresenceProvider>
+              <PresenceProvider initialMe={initialPresenceMe}>
                 {children}
                 <CommandPalette />
                 <KeyboardHelp />
