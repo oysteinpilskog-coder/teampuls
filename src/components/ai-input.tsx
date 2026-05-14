@@ -1,6 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  useDeferredValue,
+  memo,
+} from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -71,9 +79,14 @@ export function AIInput({ orgId, placeholders }: AIInputProps) {
     return () => { cancelled = true }
   }, [orgId])
 
-  // Compute an inline ghost completion for the current input value.
-  // Completes against member names first (most valuable), then canonical phrases.
-  const ghost = useMemo(() => computeGhost(value, memberNames), [value, memberNames])
+  // Deferring the value used for ghost computation keeps the input itself
+  // updating synchronously at native typing speed — React can drop ghost
+  // recomputations when keystrokes arrive faster than they can render.
+  const deferredValue = useDeferredValue(value)
+  const ghost = useMemo(
+    () => computeGhost(deferredValue, memberNames),
+    [deferredValue, memberNames],
+  )
 
   // Rotate placeholder when idle and not focused. Depending on `value` directly
   // would tear down + recreate the interval on every keystroke; instead we
@@ -97,8 +110,8 @@ export function AIInput({ orgId, placeholders }: AIInputProps) {
   // Global ⌘K is owned by the command palette; "/" focuses this input from anywhere.
   // The palette also exposes a "Skriv statusoppdatering" action that routes here.
 
-  const submit = useCallback(async () => {
-    const text = value.trim()
+  const submit = useCallback(async (override?: string) => {
+    const text = (override ?? value).trim()
     if (!text || state === 'loading') return
 
     // Optimistic clear — input empties in the same frame the user hits Enter.
@@ -152,7 +165,7 @@ export function AIInput({ orgId, placeholders }: AIInputProps) {
       toast.error(t.aiInput.error)
       setTimeout(() => setState('idle'), 2000)
     }
-  }, [value, state, t])
+  }, [value, state, t, haptic])
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     // Tab or Right-arrow at end of value accepts the ghost completion.
@@ -184,6 +197,10 @@ export function AIInput({ orgId, placeholders }: AIInputProps) {
 
   const boxShadow = focused ? (isSuccess ? GLOW_OK : GLOW_FOCUS) : GLOW_NONE
 
+  // Clarification chips reuse the page-scoped placeholder pool — they're the
+  // canonical phrasings the AI groks best, so they double as "try one of these".
+  const chipExamples = useMemo(() => PLACEHOLDERS.slice(0, 3), [PLACEHOLDERS])
+
   return (
     <div className="w-full space-y-2">
       {/* Glow lives on a plain div via a CSS transition — Framer Motion
@@ -196,79 +213,39 @@ export function AIInput({ orgId, placeholders }: AIInputProps) {
         }}
       >
         <div
-          className="relative flex items-center gap-3 px-5 py-[16px] rounded-2xl border transition-colors duration-200"
+          className="relative flex items-center gap-3 px-5 py-[16px] rounded-2xl border"
           style={{
+            // Solid background — the backdrop-filter has been moved onto a
+            // dedicated sibling layer below so input keystrokes don't trigger
+            // a backdrop recomposite, which was the dominant source of jank.
             background: 'var(--lg-panel-bg)',
-            // Lightened from blur(20px) saturate(180%): the wrapper paints on
-            // every keystroke as the input text changes, and 20px+saturate is
-            // one of the most expensive composite ops the browser can do.
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
             borderColor,
             borderWidth: 1,
+            transition: 'border-color 180ms ease',
+            // Hint the compositor that this subtree owns its own layout,
+            // style, and paint — keystrokes can't invalidate parents.
+            contain: 'layout paint',
           }}
         >
-          {/* Left icon — animated state indicator */}
-          <div className="flex-shrink-0 w-5 h-5 relative">
-            <AnimatePresence mode="wait">
-              {isLoading ? (
-                <motion.div
-                  key="loading"
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.5 }}
-                  transition={spring.snappy}
-                  className="absolute inset-0 rounded-full border-2 border-[var(--accent-color)] border-t-transparent animate-spin"
-                />
-              ) : isSuccess ? (
-                <motion.svg
-                  key="success"
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.5 }}
-                  transition={spring.bouncy}
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  className="absolute inset-0 w-5 h-5"
-                >
-                  <motion.path
-                    d="M4 10l4.5 4.5L16 6"
-                    stroke="var(--success)"
-                    strokeWidth={2.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ duration: 0.3, ease: ease.horizon }}
-                  />
-                </motion.svg>
-              ) : (
-                <motion.svg
-                  key="idle"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  className="absolute inset-0 w-5 h-5"
-                >
-                  <path
-                    d="M17.5 10c0 4.14-3.36 7.5-7.5 7.5S2.5 14.14 2.5 10 5.86 2.5 10 2.5s7.5 3.36 7.5 7.5Z"
-                    stroke="var(--text-tertiary)"
-                    strokeWidth={1.5}
-                  />
-                  <path
-                    d="M10 6.5v4l2.5 1.5"
-                    stroke="var(--text-tertiary)"
-                    strokeWidth={1.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </motion.svg>
-              )}
-            </AnimatePresence>
-          </div>
+          {/* Isolated backdrop-blur layer. It paints once and stays put while
+              the input's text node changes above it. Pointer-events off so
+              clicks fall through to the input. */}
+          <div
+            aria-hidden
+            className="absolute inset-0 rounded-2xl pointer-events-none"
+            style={{
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              // Force its own compositing layer so the input above doesn't
+              // dirty the backdrop on every keystroke.
+              transform: 'translateZ(0)',
+              willChange: 'transform',
+            }}
+          />
+
+          {/* Left icon — state indicator. Memoized so typing doesn't re-mount
+              Framer Motion components on every keystroke. */}
+          <StateIcon state={state} />
 
           {/* Input */}
           <div className="relative flex-1">
@@ -332,85 +309,47 @@ export function AIInput({ orgId, placeholders }: AIInputProps) {
               }}
               autoComplete="off"
               spellCheck={false}
+              enterKeyHint="send"
+              inputMode="text"
             />
 
-            {/* Tab hint — absolute so its appearance never reflows the input. */}
-            <AnimatePresence>
-              {ghost && focused && !isLoading && !value.endsWith(' ') && (
-                <motion.span
-                  key="tab-hint"
-                  initial={{ opacity: 0, scale: 0.85 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.85 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-md flex items-center gap-1 pointer-events-none"
-                  style={{
-                    color: 'var(--text-tertiary)',
-                    background: 'var(--bg-subtle)',
-                    border: '1px solid var(--border-subtle)',
-                    fontFamily: 'var(--font-body)',
-                  }}
-                >
-                  ↹ Tab
-                </motion.span>
-              )}
-            </AnimatePresence>
+            {/* Tab hint — absolute so its appearance never reflows the input.
+                Plain CSS transition instead of AnimatePresence so it doesn't
+                re-run motion machinery on every keystroke. */}
+            <span
+              aria-hidden
+              className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-md flex items-center gap-1 pointer-events-none"
+              style={{
+                color: 'var(--text-tertiary)',
+                background: 'var(--bg-subtle)',
+                border: '1px solid var(--border-subtle)',
+                fontFamily: 'var(--font-body)',
+                opacity: ghost && focused && !isLoading && !value.endsWith(' ') ? 1 : 0,
+                transform: `translateY(-50%) scale(${ghost && focused ? 1 : 0.85})`,
+                transition: 'opacity 150ms ease, transform 150ms ease',
+              }}
+            >
+              ↹ Tab
+            </span>
           </div>
 
-          {/* Right side — fixed 36×36 slot, so swapping shortcut/send never reflows. */}
+          {/* Right side — fixed 36×36 slot, so swapping shortcut/send never reflows.
+              Plain button + CSS transitions; Framer's whileHover/whileTap was
+              re-evaluating on every parent render (i.e. every keystroke). */}
           <div className="flex-shrink-0 w-9 h-9 flex items-center justify-center">
-            <AnimatePresence mode="wait">
-              {value && !isLoading ? (
-                <motion.button
-                  key="send"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.94 }}
-                  transition={spring.snappy}
-                  onClick={submit}
-                  className="flex items-center justify-center w-9 h-9 rounded-xl transition-[box-shadow] duration-150"
-                  style={{
-                    background: 'var(--lg-accent)',
-                    boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 18px var(--lg-accent-glow)',
-                  }}
-                  title={t.aiInput.sendTitle}
-                  aria-label={t.aiInput.sendTitle}
-                >
-                  <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
-                    <path
-                      d="M3 8h10M9 4l4 4-4 4"
-                      stroke="white"
-                      strokeWidth={1.75}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </motion.button>
-              ) : !focused && !value ? (
-                <motion.span
-                  key="shortcut"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="lg-mono text-[10.5px] px-1.5 py-0.5 rounded-md border"
-                  style={{
-                    color: 'var(--lg-text-3)',
-                    borderColor: 'var(--lg-divider)',
-                    backgroundColor: 'var(--lg-surface-2)',
-                  }}
-                >
-                  /
-                </motion.span>
-              ) : null}
-            </AnimatePresence>
+            <SendOrShortcut
+              hasValue={!!value}
+              isLoading={isLoading}
+              focused={focused}
+              onSend={() => submit()}
+              sendTitle={t.aiInput.sendTitle}
+            />
           </div>
         </div>
       </div>
 
-      {/* Clarification message */}
+      {/* Clarification message — with click-to-fill example chips so the user
+          gets actionable hints instead of a generic "didn't understand". */}
       <AnimatePresence>
         {clarification && (
           <motion.div
@@ -420,7 +359,7 @@ export function AIInput({ orgId, placeholders }: AIInputProps) {
             transition={spring.gentle}
           >
             <div
-              className="flex items-start gap-2.5 px-4 py-3 rounded-xl text-[13px]"
+              className="px-4 py-3 rounded-xl text-[13px]"
               style={{
                 backgroundColor: 'var(--lg-surface-2)',
                 border: '1px solid var(--lg-divider)',
@@ -428,15 +367,179 @@ export function AIInput({ orgId, placeholders }: AIInputProps) {
                 fontFamily: 'var(--font-body)',
               }}
             >
-              <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--lg-accent)' }}>
-                <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth={1.5} />
-                <path d="M8 5v4M8 11v.5" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" />
-              </svg>
-              <span>{clarification}</span>
+              <div className="flex items-start gap-2.5">
+                <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--lg-accent)' }}>
+                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth={1.5} />
+                  <path d="M8 5v4M8 11v.5" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" />
+                </svg>
+                <span>{clarification}</span>
+              </div>
+              {chipExamples.length > 0 && (
+                <div className="mt-2.5 ml-[26px] flex flex-wrap gap-1.5">
+                  {chipExamples.map((ex, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        setValue(ex)
+                        setClarification(null)
+                        inputRef.current?.focus()
+                      }}
+                      className="px-2.5 py-1 rounded-full text-[12px] transition-colors"
+                      style={{
+                        background: 'var(--bg-subtle)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--lg-text-2)',
+                        fontFamily: 'var(--font-body)',
+                      }}
+                    >
+                      {ex}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** State indicator icon. Memoized on `state` so the parent re-rendering on every
+ *  keystroke doesn't churn Framer Motion's enter/exit machinery. */
+const StateIcon = memo(function StateIcon({ state }: { state: InputState }) {
+  const isLoading = state === 'loading'
+  const isSuccess = state === 'success'
+  return (
+    <div className="flex-shrink-0 w-5 h-5 relative">
+      <AnimatePresence mode="wait">
+        {isLoading ? (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            transition={spring.snappy}
+            className="absolute inset-0 rounded-full border-2 border-[var(--accent-color)] border-t-transparent animate-spin"
+          />
+        ) : isSuccess ? (
+          <motion.svg
+            key="success"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            transition={spring.bouncy}
+            viewBox="0 0 20 20"
+            fill="none"
+            className="absolute inset-0 w-5 h-5"
+          >
+            <motion.path
+              d="M4 10l4.5 4.5L16 6"
+              stroke="var(--success)"
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 0.3, ease: ease.horizon }}
+            />
+          </motion.svg>
+        ) : (
+          <motion.svg
+            key="idle"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            viewBox="0 0 20 20"
+            fill="none"
+            className="absolute inset-0 w-5 h-5"
+          >
+            <path
+              d="M17.5 10c0 4.14-3.36 7.5-7.5 7.5S2.5 14.14 2.5 10 5.86 2.5 10 2.5s7.5 3.36 7.5 7.5Z"
+              stroke="var(--text-tertiary)"
+              strokeWidth={1.5}
+            />
+            <path
+              d="M10 6.5v4l2.5 1.5"
+              stroke="var(--text-tertiary)"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </motion.svg>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+})
+
+/** Send button / "/" shortcut affordance. Plain button + CSS transitions so it
+ *  doesn't trigger Framer Motion hover/tap recalc on every keystroke. */
+function SendOrShortcut({
+  hasValue,
+  isLoading,
+  focused,
+  onSend,
+  sendTitle,
+}: {
+  hasValue: boolean
+  isLoading: boolean
+  focused: boolean
+  onSend: () => void
+  sendTitle: string
+}) {
+  const showSend = hasValue && !isLoading
+  const showShortcut = !focused && !hasValue
+  return (
+    <div className="relative w-9 h-9">
+      <button
+        type="button"
+        onClick={onSend}
+        disabled={!showSend}
+        className="absolute inset-0 flex items-center justify-center rounded-xl ai-send-btn"
+        style={{
+          background: 'var(--lg-accent)',
+          boxShadow: '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 18px var(--lg-accent-glow)',
+          opacity: showSend ? 1 : 0,
+          transform: `scale(${showSend ? 1 : 0.8})`,
+          pointerEvents: showSend ? 'auto' : 'none',
+          transition: 'opacity 160ms ease, transform 160ms ease',
+        }}
+        title={sendTitle}
+        aria-label={sendTitle}
+        aria-hidden={!showSend}
+      >
+        <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
+          <path
+            d="M3 8h10M9 4l4 4-4 4"
+            stroke="white"
+            strokeWidth={1.75}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      <span
+        aria-hidden={!showShortcut}
+        className="lg-mono text-[10.5px] px-1.5 py-0.5 rounded-md border absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+        style={{
+          color: 'var(--lg-text-3)',
+          borderColor: 'var(--lg-divider)',
+          backgroundColor: 'var(--lg-surface-2)',
+          opacity: showShortcut ? 1 : 0,
+          transition: 'opacity 180ms ease',
+        }}
+      >
+        /
+      </span>
+      <style jsx>{`
+        .ai-send-btn:not(:disabled):hover { transform: scale(1.04) !important; }
+        .ai-send-btn:not(:disabled):active { transform: scale(0.94) !important; }
+      `}</style>
     </div>
   )
 }
