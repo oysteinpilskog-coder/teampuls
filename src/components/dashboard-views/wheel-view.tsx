@@ -18,6 +18,10 @@ interface WheelViewProps {
    *  combined view doesn't have its own logo, so the dashboard hands
    *  over the canonical headerOrgId here. */
   logoOrgId: string
+  /** Pre-loaded logo from dashboard SSR. When provided we skip the per-mount
+   *  `organizations.logo_url` lookup — the dashboard rotates views every
+   *  ~15 s, so even a 50 ms round-trip per mount adds up. */
+  initialLogoUrl?: string | null
   orgName: string
   time: Date
 }
@@ -38,12 +42,15 @@ function formatRange(startIso: string, endIso: string, monthsShort: string[]): s
   return `${start.getDate()}. ${monthsShort[start.getMonth()]} – ${end.getDate()}. ${monthsShort[end.getMonth()]}`
 }
 
-export function WheelView({ orgIds, logoOrgId, orgName, time }: WheelViewProps) {
+export function WheelView({ orgIds, logoOrgId, initialLogoUrl, orgName, time }: WheelViewProps) {
   const t = useT()
   const year = time.getFullYear()
   const todayYmd = toYmd(time)
   const [events, setEvents] = useState<OrgEvent[]>([])
-  const [orgLogo, setOrgLogo] = useState<string | null>(null)
+  // Seed from SSR when available — dashboard sends the logo down with the
+  // org row so we don't pay a round-trip per rotation. Falls back to a
+  // lazy fetch when the prop is missing (preview routes etc).
+  const [orgLogo, setOrgLogo] = useState<string | null>(initialLogoUrl ?? null)
   const orgIdsKey = orgIds.join(',')
 
   // Dashboard-owned fetch. We avoid useEvents() because its Realtime channel
@@ -64,6 +71,8 @@ export function WheelView({ orgIds, logoOrgId, orgName, time }: WheelViewProps) 
       .order('start_date')
       .then(({ data }) => setEvents(data ?? []))
 
+    // Skip the logo round-trip entirely when SSR seeded it.
+    if (initialLogoUrl !== undefined) return
     supabase
       .from('organizations')
       .select('logo_url')
