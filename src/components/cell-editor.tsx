@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { dispatchEntriesChanged } from '@/hooks/use-entries'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { usePresenceCtx } from '@/lib/presence/context'
@@ -51,6 +52,11 @@ interface CellEditorProps {
   }) => void
   /** Optional — apply an optimistic delete to the host's local state. */
   onOptimisticDelete?: (dates: string[]) => void
+  /** Optional — pre-derived location suggestions from the host's entries
+   *  cache. When provided, the editor skips its own one-shot fetch on open
+   *  and renders suggestions instantly. The host knows the recent entries
+   *  already, so re-querying every time the dialog opens is wasted work. */
+  locationSuggestions?: string[]
 }
 
 export function CellEditor({
@@ -70,6 +76,7 @@ export function CellEditor({
   onMutated,
   onOptimisticSave,
   onOptimisticDelete,
+  locationSuggestions: locationSuggestionsProp,
 }: CellEditorProps) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
@@ -92,7 +99,8 @@ export function CellEditor({
   const [location, setLocation] = useState(initialLocation ?? '')
   const [note, setNote] = useState(initialNote ?? '')
   const [saving, setSaving] = useState(false)
-  const [locationSuggestions, setLocationSuggestions] = useState<string[]>([])
+  const [locationSuggestionsState, setLocationSuggestions] = useState<string[]>([])
+  const locationSuggestions = locationSuggestionsProp ?? locationSuggestionsState
   const locationInputRef = useRef<HTMLInputElement>(null)
 
   const [rangeStart, setRangeStart] = useState(date)
@@ -109,9 +117,13 @@ export function CellEditor({
     }
   }, [open, initialStatus, initialLocation, initialNote, date, initialRangeEnd])
 
-  // Fetch distinct location suggestions for this org
+  // Only fetch distinct location suggestions when the host hasn't already
+  // provided them. TeamGrid derives the list from the entries it already
+  // holds in memory and passes it down — we don't need a round-trip every
+  // time the editor opens. Solo callers (any without the prop) keep the
+  // legacy fetch as a fallback so they still get suggestions.
   useEffect(() => {
-    if (!open) return
+    if (!open || locationSuggestionsProp !== undefined) return
     const supabase = createClient()
     supabase
       .from('entries')
@@ -125,7 +137,7 @@ export function CellEditor({
         ).sort()
         setLocationSuggestions(unique)
       })
-  }, [open, orgId])
+  }, [open, orgId, locationSuggestionsProp])
 
   // Keyboard: Esc to close, Enter to save
   useEffect(() => {
@@ -180,17 +192,17 @@ export function CellEditor({
       // Manual edits reset confidence — the user has the final word.
       confidence: null,
     }))
-    const { error } = await supabase
+    const { data: written, error } = await supabase
       .from('entries')
       .upsert(rows, { onConflict: 'org_id,member_id,date' })
+      .select()
     setSaving(false)
     if (error) {
       toast.error(t.aiInput.error)
     } else {
-      // Same-tab sync hint — other surfaces (Sommer, my-plan, presence
-      // heatmap) refetch immediately instead of waiting for realtime.
-      // Mirrors ai-input.tsx.
-      window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
+      // Same-tab sync — pass the actual rows so consumers patch local state
+      // in the same frame instead of refetching.
+      dispatchEntriesChanged({ upserted: written ?? [] })
     }
 
     // If the user is correcting an AI-written entry into something materially
@@ -275,17 +287,20 @@ export function CellEditor({
     onOptimisticDelete?.(dates)
     onClose()
 
-    const { error } = await supabase
+    const { data: deleted, error } = await supabase
       .from('entries')
       .delete()
       .eq('org_id', orgId)
       .eq('member_id', memberId)
       .in('date', dates)
+      .select('id')
     setSaving(false)
     if (error) {
       toast.error(t.aiInput.error)
     } else {
-      window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
+      dispatchEntriesChanged({
+        deletedIds: (deleted ?? []).map((r: { id: string }) => r.id),
+      })
     }
     await onMutated?.()
   }

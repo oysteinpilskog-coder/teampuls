@@ -15,6 +15,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useT } from '@/lib/i18n/context'
 import { spring, ease } from '@/lib/motion'
 import { useHaptic } from '@/hooks/use-haptic'
+import { dispatchEntriesChanged } from '@/hooks/use-entries'
+import type { Entry, Visit } from '@/lib/supabase/types'
 // Plain box-shadow values — driven by a CSS transition instead of Framer
 // Motion so re-renders during typing don't re-evaluate the spring.
 const GLOW_FOCUS  = '0 0 0 3px rgba(139, 92, 246, 0.18), 0 0 24px var(--lg-accent-glow)'
@@ -143,6 +145,11 @@ export function AIInput({ orgId, orgIds, placeholders }: AIInputProps) {
         updates?: Array<{ member_name: string }>
         action?: string
         error?: string
+        writes?: {
+          upsertedEntries?: Entry[]
+          deletedEntryIds?: string[]
+          insertedVisit?: Visit | null
+        }
       }
 
       if (!res.ok || data.error) {
@@ -164,9 +171,14 @@ export function AIInput({ orgId, orgIds, placeholders }: AIInputProps) {
       // Success
       setState('success')
       haptic('success')
-      // Broadcast so useEntries can refetch immediately — belt-and-braces
-      // alongside Supabase realtime, which can lag or drop reconnected events.
-      window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
+      // Broadcast the actual rows the API persisted so consumers can patch
+      // local state in the same frame instead of refetching. Realtime is
+      // still the source of truth across tabs/devices — this just removes
+      // the perceived latency in the originating tab.
+      dispatchEntriesChanged({
+        upserted: data.writes?.upsertedEntries ?? [],
+        deletedIds: data.writes?.deletedEntryIds ?? [],
+      })
       const names = data.updates?.map(u => u.member_name).join(', ')
       toast.success(names ? `${t.aiInput.success} — ${names}` : t.aiInput.success)
       setTimeout(() => setState('idle'), 1500)

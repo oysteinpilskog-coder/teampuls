@@ -6,7 +6,7 @@ import { useTheme } from 'next-themes'
 import { getISOWeek } from 'date-fns'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { useEntries } from '@/hooks/use-entries'
+import { useEntries, dispatchEntriesChanged } from '@/hooks/use-entries'
 import { useT } from '@/lib/i18n/context'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { MemberAvatar } from '@/components/member-avatar'
@@ -336,15 +336,16 @@ export function SommerMonthMatrix({
       source: 'manual' as const,
       confidence: null,
     }))
-    const { error } = await supabase
+    const { data: written, error } = await supabase
       .from('entries')
       .upsert(rows, { onConflict: 'org_id,member_id,date' })
+      .select()
     if (error) {
       toast.error(t.summer.dragError)
       await refetch()
       return
     }
-    window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
+    dispatchEntriesChanged({ upserted: written ?? [] })
   }, [orgIdByMember, orgIds, weekdays, applyOptimistic, refetch, t.status.vacation, t.summer.dayMany, t.summer.dragError])
 
   const commitResize = useCallback(async (
@@ -407,6 +408,8 @@ export function SommerMonthMatrix({
 
     const supabase = createClient()
     let writeErr: unknown = null
+    let upserted: Entry[] = []
+    let deletedIds: string[] = []
     if (toAdd.length > 0) {
       const rows = toAdd.map(d => ({
         org_id: memberOrgId,
@@ -418,25 +421,29 @@ export function SommerMonthMatrix({
         source: 'manual' as const,
         confidence: null,
       }))
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('entries')
         .upsert(rows, { onConflict: 'org_id,member_id,date' })
+        .select()
       if (error) writeErr = error
+      else upserted = (data ?? []) as Entry[]
     }
     if (!writeErr && toRemove.length > 0) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('entries')
         .delete()
         .eq('member_id', memberId)
         .in('date', toRemove)
+        .select('id')
       if (error) writeErr = error
+      else deletedIds = (data ?? []).map((r: { id: string }) => r.id)
     }
     if (writeErr) {
       toast.error(t.summer.dragError)
       await refetch()
       return
     }
-    window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
+    dispatchEntriesChanged({ upserted, deletedIds })
   }, [orgIdByMember, orgIds, weekdays, applyOptimistic, refetch, t.summer.dayOne, t.summer.dayMany, t.summer.dragError, t.summer.resizeExtended, t.summer.resizeShortened, t.summer.resizeAdjusted])
 
   // Delete an entire vacation block. The toast carries an "Angre"
@@ -499,31 +506,35 @@ export function SommerMonthMatrix({
             source: 'manual' as const,
             confidence: null,
           }))
-          const { error } = await supabase
+          const { data: written, error } = await supabase
             .from('entries')
             .upsert(rows, { onConflict: 'org_id,member_id,date' })
+            .select()
           if (error) {
             toast.error(t.summer.dragError)
             await refetch()
             return
           }
-          window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
+          dispatchEntriesChanged({ upserted: written ?? [] })
         },
       },
     })
 
     const supabase = createClient()
-    const { error } = await supabase
+    const { data: deleted, error } = await supabase
       .from('entries')
       .delete()
       .eq('member_id', memberId)
       .in('date', dates)
+      .select('id')
     if (error) {
       toast.error(t.summer.deleteError)
       await refetch()
       return
     }
-    window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
+    dispatchEntriesChanged({
+      deletedIds: (deleted ?? []).map((r: { id: string }) => r.id),
+    })
   }, [orgIdByMember, orgIds, weekdays, applyOptimistic, refetch, t.summer.dayOne, t.summer.dayMany, t.summer.deleted, t.summer.deleteError, t.summer.dragError, t.summer.undo])
 
   const canEditAny = currentMemberRole === 'admin'

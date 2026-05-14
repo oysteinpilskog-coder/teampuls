@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
       ? new Map(allMembers.map((m) => [m.id, m.org_id]))
       : undefined
 
-    await applyUpdates(admin, member.org_id, result, {
+    const writeResult = await applyUpdates(admin, member.org_id, result, {
       sourceText: text.trim(),
       source: 'ai_web',
       memberOrgIds,
@@ -160,6 +160,14 @@ export async function POST(req: NextRequest) {
       action: result.action,
       confidence: result.confidence,
       clarification: result.clarification,
+      // Echo what we actually persisted so the client can paint optimistically
+      // in the same frame the response arrives — no realtime round-trip,
+      // no `select('*')` refetch.
+      writes: {
+        upsertedEntries: writeResult.upsertedEntries,
+        deletedEntryIds: writeResult.deletedEntryIds,
+        insertedVisit: writeResult.insertedVisit,
+      },
     })
   } catch (err) {
     console.error('[ai/parse] Error:', err)

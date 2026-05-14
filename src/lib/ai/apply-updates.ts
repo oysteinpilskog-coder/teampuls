@@ -1,5 +1,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ParseResult } from './parse-update'
+import type { Entry, Visit } from '@/lib/supabase/types'
+
+/**
+ * What we actually wrote during applyUpdates. Returned so the caller can
+ * forward the rows to the client for an optimistic same-frame paint —
+ * cuts the perceived latency of a parsed entry from "wait for realtime"
+ * to "appears the moment the AI returns".
+ */
+export type ApplyUpdatesResult = {
+  upsertedEntries: Entry[]
+  deletedEntryIds: string[]
+  insertedVisit: Visit | null
+}
 
 export async function applyUpdates(
   supabase: SupabaseClient,
@@ -18,10 +31,13 @@ export async function applyUpdates(
      */
     memberOrgIds?: Map<string, string>
   } = {},
-): Promise<void> {
+): Promise<ApplyUpdatesResult> {
   const source = opts.source ?? 'ai_web'
   const sourceText = opts.sourceText ?? null
   const orgOf = (memberId: string) => opts.memberOrgIds?.get(memberId) ?? orgId
+  const upsertedEntries: Entry[] = []
+  const deletedEntryIds: string[] = []
+  let insertedVisit: Visit | null = null
 
   // Velkomst-besøk: AI returnerer `visit` kun når meldingen inneholder
   // et eksplisitt klokkeslett. INSERT (ikke upsert) — to forskjellige
@@ -29,7 +45,7 @@ export async function applyUpdates(
   // unique key her. delete-action har ingen visit-versjon foreløpig.
   if (result.visit && result.action !== 'delete') {
     const v = result.visit
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('visits')
       .insert({
         org_id: orgOf(v.host_member_id),
@@ -44,32 +60,39 @@ export async function applyUpdates(
         source_text: sourceText,
         confidence: result.confidence,
       })
+      .select()
+      .single()
     if (error) throw new Error(`applyUpdates visit insert failed: ${error.message}`)
+    insertedVisit = data as Visit
   }
 
   // Delete original_period entries for "update" action
   if (result.action === 'update' && result.original_period) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('entries')
       .delete()
       .eq('org_id', orgOf(result.original_period.member_id))
       .eq('member_id', result.original_period.member_id)
       .in('date', result.original_period.dates)
+      .select('id')
     if (error) throw new Error(`applyUpdates delete(original_period) failed: ${error.message}`)
+    for (const row of data ?? []) deletedEntryIds.push((row as { id: string }).id)
   }
 
   // Delete entries for "delete" action
   if (result.action === 'delete') {
     for (const update of result.updates) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('entries')
         .delete()
         .eq('org_id', orgOf(update.member_id))
         .eq('member_id', update.member_id)
         .in('date', update.dates)
+        .select('id')
       if (error) throw new Error(`applyUpdates delete failed: ${error.message}`)
+      for (const row of data ?? []) deletedEntryIds.push((row as { id: string }).id)
     }
-    return
+    return { upsertedEntries, deletedEntryIds, insertedVisit }
   }
 
   // UPSERT for create/update actions. We persist confidence and source_text
@@ -92,15 +115,18 @@ export async function applyUpdates(
     }))
   )
 
-  if (rows.length === 0) return
+  if (rows.length === 0) return { upsertedEntries, deletedEntryIds, insertedVisit }
 
   // Throw on failure — callers wrap this in try/catch and surface a
   // user-visible error. Silent failure here (as it was pre-fix) meant a
   // missing enum value (e.g. 'event' before migration 013 ran) or a
   // missing column (confidence) would return success to the client and
   // show "Oppdatert" while writing nothing. Don't regress.
-  const { error } = await supabase
+  const { data: upserted, error } = await supabase
     .from('entries')
     .upsert(rows, { onConflict: 'org_id,member_id,date' })
+    .select()
   if (error) throw new Error(`applyUpdates upsert failed: ${error.message}`)
+  for (const row of upserted ?? []) upsertedEntries.push(row as Entry)
+  return { upsertedEntries, deletedEntryIds, insertedVisit }
 }

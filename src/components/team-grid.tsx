@@ -31,7 +31,7 @@ const CellEditor = dynamic(
   { ssr: false }
 )
 import { spring } from '@/lib/motion'
-import { useEntries } from '@/hooks/use-entries'
+import { useEntries, dispatchEntriesChanged } from '@/hooks/use-entries'
 import { useT } from '@/lib/i18n/context'
 import type { Dictionary } from '@/lib/i18n/types'
 import type { Entry, EntryStatus, PresenceAssumption, WorkspaceSummary } from '@/lib/supabase/types'
@@ -345,6 +345,20 @@ export function TeamGrid({
     entries.forEach((e) => map.set(`${e.member_id}_${e.date}`, e))
     return map
   }, [entries])
+
+  // Distinct location labels from the entries we already hold in memory —
+  // CellEditor renders these as `<datalist>` autocomplete suggestions. Doing
+  // it here means opening the editor doesn't fire a separate `select(...)`
+  // round-trip on every click, which used to add ~50–200 ms of perceived
+  // latency before the suggestions populated.
+  const locationSuggestions = useMemo(() => {
+    const set = new Set<string>()
+    for (const e of rawEntries) {
+      const v = e.location_label?.trim()
+      if (v) set.add(v)
+    }
+    return Array.from(set).sort()
+  }, [rawEntries])
 
   // AI-query highlights: set of `${memberId}_${date}` keys for cells the
   // last query wanted to surface. Cleared after 14 seconds, on user click,
@@ -732,27 +746,31 @@ export function TeamGrid({
           }),
         )
 
-        const { error: upErr } = await supabase
+        const { data: written, error: upErr } = await supabase
           .from('entries')
           .upsert(rows, { onConflict: 'org_id,member_id,date' })
+          .select()
         if (upErr) {
           toast.error('Kunne ikke endre datoområdet')
           await refetch() // restore server truth
           return
         }
+        let deletedIds: string[] = []
         const toDelete = origDates.filter((d) => !newDates.includes(d))
         if (toDelete.length > 0) {
-          await supabase
+          const { data: del } = await supabase
             .from('entries')
             .delete()
             .eq('org_id', orgId)
             .eq('member_id', rz.memberId)
             .in('date', toDelete)
+            .select('id')
+          deletedIds = (del ?? []).map((r: { id: string }) => r.id)
         }
-        await refetch()
-        // Same-tab sync hint — Sommer / my-plan / heatmap refetch
-        // immediately instead of waiting for realtime to catch up.
-        window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
+        // Pass the canonical rows so consumers (incl. our own hook) replace
+        // the synthesized "optimistic-…" entries with the server's truth in
+        // a single render — no second `select('*')` round-trip.
+        dispatchEntriesChanged({ upserted: (written ?? []) as Entry[], deletedIds })
         return
       }
 
@@ -811,25 +829,28 @@ export function TeamGrid({
           }),
         )
 
-        const { error: upErr } = await supabase
+        const { data: written, error: upErr } = await supabase
           .from('entries')
           .upsert(rows, { onConflict: 'org_id,member_id,date' })
+          .select()
         if (upErr) {
           toast.error('Kunne ikke flytte oppføringen')
           await refetch()
           return
         }
+        let deletedIds: string[] = []
         const toDelete = srcDates.filter((d) => !dstDates.includes(d))
         if (toDelete.length > 0) {
-          await supabase
+          const { data: del } = await supabase
             .from('entries')
             .delete()
             .eq('org_id', orgId)
             .eq('member_id', mv.memberId)
             .in('date', toDelete)
+            .select('id')
+          deletedIds = (del ?? []).map((r: { id: string }) => r.id)
         }
-        await refetch()
-        window.dispatchEvent(new CustomEvent('teampulse:entries-changed'))
+        dispatchEntriesChanged({ upserted: (written ?? []) as Entry[], deletedIds })
         return
       }
 
@@ -1689,6 +1710,7 @@ export function TeamGrid({
         initialRangeEnd={selectedCell?.endDate ?? null}
         initialSource={selectedCell?.source ?? null}
         initialSourceText={selectedCell?.sourceText ?? null}
+        locationSuggestions={locationSuggestions}
         onMutated={refetch}
         onOptimisticSave={(dates, payload) => {
           if (!selectedCell) return
