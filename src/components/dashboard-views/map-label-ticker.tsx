@@ -15,6 +15,10 @@ interface MapLabelTickerProps {
   index: number
   /** Time in ms each name lingers before the crossfade. Defaults to 4200. */
   intervalMs?: number
+  /** Multiplikator for fontSize/strokeWidth i viewBox-enheter. Brukes på
+   *  region-vyer der viewBox-en er kraftig krympet (UK) — ellers blir
+   *  16-px-labels visuelt 3–4× større enn på full-Europa-vyen. 1 = default. */
+  scale?: number
 }
 
 /**
@@ -35,6 +39,7 @@ export function MapLabelTicker({
   visited,
   index,
   intervalMs = 4200,
+  scale = 1,
 }: MapLabelTickerProps) {
   const [step, setStep] = useState(0)
 
@@ -60,10 +65,10 @@ export function MapLabelTicker({
 
   const safeStep = step % names.length
   const current = names[safeStep] ?? names[0] ?? ''
-  const fontSize = visited ? 16 : 13
+  const fontSize = (visited ? 16 : 13) * scale
   const fontWeight = visited ? 600 : 500
   const fill = visited ? 'white' : 'rgba(255,255,255,0.62)'
-  const strokeWidth = visited ? 4.5 : 3.5
+  const strokeWidth = (visited ? 4.5 : 3.5) * scale
 
   // Solo cluster → static text, no presence wrapper. Cleaner DOM, no
   // unnecessary remounts on parent re-renders.

@@ -93,6 +93,13 @@ export function CustomerMapView({
   const memberById = new Map(members.map(m => [m.id, m]))
   const customerColor = STATUS_COLORS.customer.icon
 
+  // UK-vyen krymper viewBox-en kraftig (UK_AND_IRELAND_BOUNDS dekker bare
+  // ~12° lng × ~7.6° lat mot full Europas ~70° × ~37°). Siden alle SVG-
+  // tekstene er i viewBox-enheter, blir samme fontSize=16 visuelt ~3–4×
+  // større på UK enn på Nordic. labelScale=0.5 halverer fonten på UK så
+  // proporsjonene mot kart-innholdet matcher Nordic-vyen.
+  const labelScale = region === 'uk' ? 0.5 : 1
+
   // Avdelings-filter — UK vs Nordic er CalWin AS sine to kundedivisjoner.
   // Filtrering skjer her, så resolver/registreringsteller/pinner alle ser
   // samme reduserte univers og rendringslogikken under er uberørt.
@@ -269,19 +276,19 @@ export function CustomerMapView({
   // stroke-paint-order og litt visuell pust.
   const pointsWithDims = points.map(p => {
     const visited = p.state !== 'idle'
-    const charWidth = visited ? 9.0 : 7.2
+    const charWidth = (visited ? 9.0 : 7.2) * labelScale
     const longest = p.members.reduce((n, m) => Math.max(n, m.name.length), 1)
     return {
       ...p,
-      labelWidth: longest * charWidth + 14,
-      labelHeight: 22,
+      labelWidth: longest * charWidth + 14 * labelScale,
+      labelHeight: 22 * labelScale,
     }
   })
 
   const placedLabels = placeLabels(pointsWithDims, {
-    gap: 14,
-    collisionRadius: 220,
-    lineHeight: 26,
+    gap: 14 * labelScale,
+    collisionRadius: 220 * labelScale,
+    lineHeight: 26 * labelScale,
     verticalAnchor: 0.62,
   })
 
@@ -405,6 +412,7 @@ export function CustomerMapView({
                       count={p.members.length}
                       color={customerColor}
                       visited={p.state !== 'idle'}
+                      scale={labelScale}
                     />
                   )}
                 </motion.g>
@@ -449,8 +457,8 @@ export function CustomerMapView({
                   x2={lx}
                   y2={ly}
                   stroke={visited ? 'rgba(255,255,255,0.32)' : 'rgba(255,255,255,0.18)'}
-                  strokeWidth={0.7}
-                  strokeDasharray="2 3"
+                  strokeWidth={0.7 * labelScale}
+                  strokeDasharray={`${2 * labelScale} ${3 * labelScale}`}
                   strokeLinecap="round"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -482,6 +490,7 @@ export function CustomerMapView({
                     textAnchor={anchor}
                     visited={visited}
                     index={i}
+                    scale={labelScale}
                   />
                 </motion.g>
               )
@@ -492,7 +501,7 @@ export function CustomerMapView({
                 x={MAP_WIDTH / 2}
                 y={MAP_HEIGHT / 2}
                 textAnchor="middle"
-                fontSize={22}
+                fontSize={22 * labelScale}
                 fontFamily="var(--font-body)"
                 fill="rgba(255,255,255,0.4)"
               >
@@ -862,16 +871,19 @@ function ClusterCountChip({
   count,
   color,
   visited,
+  scale = 1,
 }: {
   count: number
   color: string
   visited: boolean
+  scale?: number
 }) {
   // Offset diagonally up-right so the chip sits in the pin's "negative
-  // space" rather than the label corridor below.
-  const cx = 6
-  const cy = -7
-  const r = 6.5
+  // space" rather than the label corridor below. Skaler offset også, ellers
+  // henger chip-en lengre fra pin-en på UK-vyen enn på Nordic.
+  const cx = 6 * scale
+  const cy = -7 * scale
+  const r = 6.5 * scale
   const fillAlpha = visited ? 0.92 : 0.78
   const strokeAlpha = visited ? 0.85 : 0.45
   return (
@@ -881,13 +893,13 @@ function ClusterCountChip({
         fill="rgba(2,4,10,1)"
         fillOpacity={fillAlpha}
         stroke={color}
-        strokeWidth={0.7}
+        strokeWidth={0.7 * scale}
         strokeOpacity={strokeAlpha}
       />
       <text
         textAnchor="middle"
         dominantBaseline="central"
-        fontSize={8.5}
+        fontSize={8.5 * scale}
         fontWeight={700}
         fontFamily="var(--font-fraunces)"
         fill={visited ? color : 'rgba(255,255,255,0.78)'}
