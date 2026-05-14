@@ -532,6 +532,10 @@ export const no = {
     resizeExtended: 'Ferie forlenget',
     resizeShortened: 'Ferie forkortet',
     resizeAdjusted: 'Ferie justert',
+    deleteHint: 'Slett ferie',
+    deleted: 'Ferie slettet',
+    deleteError: 'Kunne ikke slette ferie',
+    undo: 'Angre',
   },
   eventEditor: {
     titleNew: 'Ny hendelse',

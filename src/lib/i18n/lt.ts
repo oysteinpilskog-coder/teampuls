@@ -528,6 +528,10 @@ export const lt: Dictionary = {
     resizeExtended: 'Atostogos pratęstos',
     resizeShortened: 'Atostogos sutrumpintos',
     resizeAdjusted: 'Atostogos pakoreguotos',
+    deleteHint: 'Ištrinti atostogas',
+    deleted: 'Atostogos ištrintos',
+    deleteError: 'Nepavyko ištrinti atostogų',
+    undo: 'Atšaukti',
   },
   eventEditor: {
     titleNew: 'Naujas renginys',

@@ -528,6 +528,10 @@ export const sv: Dictionary = {
     resizeExtended: 'Semester förlängd',
     resizeShortened: 'Semester förkortad',
     resizeAdjusted: 'Semester justerad',
+    deleteHint: 'Ta bort semester',
+    deleted: 'Semester borttagen',
+    deleteError: 'Kunde inte ta bort semester',
+    undo: 'Ångra',
   },
   eventEditor: {
     titleNew: 'Ny händelse',

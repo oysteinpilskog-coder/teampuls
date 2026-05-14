@@ -528,6 +528,10 @@ export const en: Dictionary = {
     resizeExtended: 'Vacation extended',
     resizeShortened: 'Vacation shortened',
     resizeAdjusted: 'Vacation adjusted',
+    deleteHint: 'Delete vacation',
+    deleted: 'Vacation deleted',
+    deleteError: "Couldn't delete vacation",
+    undo: 'Undo',
   },
   eventEditor: {
     titleNew: 'New event',
