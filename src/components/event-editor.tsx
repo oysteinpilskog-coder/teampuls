@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -28,20 +28,35 @@ const CATEGORY_ORDER: EventCategory[] = [
 
 export const CATEGORY_COLORS: Record<EventCategory, string> = CATEGORY_COLOR_MAP
 
+/** Imperative API so the year wheel can open/close without re-rendering.
+ *  Setting state on the wheel's parent would cascade a DiskView re-render
+ *  (hundreds of motion.g event nodes) and add ~1-2s before the dialog mounts. */
+export interface EventEditorHandle {
+  open: (event: OrgEvent | null) => void
+  close: () => void
+}
+
 interface EventEditorProps {
-  open: boolean
-  onClose: () => void
   orgId: string
-  event?: OrgEvent | null   // null = create new
   /** Called after a successful insert/update/delete so the parent can refetch.
    *  Safety net for the (rare) case where Supabase Realtime drops an event —
    *  notably DELETE with REPLICA IDENTITY DEFAULT. */
   onMutated?: () => void
 }
 
-export function EventEditor({ open, onClose, orgId, event, onMutated }: EventEditorProps) {
+export const EventEditor = forwardRef<EventEditorHandle, EventEditorProps>(
+  function EventEditor({ orgId, onMutated }, ref) {
   const t = useT()
+  const [open, setOpen] = useState(false)
+  const [event, setEvent] = useState<OrgEvent | null>(null)
   const isEdit = !!event
+
+  useImperativeHandle(ref, () => ({
+    open: (ev) => { setEvent(ev); setOpen(true) },
+    close: () => { setOpen(false); setEvent(null) },
+  }), [])
+
+  const onClose = () => { setOpen(false); setEvent(null) }
 
   // Build the category list from dictionary long-form labels + the shared
   // color map. Moved inside the component so labels follow locale changes.
@@ -147,8 +162,12 @@ export function EventEditor({ open, onClose, orgId, event, onMutated }: EventEdi
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 4 }}
               transition={{ duration: 0.12, ease: [0.32, 0.72, 0, 1] }}
-              style={{ willChange: 'transform, opacity' }}
-              className="glass-panel pointer-events-auto w-[560px] max-w-full max-h-[calc(100vh-10vh-1rem)] sm:max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col gap-4 sm:gap-5"
+              style={{
+                willChange: 'transform, opacity',
+                backgroundColor: 'var(--bg-elevated)',
+                boxShadow: '0 24px 64px -12px rgba(0,0,0,0.45), 0 0 0 1px var(--border-subtle)',
+              }}
+              className="pointer-events-auto w-[560px] max-w-full max-h-[calc(100vh-10vh-1rem)] sm:max-h-[calc(100vh-12vh-2rem)] overflow-y-auto rounded-2xl sm:rounded-3xl p-4 sm:p-6 flex flex-col gap-4 sm:gap-5"
             >
             <h2
               className="text-[20px] font-semibold"
@@ -264,4 +283,4 @@ export function EventEditor({ open, onClose, orgId, event, onMutated }: EventEdi
     </AnimatePresence>,
     document.body,
   )
-}
+})
