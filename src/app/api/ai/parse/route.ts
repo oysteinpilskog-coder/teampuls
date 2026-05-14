@@ -52,6 +52,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing text' }, { status: 400 })
     }
 
+    // Combined «Alle CalWin»-mode spans multiple workspaces under the same
+    // account. We fan IN-queries across all involved orgs so the parser sees
+    // the full roster, then route writes back to each member's actual org.
+    const scopedOrgIds = member.combined_org_ids ?? [member.org_id]
+
     // Fetch AI context in parallel: members, customers, offices, org timezone,
     // and the 20 most recent corrections so the parser can few-shot from them.
     const [
@@ -64,16 +69,16 @@ export async function POST(req: NextRequest) {
       admin
         .from('members')
         .select('id, org_id, user_id, display_name, full_name, initials, email, avatar_url, nicknames, home_office_id, role, is_active, created_at, updated_at')
-        .eq('org_id', member.org_id)
+        .in('org_id', scopedOrgIds)
         .eq('is_active', true),
       admin
         .from('customers')
         .select('*')
-        .eq('org_id', member.org_id),
+        .in('org_id', scopedOrgIds),
       admin
         .from('offices')
         .select('*')
-        .eq('org_id', member.org_id),
+        .in('org_id', scopedOrgIds),
       admin
         .from('organizations')
         .select('timezone')
@@ -82,7 +87,7 @@ export async function POST(req: NextRequest) {
       admin
         .from('ai_corrections')
         .select('input_text, ai_status, ai_location, corrected_status, corrected_location')
-        .eq('org_id', member.org_id)
+        .in('org_id', scopedOrgIds)
         .order('created_at', { ascending: false })
         .limit(20),
     ])
@@ -136,9 +141,17 @@ export async function POST(req: NextRequest) {
     // Everything else — including medium-confidence parses — gets written.
     // The UI renders a "?" marker for confidence < 0.7 so the user can tell
     // which cells to sanity-check.
+    //
+    // In combined mode, build a member→org map so entries/visits land in
+    // each member's actual workspace, not the caller's fallback org.
+    const memberOrgIds = member.combined_org_ids
+      ? new Map(allMembers.map((m) => [m.id, m.org_id]))
+      : undefined
+
     await applyUpdates(admin, member.org_id, result, {
       sourceText: text.trim(),
       source: 'ai_web',
+      memberOrgIds,
     })
 
     return NextResponse.json({
