@@ -49,6 +49,7 @@ import { trackBrandImpression } from '@/lib/analytics'
 import { getDayPhase, getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
 import type { Entry, Member, Office, Organization, Customer, DashboardViewKey, PresenceAssumption } from '@/lib/supabase/types'
 import { inferStatus } from '@/lib/presence'
+import { getHolidayForDate, memberCountryCode } from '@/lib/holidays'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { seedWeatherCache, type WeatherSnapshot } from '@/lib/weather/use-weather'
@@ -473,6 +474,16 @@ export function DashboardClient({
   // Oversikt teller medlemmer via per_member/office-antakelser. Vi
   // syntetiserer en Entry-form per antatt medlem så konsumentene som bare
   // leser status + member_id ikke trenger å vite om antakelsen.
+  // Office lookup — driver helligdags-suppress per medlem. Et medlem på
+  // helligdag i sitt land får ikke en antatt «kontor»-rad på dashboardet;
+  // kun ekte overstyrte registreringer vises da. Bygd her slik at både
+  // dag- og uke-speilet bruker samme map uten å fan-out re-lookups.
+  const officeById = useMemo(() => {
+    const map = new Map<string, Office>()
+    offices.forEach((o) => map.set(o.id, o))
+    return map
+  }, [offices])
+
   const displayTodayEntries = useMemo<Entry[]>(() => {
     const realByMember = new Map<string, Entry>()
     const memberIds = new Set(members.map(m => m.id))
@@ -483,7 +494,8 @@ export function DashboardClient({
         realByMember.set(e.member_id, e)
       }
     }
-    const nowIso = new Date().toISOString()
+    const today = new Date()
+    const nowIso = today.toISOString()
     const out: Entry[] = []
     for (const m of members) {
       const real = realByMember.get(m.id)
@@ -491,10 +503,14 @@ export function DashboardClient({
         out.push(real)
         continue
       }
-      const assumed = inferStatus(
-        { default_status: m.default_status },
-        presenceAssumption,
-      )
+      const cc = memberCountryCode(m.home_office_id, officeById)
+      const isHoliday = cc ? !!getHolidayForDate(today, cc) : false
+      const assumed = isHoliday
+        ? null
+        : inferStatus(
+            { default_status: m.default_status },
+            presenceAssumption,
+          )
       if (!assumed) continue
       // Syntetisk ID med 'assumed:'-prefix kan ikke kollidere med Postgres-uuid-er,
       // så CustomerMapView sin id-match fortsatt avviser disse hvis de skulle gå
@@ -516,7 +532,7 @@ export function DashboardClient({
       })
     }
     return out
-  }, [todayEntries, members, presenceAssumption, todayStr])
+  }, [todayEntries, members, presenceAssumption, todayStr, officeById])
 
   // Same speilflate som displayTodayEntries, men for hele uken — en syntetisk
   // entry per (member × weekday) der ekte rad mangler, basert på org-en sin
@@ -545,6 +561,13 @@ export function DashboardClient({
         { default_status: m.default_status },
         presenceAssumption,
       )
+      const cc = memberCountryCode(m.home_office_id, officeById)
+      const holidaySet = new Set<string>()
+      if (cc && assumed) {
+        weekDays.forEach((d, i) => {
+          if (getHolidayForDate(d, cc)) holidaySet.add(dateStrings[i])
+        })
+      }
       for (const dateStr of dateStrings) {
         const real = realByKey.get(`${m.id}_${dateStr}`)
         if (real) {
@@ -552,6 +575,7 @@ export function DashboardClient({
           continue
         }
         if (!assumed) continue
+        if (holidaySet.has(dateStr)) continue
         out.push({
           id: `assumed:${m.id}:${dateStr}`,
           org_id: m.org_id,
@@ -570,7 +594,7 @@ export function DashboardClient({
       }
     }
     return out
-  }, [entries, members, presenceAssumption, dateStrings])
+  }, [entries, members, presenceAssumption, dateStrings, weekDays, officeById])
 
   // Fullscreen API
   function toggleFullscreen() {

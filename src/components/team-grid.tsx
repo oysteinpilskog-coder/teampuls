@@ -41,6 +41,7 @@ import {
   getHolidayForDate,
   getHolidaysForCountries,
   flagFor,
+  memberCountryCode,
   type CountryCode,
 } from '@/lib/holidays'
 
@@ -83,20 +84,29 @@ function buildRowSegments(
   t: Dictionary,
   memberDefaultStatus: EntryStatus | null,
   assumption: PresenceAssumption,
+  // Dates (YYYY-MM-DD) der medlemmets land har offisiell helligdag. På slike
+  // dager skal ikke org-antakelsen tegne en «kontor»-pille — kun ekte
+  // (overstyrte) entries vises. Tom Set når landet ikke støttes.
+  holidayDates: Set<string>,
 ): RowSegment[] {
   const segments: RowSegment[] = []
   let i = 0
   // Local wrapper — avoids recomputing the assumption on every iteration.
-  const inferred = (entry: Entry | null) =>
-    entry ? null : inferStatus({ default_status: memberDefaultStatus }, assumption)
+  const inferred = (entry: Entry | null, dateStr: string) => {
+    if (entry) return null
+    if (holidayDates.has(dateStr)) return null
+    return inferStatus({ default_status: memberDefaultStatus }, assumption)
+  }
 
   while (i < weekDays.length) {
-    const startEntry = entryMap.get(`${memberId}_${toDateString(weekDays[i])}`) ?? null
-    const startAssumed = inferred(startEntry)
+    const startDate = toDateString(weekDays[i])
+    const startEntry = entryMap.get(`${memberId}_${startDate}`) ?? null
+    const startAssumed = inferred(startEntry, startDate)
     let j = i + 1
     while (j < weekDays.length) {
-      const nextEntry = entryMap.get(`${memberId}_${toDateString(weekDays[j])}`) ?? null
-      const nextAssumed = inferred(nextEntry)
+      const nextDate = toDateString(weekDays[j])
+      const nextEntry = entryMap.get(`${memberId}_${nextDate}`) ?? null
+      const nextAssumed = inferred(nextEntry, nextDate)
       if (!segmentsMergeable(startEntry, startAssumed, nextEntry, nextAssumed)) break
       j++
     }
@@ -191,6 +201,11 @@ interface TeamGridProps {
    *  "not on vacation that day". */
   statusFilter?: EntryStatus[]
 }
+
+// Tom holidays-Set som returneres for medlemmer hvis land ikke er støttet.
+// Stabil referanse så useMemo-keys og buildRowSegments-merge-logikken ikke
+// får nye Set-instanser per render.
+const EMPTY_DATE_SET: Set<string> = new Set()
 
 // Shared grid template — single source of truth for the four call sites
 // (header row, member row, skeleton row). Width is fixed at 136 px because
@@ -580,6 +595,42 @@ export function TeamGrid({
     }))
   }, [weekDays, activeCountries])
 
+  // For hver medlems land: hvilke datoer i den synlige uka er helligdager?
+  // Brukes til å undertrykke org-antakelsen («kontor», «hjemme», eller
+  // per_member-default) på røde dager — kun ekte overstyringer skal vises.
+  // Workspace-fallback dekker medlemmer uten hjemmekontor i combined view;
+  // single-workspace uten kontor på medlemmet får tom Set (ingen suppress).
+  const workspaceCountryByOrgId = useMemo(() => {
+    const map = new Map<string, string | null>()
+    if (workspaces) {
+      workspaces.forEach((w) => map.set(w.org_id, w.country_code))
+    }
+    return map
+  }, [workspaces])
+
+  const memberHolidayDates = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    for (const m of members) {
+      const cc = memberCountryCode(
+        m.home_office_id,
+        officeById,
+        workspaceCountryByOrgId.get(m.org_id) ?? null,
+      )
+      const dates = new Set<string>()
+      if (cc) {
+        for (const d of weekDays) {
+          if (getHolidayForDate(d, cc)) dates.add(toDateString(d))
+        }
+      }
+      map.set(m.id, dates)
+    }
+    return map
+  }, [members, officeById, workspaceCountryByOrgId, weekDays])
+
+  function holidayDatesFor(memberId: string): Set<string> {
+    return memberHolidayDates.get(memberId) ?? EMPTY_DATE_SET
+  }
+
   // Compute clamped target start for an in-progress move drag.
   function moveTargetStart(m: MoveDrag): number {
     const desired = m.currentDayIdx - m.grabOffset
@@ -821,7 +872,15 @@ export function TeamGrid({
     const entry = entryMap.get(`${memberId}_${dateStr}`)
     if (entry) {
       const memberDefault = members.find((m) => m.id === memberId)?.default_status ?? null
-      const segments = buildRowSegments(weekDays, memberId, entryMap, t, memberDefault, presenceAssumption)
+      const segments = buildRowSegments(
+        weekDays,
+        memberId,
+        entryMap,
+        t,
+        memberDefault,
+        presenceAssumption,
+        holidayDatesFor(memberId),
+      )
       let cursor = 0
       for (const seg of segments) {
         const n = seg.days.length
@@ -991,10 +1050,16 @@ export function TeamGrid({
           assumed: false,
         }
       }
-      const assumed = inferStatus(
-        { default_status: m.default_status },
-        presenceAssumption,
-      )
+      // Helligdag i medlemmets land → ingen antatt status. «Akkurat nå»
+      // skal kun vise folk som faktisk har overstyrt dagen (ferie, kunde
+      // o.l.) — ikke org-antakelsen.
+      const holidayToday = holidayDatesFor(m.id).has(todayStr)
+      const assumed = holidayToday
+        ? null
+        : inferStatus(
+            { default_status: m.default_status },
+            presenceAssumption,
+          )
       if (!assumed) return null
       return {
         id: m.id,
@@ -1467,6 +1532,7 @@ export function TeamGrid({
                         t,
                         member.default_status ?? null,
                         presenceAssumption,
+                        holidayDatesFor(member.id),
                       )
                       const highlights = dayHighlightsForMember(member.id)
                       let cursor = 0

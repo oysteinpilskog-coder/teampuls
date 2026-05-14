@@ -80,6 +80,23 @@ export function isSupportedCountry(code: string | null | undefined): code is Cou
   return code != null && (SUPPORTED as readonly string[]).includes(code)
 }
 
+/**
+ * Resolve which CountryCode to drive holiday lookups for a given member.
+ * Picks the member's home-office country, falling back to a workspace-level
+ * country (organizations.country_code or WorkspaceSummary.country_code).
+ * Returns null when neither is one of our supported countries — callers
+ * should treat that as "no holiday suppression".
+ */
+export function memberCountryCode(
+  homeOfficeId: string | null | undefined,
+  officeById: Map<string, { country_code: string | null }>,
+  fallback?: string | null,
+): CountryCode | null {
+  const office = homeOfficeId ? officeById.get(homeOfficeId) : undefined
+  const code = office?.country_code ?? fallback ?? null
+  return isSupportedCountry(code) ? code : null
+}
+
 const FLAG: Record<CountryCode, string> = {
   NO: '🇳🇴',
   SE: '🇸🇪',
