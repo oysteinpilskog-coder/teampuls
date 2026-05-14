@@ -8,7 +8,7 @@ type IconProps = {
 }
 
 // Status → icon mapping
-export type EntryStatus = 'office' | 'remote' | 'customer' | 'event' | 'travel' | 'vacation' | 'sick' | 'off'
+export type EntryStatus = 'office' | 'remote' | 'customer' | 'event' | 'travel' | 'vacation' | 'absent' | 'off'
 
 // All icons are SF Symbol-style solid filled glyphs.
 // `color` sets the primary fill. Small cutouts use evenodd fill-rule to
@@ -106,14 +106,16 @@ export function VacationIcon({ size = 24, color = DEFAULT_HEX_COLORS.vacation, c
   )
 }
 
-// Syk — Solid thermometer
-export function SickIcon({ size = 24, color = DEFAULT_HEX_COLORS.sick, className }: IconProps) {
+// Fraværende — Nøytral "ikke til stede"-glyf: minus i ring. Bevisst
+// generisk så ingen helse- eller årsaksinfo lekker; TeamPulse skal
+// kun forteller at noen er borte, aldri hvorfor.
+export function AbsentIcon({ size = 24, color = DEFAULT_HEX_COLORS.absent, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M12 1.5A3.5 3.5 0 0 0 8.5 5v8.82a5.5 5.5 0 1 0 7 0V5A3.5 3.5 0 0 0 12 1.5Zm0 4.5a1 1 0 0 1 1 1v8.28a2.5 2.5 0 1 1-2 0V7a1 1 0 0 1 1-1Z"
+        d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2.5a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15Zm-4 6.25a1.25 1.25 0 0 0 0 2.5h8a1.25 1.25 0 0 0 0-2.5h-8Z"
         fill={color}
       />
     </svg>
@@ -145,7 +147,7 @@ export const STATUS_COLORS: Record<EntryStatus, { bg: string; text: string; icon
   event:    { icon: DEFAULT_PALETTES.event.icon,    bg: DEFAULT_PALETTES.event.bg,    text: DEFAULT_PALETTES.event.text,    bgDark: DEFAULT_PALETTES.event.bgDark,    textDark: DEFAULT_PALETTES.event.textDark },
   travel:   { icon: DEFAULT_PALETTES.travel.icon,   bg: DEFAULT_PALETTES.travel.bg,   text: DEFAULT_PALETTES.travel.text,   bgDark: DEFAULT_PALETTES.travel.bgDark,   textDark: DEFAULT_PALETTES.travel.textDark },
   vacation: { icon: DEFAULT_PALETTES.vacation.icon, bg: DEFAULT_PALETTES.vacation.bg, text: DEFAULT_PALETTES.vacation.text, bgDark: DEFAULT_PALETTES.vacation.bgDark, textDark: DEFAULT_PALETTES.vacation.textDark },
-  sick:     { icon: DEFAULT_PALETTES.sick.icon,     bg: DEFAULT_PALETTES.sick.bg,     text: DEFAULT_PALETTES.sick.text,     bgDark: DEFAULT_PALETTES.sick.bgDark,     textDark: DEFAULT_PALETTES.sick.textDark },
+  absent:   { icon: DEFAULT_PALETTES.absent.icon,   bg: DEFAULT_PALETTES.absent.bg,   text: DEFAULT_PALETTES.absent.text,   bgDark: DEFAULT_PALETTES.absent.bgDark,   textDark: DEFAULT_PALETTES.absent.textDark },
   off:      { icon: DEFAULT_PALETTES.off.icon,      bg: DEFAULT_PALETTES.off.bg,      text: DEFAULT_PALETTES.off.text,      bgDark: DEFAULT_PALETTES.off.bgDark,      textDark: DEFAULT_PALETTES.off.textDark },
 }
 
@@ -158,7 +160,7 @@ export function StatusIcon({ status, size = 24, className, color: colorProp }: {
     case 'event':    return <EventIcon size={size} color={color} className={className} />
     case 'travel':   return <TravelIcon size={size} color={color} className={className} />
     case 'vacation': return <VacationIcon size={size} color={color} className={className} />
-    case 'sick':     return <SickIcon size={size} color={color} className={className} />
+    case 'absent':   return <AbsentIcon size={size} color={color} className={className} />
     case 'off':      return <OffDayIcon size={size} color={color} className={className} />
   }
 }

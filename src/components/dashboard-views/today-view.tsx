@@ -32,7 +32,7 @@ const WEEK_STATUS_GROUPS: Array<{ key: string; statuses: EntryStatus[]; represen
   { key: 'office',   statuses: ['office'],                  representative: 'office' },
   { key: 'remote',   statuses: ['remote'],                  representative: 'remote' },
   { key: 'customer', statuses: ['customer', 'event', 'travel'],      representative: 'customer' },
-  { key: 'away',     statuses: ['vacation', 'sick', 'off'], representative: 'vacation' },
+  { key: 'away',     statuses: ['vacation', 'absent', 'off'], representative: 'vacation' },
 ]
 
 function pad(n: number) { return String(n).padStart(2, '0') }

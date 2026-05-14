@@ -64,7 +64,7 @@ const LIGHTS: Array<{
   { key: 'office',   status: 'office',   statuses: ['office'],                       origin: { x: 15, y: 25 }, orbit: { x: 6, y: 4 }, duration: 38, delay: 0 },
   { key: 'remote',   status: 'remote',   statuses: ['remote'],                       origin: { x: 42, y: 70 }, orbit: { x: 5, y: 6 }, duration: 46, delay: 4 },
   { key: 'customer', status: 'customer', statuses: ['customer', 'event', 'travel'],  origin: { x: 72, y: 22 }, orbit: { x: 7, y: 5 }, duration: 42, delay: 2 },
-  { key: 'away',     status: 'vacation', statuses: ['vacation', 'sick', 'off'],      origin: { x: 88, y: 78 }, orbit: { x: 5, y: 5 }, duration: 52, delay: 6 },
+  { key: 'away',     status: 'vacation', statuses: ['vacation', 'absent', 'off'],    origin: { x: 88, y: 78 }, orbit: { x: 5, y: 5 }, duration: 52, delay: 6 },
 ]
 
 /**

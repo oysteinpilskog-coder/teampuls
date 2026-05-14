@@ -241,7 +241,7 @@ function Header({
   palettes: ReturnType<typeof useStatusColors>
 }) {
   const t = useT()
-  const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'sick', 'off']
+  const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'absent', 'off']
   return (
     <div className="flex items-end justify-between gap-4 mb-5 flex-wrap">
       <div>

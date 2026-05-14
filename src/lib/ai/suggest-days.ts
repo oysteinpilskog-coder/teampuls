@@ -18,7 +18,7 @@ export interface SuggestedDay {
   score: number
   /** Members explicitly planned in the office on this day. */
   plannedIn: string[]
-  /** Members who have a conflicting plan (vacation/sick/off) on this day. */
+  /** Members who have a conflicting plan (vacation/absent/off) on this day. */
   plannedOut: string[]
   /** Members with no plan yet whose historical pattern suggests "usually in". */
   likelyIn: string[]
@@ -57,7 +57,7 @@ function toISO(d: Date): string {
 }
 
 const OFFICE_ISH: EntryStatus[] = ['office']
-const OUT_ISH: EntryStatus[] = ['vacation', 'sick', 'off']
+const OUT_ISH: EntryStatus[] = ['vacation', 'absent', 'off']
 
 interface Member {
   id: string

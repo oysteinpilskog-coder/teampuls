@@ -144,9 +144,9 @@ ${correctionsBlock}
 - \`customer\` — hos kunde / kundebesøk
 - \`event\` — messe, konferanse, kurs, workshop, kickoff, seminar, kongress
 - \`travel\` — reise (uten spesifisert destinasjon), flyttedag, transit
-- \`vacation\` — ferie, avspasering
-- \`sick\` — syk, sykemeldt
-- \`off\` — fri / ikke på jobb
+- \`vacation\` — ferie
+- \`absent\` — fraværende / borte. Inkluderer også «syk», «sjuk», «sykmeldt», «sykefravær», «hjemme med sykt barn» — TeamPulse forteller KUN at noen er borte, aldri hvorfor (GDPR art. 9). Faktiske sykedager bokføres i HR-systemet, ikke her.
+- \`off\` — avspasering / fri
 
 ## Kategori-kaskade (BRUK DENNE REKKEFØLGEN — STOPP PÅ FØRSTE TREFF)
 
@@ -154,10 +154,10 @@ Dette er hjertet av parsing. Gå rekkefølgen steg for steg og velg den første 
 
 1. **Eksplisitt statusord** i meldingen:
    - "ferie", "vacation" → \`vacation\`
-   - "syk", "sick", "sykmeldt" → \`sick\`
+   - "syk", "sick", "sykmeldt", "sjuk", "fraværende", "borte", "ikke tilgjengelig" → \`absent\` (vi skiller IKKE syk fra annet fravær — kategorien er bevisst nøytral)
    - "hjemme", "hjemmekontor", "remote", "home office" → \`remote\`
    - "kontoret", "på kontoret", "office" → \`office\`
-   - "fri", "off", "avspaserer" → \`off\`
+   - "fri", "off", "avspaserer", "avspasering" → \`off\`
 
 2. **Aktivitets-nøkkelord** (sterk signal for event):
    - "messe", "fair", "expo" → \`event\`

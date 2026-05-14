@@ -80,7 +80,7 @@ export function CalwinBrandDashboard({
       if (status === 'office') office++
       else if (status === 'remote') remote++
       else if (status === 'customer' || status === 'event' || status === 'travel') customer++
-      else if (status === 'vacation' || status === 'sick' || status === 'off') away++
+      else if (status === 'vacation' || status === 'absent' || status === 'off') away++
     }
     return { office, remote, customer, away, total: initialMembers.length }
   }, [dedupedToday, initialMembers])
