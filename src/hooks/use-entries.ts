@@ -6,6 +6,26 @@ import type { Entry } from '@/lib/supabase/types'
 import { useDocumentVisibility } from '@/hooks/use-document-visibility'
 
 /**
+ * Payload for the `teampulse:entries-changed` CustomEvent. Mutators that
+ * already know the rows they wrote should attach them here so consumers
+ * can patch local state in the same frame instead of refetching.
+ */
+export type EntryChangeDetail = {
+  upserted?: Entry[]
+  deletedIds?: string[]
+}
+
+/** Helper so dispatchers don't have to reconstruct the event shape. */
+export function dispatchEntriesChanged(detail?: EntryChangeDetail) {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(
+    new CustomEvent<EntryChangeDetail | undefined>('teampulse:entries-changed', {
+      detail,
+    }),
+  )
+}
+
+/**
  * Fetches entries for the given org(s) + date strings, and subscribes to
  * Supabase Realtime to keep the data live.
  *
@@ -75,12 +95,48 @@ export function useEntries(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchEntries])
 
-  // Refetch on explicit broadcast — AIInput emits this after a successful
-  // parse since realtime can lag or drop events on reconnect. This keeps
-  // the matrix and the "Akkurat nå" widget in lockstep with what the user
-  // just typed.
+  // Same-tab sync from mutations dispatched by AIInput, CellEditor, and the
+  // sommer matrix. The dispatcher passes the rows it just wrote in
+  // `event.detail` so we can patch local state in the same frame the user
+  // hits Enter — no round-trip, no `select('*')` refetch, no spinner.
+  // Legacy dispatchers without a detail payload fall back to refetch.
   useEffect(() => {
-    const handler = () => fetchEntries()
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<EntryChangeDetail | undefined>).detail
+      if (!detail) {
+        // Belt-and-braces refetch for callers that haven't migrated yet.
+        fetchEntries()
+        return
+      }
+      const upserts = detail.upserted ?? []
+      const deletes = detail.deletedIds ?? []
+      // Only touch state when there's relevant work — the realtime patch
+      // already covers off-window dates.
+      if (!upserts.length && !deletes.length) return
+      setEntries(prev => {
+        let next = prev
+        if (deletes.length) {
+          const drop = new Set(deletes)
+          next = next.filter(e => !drop.has(e.id))
+        }
+        if (upserts.length) {
+          const window = new Set(dateStringsRef.current)
+          const inWindow = upserts.filter(u => window.has(u.date))
+          if (inWindow.length) {
+            // Filter by both id (in case the row was already in state from an
+            // earlier realtime patch) AND (member_id, date) (so synthesized
+            // optimistic rows from team-grid drag — id like "optimistic-…" —
+            // get replaced by the canonical server rows).
+            const ids = new Set(inWindow.map(u => u.id))
+            const cells = new Set(inWindow.map(u => `${u.member_id}|${u.date}`))
+            next = next
+              .filter(e => !ids.has(e.id) && !cells.has(`${e.member_id}|${e.date}`))
+              .concat(inWindow)
+          }
+        }
+        return next === prev ? prev : next
+      })
+    }
     window.addEventListener('teampulse:entries-changed', handler)
     return () => window.removeEventListener('teampulse:entries-changed', handler)
   }, [fetchEntries])
