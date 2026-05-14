@@ -137,6 +137,7 @@ export const lt: Dictionary = {
     noMembers: 'Dar nėra komandos narių.',
     noEntriesWeek: 'Šią savaitę įrašų nėra.',
     selectMonth: 'Pasirinkti mėnesį',
+    selectWeek: 'Pasirinkti savaitę',
     prevYear: 'Praeiti metai',
     nextYear: 'Kiti metai',
   },

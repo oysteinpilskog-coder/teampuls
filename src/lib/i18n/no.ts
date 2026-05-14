@@ -135,6 +135,7 @@ export const no = {
     noMembers: 'Ingen teammedlemmer ennå.',
     noEntriesWeek: 'Ingen oppføringer denne uken.',
     selectMonth: 'Velg måned',
+    selectWeek: 'Velg uke',
     prevYear: 'Forrige år',
     nextYear: 'Neste år',
   },
