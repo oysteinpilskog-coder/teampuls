@@ -129,7 +129,6 @@ export function WheelView({ orgIds, logoOrgId, orgName, time }: WheelViewProps) 
             today={time}
             events={events}
             orgLogo={orgLogo}
-            selectedEvent={null}
             onSelectEvent={() => {}}
             tvMode
             hideAgenda

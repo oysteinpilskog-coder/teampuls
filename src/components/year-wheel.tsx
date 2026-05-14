@@ -5,7 +5,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { getISOWeek, getWeekStart, getLastISOWeek } from '@/lib/dates'
 import { spring } from '@/lib/motion'
-import { CATEGORY_COLORS, EventEditor } from '@/components/event-editor'
+import { CATEGORY_COLORS, EventEditor, type EventEditorHandle } from '@/components/event-editor'
 import { useEvents } from '@/hooks/use-events'
 import type { OrgEvent } from '@/lib/supabase/types'
 import { useT } from '@/lib/i18n/context'
@@ -202,9 +202,10 @@ export function YearWheel({ orgId }: YearWheelProps) {
   const { events, refetch: refetchEvents } = useEvents(orgId, year)
   const [orgLogo, setOrgLogo] = useState<string | null>(null)
   const [orgName, setOrgName] = useState<string | null>(null)
-  const [selectedEvent, setSelectedEvent] = useState<OrgEvent | null>(null)
-  const [showEditor, setShowEditor] = useState(false)
-  const [editingEvent, setEditingEvent] = useState<OrgEvent | null>(null)
+  // Imperative handle: opening the editor must NOT trigger a YearWheel re-render,
+  // or the DiskView's 100s of motion event nodes re-reconcile and add a perceived
+  // 1-2s lag before the dialog appears. The editor owns its own open/event state.
+  const editorRef = useRef<EventEditorHandle>(null)
 
   // Fullscreen: only on the disk view — list/calendar read better at page scale
   const containerRef = useRef<HTMLDivElement>(null)
@@ -252,17 +253,9 @@ export function YearWheel({ orgId }: YearWheelProps) {
       })
   }, [orgId])
 
-  const onEditorClose = () => {
-    setShowEditor(false)
-    setEditingEvent(null)
-    setSelectedEvent(null)
-  }
-
-  const openEditor = (ev: OrgEvent | null) => {
-    setEditingEvent(ev)
-    setSelectedEvent(ev)
-    setShowEditor(true)
-  }
+  const openEditor = useCallback((ev: OrgEvent | null) => {
+    editorRef.current?.open(ev)
+  }, [])
 
   const showDiskChrome = view === 'disk' && !isFullscreen
   const hours   = String(now.getHours()).padStart(2, '0')
@@ -373,7 +366,6 @@ export function YearWheel({ orgId }: YearWheelProps) {
                       today={today}
                       events={events}
                       orgLogo={orgLogo}
-                      selectedEvent={selectedEvent}
                       onSelectEvent={openEditor}
                       hideAgenda
                     />
@@ -393,7 +385,6 @@ export function YearWheel({ orgId }: YearWheelProps) {
                 today={today}
                 events={events}
                 orgLogo={orgLogo}
-                selectedEvent={selectedEvent}
                 onSelectEvent={openEditor}
               />
             )}
@@ -437,13 +428,13 @@ export function YearWheel({ orgId }: YearWheelProps) {
         )}
       </AnimatePresence>
 
-      {/* Editor modal (never during fullscreen — the hero is the wheel itself) */}
+      {/* Editor modal (never during fullscreen — the hero is the wheel itself).
+          Holds its own open/event state via ref so clicking an event on the
+          wheel doesn't trigger a YearWheel/DiskView re-render. */}
       {!isFullscreen && (
         <EventEditor
-          open={showEditor}
-          onClose={onEditorClose}
+          ref={editorRef}
           orgId={orgId}
-          event={editingEvent}
           onMutated={refetchEvents}
         />
       )}
@@ -575,7 +566,6 @@ export interface DiskViewProps {
   today: Date
   events: OrgEvent[]
   orgLogo: string | null
-  selectedEvent: OrgEvent | null
   onSelectEvent: (ev: OrgEvent | null) => void
   /**
    * TV/ambient mode: disables hover tooltips, month-focus click, and mouse
@@ -591,7 +581,7 @@ export interface DiskViewProps {
 }
 
 export function DiskView({
-  year, today, events, orgLogo, selectedEvent, onSelectEvent,
+  year, today, events, orgLogo, onSelectEvent,
   tvMode = false, hideAgenda = false,
 }: DiskViewProps) {
   const t = useT()
@@ -1244,7 +1234,6 @@ export function DiskView({
                   const bounds = subRowBounds(RING_BOUNDS[ri], info?.subRow ?? null)
                   const color = ev.color ?? CATEGORY_COLORS[ev.category]
                   const arcSpan = endDeg - startDeg
-                  const isSelected = selectedEvent?.id === ev.id
                   const arcLenPx = (arcSpan / 360) * 2 * Math.PI * bounds.mid
 
                   // Single-day (or ≤1.5°) events render as a visible pin. An
@@ -1253,7 +1242,7 @@ export function DiskView({
                   const isPin = arcSpan <= 1.6
                   const midDeg = (startDeg + endDeg) / 2
                   const pinCenter = polarPoint(bounds.mid, midDeg)
-                  const pinR = isSelected ? 8 : 7
+                  const pinR = 7
                   const path = annularArc(bounds.outer, bounds.inner, startDeg, endDeg, isPin ? 0 : 0.35)
 
                   // Label strategy (post layout pass):
@@ -1286,9 +1275,8 @@ export function DiskView({
                       <path
                         d={path}
                         fill={`url(#${ID.event(ev.id)})`}
-                        stroke={isSelected ? color : 'var(--bg-primary)'}
-                        strokeWidth={isSelected ? 2 : 1}
-                        style={isSelected ? { filter: `url(#${ID.glow})` } : undefined}
+                        stroke="var(--bg-primary)"
+                        strokeWidth={1}
                       />
                       {isPin && (
                         <>
@@ -1306,7 +1294,7 @@ export function DiskView({
                             fill={color}
                             stroke="rgba(255,255,255,0.85)"
                             strokeWidth={1.2}
-                            style={isSelected ? { filter: `url(#${ID.bloom})` } : { filter: `url(#${ID.glow})` }}
+                            style={{ filter: `url(#${ID.glow})` }}
                           />
                           <circle
                             cx={f(pinCenter.x)} cy={f(pinCenter.y - 1.5)}
@@ -1493,7 +1481,6 @@ export function DiskView({
                   const color = ev.color ?? CATEGORY_COLORS[ev.category]
                   const path = annularArc(bounds.outer, bounds.inner, arc.startDeg, arc.endDeg, 0.35)
                   const arcSpan = arc.endDeg - arc.startDeg
-                  const isSelected = selectedEvent?.id === ev.id
                   const arcLenPx = (arcSpan / 360) * 2 * Math.PI * bounds.mid
                   const showLabel = arcSpan > 2
 
@@ -1515,9 +1502,8 @@ export function DiskView({
                       <path
                         d={path}
                         fill={`url(#${ID.event(ev.id)})`}
-                        stroke={isSelected ? color : 'var(--bg-primary)'}
-                        strokeWidth={isSelected ? 2 : 1}
-                        style={isSelected ? { filter: `url(#${ID.glow})` } : undefined}
+                        stroke="var(--bg-primary)"
+                        strokeWidth={1}
                       />
                       {/* Continuation markers: dashed edge line where arc was clipped */}
                       {arc.continuesBefore && (
