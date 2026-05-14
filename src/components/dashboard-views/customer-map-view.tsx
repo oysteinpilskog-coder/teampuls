@@ -401,7 +401,7 @@ export function CustomerMapView({
               // av om label-en ligger under eller over pin-en. For
               // venstre/høyre er rammen vertikal-sentrert om labelY,
               // og vi treffer nærmeste vertikale kant.
-              let lx = pl.labelX
+              const lx = pl.labelX
               let ly = pl.labelY
               if (pl.side === 'top' || pl.side === 'bottom') {
                 const ascent = pl.labelHeight * 0.62
