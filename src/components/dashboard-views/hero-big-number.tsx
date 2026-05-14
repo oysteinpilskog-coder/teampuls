@@ -40,20 +40,27 @@ export function HeroBigNumber({ members, todayEntries, offices }: HeroBigNumberP
   const registered = todayEntries.length
   const pct = total > 0 ? Math.round((registered / total) * 100) : 0
 
-  // HQ-counter: hvor mange av "på kontoret"-folka er på selve hovedkontoret.
-  // Antagelse: status='office' + member.home_office_id=hq.id ⇒ på HQ. Det
-  // dekker det vanlige tilfellet uten at vi trenger eksplisitt office_id på
-  // entries. Hvis ingen org har markert HQ er hq null og linja skjules.
-  const hq = offices?.find(o => o.is_hq) ?? null
+  // HQ-counter: hvor mange av "på kontoret"-folka er på et hovedkontor.
+  // En org kan ha flere HQ-er — typisk regional (Nordic + UK). Vi
+  // summerer på tvers av alle HQ-flaggede kontorer; én linje viser
+  // totalen («3 av 12 på hovedkontorene»). Hvis ingen org har markert
+  // HQ er hqs tom og linja skjules.
+  // Antagelse: status='office' + member.home_office_id ∈ hqIds ⇒ på HQ.
+  const hqs = offices?.filter(o => o.is_hq) ?? []
+  const hqIds = new Set(hqs.map(o => o.id))
   const memberById = new Map(members.map(m => [m.id, m]))
-  const atHq = hq
-    ? todayEntries.filter(
-        e => e.status === 'office' && memberById.get(e.member_id)?.home_office_id === hq.id,
-      ).length
+  const atHq = hqs.length > 0
+    ? todayEntries.filter(e => {
+        if (e.status !== 'office') return false
+        const homeId = memberById.get(e.member_id)?.home_office_id
+        return homeId != null && hqIds.has(homeId)
+      }).length
     : 0
-  const hqMembersTotal = hq
-    ? members.filter(m => m.home_office_id === hq.id).length
+  const hqMembersTotal = hqs.length > 0
+    ? members.filter(m => m.home_office_id != null && hqIds.has(m.home_office_id)).length
     : 0
+  // Label velges på render-tid: én HQ → konkret navn («på Oslo»),
+  // flere HQ → samlebetegnelse («på hovedkontorene»).
 
   return (
     <motion.section
@@ -133,13 +140,14 @@ export function HeroBigNumber({ members, todayEntries, offices }: HeroBigNumberP
           </div>
 
           {/* HQ-line — viser hvor mange av "på kontoret"-folka som er på
-              hovedkontoret. Stille gull-pil, samme rad som breakdown men
+              et hovedkontor. Stille gull-pil, samme rad som breakdown men
               egen linje så den ikke konkurrerer med hjemme/kunde/borte
-              (som er alternativer, ikke subset). Vises så lenge et
-              kontor er flagget som HQ — selv om 0 medlemmer er knyttet
-              til det enda (resepsjonisten skal se HQ-status på TV-en
-              uansett om home_office_id er satt for alle ennå). */}
-          {hq && (
+              (som er alternativer, ikke subset). Vises så lenge minst
+              ett kontor er flagget som HQ — selv om 0 medlemmer er
+              knyttet til det enda (resepsjonisten skal se HQ-status på
+              TV-en uansett om home_office_id er satt for alle ennå).
+              Flere HQ-er ⇒ samlet tall + samlebetegnelse. */}
+          {hqs.length > 0 && (
             <motion.div
               initial={{ opacity: 0, x: -6 }}
               animate={{ opacity: 1, x: 0 }}
@@ -169,11 +177,14 @@ export function HeroBigNumber({ members, todayEntries, offices }: HeroBigNumberP
                 {atHq}
               </span>
               <span style={{ color: 'rgba(255,255,255,0.55)' }}>
-                {hqMembersTotal > 0
-                  ? t.pulse.atHqOf
-                      .replace('{total}', String(hqMembersTotal))
-                      .replace('{office}', hq.name)
-                  : `på ${hq.name}`}
+                {(() => {
+                  const officeLabel = hqs.length === 1 ? hqs[0].name : t.pulse.atHqMulti
+                  return hqMembersTotal > 0
+                    ? t.pulse.atHqOf
+                        .replace('{total}', String(hqMembersTotal))
+                        .replace('{office}', officeLabel)
+                    : `på ${officeLabel}`
+                })()}
               </span>
             </motion.div>
           )}

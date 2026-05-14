@@ -148,6 +148,7 @@ export const es: Dictionary = {
     atCustomer: 'Con cliente',
     away: 'Fuera',
     atHqOf: 'de {total} en {office}',
+    atHqMulti: 'las sedes',
     noRegistrationsToday: 'Aún sin entradas',
     noRegistrationsSubtitle: '¿Dónde está el equipo hoy?',
     noRegistrationsBoard: 'Sin entradas para hoy.',

@@ -231,9 +231,8 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
     toast.success(t.settings.offices.toastDeleted)
   }
 
-  // Maks ett HQ per org. Vi nullstiller andre lokalt og remote først,
-  // så markerer det valgte. Partial unique index i DB beskytter mot
-  // race conditions hvis to admins toggler samtidig.
+  // Flere HQ per org er lov (Nordic + UK osv.). Toggler ett enkelt
+  // kontor — rører ikke de andre.
   //
   // Bevisst .select() etter UPDATE: når RLS avviser stille (returnerer
   // tom array uten error), trenger vi å vite det — ellers ser brukeren
@@ -243,32 +242,14 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
     const next = !target.is_hq
 
     // Optimistic
-    setOffices(prev => prev.map(o => ({
-      ...o,
-      is_hq: o.id === target.id ? next : (next ? false : o.is_hq),
-    })))
+    setOffices(prev => prev.map(o => (
+      o.id === target.id ? { ...o, is_hq: next } : o
+    )))
 
     function rollback() {
-      setOffices(prev => prev.map(o => ({
-        ...o,
-        is_hq: o.id === target.id ? !next : o.is_hq,
-      })))
-    }
-
-    if (next) {
-      const { data: cleared, error: clearErr } = await supabase
-        .from('offices')
-        .update({ is_hq: false })
-        .eq('org_id', orgId)
-        .eq('is_hq', true)
-        .select()
-      if (clearErr) {
-        toast.error(`HQ-rens feilet: ${clearErr.message}`)
-        rollback()
-        return
-      }
-      // cleared kan trygt være tom (det er ingen forrige HQ å nullstille).
-      void cleared
+      setOffices(prev => prev.map(o => (
+        o.id === target.id ? { ...o, is_hq: !next } : o
+      )))
     }
 
     const { data, error } = await supabase
