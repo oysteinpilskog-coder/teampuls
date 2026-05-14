@@ -68,15 +68,15 @@ export default async function SommerPage() {
       .in('org_id', orgIds),
   ])
 
-  const showAIInput = !combinedScope
-
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-6 pt-3 pb-10 space-y-5">
-      {showAIInput && (
-        <div className="mx-auto max-w-3xl">
-          <AIInput orgId={member.org_id} placeholders={dict.aiInput.vacationPlaceholder} />
-        </div>
-      )}
+      <div className="mx-auto max-w-3xl">
+        <AIInput
+          orgId={member.org_id}
+          orgIds={orgIds}
+          placeholders={dict.aiInput.vacationPlaceholder}
+        />
+      </div>
       <Suspense fallback={null}>
         <SommerMonthMatrix
           orgIds={orgIds}

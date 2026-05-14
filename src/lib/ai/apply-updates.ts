@@ -10,10 +10,18 @@ export async function applyUpdates(
     sourceText?: string
     /** 'ai_web' (default) or 'ai_email'. */
     source?: 'ai_web' | 'ai_email'
+    /**
+     * Optional per-member org override for combined «Alle CalWin»-mode:
+     * each parsed member lives in its own workspace, so writes must use
+     * the member's actual org_id rather than the single fallback. Falls
+     * back to `orgId` when a member isn't in the map.
+     */
+    memberOrgIds?: Map<string, string>
   } = {},
 ): Promise<void> {
   const source = opts.source ?? 'ai_web'
   const sourceText = opts.sourceText ?? null
+  const orgOf = (memberId: string) => opts.memberOrgIds?.get(memberId) ?? orgId
 
   // Velkomst-besøk: AI returnerer `visit` kun når meldingen inneholder
   // et eksplisitt klokkeslett. INSERT (ikke upsert) — to forskjellige
@@ -24,7 +32,7 @@ export async function applyUpdates(
     const { error } = await supabase
       .from('visits')
       .insert({
-        org_id: orgId,
+        org_id: orgOf(v.host_member_id),
         host_member_id: v.host_member_id,
         visitor_name: v.visitor_name,
         visitor_company: v.visitor_company,
@@ -44,7 +52,7 @@ export async function applyUpdates(
     const { error } = await supabase
       .from('entries')
       .delete()
-      .eq('org_id', orgId)
+      .eq('org_id', orgOf(result.original_period.member_id))
       .eq('member_id', result.original_period.member_id)
       .in('date', result.original_period.dates)
     if (error) throw new Error(`applyUpdates delete(original_period) failed: ${error.message}`)
@@ -56,7 +64,7 @@ export async function applyUpdates(
       const { error } = await supabase
         .from('entries')
         .delete()
-        .eq('org_id', orgId)
+        .eq('org_id', orgOf(update.member_id))
         .eq('member_id', update.member_id)
         .in('date', update.dates)
       if (error) throw new Error(`applyUpdates delete failed: ${error.message}`)
@@ -72,7 +80,7 @@ export async function applyUpdates(
   //      phrasing into ai_corrections for future few-shot training.
   const rows = result.updates.flatMap(update =>
     update.dates.map(date => ({
-      org_id: orgId,
+      org_id: orgOf(update.member_id),
       member_id: update.member_id,
       date,
       status: update.status!,
