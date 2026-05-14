@@ -636,45 +636,87 @@ export function DiskView({
     if (tvMode) return
     setHoverState(info)
   }, [tvMode])
-  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [focusedMonth, setFocusedMonth] = useState<number | null>(null)
-  // Normalised pointer offset for aurora parallax: [-1..1] in both axes, 0 = no hover
-  const [parallax, setParallax] = useState({ x: 0, y: 0 })
   const svgRef = useRef<SVGSVGElement>(null)
+
+  // Pointer-driven values that change at native event rate (60+ Hz on
+  // desktop, faster on high-refresh trackpads). Pulling these out of React
+  // state and writing them straight into CSS custom properties prevents a
+  // 2 000-line re-render cascade on every mouse twitch — the aurora blobs
+  // and tooltip just read the variables and the GPU does the rest.
+  const tooltipRef = useRef<HTMLDivElement>(null)
+  const auroraRootRef = useRef<HTMLDivElement>(null)
+  const rafRef = useRef<number | null>(null)
+  const pendingParallax = useRef<{ x: number; y: number } | null>(null)
+  const pendingTooltip = useRef<{ x: number; y: number } | null>(null)
+
+  const flushPointer = useCallback(() => {
+    rafRef.current = null
+    if (pendingParallax.current && auroraRootRef.current) {
+      auroraRootRef.current.style.setProperty('--px', String(pendingParallax.current.x))
+      auroraRootRef.current.style.setProperty('--py', String(pendingParallax.current.y))
+      pendingParallax.current = null
+    }
+    if (pendingTooltip.current && tooltipRef.current) {
+      const { x, y } = pendingTooltip.current
+      // CSS vars not transform — Framer's scale animation owns `transform`
+      // for enter/exit, so we drive position through a separate channel.
+      tooltipRef.current.style.setProperty('--tip-x', `${x + 14}px`)
+      tooltipRef.current.style.setProperty('--tip-y', `${y - 10}px`)
+      pendingTooltip.current = null
+    }
+  }, [])
+
+  const scheduleFlush = useCallback(() => {
+    if (rafRef.current !== null) return
+    rafRef.current = requestAnimationFrame(flushPointer)
+  }, [flushPointer])
 
   function onMouseMove(e: React.MouseEvent<SVGSVGElement>) {
     if (tvMode) return
     const rect = svgRef.current?.getBoundingClientRect()
     if (!rect) return
-    setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top })
-    // Normalise to [-1, 1]
-    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1
-    const ny = ((e.clientY - rect.top) / rect.height) * 2 - 1
-    setParallax({ x: nx, y: ny })
+    const lx = e.clientX - rect.left
+    const ly = e.clientY - rect.top
+    pendingTooltip.current = { x: lx, y: ly }
+    pendingParallax.current = {
+      x: (lx / rect.width) * 2 - 1,
+      y: (ly / rect.height) * 2 - 1,
+    }
+    scheduleFlush()
   }
   function onMouseLeaveWheel() {
     if (tvMode) return
     setHoverState(null)
-    setParallax({ x: 0, y: 0 })
+    pendingParallax.current = { x: 0, y: 0 }
+    scheduleFlush()
   }
 
-  // TV/ambient drift: sweep parallax around the wheel in a slow Lissajous loop
-  // so the aurora blobs keep breathing even when no cursor is present.
+  // TV/ambient drift: sweep parallax around the wheel in a slow Lissajous
+  // loop so the aurora blobs keep breathing even without a cursor. Writes
+  // directly into the CSS variables — same path as the pointer, so the
+  // aurora blob math stays in one place.
   useEffect(() => {
     if (!tvMode) return
     let frame = 0
     const start = performance.now()
     function tick(now: number) {
       const t = (now - start) / 1000
-      setParallax({
-        x: Math.sin(t * 0.11) * 0.55,
-        y: Math.cos(t * 0.09) * 0.55,
-      })
+      const root = auroraRootRef.current
+      if (root) {
+        root.style.setProperty('--px', String(Math.sin(t * 0.11) * 0.55))
+        root.style.setProperty('--py', String(Math.cos(t * 0.09) * 0.55))
+      }
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
   }, [tvMode])
+
+  // Cancel any pending RAF on unmount so we don't write into a stale ref.
+  useEffect(() => () => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+  }, [])
 
   const enterFocus = useCallback((idx: number) => {
     if (tvMode) return
@@ -806,42 +848,42 @@ export function DiskView({
           )}
         </AnimatePresence>
 
-        {/* Aurora backdrop + grain. Seasonal hue comes from current month; blobs drift + parallax on hover. */}
-        <div className="absolute inset-0 overflow-hidden rounded-full pointer-events-none" aria-hidden>
+        {/* Aurora backdrop + grain. Seasonal hue comes from current month;
+            blobs drift + parallax. Pointer parallax is fed via the --px / --py
+            CSS variables on this wrapper — written by a RAF-throttled handler
+            outside React state, so a 60+ Hz mousemove never re-renders the
+            2 000-line wheel tree. The keyframe arrays still drive the slow
+            22-30s ambient drift; pointer just nudges the centre. */}
+        <div
+          ref={auroraRootRef}
+          className="absolute inset-0 overflow-hidden rounded-full pointer-events-none year-wheel-aurora"
+          aria-hidden
+        >
           <motion.div
-            className="absolute inset-[-18%] rounded-full"
+            className="absolute inset-[-18%] rounded-full year-wheel-aurora__blob year-wheel-aurora__blob--a"
             style={{
               background: `radial-gradient(circle at 30% 30%, hsla(${seasonHue}, 88%, 66%, 0.30), transparent 58%)`,
               filter: 'blur(44px)',
             }}
-            animate={reduce ? undefined : {
-              x: [0, 20, -10, 0].map(v => v + parallax.x * 18),
-              y: [0, -15, 10, 0].map(v => v + parallax.y * 18),
-            }}
+            animate={reduce ? undefined : { x: [0, 20, -10, 0], y: [0, -15, 10, 0] }}
             transition={reduce ? undefined : { duration: 22, repeat: Infinity, ease: 'easeInOut' }}
           />
           <motion.div
-            className="absolute inset-[-18%] rounded-full"
+            className="absolute inset-[-18%] rounded-full year-wheel-aurora__blob year-wheel-aurora__blob--b"
             style={{
               background: `radial-gradient(circle at 75% 40%, hsla(${(seasonHue + 60) % 360}, 92%, 62%, 0.22), transparent 58%)`,
               filter: 'blur(44px)',
             }}
-            animate={reduce ? undefined : {
-              x: [0, -18, 12, 0].map(v => v - parallax.x * 22),
-              y: [0, 14, -8, 0].map(v => v - parallax.y * 22),
-            }}
+            animate={reduce ? undefined : { x: [0, -18, 12, 0], y: [0, 14, -8, 0] }}
             transition={reduce ? undefined : { duration: 26, repeat: Infinity, ease: 'easeInOut' }}
           />
           <motion.div
-            className="absolute inset-[-18%] rounded-full"
+            className="absolute inset-[-18%] rounded-full year-wheel-aurora__blob year-wheel-aurora__blob--c"
             style={{
               background: `radial-gradient(circle at 50% 80%, hsla(${(seasonHue + 300) % 360}, 65%, 62%, 0.24), transparent 58%)`,
               filter: 'blur(46px)',
             }}
-            animate={reduce ? undefined : {
-              x: [0, 14, -16, 0].map(v => v + parallax.x * 14),
-              y: [0, -10, 12, 0].map(v => v + parallax.y * 14),
-            }}
+            animate={reduce ? undefined : { x: [0, 14, -16, 0], y: [0, -10, 12, 0] }}
             transition={reduce ? undefined : { duration: 30, repeat: Infinity, ease: 'easeInOut' }}
           />
           <div
@@ -853,6 +895,21 @@ export function DiskView({
               backgroundSize: '240px 240px',
             }}
           />
+          {/* Aurora blobs use the --px / --py CSS variables on the wrapper
+              for pointer parallax. Framer keeps animating x/y through the
+              slow drift keyframes; we layer a translate3d on top via the
+              transform-from-translate trick so both compose cleanly. */}
+          <style jsx>{`
+            .year-wheel-aurora { --px: 0; --py: 0; }
+            .year-wheel-aurora__blob {
+              --pv: 0;
+              translate: calc(var(--px) * var(--pv) * 1px) calc(var(--py) * var(--pv) * 1px);
+              transition: translate 220ms cubic-bezier(.2,.8,.3,1);
+            }
+            .year-wheel-aurora__blob--a { --pv: 18; }
+            .year-wheel-aurora__blob--b { --pv: -22; }
+            .year-wheel-aurora__blob--c { --pv: 14; }
+          `}</style>
         </div>
 
         <motion.svg
@@ -1878,18 +1935,22 @@ export function DiskView({
           )}
         </motion.svg>
 
-        {/* Hover tooltip */}
+        {/* Hover tooltip — position is written via DOM transform from the
+            same RAF-throttled handler that updates parallax. opacity/scale
+            still come from Framer so enter/exit stays smooth, but the
+            per-mousemove move is composited and never re-renders React. */}
         <AnimatePresence>
           {hover && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.92, y: 4 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 4 }}
+              ref={tooltipRef}
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
               transition={{ duration: 0.12 }}
               className="absolute pointer-events-none z-20 px-3 py-2 rounded-xl text-[13px] font-medium"
               style={{
-                left: tooltipPos.x + 14,
-                top: tooltipPos.y - 10,
+                top: 'var(--tip-y, 0px)',
+                left: 'var(--tip-x, 0px)',
                 background: 'color-mix(in oklab, var(--bg-elevated) 80%, transparent)',
                 backdropFilter: 'blur(18px) saturate(180%)',
                 WebkitBackdropFilter: 'blur(18px) saturate(180%)',
