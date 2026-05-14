@@ -7,6 +7,7 @@ import { addDays, getISOWeek, getISOWeekYear } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { dispatchEntriesChanged } from '@/hooks/use-entries'
 import { MemberAvatar } from '@/components/member-avatar'
 // Lazy CellEditor — see TeamGrid for the same rationale.
 const CellEditor = dynamic(
@@ -267,8 +268,30 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
           table: 'entries',
           filter: `member_id=eq.${memberId}`,
         },
-        () => {
-          if (active) loadEntries()
+        (payload) => {
+          if (!active) return
+          // Patch state directly instead of full refetch — `loadEntries()`
+          // re-pulls every entry in the visible year (potentially 365 rows)
+          // for every realtime event, including ones we just wrote
+          // ourselves. Patching keeps it to a single state update.
+          if (payload.eventType === 'DELETE') {
+            const deleted = payload.old as Partial<Entry>
+            if (!deleted.id) return
+            setEntries(prev => prev.filter(e => e.id !== deleted.id))
+            return
+          }
+          const upserted = payload.new as Entry
+          if (!upserted?.id) return
+          // Drop entries that fell outside the visible year window — happens
+          // when the user reschedules across a year boundary in another tab.
+          if (upserted.date < rangeStart || upserted.date > rangeEnd) {
+            setEntries(prev => prev.filter(e => e.id !== upserted.id))
+            return
+          }
+          setEntries(prev => {
+            const without = prev.filter(e => e.id !== upserted.id)
+            return [...without, upserted]
+          })
         }
       )
       .subscribe()
@@ -277,6 +300,7 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
       active = false
       supabase.removeChannel(channel)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadEntries, memberId, year])
 
   const entryByDate = useMemo(() => {
@@ -365,23 +389,30 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
           note: rz.entry.note,
           source: 'manual' as const,
         }))
-        const { error: upErr } = await supabase
+        const { data: written, error: upErr } = await supabase
           .from('entries')
           .upsert(rows, { onConflict: 'org_id,member_id,date' })
+          .select()
         if (upErr) {
           toast.error('Kunne ikke endre datoområdet')
           return
         }
+        let deletedIds: string[] = []
         const toDelete = origDates.filter((d) => !newDates.includes(d))
         if (toDelete.length > 0) {
-          await supabase
+          const { data: del } = await supabase
             .from('entries')
             .delete()
             .eq('org_id', orgId)
             .eq('member_id', memberId)
             .in('date', toDelete)
+            .select('id')
+          deletedIds = (del ?? []).map((r: { id: string }) => r.id)
         }
-        await loadEntries()
+        // Broadcast the canonical rows + deleted ids so this tab and any
+        // other open surfaces patch state instantly without a refetch.
+        // The realtime channel still delivers across tabs/devices.
+        dispatchEntriesChanged({ upserted: (written ?? []) as Entry[], deletedIds })
         return
       }
 
@@ -422,23 +453,27 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
           note: mv.entry.note,
           source: 'manual' as const,
         }))
-        const { error: upErr } = await supabase
+        const { data: written, error: upErr } = await supabase
           .from('entries')
           .upsert(rows, { onConflict: 'org_id,member_id,date' })
+          .select()
         if (upErr) {
           toast.error('Kunne ikke flytte oppføringen')
           return
         }
+        let deletedIds: string[] = []
         const toDelete = srcDates.filter((d) => !dstDates.includes(d))
         if (toDelete.length > 0) {
-          await supabase
+          const { data: del } = await supabase
             .from('entries')
             .delete()
             .eq('org_id', orgId)
             .eq('member_id', memberId)
             .in('date', toDelete)
+            .select('id')
+          deletedIds = (del ?? []).map((r: { id: string }) => r.id)
         }
-        await loadEntries()
+        dispatchEntriesChanged({ upserted: (written ?? []) as Entry[], deletedIds })
         return
       }
 
@@ -541,12 +576,39 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
     return Array.from({ length: daysInWeek }, (_, i) => i >= lo && i <= hi)
   }
 
-  // Refetch on explicit broadcast — AIInput emits this after a successful parse.
+  // Same-tab sync from mutations dispatched by AIInput, CellEditor, sommer
+  // matrix and team-grid. Patch local state from the event detail so we
+  // don't trigger a full year-window refetch — mirrors useEntries in
+  // src/hooks/use-entries.ts. Legacy dispatchers without a detail still
+  // refetch as fallback.
   useEffect(() => {
-    const handler = () => loadEntries()
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ upserted?: Entry[]; deletedIds?: string[] } | undefined>).detail
+      if (!detail) {
+        loadEntries()
+        return
+      }
+      const upserts = (detail.upserted ?? []).filter(
+        u => u.member_id === memberId && u.date >= rangeStart && u.date <= rangeEnd,
+      )
+      const deletes = detail.deletedIds ?? []
+      if (!upserts.length && !deletes.length) return
+      setEntries(prev => {
+        let next = prev
+        if (deletes.length) {
+          const drop = new Set(deletes)
+          next = next.filter(e => !drop.has(e.id))
+        }
+        if (upserts.length) {
+          const ids = new Set(upserts.map(u => u.id))
+          next = next.filter(e => !ids.has(e.id)).concat(upserts)
+        }
+        return next === prev ? prev : next
+      })
+    }
     window.addEventListener('teampulse:entries-changed', handler)
     return () => window.removeEventListener('teampulse:entries-changed', handler)
-  }, [loadEntries])
+  }, [loadEntries, memberId, rangeStart, rangeEnd])
 
   function goPrevYear() {
     setDirY('prev')
