@@ -6,13 +6,8 @@ import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { Copy, Check, Upload, Trash2, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { Organization, EntryStatus, PresenceAssumption, DashboardViewKey } from '@/lib/supabase/types'
+import type { Organization, EntryStatus, PresenceAssumption } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
-import {
-  DEFAULT_VIEW_DURATIONS,
-  DURATION_MIN_SEC,
-  DURATION_MAX_SEC,
-} from '@/lib/dashboard-defaults'
 import { DEFAULT_HEX_COLORS, mergeHexColors, type HexColors } from '@/lib/status-colors/defaults'
 import { derivePalette } from '@/lib/status-colors/derive'
 import { useStatusColorsController } from '@/lib/status-colors/context'
@@ -25,18 +20,6 @@ import { StatusIcon } from '@/components/icons/status-icons'
 import { useT } from '@/lib/i18n/context'
 
 const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'absent', 'off']
-
-// Konfigurerbare visninger i Settings — Velkomst-view F injiseres dynamisk
-// på dashboardet og skal aldri lagres til organizations.dashboard_rotation_views.
-// H/I er kunder splittet på avdeling (UK vs Nordic).
-const DASHBOARD_VIEW_KEYS = ['A', 'B', 'C', 'D', 'H', 'I', 'E', 'G'] as const
-
-function sameSet(a: DashboardViewKey[], b: DashboardViewKey[]): boolean {
-  if (a.length !== b.length) return false
-  const sa = new Set(a)
-  for (const k of b) if (!sa.has(k)) return false
-  return true
-}
 
 interface OrgClientProps {
   org: Organization
@@ -78,25 +61,6 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
   const [presenceAssumption, setPresenceAssumption] = useState<PresenceAssumption>(
     initialOrg.default_presence_assumption ?? 'none'
   )
-  const [dashboardRotationViews, setDashboardRotationViews] = useState<DashboardViewKey[]>(
-    initialOrg.dashboard_rotation_views && initialOrg.dashboard_rotation_views.length > 0
-      ? initialOrg.dashboard_rotation_views
-      : [...DASHBOARD_VIEW_KEYS]
-  )
-  const savedViewDurations: Record<DashboardViewKey, number> = (() => {
-    const out = { ...DEFAULT_VIEW_DURATIONS }
-    const raw = initialOrg.dashboard_view_durations
-    if (raw) {
-      for (const k of DASHBOARD_VIEW_KEYS) {
-        const v = raw[k]
-        if (typeof v === 'number' && Number.isFinite(v) && v >= DURATION_MIN_SEC && v <= DURATION_MAX_SEC) {
-          out[k] = Math.round(v)
-        }
-      }
-    }
-    return out
-  })()
-  const [viewDurations, setViewDurations] = useState<Record<DashboardViewKey, number>>(savedViewDurations)
   const [statusColors, setStatusColors] = useState<HexColors>(() =>
     mergeHexColors(initialOrg.status_colors)
   )
@@ -109,14 +73,6 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
   const savedStatusColors = mergeHexColors(org.status_colors)
   const statusColorsDirty = STATUS_ORDER.some(s => statusColors[s] !== savedStatusColors[s])
 
-  const savedRotationViews: DashboardViewKey[] =
-    org.dashboard_rotation_views && org.dashboard_rotation_views.length > 0
-      ? org.dashboard_rotation_views
-      : [...DASHBOARD_VIEW_KEYS]
-  const rotationDirty = !sameSet(dashboardRotationViews, savedRotationViews)
-
-  const durationsDirty = DASHBOARD_VIEW_KEYS.some(k => viewDurations[k] !== savedViewDurations[k])
-
   const isDirty =
     name !== org.name ||
     timezone !== org.timezone ||
@@ -124,24 +80,7 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     brandPrimary !== (org.brand_primary ?? CALWIN_BRAND_PRIMARY) ||
     brandAccent !== (org.brand_accent ?? CALWIN_BRAND_ACCENT) ||
     presenceAssumption !== (org.default_presence_assumption ?? 'none') ||
-    rotationDirty ||
-    durationsDirty ||
     statusColorsDirty
-
-  function toggleRotationView(view: DashboardViewKey) {
-    setDashboardRotationViews(prev => {
-      const has = prev.includes(view)
-      if (has) {
-        // Never let the admin save an empty rotation — the dashboard needs at
-        // least one view to render. We keep the last one locked on.
-        if (prev.length === 1) return prev
-        return prev.filter(v => v !== view)
-      }
-      // Preserve canonical A..E order so the saved array matches the rotation sequence.
-      const next = [...prev, view]
-      return DASHBOARD_VIEW_KEYS.filter(k => next.includes(k))
-    })
-  }
 
   async function handleLogoFile(file: File) {
     const allowed = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']
@@ -235,9 +174,6 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     const status_colors_payload = STATUS_ORDER.every(s => statusColors[s] === DEFAULT_HEX_COLORS[s])
       ? null
       : statusColors
-    const rotation_payload = dashboardRotationViews.length > 0
-      ? [...dashboardRotationViews]
-      : [...DASHBOARD_VIEW_KEYS]
     // Normalize brand pair before write — DB has a CHECK constraint, so
     // any malformed input would fail the round-trip. Fall back to the
     // canonical CalWin pair if the user typed something invalid.
@@ -253,8 +189,6 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
         brand_accent: brand_accent_payload,
         status_colors: status_colors_payload,
         default_presence_assumption: presenceAssumption,
-        dashboard_rotation_views: rotation_payload,
-        dashboard_view_durations: { ...viewDurations },
       })
       .eq('id', org.id)
     setSaving(false)
@@ -272,8 +206,6 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       brand_accent: brand_accent_payload,
       status_colors: status_colors_payload,
       default_presence_assumption: presenceAssumption,
-      dashboard_rotation_views: rotation_payload,
-      dashboard_view_durations: { ...viewDurations },
     }))
     setBrandPrimary(brand_primary_payload)
     setBrandAccent(brand_accent_payload)
@@ -529,54 +461,6 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
           <PresenceAssumptionPicker value={presenceAssumption} onChange={setPresenceAssumption} />
         </SettingsField>
 
-        {/* Dashboard — carousel rotation */}
-        <SettingsField
-          label={t.settings.org.dashboardRotation}
-          description={t.settings.org.dashboardRotationDesc}
-        >
-          <DashboardRotationPicker
-            selected={dashboardRotationViews}
-            onToggle={toggleRotationView}
-            labels={{
-              A: t.dashboard.views.now,
-              B: t.dashboard.views.week,
-              C: t.dashboard.views.offices,
-              D: t.dashboard.views.customers,
-              E: t.dashboard.views.wheel,
-              G: t.dashboard.views.globe,
-              H: t.dashboard.views.customersUk,
-              I: t.dashboard.views.customersNordic,
-            }}
-            minHint={t.settings.org.dashboardRotationMinOne}
-          />
-        </SettingsField>
-
-        {/* Dashboard — per-view durations */}
-        <SettingsField
-          label={t.settings.org.dashboardDurations}
-          description={t.settings.org.dashboardDurationsDesc}
-        >
-          <DashboardDurationsEditor
-            durations={viewDurations}
-            onChange={(view, value) =>
-              setViewDurations(prev => ({ ...prev, [view]: value }))
-            }
-            labels={{
-              A: t.dashboard.views.now,
-              B: t.dashboard.views.week,
-              C: t.dashboard.views.offices,
-              D: t.dashboard.views.customers,
-              E: t.dashboard.views.wheel,
-              G: t.dashboard.views.globe,
-              H: t.dashboard.views.customersUk,
-              I: t.dashboard.views.customersNordic,
-            }}
-            secondsSuffix={t.settings.org.dashboardDurationsSecondsSuffix}
-            onReset={() => setViewDurations({ ...DEFAULT_VIEW_DURATIONS })}
-            resetLabel={t.settings.org.dashboardDurationsResetDefault}
-          />
-        </SettingsField>
-
         {/* Status colors */}
         <SettingsField
           label="Statusfarger"
@@ -748,162 +632,6 @@ function PresenceAssumptionPicker({
   )
 }
 
-
-function DashboardRotationPicker({
-  selected,
-  onToggle,
-  labels,
-  minHint,
-}: {
-  selected: DashboardViewKey[]
-  onToggle: (v: DashboardViewKey) => void
-  labels: Record<'A' | 'B' | 'C' | 'D' | 'E' | 'G' | 'H' | 'I', string>
-  minHint: string
-}) {
-  const isLastOne = selected.length === 1
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-2">
-        {DASHBOARD_VIEW_KEYS.map((key) => {
-          const active = selected.includes(key)
-          const locked = active && isLastOne
-          return (
-            <button
-              key={key}
-              type="button"
-              role="switch"
-              aria-checked={active}
-              aria-label={labels[key]}
-              disabled={locked}
-              onClick={() => onToggle(key)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-medium transition-[background,border-color,opacity] duration-150 disabled:cursor-not-allowed"
-              style={{
-                background: active ? 'color-mix(in oklab, var(--lg-accent) 12%, transparent)' : 'var(--lg-surface-2, var(--bg-subtle))',
-                border: `1px solid ${active ? 'color-mix(in oklab, var(--lg-accent) 45%, transparent)' : 'var(--lg-divider, var(--border-subtle))'}`,
-                color: active ? 'var(--lg-text-1, var(--text-primary))' : 'var(--lg-text-2, var(--text-secondary))',
-                fontFamily: 'var(--font-body)',
-              }}
-            >
-              <span
-                aria-hidden
-                className="inline-flex items-center justify-center rounded-full shrink-0"
-                style={{
-                  width: 14,
-                  height: 14,
-                  background: active ? 'var(--lg-accent)' : 'transparent',
-                  boxShadow: active
-                    ? '0 0 0 3px color-mix(in oklab, var(--lg-accent) 18%, transparent), 0 0 10px var(--lg-accent-glow)'
-                    : `inset 0 0 0 1.5px var(--lg-divider, var(--border-subtle))`,
-                }}
-              >
-                {active && (
-                  <span className="rounded-full" style={{ width: 5, height: 5, background: '#ffffff' }} />
-                )}
-              </span>
-              {labels[key]}
-            </button>
-          )
-        })}
-      </div>
-      <p
-        className="text-[11.5px]"
-        style={{ color: 'var(--lg-text-3, var(--text-tertiary))', fontFamily: 'var(--font-body)' }}
-      >
-        {minHint}
-      </p>
-    </div>
-  )
-}
-
-function DashboardDurationsEditor({
-  durations,
-  onChange,
-  labels,
-  secondsSuffix,
-  onReset,
-  resetLabel,
-}: {
-  durations: Record<DashboardViewKey, number>
-  onChange: (view: DashboardViewKey, value: number) => void
-  labels: Record<'A' | 'B' | 'C' | 'D' | 'E' | 'G' | 'H' | 'I', string>
-  secondsSuffix: string
-  onReset: () => void
-  resetLabel: string
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-col gap-2">
-        {DASHBOARD_VIEW_KEYS.map(key => {
-          const value = durations[key]
-          const isDefault = value === DEFAULT_VIEW_DURATIONS[key]
-          return (
-            <div
-              key={key}
-              className="flex items-center gap-3 px-3.5 py-2 rounded-xl"
-              style={{
-                background: 'var(--lg-surface-2, var(--bg-subtle))',
-                border: '1px solid var(--lg-divider, var(--border-subtle))',
-                fontFamily: 'var(--font-body)',
-              }}
-            >
-              <span
-                className="flex-1 text-[13px] font-medium"
-                style={{ color: 'var(--text-primary)' }}
-              >
-                {labels[key]}
-              </span>
-              <input
-                type="number"
-                min={DURATION_MIN_SEC}
-                max={DURATION_MAX_SEC}
-                step={1}
-                value={value}
-                onChange={e => {
-                  const n = Math.round(Number(e.target.value))
-                  if (Number.isFinite(n)) {
-                    const clamped = Math.max(DURATION_MIN_SEC, Math.min(DURATION_MAX_SEC, n))
-                    onChange(key, clamped)
-                  }
-                }}
-                aria-label={labels[key]}
-                className="w-16 px-2 py-1 rounded-md text-[13px] tabular-nums text-right outline-none"
-                style={{
-                  backgroundColor: 'var(--bg-elevated)',
-                  color: 'var(--text-primary)',
-                  border: `1.5px solid ${isDefault ? 'transparent' : 'color-mix(in oklab, var(--lg-accent) 45%, transparent)'}`,
-                  fontFamily: 'var(--font-body)',
-                }}
-                onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
-                onBlur={e =>
-                  (e.currentTarget.style.borderColor = isDefault
-                    ? 'transparent'
-                    : 'color-mix(in oklab, var(--lg-accent) 45%, transparent)')
-                }
-              />
-              <span
-                className="text-[12px] uppercase tracking-[0.14em] tabular-nums"
-                style={{ color: 'var(--text-tertiary)', minWidth: 28 }}
-              >
-                {secondsSuffix}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-      <button
-        type="button"
-        onClick={onReset}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium self-start transition-colors mt-1"
-        style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
-        onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-color)')}
-        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-tertiary)')}
-      >
-        <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.5} />
-        {resetLabel}
-      </button>
-    </div>
-  )
-}
 
 function StatusColorRow({
   status,
