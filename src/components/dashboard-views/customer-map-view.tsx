@@ -21,12 +21,17 @@ import { BreathingDot } from '@/components/breathing-dot'
 /**
  * Avdelings-filter for kundeporteføljen. Driver tittel + filtrering av
  * `customers`-listen før alt annet logikk kjører.
- * - 'uk'     : kun country_code === 'GB' (Kunder UK)
- * - 'nordic' : alt som IKKE er 'GB' (Kunder Nordic — NO/SE/DK/FI/IS/LT m.fl.,
+ * - 'uk'     : country_code === 'GB' eller 'IE' (Kunder UK — britiske øyer:
+ *              England, Skottland, Wales, Nord-Irland og Republikken Irland.
+ *              CalWins UK-avdeling dekker hele øygruppen, og Irland-kunder
+ *              som Costello hører hjemme her, ikke på Nordic-skjermen.)
+ * - 'nordic' : alt som IKKE er UK/IE (Kunder Nordic — NO/SE/DK/FI/IS/LT m.fl.,
  *              inkluderer også kunder uten country_code så de ikke faller bort)
  * - udefinert: ingen filtrering, klassisk «Kunder» visning
  */
 export type CustomerMapRegion = 'uk' | 'nordic'
+
+const UK_COUNTRY_CODES = new Set(['GB', 'IE'])
 
 /**
  * Geografisk crop for UK-visningen. Sentrert tett rundt CalWins faktiske
@@ -91,14 +96,16 @@ export function CustomerMapView({
   // Avdelings-filter — UK vs Nordic er CalWin AS sine to kundedivisjoner.
   // Filtrering skjer her, så resolver/registreringsteller/pinner alle ser
   // samme reduserte univers og rendringslogikken under er uberørt.
+  // UK-divisjonen dekker hele de britiske øyer (GB + IE) — Irland-kunder
+  // som Costello hører til UK-skjermen, ikke Nordic.
   const scopedCustomers = region
     ? customers.filter(c => {
         const cc = (c.country_code ?? '').toUpperCase()
-        if (region === 'uk') return cc === 'GB'
-        // 'nordic' = alt som ikke er UK. Kunder uten country_code havner
+        if (region === 'uk') return UK_COUNTRY_CODES.has(cc)
+        // 'nordic' = alt som ikke er UK/IE. Kunder uten country_code havner
         // her av sikkerhetsgrunner — bedre at de vises på Nordic-skjermen
         // enn å forsvinne fra dashboardet helt.
-        return cc !== 'GB'
+        return !UK_COUNTRY_CODES.has(cc)
       })
     : customers
 
