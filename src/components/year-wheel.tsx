@@ -184,11 +184,16 @@ type HoverInfo = { type: 'month' | 'week' | 'event' | 'ring'; label: string; sub
 
 interface YearWheelProps {
   orgId: string
+  /** SSR-prefetched events for `initialYear` — when matching the active
+   *  year, useEvents skips the first round-trip and the wheel hydrates
+   *  straight into populated state. */
+  initialEvents?: OrgEvent[]
+  initialYear?: number
 }
 
 // ─── Main component ─────────────────────────────────────────────
 
-export function YearWheel({ orgId }: YearWheelProps) {
+export function YearWheel({ orgId, initialEvents, initialYear }: YearWheelProps) {
   const year = new Date().getFullYear()
   // Live clock: tick every 20 s so the minute display is always fresh
   const [now, setNow] = useState(() => new Date())
@@ -199,7 +204,10 @@ export function YearWheel({ orgId }: YearWheelProps) {
   const today = now
 
   const [view, setView] = useState<ViewMode>('disk')
-  const { events, refetch: refetchEvents } = useEvents(orgId, year)
+  const { events, refetch: refetchEvents } = useEvents(orgId, year, {
+    initial: initialEvents,
+    initialYear,
+  })
   const [orgLogo, setOrgLogo] = useState<string | null>(null)
   const [orgName, setOrgName] = useState<string | null>(null)
   // Imperative handle: opening the editor must NOT trigger a YearWheel re-render,

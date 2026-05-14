@@ -8,12 +8,23 @@ import { useDocumentVisibility } from '@/hooks/use-document-visibility'
 /**
  * Fetches org events overlapping the given year, and subscribes to
  * Supabase Realtime so the wheel/calendar/list stays live.
+ *
+ * `opts.initial` lets the caller seed the hook with server-rendered data
+ * for `opts.initialYear`. When the seed matches the active `year`, the
+ * first client fetch is skipped and the wheel hydrates straight into the
+ * populated state — no flash of empty rings on cold load.
  */
-export function useEvents(orgId: string, year: number) {
-  const [events, setEvents] = useState<OrgEvent[]>([])
-  const [loading, setLoading] = useState(true)
+export function useEvents(
+  orgId: string,
+  year: number,
+  opts: { initial?: OrgEvent[]; initialYear?: number } = {},
+) {
+  const seedMatches = opts.initial !== undefined && opts.initialYear === year
+  const [events, setEvents] = useState<OrgEvent[]>(seedMatches ? opts.initial! : [])
+  const [loading, setLoading] = useState(!seedMatches)
   const visible = useDocumentVisibility()
   const wasHiddenRef = useRef(false)
+  const seededYearRef = useRef(seedMatches ? year : null)
 
   const fetchEvents = useCallback(async () => {
     const supabase = createClient()
@@ -32,9 +43,16 @@ export function useEvents(orgId: string, year: number) {
   }, [orgId, year])
 
   useEffect(() => {
+    if (seededYearRef.current === year) {
+      // First mount and the SSR seed matches the active year — skip the
+      // round-trip; realtime will keep the data fresh from here.
+      seededYearRef.current = null
+      setLoading(false)
+      return
+    }
     setLoading(true)
     fetchEvents()
-  }, [fetchEvents])
+  }, [fetchEvents, year])
 
   useEffect(() => {
     if (!visible) {

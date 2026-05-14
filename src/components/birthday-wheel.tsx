@@ -12,7 +12,7 @@ import {
   seasonHueFor, monthLabelsFor,
 } from './wheel-rings'
 import { WheelAgendaShell, WheelAgendaSection } from './wheel-agenda'
-import { useTeamMembers, type DerivedBirthday } from '@/hooks/use-team-members'
+import { useTeamMembers, type DerivedBirthday, type MemberSlim } from '@/hooks/use-team-members'
 import { useT } from '@/lib/i18n/context'
 import { getISOWeek } from '@/lib/dates'
 import {
@@ -36,11 +36,15 @@ export function BirthdayWheel({
   orgIds,
   workspaces,
   combinedView,
+  initialMembers,
 }: {
   orgId: string
   orgIds?: string[]
   workspaces?: WorkspaceSummary[]
   combinedView?: boolean
+  /** SSR-prefetched member list — seeds useTeamMembers so the birthday
+   *  pins paint in the first frame instead of flashing empty. */
+  initialMembers?: MemberSlim[]
 }) {
   const t = useT()
   const uid = useId().replace(/[^a-z0-9]/gi, '')
@@ -59,7 +63,9 @@ export function BirthdayWheel({
   const monthLabels = monthLabelsFor(t)
 
   const effectiveOrgIds = orgIds ?? [orgId]
-  const { birthdays, nextBirthday, loading } = useTeamMembers(effectiveOrgIds)
+  const { birthdays, nextBirthday, loading } = useTeamMembers(effectiveOrgIds, {
+    initial: initialMembers,
+  })
 
   const workspaceByOrgId = useMemo(() => {
     const map = new Map<string, WorkspaceSummary>()

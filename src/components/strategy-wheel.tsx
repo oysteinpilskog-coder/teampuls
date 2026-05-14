@@ -55,7 +55,15 @@ function quarterDegRange(q: Q): [number, number] {
 
 // ─── Wheel ────────────────────────────────────────────────────────
 
-export function StrategyWheel({ orgId }: { orgId: string }) {
+export function StrategyWheel({
+  orgId,
+  initialThemes,
+  initialYear,
+}: {
+  orgId: string
+  initialThemes?: StrategyTheme[]
+  initialYear?: number
+}) {
   const t = useT()
   const uid = useId().replace(/[^a-z0-9]/gi, '')
   const idPrefix = `sw-${uid}`
@@ -69,7 +77,10 @@ export function StrategyWheel({ orgId }: { orgId: string }) {
   const [year, setYear] = useState(() => new Date().getFullYear())
   const seasonHue = useMemo(() => seasonHueFor(today), [today])
 
-  const { themes, refetch } = useStrategyThemes(orgId, year)
+  const { themes, refetch } = useStrategyThemes(orgId, year, {
+    initial: initialThemes,
+    initialYear,
+  })
 
   // Map quarter → theme (or null for empty quarters).
   const byQuarter = useMemo(() => {
