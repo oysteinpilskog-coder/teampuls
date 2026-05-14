@@ -13,7 +13,12 @@
    ============================================================ */
 
 @theme inline {
-  /* Fonts — Inter (matches calwin.no) for both body and display slots */
+  /* Fonts — Inter (matches calwin.no) for both body and display slots.
+     `--font-manrope` is the only variable next/font actually emits (one
+     Inter() call in src/app/fonts.ts). The legacy `--font-fraunces` slot
+     is aliased to the same value so old component code keeps working
+     without instantiating Inter twice. */
+  --font-fraunces: var(--font-manrope);
   --font-display: var(--font-fraunces);
   --font-body:    var(--font-manrope);
   --font-sans:    var(--font-manrope);
