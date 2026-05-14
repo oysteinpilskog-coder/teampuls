@@ -5,7 +5,7 @@ import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { CustomerPin, type CustomerPinState } from './customer-pin'
 import { MapLabelTicker } from './map-label-ticker'
 import { RegionalInset, type InsetPoint } from './regional-inset'
-import { project, EUROPE_BOUNDS, isInBounds } from '@/lib/geo'
+import { project, EUROPE_BOUNDS, isInBounds, type GeoBounds } from '@/lib/geo'
 import { US_BOUNDS } from '@/lib/us-projection'
 import { resolveCustomer } from '@/lib/customer-resolver'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
@@ -27,6 +27,22 @@ import { BreathingDot } from '@/components/breathing-dot'
  * - udefinert: ingen filtrering, klassisk «Kunder» visning
  */
 export type CustomerMapRegion = 'uk' | 'nordic'
+
+/**
+ * Geografisk crop for UK-visningen. Dekker Storbritannia (inkl. Shetland)
+ * og hele Irland med litt pust rundt — Land's End i syd til Unst i nord,
+ * vestkysten av Irland til engelsk østkyst. CustomerMapView sender denne
+ * inn til EuropeMapCanvas slik at fastlands-Europa, Norden og Baltikum
+ * faller utenfor SVG-viewBoxen og kun de to øyene fyller skjermen — det
+ * gjør plass til de mange CalWin-kundene tett konsentrert på de britiske
+ * øyer (London-korridoren, Midlands, sentralbeltet i Skottland osv.).
+ */
+const UK_AND_IRELAND_BOUNDS: GeoBounds = {
+  latMin: 49.6,
+  latMax: 61.0,
+  lngMin: -11.0,
+  lngMax: 2.4,
+}
 
 interface CustomerMapViewProps {
   members: Member[]
@@ -350,7 +366,10 @@ export function CustomerMapView({
               'inset 0 1px 0 rgba(255,255,255,0.06), 0 40px 80px -40px rgba(0,0,0,0.5)',
           }}
         >
-          <EuropeMapCanvas accent="#FF8A3D">
+          <EuropeMapCanvas
+            accent="#FF8A3D"
+            bounds={region === 'uk' ? UK_AND_IRELAND_BOUNDS : undefined}
+          >
             {/* Pins — single unified component, intensity tier driven by
              *  visit state. Idle first so visited sit on top when coords
              *  collide. Multi-member clusters get a small count chip so
