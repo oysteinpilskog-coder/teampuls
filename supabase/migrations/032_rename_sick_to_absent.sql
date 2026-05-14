@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 031 — Rename 'sick' status → 'absent', drop sykefravær-privacy.
+-- Migration 032 — Rename 'sick' status → 'absent', drop sykefravær-privacy.
 --
 -- TeamPulse henger på en TV-skjerm i resepsjonen. Å lagre eller vise
 -- «syk» som egen verdi er behandling av helseopplysninger (GDPR art. 9),
