@@ -171,6 +171,17 @@ export default async function RootLayout({
           initialWorkspaces={session.workspaces}
           initialActiveSlug={activeWorkspace?.slug ?? null}
           initialDashboardMode={initialDashboardMode}
+          initialPresenceMe={
+            session.member
+              ? {
+                  id: session.member.id,
+                  orgId: session.member.org_id,
+                  display_name: session.member.display_name,
+                  avatar_url: session.member.avatar_url,
+                  initials: session.member.initials,
+                }
+              : null
+          }
         >
           {/* Ambient aurora backdrop — restrained Ember-tint, sits below grain */}
           <div className="ambient-aurora" aria-hidden />

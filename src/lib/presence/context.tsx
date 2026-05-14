@@ -1,11 +1,10 @@
 'use client'
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { usePresence, type PresenceState } from '@/hooks/use-presence'
 
-interface Me {
+export interface PresenceMe {
   id: string
   orgId: string
   display_name: string
@@ -28,37 +27,24 @@ const Ctx = createContext<PresenceCtx>({
   editorsOf: () => [],
 })
 
-export function PresenceProvider({ children }: { children: React.ReactNode }) {
-  const [me, setMe] = useState<Me | null>(null)
+export function PresenceProvider({
+  children,
+  initialMe,
+}: {
+  children: React.ReactNode
+  /**
+   * Pre-loaded "me" from SSR session — saves the two sequential round-trips
+   * (auth.getUser + members lookup) that used to delay presence subscription
+   * by ~150-300ms after every page load. Sources of truth (admin re-link
+   * fallback, user_id backfill) still live in `getSessionMember`, so we just
+   * trust whatever it gives us here.
+   */
+  initialMe: PresenceMe | null
+}) {
+  // Seed once from SSR; subsequent page navigations within the same session
+  // keep using the seeded value (it doesn't change without a reload).
+  const [me] = useState<PresenceMe | null>(initialMe)
   const pathname = usePathname()
-
-  // Resolve "me" once on mount — we need the active member record to know
-  // who to broadcast as. Fetched client-side because this provider lives
-  // inside a client boundary.
-  useEffect(() => {
-    let cancelled = false
-    const supabase = createClient()
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: member } = await supabase
-        .from('members')
-        .select('id, org_id, display_name, avatar_url, initials')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .maybeSingle()
-      if (cancelled || !member) return
-      setMe({
-        id: member.id,
-        orgId: member.org_id,
-        display_name: member.display_name,
-        avatar_url: member.avatar_url,
-        initials: member.initials,
-      })
-    }
-    load()
-    return () => { cancelled = true }
-  }, [])
 
   const { others, mine, setEditing } = usePresence({
     orgId: me?.orgId ?? null,
