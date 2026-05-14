@@ -38,6 +38,17 @@ interface MyPlanProps {
   /** Rendered inside the sticky header. Pass an `<AIInput>` here on /min-plan
    *  so it stays reachable while scrolling the year list. */
   aiInputSlot?: ReactNode
+  /**
+   * SSR-prefetched entries for `initialYear`. When provided, the client
+   * skips its first `loadEntries()` round-trip — that fetch caused a visible
+   * flash where the year grid hydrated empty, then re-rendered ~200 ms later
+   * with data. With seed there's a single, populated render.
+   */
+  initialEntries?: Entry[]
+  /** ISO year these initialEntries cover. Used to validate the seed against
+   *  the year-state on mount; if the user navigates to a different year the
+   *  seed is discarded and the client fetches the new year. */
+  initialYear?: number
 }
 
 interface WeekBlock {
@@ -176,7 +187,16 @@ interface ResizeDrag {
   entry: Entry
 }
 
-export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl, aiInputSlot }: MyPlanProps) {
+export function MyPlan({
+  orgId,
+  memberId,
+  memberName,
+  memberInitials,
+  avatarUrl,
+  aiInputSlot,
+  initialEntries,
+  initialYear,
+}: MyPlanProps) {
   const t = useT()
   const currentYear = useMemo(() => getISOWeekYear(new Date()), [])
   const [year, setYear] = useState(currentYear)
@@ -196,8 +216,12 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
   const rangeStart = toDateString(weeks[0].start)
   const rangeEnd = toDateString(addDays(weeks[weeks.length - 1].start, 4))
 
-  const [entries, setEntries] = useState<Entry[]>([])
-  const [loading, setLoading] = useState(true)
+  // Seed from SSR when the year matches — avoids the "skeleton → empty
+  // grid → data" blink on first navigation. Loading is suppressed in the
+  // same case so we don't paint a spinner over data that's already there.
+  const seeded = initialEntries !== undefined && initialYear === currentYear
+  const [entries, setEntries] = useState<Entry[]>(seeded ? initialEntries! : [])
+  const [loading, setLoading] = useState(!seeded)
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null)
 
   // Derive distinct locations from entries we already hold so the CellEditor
@@ -250,12 +274,24 @@ export function MyPlan({ orgId, memberId, memberName, memberInitials, avatarUrl,
     setLoading(false)
   }, [orgId, memberId, rangeStart, rangeEnd])
 
+  // Tracks whether the SSR seed is still good for the *current* year. The
+  // first effect run reuses it; year navigation (next/prev) flips this and
+  // forces a fresh fetch.
+  const seededYearRef = useRef(seeded ? currentYear : null)
+
   useEffect(() => {
     let active = true
-    setLoading(true)
-    loadEntries().then(() => {
-      if (!active) return
-    })
+    if (seededYearRef.current === year) {
+      // SSR data already populates `entries` for this year — skip the
+      // round-trip and just open the realtime channel.
+      seededYearRef.current = null
+      setLoading(false)
+    } else {
+      setLoading(true)
+      loadEntries().then(() => {
+        if (!active) return
+      })
+    }
 
     const supabase = createClient()
     const channel = supabase

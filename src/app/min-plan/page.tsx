@@ -1,9 +1,12 @@
 import { redirect } from 'next/navigation'
+import { addDays, getISOWeekYear } from 'date-fns'
 import { AIInput } from '@/components/ai-input'
 import { MyPlan } from '@/components/my-plan'
 import { EmptyState } from '@/components/empty-state'
 import { getSessionMember } from '@/lib/supabase/session'
+import { createClient } from '@/lib/supabase/server'
 import { getServerDict } from '@/lib/i18n/server'
+import { getLastISOWeek, getWeekStart, toDateString } from '@/lib/dates'
 
 export default async function MinPlanPage() {
   const { user, member } = await getSessionMember()
@@ -36,6 +39,24 @@ export default async function MinPlanPage() {
     )
   }
 
+  // SSR-prefetch hele årets entries for dette medlemmet — ellers ville
+  // klienten hydrere med tom liste, fyrt sin egen loadEntries() og
+  // re-rendre 200 ms senere (synlig blink mellom skeleton og data).
+  // Same window som klienten regner ut: ISO-uke 1 → siste ISO-uke i året.
+  const year = getISOWeekYear(new Date())
+  const lastWeek = getLastISOWeek(year)
+  const rangeStart = toDateString(getWeekStart(1, year))
+  const rangeEnd = toDateString(addDays(getWeekStart(lastWeek, year), 4))
+  const supabase = await createClient()
+  const { data: initialEntries } = await supabase
+    .from('entries')
+    .select('*')
+    .eq('org_id', member.org_id)
+    .eq('member_id', member.id)
+    .gte('date', rangeStart)
+    .lte('date', rangeEnd)
+    .order('date')
+
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-6 py-6 sm:py-10 md:py-12">
       <MyPlan
@@ -45,6 +66,8 @@ export default async function MinPlanPage() {
         memberInitials={member.initials}
         avatarUrl={member.avatar_url}
         aiInputSlot={<AIInput orgId={member.org_id} />}
+        initialEntries={initialEntries ?? []}
+        initialYear={year}
       />
     </div>
   )
