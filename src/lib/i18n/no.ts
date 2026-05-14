@@ -146,6 +146,7 @@ export const no = {
     atCustomer: 'Hos kunde',
     away: 'Borte',
     atHqOf: 'av {total} på {office}',
+    atHqMulti: 'hovedkontorene',
     noRegistrationsToday: 'Ingen registreringer ennå',
     noRegistrationsSubtitle: 'Hvor er teamet i dag?',
     noRegistrationsBoard: 'Ingen registreringer for dagen.',

@@ -148,6 +148,7 @@ export const sv: Dictionary = {
     atCustomer: 'Hos kund',
     away: 'Borta',
     atHqOf: 'av {total} på {office}',
+    atHqMulti: 'huvudkontoren',
     noRegistrationsToday: 'Inga registreringar ännu',
     noRegistrationsSubtitle: 'Var är teamet idag?',
     noRegistrationsBoard: 'Inga registreringar för dagen.',

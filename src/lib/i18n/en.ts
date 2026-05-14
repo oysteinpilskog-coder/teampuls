@@ -148,6 +148,7 @@ export const en: Dictionary = {
     atCustomer: 'At customer',
     away: 'Away',
     atHqOf: 'of {total} at {office}',
+    atHqMulti: 'HQ',
     noRegistrationsToday: 'No entries yet',
     noRegistrationsSubtitle: 'Where is the team today?',
     noRegistrationsBoard: 'No entries for the day.',

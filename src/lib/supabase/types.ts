@@ -157,7 +157,8 @@ export interface Office {
   latitude: number | null
   longitude: number | null
   sort_order: number
-  /** Maks ett kontor per org kan ha is_hq = true (partial unique index). */
+  /** Flere kontorer per org kan ha is_hq = true — én HQ per region
+   *  (f.eks. Nordic + UK). Ingen unique constraint. */
   is_hq: boolean
   created_at: string
 }

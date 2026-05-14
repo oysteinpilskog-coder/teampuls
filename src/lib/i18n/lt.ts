@@ -148,6 +148,7 @@ export const lt: Dictionary = {
     atCustomer: 'Pas klientą',
     away: 'Nėra',
     atHqOf: 'iš {total} biure {office}',
+    atHqMulti: 'būstinėse',
     noRegistrationsToday: 'Dar nėra įrašų',
     noRegistrationsSubtitle: 'Kur komanda šiandien?',
     noRegistrationsBoard: 'Dienai įrašų nėra.',
