@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { project, EUROPE_BOUNDS } from '@/lib/geo'
+import { project, EUROPE_BOUNDS, type GeoBounds } from '@/lib/geo'
 import { MAP_WIDTH, MAP_HEIGHT } from '@/lib/europe-projection'
 import { ease } from '@/lib/motion'
 import { EUROPE_COUNTRY_PATHS } from '@/lib/europe-paths'
@@ -13,6 +13,15 @@ interface EuropeMapCanvasProps {
   children: React.ReactNode
   /** Accent hue used for atmosphere and land highlights. Defaults to cool blue. */
   accent?: string
+  /**
+   * Optional geographic crop. When provided, the SVG viewBox is shrunk to
+   * the projected bounding box of these lat/lng bounds — the rest of the
+   * map (countries outside, distant labels) is simply clipped. Pin
+   * positions don't move; the same projection is used, only what's shown
+   * changes. Use for region-specific dashboards (e.g. "Kunder UK") where a
+   * full-Europe frame makes the actual content tiny.
+   */
+  bounds?: GeoBounds
 }
 
 /**
@@ -24,6 +33,7 @@ interface EuropeMapCanvasProps {
 export function EuropeMapCanvas({
   children,
   accent = '#5E8CFF',
+  bounds,
 }: EuropeMapCanvasProps) {
   const latLines: number[] = []
   for (let lat = 40; lat <= 70; lat += 10) latLines.push(lat)
@@ -55,7 +65,45 @@ export function EuropeMapCanvas({
   }
 
   // Centre roughly on Nordic-Central Europe, where the company operates.
-  const centre = project(58, 12, MAP_WIDTH, MAP_HEIGHT)
+  // When `bounds` is set, follow the regional crop instead so the
+  // atmospheric glow doesn't sit off-screen.
+  const centreLat = bounds ? (bounds.latMin + bounds.latMax) / 2 : 58
+  const centreLng = bounds ? (bounds.lngMin + bounds.lngMax) / 2 : 12
+  const centre = project(centreLat, centreLng, MAP_WIDTH, MAP_HEIGHT)
+
+  // Compute the SVG viewBox. Default = the full pre-fitted canvas. When
+  // `bounds` is provided, sample the four edges of the lat/lng rectangle
+  // (Conic Conformal curves them, so corner-only sampling under-counts)
+  // and take the AABB of the projected points. A small SVG-unit margin
+  // keeps coastline silhouettes from kissing the frame.
+  const viewBox = (() => {
+    if (!bounds) return `0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`
+    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity
+    const SAMPLES = 16
+    const span = (a: number, b: number, t: number) => a + t * (b - a)
+    for (let i = 0; i <= SAMPLES; i++) {
+      const t = i / SAMPLES
+      const edges: Array<[number, number]> = [
+        [bounds.latMax, span(bounds.lngMin, bounds.lngMax, t)],
+        [bounds.latMin, span(bounds.lngMin, bounds.lngMax, t)],
+        [span(bounds.latMin, bounds.latMax, t), bounds.lngMin],
+        [span(bounds.latMin, bounds.latMax, t), bounds.lngMax],
+      ]
+      for (const [lat, lng] of edges) {
+        const p = project(lat, lng, MAP_WIDTH, MAP_HEIGHT)
+        if (p.x < xMin) xMin = p.x
+        if (p.x > xMax) xMax = p.x
+        if (p.y < yMin) yMin = p.y
+        if (p.y > yMax) yMax = p.y
+      }
+    }
+    const margin = 18
+    const x = xMin - margin
+    const y = yMin - margin
+    const w = xMax - xMin + margin * 2
+    const h = yMax - yMin + margin * 2
+    return `${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}`
+  })()
 
   return (
     <div
@@ -111,7 +159,7 @@ export function EuropeMapCanvas({
       </svg>
 
       <svg
-        viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
+        viewBox={viewBox}
         preserveAspectRatio="xMidYMid meet"
         className="absolute inset-0 w-full h-full"
         style={{ display: 'block' }}
