@@ -84,7 +84,13 @@ export function OfficeMapView({
   })
 
   return (
-    <div className="relative h-full flex flex-col px-10 pt-20 pb-4 gap-4">
+    // pb-[50px] løfter footer-strippen opp så bunnkanten sitter på samme
+    // nivå som `OffiviewSignature` (fixed, controlBarSafeArea — bottom: 96
+    // fra viewport, kontroll-bar+hairline ~46px, så ~50px klaring inni
+    // flex-1-bunnen). Tidligere pb-4 (16px) la strippen ~34px UNDER
+    // signaturen, så signaturen så ut til å flyte over "linjen for
+    // kontorene" i stedet for å sitte i samme bunn-bånd.
+    <div className="relative h-full flex flex-col px-10 pt-20 pb-[50px] gap-4">
       {/* ── Header — org-navn og klokke eies av global topp-bar. */}
       <div className="flex-shrink-0">
         <motion.div
