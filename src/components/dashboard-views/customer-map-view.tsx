@@ -29,19 +29,18 @@ import { BreathingDot } from '@/components/breathing-dot'
 export type CustomerMapRegion = 'uk' | 'nordic'
 
 /**
- * Geografisk crop for UK-visningen. Dekker Storbritannia (inkl. Shetland)
- * og hele Irland med litt pust rundt — Land's End i syd til Unst i nord,
- * vestkysten av Irland til engelsk østkyst. CustomerMapView sender denne
- * inn til EuropeMapCanvas slik at fastlands-Europa, Norden og Baltikum
- * faller utenfor SVG-viewBoxen og kun de to øyene fyller skjermen — det
- * gjør plass til de mange CalWin-kundene tett konsentrert på de britiske
- * øyer (London-korridoren, Midlands, sentralbeltet i Skottland osv.).
+ * Geografisk crop for UK-visningen. Sentrert tett rundt CalWins faktiske
+ * kundefotavtrykk: Plymouth/Cornwall i syd, Aberdeen i nord, Galway/
+ * vest-Irland i vest, østkysten av England i øst. Bevisst kuttet
+ * Shetland/Orknøyene/Hebridene og Kanaløyene — ingen kunder der, og å
+ * inkludere dem ville krympe alt det som faktisk telles. EuropeMapCanvas
+ * legger på en liten 18-enheters margin selv, så vi tar bounds tett inn.
  */
 const UK_AND_IRELAND_BOUNDS: GeoBounds = {
-  latMin: 49.6,
-  latMax: 61.0,
-  lngMin: -11.0,
-  lngMax: 2.4,
+  latMin: 50.4,
+  latMax: 58.0,
+  lngMin: -10.5,
+  lngMax: 1.8,
 }
 
 interface CustomerMapViewProps {
