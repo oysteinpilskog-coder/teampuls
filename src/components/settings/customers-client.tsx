@@ -8,11 +8,12 @@ import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, X, Briefcase, Sparkles, Check, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { geocode } from '@/lib/geocode-client'
-import type { Customer } from '@/lib/supabase/types'
+import type { Customer, WorkspaceSummary } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { CountryCombobox } from '@/components/ui/country-combobox'
 import { EmptyState } from '@/components/empty-state'
+import { WorkspaceBadge } from '@/components/workspace-badge'
 
 // Leaflet leser `window` ved import — må lastes klient-side etter mount.
 const CoordsMapPicker = dynamic(
@@ -34,6 +35,9 @@ const CoordsMapPicker = dynamic(
 
 interface CustomersClientProps {
   orgId: string
+  orgIds: string[]
+  workspaces: WorkspaceSummary[]
+  combinedView: boolean
   initialCustomers: Customer[]
 }
 
@@ -47,18 +51,22 @@ interface CustomerFormState {
   notes: string
   latitude: string
   longitude: string
+  target_org_id: string
 }
 
-const EMPTY_FORM: CustomerFormState = {
-  name: '',
-  aliases: '',
-  city: '',
-  postal_code: '',
-  country_code: '',
-  address: '',
-  notes: '',
-  latitude: '',
-  longitude: '',
+function emptyForm(defaultOrgId: string): CustomerFormState {
+  return {
+    name: '',
+    aliases: '',
+    city: '',
+    postal_code: '',
+    country_code: '',
+    address: '',
+    notes: '',
+    latitude: '',
+    longitude: '',
+    target_org_id: defaultOrgId,
+  }
 }
 
 type GeocodeStatus =
@@ -77,11 +85,17 @@ function aliasesFromString(s: string): string[] {
     .filter(Boolean)
 }
 
-export function CustomersClient({ orgId, initialCustomers }: CustomersClientProps) {
+export function CustomersClient({
+  orgId,
+  orgIds,
+  workspaces,
+  combinedView,
+  initialCustomers,
+}: CustomersClientProps) {
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers)
   const [modalMode, setModalMode] = useState<'closed' | 'add' | 'edit'>('closed')
   const [editTarget, setEditTarget] = useState<Customer | null>(null)
-  const [form, setForm] = useState<CustomerFormState>(EMPTY_FORM)
+  const [form, setForm] = useState<CustomerFormState>(() => emptyForm(orgId))
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [geo, setGeo] = useState<GeocodeStatus>({ state: 'idle' })
@@ -93,8 +107,11 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
   // invaliderer cachen så fersk SSR kjøres på neste route-besøk.
   const router = useRouter()
 
+  const workspaceById = new Map(workspaces.map(w => [w.org_id, w]))
+  const targetWorkspaces = workspaces.filter(w => orgIds.includes(w.org_id))
+
   function openAdd() {
-    setForm(EMPTY_FORM)
+    setForm(emptyForm(orgId))
     setEditTarget(null)
     setGeo({ state: 'idle' })
     setModalMode('add')
@@ -111,6 +128,7 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
       notes: c.notes ?? '',
       latitude: c.latitude?.toString() ?? '',
       longitude: c.longitude?.toString() ?? '',
+      target_org_id: c.org_id,
     })
     setEditTarget(c)
     setGeo(c.latitude != null && c.longitude != null
@@ -227,8 +245,9 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
       return
     }
 
+    const scopeOrgId = modalMode === 'edit' && editTarget ? editTarget.org_id : form.target_org_id
     const row = {
-      org_id: orgId,
+      org_id: scopeOrgId,
       name: form.name.trim(),
       aliases: aliasesFromString(form.aliases),
       city: form.city.trim() || null,
@@ -327,20 +346,25 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p
-                    className="text-[14px] font-medium truncate"
-                    style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
-                  >
-                    {customer.name}
-                    {customer.aliases && customer.aliases.length > 0 && (
-                      <span
-                        className="ml-2 text-[11px] font-normal"
-                        style={{ color: 'var(--text-tertiary)' }}
-                      >
-                        alias: {customer.aliases.join(', ')}
-                      </span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p
+                      className="text-[14px] font-medium truncate"
+                      style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}
+                    >
+                      {customer.name}
+                      {customer.aliases && customer.aliases.length > 0 && (
+                        <span
+                          className="ml-2 text-[11px] font-normal"
+                          style={{ color: 'var(--text-tertiary)' }}
+                        >
+                          alias: {customer.aliases.join(', ')}
+                        </span>
+                      )}
+                    </p>
+                    {combinedView && (
+                      <WorkspaceBadge workspace={workspaceById.get(customer.org_id) ?? null} />
                     )}
-                  </p>
+                  </div>
                   <p className="text-[12px] truncate" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
                     {[customer.address, customer.postal_code, customer.city].filter(Boolean).join(', ') || '—'}
                     {customer.country_code ? ` · ${customer.country_code}` : ''}
@@ -416,6 +440,47 @@ export function CustomersClient({ orgId, initialCustomers }: CustomersClientProp
               </div>
 
               <div className="grid grid-cols-6 gap-3">
+                {combinedView && modalMode === 'add' && targetWorkspaces.length > 1 && (
+                  <div className="col-span-6">
+                    <CustomerField label={t.workspace.switcher} hint={t.workspace.combinedDescription}>
+                      <div className="flex flex-wrap gap-2">
+                        {targetWorkspaces.map(w => {
+                          const selected = form.target_org_id === w.org_id
+                          const accent = /^#[0-9a-fA-F]{3,8}$/.test(w.accent_color ?? '')
+                            ? (w.accent_color as string)
+                            : null
+                          return (
+                            <button
+                              key={w.org_id}
+                              type="button"
+                              onClick={() => setForm(f => ({ ...f, target_org_id: w.org_id }))}
+                              className="px-3 py-2 rounded-xl text-[13px] font-medium transition-all"
+                              style={{
+                                backgroundColor: selected
+                                  ? accent
+                                    ? `color-mix(in oklab, ${accent} 14%, transparent)`
+                                    : 'rgba(0,102,255,0.10)'
+                                  : 'var(--bg-subtle)',
+                                color: selected
+                                  ? (accent ?? 'var(--accent-color)')
+                                  : 'var(--text-secondary)',
+                                border: `1.5px solid ${
+                                  selected
+                                    ? (accent ?? 'var(--accent-color)')
+                                    : 'transparent'
+                                }`,
+                                fontFamily: 'var(--font-body)',
+                              }}
+                            >
+                              {w.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </CustomerField>
+                  </div>
+                )}
+
                 <div className="col-span-6">
                   <CustomerField label={t.common.name} required>
                     <input

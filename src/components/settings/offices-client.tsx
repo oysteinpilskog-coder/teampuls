@@ -7,11 +7,12 @@ import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, X, MapPin, Sparkles, Check, Loader2, Star } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { geocode } from '@/lib/geocode-client'
-import type { Office } from '@/lib/supabase/types'
+import type { Office, WorkspaceSummary } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { CountryCombobox } from '@/components/ui/country-combobox'
 import { EmptyState } from '@/components/empty-state'
+import { WorkspaceBadge } from '@/components/workspace-badge'
 
 // Leaflet leser `window` ved import — må lastes klient-side etter mount.
 const CoordsMapPicker = dynamic(
@@ -33,6 +34,10 @@ const CoordsMapPicker = dynamic(
 
 interface OfficesClientProps {
   orgId: string
+  /** Aktive org-ids: ett element i single-mode, alle i «Alle CalWin». */
+  orgIds: string[]
+  workspaces: WorkspaceSummary[]
+  combinedView: boolean
   initialOffices: Office[]
 }
 
@@ -45,17 +50,23 @@ interface OfficeFormState {
   timezone: string
   latitude: string
   longitude: string
+  /** Hvilket arbeidsområde kontoret skal opprettes i — relevant kun i
+   *  combined-view + add-modus. */
+  target_org_id: string
 }
 
-const EMPTY_FORM: OfficeFormState = {
-  name: '',
-  city: '',
-  postal_code: '',
-  country_code: '',
-  address: '',
-  timezone: '',
-  latitude: '',
-  longitude: '',
+function emptyForm(defaultOrgId: string): OfficeFormState {
+  return {
+    name: '',
+    city: '',
+    postal_code: '',
+    country_code: '',
+    address: '',
+    timezone: '',
+    latitude: '',
+    longitude: '',
+    target_org_id: defaultOrgId,
+  }
 }
 
 type GeocodeStatus =
@@ -64,18 +75,27 @@ type GeocodeStatus =
   | { state: 'done'; display: string }
   | { state: 'error'; message: string }
 
-export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
+export function OfficesClient({
+  orgId,
+  orgIds,
+  workspaces,
+  combinedView,
+  initialOffices,
+}: OfficesClientProps) {
   const [offices, setOffices] = useState<Office[]>(initialOffices)
   const [modalMode, setModalMode] = useState<'closed' | 'add' | 'edit'>('closed')
   const [editTarget, setEditTarget] = useState<Office | null>(null)
-  const [form, setForm] = useState<OfficeFormState>(EMPTY_FORM)
+  const [form, setForm] = useState<OfficeFormState>(() => emptyForm(orgId))
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [geo, setGeo] = useState<GeocodeStatus>({ state: 'idle' })
   const t = useT()
 
+  const workspaceById = new Map(workspaces.map(w => [w.org_id, w]))
+  const targetWorkspaces = workspaces.filter(w => orgIds.includes(w.org_id))
+
   function openAdd() {
-    setForm(EMPTY_FORM)
+    setForm(emptyForm(orgId))
     setEditTarget(null)
     setGeo({ state: 'idle' })
     setModalMode('add')
@@ -91,6 +111,7 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
       timezone: o.timezone ?? '',
       latitude: o.latitude?.toString() ?? '',
       longitude: o.longitude?.toString() ?? '',
+      target_org_id: o.org_id,
     })
     setEditTarget(o)
     setGeo(o.latitude != null && o.longitude != null
@@ -193,8 +214,11 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
       else { setSaving(false); return }
     }
 
+    // Edit beholder kontorets opprinnelige org. Add bruker det valgte
+    // arbeidsområdet (i single-mode er det alltid `orgId`).
+    const scopeOrgId = modalMode === 'edit' && editTarget ? editTarget.org_id : form.target_org_id
     const row = {
-      org_id: orgId,
+      org_id: scopeOrgId,
       name: form.name.trim(),
       city: form.city.trim() || null,
       postal_code: form.postal_code.trim() || null,
@@ -334,6 +358,9 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
                     >
                       {office.name}
                     </p>
+                    {combinedView && (
+                      <WorkspaceBadge workspace={workspaceById.get(office.org_id) ?? null} />
+                    )}
                     {office.is_hq && (
                       <span
                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider shrink-0"
@@ -439,6 +466,49 @@ export function OfficesClient({ orgId, initialOffices }: OfficesClientProps) {
               </div>
 
               <div className="grid grid-cols-6 gap-3">
+                {combinedView && modalMode === 'add' && targetWorkspaces.length > 1 && (
+                  <div className="col-span-6">
+                    <OfficeField label={t.workspace.switcher} hint={t.workspace.combinedDescription}>
+                      <div className="flex flex-wrap gap-2">
+                        {targetWorkspaces.map(w => {
+                          const selected = form.target_org_id === w.org_id
+                          const accent = /^#[0-9a-fA-F]{3,8}$/.test(w.accent_color ?? '')
+                            ? (w.accent_color as string)
+                            : null
+                          return (
+                            <button
+                              key={w.org_id}
+                              type="button"
+                              onClick={() =>
+                                setForm(f => ({ ...f, target_org_id: w.org_id }))
+                              }
+                              className="px-3 py-2 rounded-xl text-[13px] font-medium transition-all"
+                              style={{
+                                backgroundColor: selected
+                                  ? accent
+                                    ? `color-mix(in oklab, ${accent} 14%, transparent)`
+                                    : 'rgba(0,102,255,0.10)'
+                                  : 'var(--bg-subtle)',
+                                color: selected
+                                  ? (accent ?? 'var(--accent-color)')
+                                  : 'var(--text-secondary)',
+                                border: `1.5px solid ${
+                                  selected
+                                    ? (accent ?? 'var(--accent-color)')
+                                    : 'transparent'
+                                }`,
+                                fontFamily: 'var(--font-body)',
+                              }}
+                            >
+                              {w.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </OfficeField>
+                  </div>
+                )}
+
                 <div className="col-span-6">
                   <OfficeField label={t.common.name}>
                     <input

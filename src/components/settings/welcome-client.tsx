@@ -20,7 +20,7 @@ import {
   Users,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { Visit, Member } from '@/lib/supabase/types'
+import type { Visit, Member, WorkspaceSummary } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { toDateString } from '@/lib/dates'
@@ -29,9 +29,14 @@ import {
   WELCOME_POST_WINDOW_MIN,
 } from '@/hooks/use-todays-visits'
 import { WelcomeStage, type StageVisit } from './welcome-stage'
+import { WorkspaceBadge } from '@/components/workspace-badge'
 
 interface WelcomeClientProps {
   orgId: string
+  /** Aktive org-ids: ett element i single-mode, alle i «Alle CalWin». */
+  orgIds: string[]
+  workspaces: WorkspaceSummary[]
+  combinedView: boolean
   orgName: string
   currentMemberId: string
   initialVisits: Visit[]
@@ -46,9 +51,10 @@ interface VisitFormState {
   end_hhmm: string
   host_member_id: string
   note: string
+  target_org_id: string
 }
 
-function emptyForm(currentMemberId: string): VisitFormState {
+function emptyForm(currentMemberId: string, defaultOrgId: string): VisitFormState {
   return {
     visitor_name: '',
     visitor_company: '',
@@ -57,6 +63,7 @@ function emptyForm(currentMemberId: string): VisitFormState {
     end_hhmm: '',
     host_member_id: currentMemberId,
     note: '',
+    target_org_id: defaultOrgId,
   }
 }
 
@@ -129,6 +136,9 @@ function formToStage(form: VisitFormState, fallbackId: string): StageVisit {
 
 export function WelcomeClient({
   orgId,
+  orgIds,
+  workspaces,
+  combinedView,
   orgName,
   currentMemberId,
   initialVisits,
@@ -137,10 +147,19 @@ export function WelcomeClient({
   const t = useT()
   const router = useRouter()
 
+  const workspaceById = useMemo(
+    () => new Map(workspaces.map(w => [w.org_id, w])),
+    [workspaces],
+  )
+  const targetWorkspaces = useMemo(
+    () => workspaces.filter(w => orgIds.includes(w.org_id)),
+    [workspaces, orgIds],
+  )
+
   const [visits, setVisits] = useState<Visit[]>(initialVisits)
   const [modalMode, setModalMode] = useState<'closed' | 'add' | 'edit'>('closed')
   const [editTarget, setEditTarget] = useState<Visit | null>(null)
-  const [form, setForm] = useState<VisitFormState>(() => emptyForm(currentMemberId))
+  const [form, setForm] = useState<VisitFormState>(() => emptyForm(currentMemberId, orgId))
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [now, setNow] = useState<Date>(() => new Date())
@@ -151,21 +170,24 @@ export function WelcomeClient({
   }, [])
 
   // Realtime — settings list reflects AI/email-driven inserts and parallel
-  // admin edits without a manual reload. Mirrors the customers/offices
-  // approach but without a date filter, since we already gte('today') in
-  // the page query.
+  // admin edits without a manual reload. Postgres-changes filter støtter ikke
+  // IN-uttrykk, så i combined-view abonnerer vi uten org-filter og frafiltrerer
+  // i klienten via orgIds-settet. I single-mode beholder vi `org_id=eq.X` så
+  // Supabase ikke pusher fremmedhendelser over wiren.
   useEffect(() => {
     const supabase = createClient()
+    const orgSet = new Set(orgIds)
+    const filter = orgIds.length === 1 ? `org_id=eq.${orgIds[0]}` : undefined
+    const channelName = orgIds.length === 1
+      ? `settings-visits:org:${orgIds[0]}`
+      : `settings-visits:all:${orgIds.slice().sort().join(',')}`
     const channel = supabase
-      .channel(`settings-visits:org:${orgId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'visits',
-          filter: `org_id=eq.${orgId}`,
-        },
+        filter
+          ? { event: '*', schema: 'public', table: 'visits', filter }
+          : { event: '*', schema: 'public', table: 'visits' },
         (payload) => {
           if (payload.eventType === 'DELETE') {
             const deleted = payload.old as Partial<Visit>
@@ -175,6 +197,7 @@ export function WelcomeClient({
           }
           const upserted = payload.new as Visit
           if (!upserted?.id) return
+          if (!orgSet.has(upserted.org_id)) return
           const today = toDateString(new Date())
           if (upserted.date < today) {
             setVisits(prev => prev.filter(v => v.id !== upserted.id))
@@ -191,7 +214,7 @@ export function WelcomeClient({
       )
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [orgId])
+  }, [orgIds])
 
   const memberById = useMemo(() => {
     const map = new Map<string, Member>()
@@ -223,7 +246,7 @@ export function WelcomeClient({
   }, [modalMode, form, visits])
 
   function openAdd() {
-    setForm(emptyForm(currentMemberId))
+    setForm(emptyForm(currentMemberId, orgId))
     setEditTarget(null)
     setModalMode('add')
   }
@@ -237,6 +260,7 @@ export function WelcomeClient({
       end_hhmm: visit.end_time ? trimSeconds(visit.end_time) : '',
       host_member_id: visit.host_member_id,
       note: visit.note ?? '',
+      target_org_id: visit.org_id,
     })
     setEditTarget(visit)
     setModalMode('edit')
@@ -274,8 +298,15 @@ export function WelcomeClient({
       return
     }
 
+    // Visit må følge vertens org så RLS-policyer treffer riktig — vi henter
+    // det fra valgt host_member i stedet for fra form.target_org_id, som
+    // bare brukes som forhåndsvalg i workspace-pickeren.
+    const host = memberById.get(form.host_member_id)
+    const scopeOrgId = modalMode === 'edit' && editTarget
+      ? editTarget.org_id
+      : (host?.org_id ?? form.target_org_id)
     const row = {
-      org_id: orgId,
+      org_id: scopeOrgId,
       visitor_name: form.visitor_name.trim(),
       visitor_company: form.visitor_company.trim() || null,
       date: form.date,
@@ -503,23 +534,28 @@ export function WelcomeClient({
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <p
-                            className="text-[14px] font-medium truncate"
-                            style={{
-                              color: 'var(--text-primary)',
-                              fontFamily: 'var(--font-body)',
-                            }}
-                          >
-                            {visit.visitor_name}
-                            {visit.visitor_company && (
-                              <span
-                                className="ml-1.5 font-normal"
-                                style={{ color: 'var(--text-tertiary)' }}
-                              >
-                                · {visit.visitor_company}
-                              </span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <p
+                              className="text-[14px] font-medium truncate"
+                              style={{
+                                color: 'var(--text-primary)',
+                                fontFamily: 'var(--font-body)',
+                              }}
+                            >
+                              {visit.visitor_name}
+                              {visit.visitor_company && (
+                                <span
+                                  className="ml-1.5 font-normal"
+                                  style={{ color: 'var(--text-tertiary)' }}
+                                >
+                                  · {visit.visitor_company}
+                                </span>
+                              )}
+                            </p>
+                            {combinedView && (
+                              <WorkspaceBadge workspace={workspaceById.get(visit.org_id) ?? null} />
                             )}
-                          </p>
+                          </div>
                           <p
                             className="text-[12px] truncate"
                             style={{
@@ -761,11 +797,28 @@ export function WelcomeClient({
                         {members.length === 0 && (
                           <option value="">{t.settings.welcome.fields.noMembers}</option>
                         )}
-                        {members.map(m => (
-                          <option key={m.id} value={m.id}>
-                            {m.display_name}
-                          </option>
-                        ))}
+                        {/* I combined-view grupperer vi medlemmer per workspace
+                            så det er åpenbart hvilken org en host hører til.
+                            optgroup gir gratis visuelt skille i native <select>. */}
+                        {combinedView
+                          ? targetWorkspaces.map(w => {
+                              const ws = members.filter(m => m.org_id === w.org_id)
+                              if (ws.length === 0) return null
+                              return (
+                                <optgroup key={w.org_id} label={w.name}>
+                                  {ws.map(m => (
+                                    <option key={m.id} value={m.id}>
+                                      {m.display_name}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )
+                            })
+                          : members.map(m => (
+                              <option key={m.id} value={m.id}>
+                                {m.display_name}
+                              </option>
+                            ))}
                       </select>
                     </Field>
 

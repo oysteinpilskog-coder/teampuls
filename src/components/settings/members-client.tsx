@@ -5,17 +5,24 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { Plus, Pencil, X, Trash2, AlertTriangle, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { Member, MemberRole, Office } from '@/lib/supabase/types'
+import type { Member, MemberRole, Office, WorkspaceSummary } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { MemberAvatar } from '@/components/member-avatar'
 import { EmptyState } from '@/components/empty-state'
 import { DatePicker } from '@/components/date-picker'
 import { CountryCombobox } from '@/components/ui/country-combobox'
+import { WorkspaceBadge } from '@/components/workspace-badge'
 import { flagFor, isSupportedCountry } from '@/lib/holidays'
 import { useT } from '@/lib/i18n/context'
 
 interface MembersClientProps {
   orgId: string
+  /** Aktive org-ids: ett element i single-mode, alle i «Alle CalWin». */
+  orgIds: string[]
+  workspaces: WorkspaceSummary[]
+  /** True når «Alle CalWin» er aktivt — tegner per-rad workspace-badge
+   *  og lar admin velge arbeidsområde i Legg-til-modalen. */
+  combinedView: boolean
   currentMemberId: string
   initialMembers: Member[]
   initialOffices: Office[]
@@ -36,44 +43,63 @@ interface MemberFormState {
   start_date: string
   anniversary_visible: boolean
   hidden_from_overview: boolean
+  /** I combined-view velger admin hvilket arbeidsområde det nye medlemmet
+   *  skal opprettes i. I single-mode er feltet uvirksomt (alltid `orgId`). */
+  target_org_id: string
 }
 
-const EMPTY_FORM: MemberFormState = {
-  display_name: '',
-  full_name: '',
-  initials: '',
-  email: '',
-  role: 'member',
-  country_code: '',
-  birth_date: '',
-  birthday_visible: false,
-  start_date: '',
-  anniversary_visible: true,
-  hidden_from_overview: false,
+function emptyForm(defaultOrgId: string): MemberFormState {
+  return {
+    display_name: '',
+    full_name: '',
+    initials: '',
+    email: '',
+    role: 'member',
+    country_code: '',
+    birth_date: '',
+    birthday_visible: false,
+    start_date: '',
+    anniversary_visible: true,
+    hidden_from_overview: false,
+    target_org_id: defaultOrgId,
+  }
 }
 
 const COUNTRY_FAVORITES = ['NO', 'SE', 'LT', 'GB'] as const
 
-export function MembersClient({ orgId, currentMemberId, initialMembers, initialOffices }: MembersClientProps) {
+export function MembersClient({
+  orgId,
+  orgIds,
+  workspaces,
+  combinedView,
+  currentMemberId,
+  initialMembers,
+  initialOffices,
+}: MembersClientProps) {
   const [members, setMembers] = useState<Member[]>(initialMembers)
   const [offices] = useState<Office[]>(initialOffices)
   const [modalMode, setModalMode] = useState<'closed' | 'add' | 'edit'>('closed')
   const [editTarget, setEditTarget] = useState<Member | null>(null)
-  const [form, setForm] = useState<MemberFormState>(EMPTY_FORM)
+  const [form, setForm] = useState<MemberFormState>(() => emptyForm(orgId))
   const [initialsTouched, setInitialsTouched] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null)
   const [deleting, setDeleting] = useState(false)
   const t = useT()
 
+  const workspaceById = new Map(workspaces.map(w => [w.org_id, w]))
+  const targetWorkspaces = workspaces.filter(w => orgIds.includes(w.org_id))
+
   function countryCodeFor(officeId: string | null | undefined): string {
     if (!officeId) return ''
     return offices.find(o => o.id === officeId)?.country_code ?? ''
   }
 
-  function resolveOfficeId(countryCode: string): string | null | { error: true } {
+  /** I combined-view begrenses kontor-kandidater til medlemmets eget org,
+   *  så vi ikke kobler en UK-ansatt til et Nordic-kontor ved et uhell. */
+  function resolveOfficeId(countryCode: string, scopeOrgId: string): string | null | { error: true } {
     if (!countryCode) return null
-    const match = offices.find(o => o.country_code === countryCode)
+    const match = offices.find(o => o.country_code === countryCode && o.org_id === scopeOrgId)
     if (!match) return { error: true }
     return match.id
   }
@@ -84,7 +110,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
   }
 
   function openAdd() {
-    setForm(EMPTY_FORM)
+    setForm(emptyForm(orgId))
     setInitialsTouched(false)
     setEditTarget(null)
     setModalMode('add')
@@ -103,6 +129,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
       start_date: m.start_date ?? '',
       anniversary_visible: m.anniversary_visible ?? true,
       hidden_from_overview: m.hidden_from_overview ?? false,
+      target_org_id: m.org_id,
     })
     setInitialsTouched(true)
     setEditTarget(m)
@@ -114,7 +141,11 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
   async function handleSave() {
     if (!form.display_name.trim() || !form.email.trim() || saving) return
 
-    const officeIdResult = resolveOfficeId(form.country_code)
+    // I edit-modus følger vi medlemmets eget org_id (kontorer kobles per
+    // arbeidsområde). I add-modus ble target_org_id valgt i modalen.
+    const scopeOrgId = modalMode === 'edit' && editTarget ? editTarget.org_id : form.target_org_id
+
+    const officeIdResult = resolveOfficeId(form.country_code, scopeOrgId)
     if (officeIdResult && typeof officeIdResult === 'object' && 'error' in officeIdResult) {
       toast.error(t.settings.members.errorNoOfficeForCountry)
       return
@@ -156,7 +187,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
     } else {
       const { data, error } = await supabase
         .from('members')
-        .insert({ ...baseFields, org_id: orgId, is_active: true, nicknames: [] })
+        .insert({ ...baseFields, org_id: scopeOrgId, is_active: true, nicknames: [] })
         .select()
         .single()
       setSaving(false)
@@ -217,6 +248,9 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
           </h1>
           <p className="text-[14px] mt-0.5" style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}>
             {active.length} aktive · {inactive.length} inaktive
+            {combinedView && targetWorkspaces.length > 1 && (
+              <> · {targetWorkspaces.length} arbeidsområder</>
+            )}
           </p>
         </div>
         <motion.button
@@ -250,6 +284,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
               isLast={i === active.length - 1}
               roleLabel={ROLE_LABELS[m.role]}
               countryCode={countryCodeFor(m.home_office_id)}
+              workspace={combinedView ? workspaceById.get(m.org_id) ?? null : null}
               onEdit={() => openEdit(m)}
               onToggle={() => toggleActive(m)}
               onDelete={() => setDeleteTarget(m)}
@@ -279,6 +314,7 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
                 isLast={i === inactive.length - 1}
                 roleLabel={ROLE_LABELS[m.role]}
                 countryCode={countryCodeFor(m.home_office_id)}
+                workspace={combinedView ? workspaceById.get(m.org_id) ?? null : null}
                 onEdit={() => openEdit(m)}
                 onToggle={() => toggleActive(m)}
                 onDelete={() => setDeleteTarget(m)}
@@ -318,6 +354,49 @@ export function MembersClient({ orgId, currentMemberId, initialMembers, initialO
                   <X className="w-5 h-5" strokeWidth={1.5} />
                 </button>
               </div>
+
+              {/* I «Alle CalWin» velger admin hvilket arbeidsområde det nye
+                  medlemmet skal høre til. I edit-modus er feltet skjult — vi
+                  flytter ikke et eksisterende medlem mellom workspaces her,
+                  det krever en egen migrering. */}
+              {combinedView && modalMode === 'add' && targetWorkspaces.length > 1 && (
+                <Field label={t.workspace.switcher} hint={t.workspace.combinedDescription}>
+                  <div className="flex flex-wrap gap-2">
+                    {targetWorkspaces.map(w => {
+                      const selected = form.target_org_id === w.org_id
+                      const accent = /^#[0-9a-fA-F]{3,8}$/.test(w.accent_color ?? '')
+                        ? (w.accent_color as string)
+                        : null
+                      return (
+                        <button
+                          key={w.org_id}
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, target_org_id: w.org_id }))}
+                          className="px-3 py-2 rounded-xl text-[13px] font-medium transition-all"
+                          style={{
+                            backgroundColor: selected
+                              ? accent
+                                ? `color-mix(in oklab, ${accent} 14%, transparent)`
+                                : 'rgba(0,102,255,0.10)'
+                              : 'var(--bg-subtle)',
+                            color: selected
+                              ? (accent ?? 'var(--accent-color)')
+                              : 'var(--text-secondary)',
+                            border: `1.5px solid ${
+                              selected
+                                ? (accent ?? 'var(--accent-color)')
+                                : 'transparent'
+                            }`,
+                            fontFamily: 'var(--font-body)',
+                          }}
+                        >
+                          {w.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </Field>
+              )}
 
               {/* Identity group */}
               <div className="flex flex-col gap-4">
@@ -713,6 +792,7 @@ function MemberRow({
   isLast,
   roleLabel,
   countryCode,
+  workspace,
   onEdit,
   onToggle,
   onDelete,
@@ -722,6 +802,8 @@ function MemberRow({
   isLast: boolean
   roleLabel: string
   countryCode: string
+  /** Vises kun i «Alle CalWin»-vyen som en liten pille per rad. */
+  workspace: WorkspaceSummary | null
   onEdit: () => void
   onToggle: () => void
   onDelete: () => void
@@ -750,6 +832,7 @@ function MemberRow({
           >
             {member.display_name}
           </span>
+          {workspace && <WorkspaceBadge workspace={workspace} />}
           {flag && (
             <span
               className="text-[14px] leading-none shrink-0"
