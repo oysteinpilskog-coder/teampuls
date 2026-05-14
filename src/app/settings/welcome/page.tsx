@@ -41,6 +41,7 @@ export default async function WelcomeSettingsPage() {
 
   return (
     <WelcomeClient
+      key={member.org_id}
       orgId={member.org_id}
       orgName={activeWorkspace?.name ?? ''}
       currentMemberId={member.id}

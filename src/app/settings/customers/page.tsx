@@ -15,5 +15,5 @@ export default async function CustomersSettingsPage() {
     .order('sort_order')
     .order('name')
 
-  return <CustomersClient orgId={member.org_id} initialCustomers={customers ?? []} />
+  return <CustomersClient key={member.org_id} orgId={member.org_id} initialCustomers={customers ?? []} />
 }
