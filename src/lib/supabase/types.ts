@@ -19,15 +19,20 @@ export type PresenceAssumption = 'none' | 'office' | 'remote' | 'per_member'
 /**
  * Keys for the rotating dashboard views shown on the public TV surface.
  * A = Nå (today), B = Uken (week), C = Kontorer (offices map),
- * D = Kunder (customers map), E = Årshjul (wheel),
+ * D = Kunder (customers map — alle), E = Årshjul (wheel),
  * G = Globus (rotating world globe — same data as C, cinematic framing).
+ *
+ * H = Kunder UK — same view as D, customer list filtered to country_code='GB'.
+ * I = Kunder Nordic — same view as D, customer list filtered to everything
+ *     except 'GB' (NO/SE/DK/FI/IS/LT etc.). Together H+I splits the
+ *     customer base into the two CalWin AS departments.
  *
  * F = Velkomst — injiseres dynamisk i rotasjonen kun når et besøk er
  * innenfor sitt aktive vindu (60 min før → 15 min etter start_time).
  * F konfigureres ALDRI i organizations.dashboard_rotation_views; den
  * dukker opp og forsvinner basert på `visits`-tabellen.
  */
-export type DashboardViewKey = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G'
+export type DashboardViewKey = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I'
 
 export interface Account {
   id: string

@@ -277,6 +277,8 @@ export const no = {
       week: 'Uken',
       offices: 'Kontorer',
       customers: 'Kunder',
+      customersUk: 'Kunder UK',
+      customersNordic: 'Kunder Nordic',
       wheel: 'Årshjul',
       welcome: 'Velkomst',
       globe: 'Globus',
@@ -344,6 +346,8 @@ export const no = {
     },
     customer: {
       title: 'Kunder',
+      titleUk: 'Kunder UK',
+      titleNordic: 'Kunder Nordic',
       todayWeekCount: '{today} ute hos kunde nå · {week} denne uken',
       portfolio: 'Kundeportefølje',
       visited: 'besøkt',

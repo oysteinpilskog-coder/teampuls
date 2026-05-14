@@ -279,6 +279,8 @@ export const lt: Dictionary = {
       week: 'Savaitė',
       offices: 'Biurai',
       customers: 'Klientai',
+      customersUk: 'Klientai UK',
+      customersNordic: 'Klientai Nordic',
       wheel: 'Metų ratas',
       welcome: 'Sveiki',
       globe: 'Gaublys',
@@ -340,6 +342,8 @@ export const lt: Dictionary = {
     },
     customer: {
       title: 'Pas klientą',
+      titleUk: 'Klientai UK',
+      titleNordic: 'Klientai Nordic',
       todayWeekCount: '{today} pas klientus dabar · {week} šią savaitę',
       portfolio: 'Klientų portfelis',
       visited: 'aplankyti',

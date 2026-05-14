@@ -279,6 +279,8 @@ export const sv: Dictionary = {
       week: 'Veckan',
       offices: 'Kontor',
       customers: 'Kunder',
+      customersUk: 'Kunder UK',
+      customersNordic: 'Kunder Nordic',
       wheel: 'Årshjul',
       welcome: 'Välkommen',
       globe: 'Globus',
@@ -340,6 +342,8 @@ export const sv: Dictionary = {
     },
     customer: {
       title: 'Hos kund',
+      titleUk: 'Kunder UK',
+      titleNordic: 'Kunder Nordic',
       todayWeekCount: '{today} hos kund nu · {week} denna vecka',
       portfolio: 'Kundportfölj',
       visited: 'besökta',

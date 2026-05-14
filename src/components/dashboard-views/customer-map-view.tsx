@@ -18,6 +18,16 @@ import { useT } from '@/lib/i18n/context'
 import { WeatherInline } from '@/components/weather/weather-inline'
 import { BreathingDot } from '@/components/breathing-dot'
 
+/**
+ * Avdelings-filter for kundeporteføljen. Driver tittel + filtrering av
+ * `customers`-listen før alt annet logikk kjører.
+ * - 'uk'     : kun country_code === 'GB' (Kunder UK)
+ * - 'nordic' : alt som IKKE er 'GB' (Kunder Nordic — NO/SE/DK/FI/IS/LT m.fl.,
+ *              inkluderer også kunder uten country_code så de ikke faller bort)
+ * - udefinert: ingen filtrering, klassisk «Kunder» visning
+ */
+export type CustomerMapRegion = 'uk' | 'nordic'
+
 interface CustomerMapViewProps {
   members: Member[]
   entries: Entry[]       // full week
@@ -25,6 +35,7 @@ interface CustomerMapViewProps {
   customers: Customer[]  // org customer registry
   orgName: string
   time: Date
+  region?: CustomerMapRegion
 }
 
 interface CustomerCluster {
@@ -51,6 +62,7 @@ export function CustomerMapView({
   customers,
   orgName,
   time,
+  region,
 }: CustomerMapViewProps) {
   const STATUS_COLORS = useStatusColors()
   const auroras = useAuroraColors()
@@ -60,6 +72,27 @@ export function CustomerMapView({
 
   const memberById = new Map(members.map(m => [m.id, m]))
   const customerColor = STATUS_COLORS.customer.icon
+
+  // Avdelings-filter — UK vs Nordic er CalWin AS sine to kundedivisjoner.
+  // Filtrering skjer her, så resolver/registreringsteller/pinner alle ser
+  // samme reduserte univers og rendringslogikken under er uberørt.
+  const scopedCustomers = region
+    ? customers.filter(c => {
+        const cc = (c.country_code ?? '').toUpperCase()
+        if (region === 'uk') return cc === 'GB'
+        // 'nordic' = alt som ikke er UK. Kunder uten country_code havner
+        // her av sikkerhetsgrunner — bedre at de vises på Nordic-skjermen
+        // enn å forsvinne fra dashboardet helt.
+        return cc !== 'GB'
+      })
+    : customers
+
+  const headerTitle =
+    region === 'uk'
+      ? t.dashboard.customer.titleUk
+      : region === 'nordic'
+        ? t.dashboard.customer.titleNordic
+        : t.dashboard.customer.title
 
   // Region routing — anything outside Europe's bounding box that fits in
   // the US bounds gets diverted to the inset card. Other-region outliers
@@ -82,7 +115,7 @@ export function CustomerMapView({
     if (!memberById.has(e.member_id)) continue
 
     const label = (e.location_label ?? '').trim()
-    const asCustomer = resolveCustomer(label, customers)
+    const asCustomer = resolveCustomer(label, scopedCustomers)
 
     if (!asCustomer) continue
 
@@ -133,7 +166,7 @@ export function CustomerMapView({
     ...clusters.map(c => c.customerId),
     ...usClusters.map(c => c.customerId),
   ])
-  const allUnvisitedCustomers = customers
+  const allUnvisitedCustomers = scopedCustomers
     .filter(c =>
       c.latitude != null &&
       c.longitude != null &&
@@ -158,7 +191,7 @@ export function CustomerMapView({
     .filter(c => regionFor(c.latitude!, c.longitude!) === 'us')
     .map(c => ({ id: c.id, name: c.name, lat: c.latitude!, lng: c.longitude! }))
 
-  const registeredCount = customers.filter(c => c.latitude != null && c.longitude != null).length
+  const registeredCount = scopedCustomers.filter(c => c.latitude != null && c.longitude != null).length
   const visitedCount = visitedCustomerIds.size
   const portfolioPct = registeredCount === 0 ? 0 : visitedCount / registeredCount
 
@@ -283,7 +316,7 @@ export function CustomerMapView({
               backgroundClip: 'text',
             }}
           >
-            {t.dashboard.customer.title}
+            {headerTitle}
           </p>
           <div className="mt-2 flex items-center gap-2">
             <span
