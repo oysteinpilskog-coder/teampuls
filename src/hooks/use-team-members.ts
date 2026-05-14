@@ -88,7 +88,10 @@ function nextOccurrence(month: number, day: number, today: Date): {
  * multiple ids so the wheel/timeline aggregates across every workspace
  * the user belongs to. Single-string callers stay source-compatible.
  */
-export function useTeamMembers(orgIdOrIds: string | string[]) {
+export function useTeamMembers(
+  orgIdOrIds: string | string[],
+  opts: { initial?: MemberSlim[] } = {},
+) {
   const orgIds = useMemo(
     () => (Array.isArray(orgIdOrIds) ? orgIdOrIds : [orgIdOrIds]),
     [orgIdOrIds],
@@ -97,10 +100,15 @@ export function useTeamMembers(orgIdOrIds: string | string[]) {
   // refetch. Sorted to make order-insensitive.
   const orgIdsKey = useMemo(() => [...orgIds].sort().join(','), [orgIds])
 
-  const [members, setMembers] = useState<MemberSlim[]>([])
-  const [loading, setLoading] = useState(true)
+  // SSR seed lets the hook hydrate straight into populated state — no
+  // empty-then-data flash on cold load. We only honour the seed on first
+  // mount; after that any orgIds change (workspace switch) forces a fresh
+  // fetch.
+  const [members, setMembers] = useState<MemberSlim[]>(opts.initial ?? [])
+  const [loading, setLoading] = useState(opts.initial === undefined)
   const visible = useDocumentVisibility()
   const wasHiddenRef = useRef(false)
+  const seedConsumed = useRef(opts.initial === undefined)
 
   // Re-derive at midnight: a key that changes once per local day.
   const [todayKey, setTodayKey] = useState(() => startOfDay(new Date()).toISOString())
@@ -127,6 +135,13 @@ export function useTeamMembers(orgIdOrIds: string | string[]) {
   }, [orgIdsKey])
 
   useEffect(() => {
+    if (!seedConsumed.current) {
+      // First mount with SSR seed — keep what's in state, just open the
+      // realtime channel below.
+      seedConsumed.current = true
+      setLoading(false)
+      return
+    }
     setLoading(true)
     fetchMembers()
   }, [fetchMembers])

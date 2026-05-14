@@ -27,12 +27,43 @@ export default async function WheelPage() {
   const defaultView = (org?.wheel_default_view ?? 'events') as
     | 'events' | 'birthdays' | 'anniversaries' | 'strategy'
 
+  // SSR-prefetch alle de tre datasettene som de fire wheel-vyene leser
+  // fra. Eventene/temaene er små (< 50 rader); medlemslisten er 15-20
+  // rader × ~12 kolonner. Tre paralleliserte queries → vyen hydrerer
+  // rett inn i populated state uavhengig av hvilken default-tab brukeren
+  // lander på.
+  const orgIds = combinedScope?.org_ids ?? [member.org_id]
+  const year = new Date().getFullYear()
+  const memberSelect = 'id, org_id, display_name, full_name, initials, avatar_url, birth_date, start_date, birthday_visible, anniversary_visible, is_active, hidden_from_overview'
+  const [eventsRes, themesRes, membersRes] = await Promise.all([
+    supabase
+      .from('events')
+      .select('*')
+      .in('org_id', orgIds)
+      .lte('start_date', `${year}-12-31`)
+      .gte('end_date', `${year}-01-01`)
+      .order('start_date'),
+    supabase
+      .from('strategy_themes')
+      .select('*')
+      .eq('org_id', member.org_id)
+      .eq('year', year)
+      .order('quarter'),
+    supabase
+      .from('members')
+      .select(memberSelect)
+      .in('org_id', orgIds)
+      .eq('is_active', true)
+      .eq('hidden_from_overview', false)
+      .order('display_name'),
+  ])
+
   return (
     <div className="mx-auto max-w-[1220px] px-4 sm:px-6 pt-10 md:pt-14 pb-10 md:pb-12">
       <Suspense fallback={<WheelFallback />}>
         <WheelShell
           orgId={member.org_id}
-          orgIds={combinedScope?.org_ids ?? [member.org_id]}
+          orgIds={orgIds}
           workspaces={workspaces}
           combinedView={!!combinedScope}
           eventsEnabled={eventsEnabled}
@@ -40,6 +71,10 @@ export default async function WheelPage() {
           anniversariesEnabled={anniversariesEnabled}
           strategiesEnabled={strategiesEnabled}
           defaultView={defaultView}
+          initialEvents={eventsRes.data ?? []}
+          initialThemes={themesRes.data ?? []}
+          initialMembers={membersRes.data ?? []}
+          initialYear={year}
         />
       </Suspense>
     </div>

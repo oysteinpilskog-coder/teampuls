@@ -12,7 +12,7 @@ import {
   seasonHueFor, monthLabelsFor,
 } from './wheel-rings'
 import { WheelAgendaShell, WheelAgendaSection } from './wheel-agenda'
-import { useTeamMembers, type DerivedAnniversary } from '@/hooks/use-team-members'
+import { useTeamMembers, type DerivedAnniversary, type MemberSlim } from '@/hooks/use-team-members'
 import { useT } from '@/lib/i18n/context'
 import { getISOWeek } from '@/lib/dates'
 import {
@@ -38,11 +38,15 @@ export function AnniversaryWheel({
   orgIds,
   workspaces,
   combinedView,
+  initialMembers,
 }: {
   orgId: string
   orgIds?: string[]
   workspaces?: WorkspaceSummary[]
   combinedView?: boolean
+  /** SSR-prefetched member list — seeds useTeamMembers så pin-ene
+   *  males i første frame uten flash. */
+  initialMembers?: MemberSlim[]
 }) {
   const t = useT()
   const uid = useId().replace(/[^a-z0-9]/gi, '')
@@ -68,7 +72,9 @@ export function AnniversaryWheel({
   const monthLabels = monthLabelsFor(t)
 
   const effectiveOrgIds = orgIds ?? [orgId]
-  const { anniversaries, upcomingHires, nextAnniversary, loading } = useTeamMembers(effectiveOrgIds)
+  const { anniversaries, upcomingHires, nextAnniversary, loading } = useTeamMembers(effectiveOrgIds, {
+    initial: initialMembers,
+  })
 
   const workspaceByOrgId = useMemo(() => {
     const map = new Map<string, WorkspaceSummary>()

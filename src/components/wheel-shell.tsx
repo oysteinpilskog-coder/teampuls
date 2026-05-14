@@ -10,7 +10,8 @@ import { AnniversaryWheel } from '@/components/anniversary-wheel'
 import { AnniversaryTimeline } from '@/components/anniversary-timeline'
 import { StrategyWheel } from '@/components/strategy-wheel'
 import { WheelViewSwitcher, type WheelView, type WheelLayout } from '@/components/wheel-view-switcher'
-import type { WorkspaceSummary } from '@/lib/supabase/types'
+import type { WorkspaceSummary, OrgEvent, StrategyTheme } from '@/lib/supabase/types'
+import type { MemberSlim } from '@/hooks/use-team-members'
 
 export function WheelShell({
   orgId,
@@ -22,6 +23,10 @@ export function WheelShell({
   anniversariesEnabled,
   strategiesEnabled,
   defaultView,
+  initialEvents,
+  initialThemes,
+  initialMembers,
+  initialYear,
 }: {
   orgId: string
   orgIds: string[]
@@ -32,6 +37,15 @@ export function WheelShell({
   anniversariesEnabled: boolean
   strategiesEnabled: boolean
   defaultView: WheelView
+  /** SSR-prefetched events for `initialYear` — seeds YearWheel's hook så
+   *  hjulet hydrerer rett inn i populated state. */
+  initialEvents?: OrgEvent[]
+  /** SSR-prefetched strategy themes for `initialYear`. */
+  initialThemes?: StrategyTheme[]
+  /** SSR-prefetched member-list — seeds Birthday/Anniversary-wheelene. */
+  initialMembers?: MemberSlim[]
+  /** ISO year the SSR seeds belong to. Required when either seed is set. */
+  initialYear?: number
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -108,18 +122,34 @@ export function WheelShell({
     if (view === 'birthdays' && birthdaysEnabled) {
       return sub === 'timeline'
         ? <motion.div key="birthdays-timeline" {...fade}><BirthdayTimeline orgId={orgId} orgIds={orgIds} workspaces={workspaces} combinedView={combinedView} /></motion.div>
-        : <motion.div key="birthdays-wheel" {...fade}><BirthdayWheel orgId={orgId} orgIds={orgIds} workspaces={workspaces} combinedView={combinedView} /></motion.div>
+        : <motion.div key="birthdays-wheel" {...fade}><BirthdayWheel orgId={orgId} orgIds={orgIds} workspaces={workspaces} combinedView={combinedView} initialMembers={initialMembers} /></motion.div>
     }
     if (view === 'anniversaries' && anniversariesEnabled) {
       return sub === 'timeline'
         ? <motion.div key="anniversaries-timeline" {...fade}><AnniversaryTimeline orgId={orgId} orgIds={orgIds} workspaces={workspaces} combinedView={combinedView} /></motion.div>
-        : <motion.div key="anniversaries-wheel" {...fade}><AnniversaryWheel orgId={orgId} orgIds={orgIds} workspaces={workspaces} combinedView={combinedView} /></motion.div>
+        : <motion.div key="anniversaries-wheel" {...fade}><AnniversaryWheel orgId={orgId} orgIds={orgIds} workspaces={workspaces} combinedView={combinedView} initialMembers={initialMembers} /></motion.div>
     }
     if (view === 'strategy' && strategiesEnabled) {
-      return <motion.div key="strategy" {...fade}><StrategyWheel orgId={orgId} /></motion.div>
+      return (
+        <motion.div key="strategy" {...fade}>
+          <StrategyWheel
+            orgId={orgId}
+            initialThemes={initialThemes}
+            initialYear={initialYear}
+          />
+        </motion.div>
+      )
     }
     if (view === 'events' && eventsEnabled) {
-      return <motion.div key="events" {...fade}><YearWheel orgId={orgId} /></motion.div>
+      return (
+        <motion.div key="events" {...fade}>
+          <YearWheel
+            orgId={orgId}
+            initialEvents={initialEvents}
+            initialYear={initialYear}
+          />
+        </motion.div>
+      )
     }
     // No tab is enabled — admins shouldn't be able to reach this state from
     // /settings/wheel (the last tab is locked on), but render an empty shell
