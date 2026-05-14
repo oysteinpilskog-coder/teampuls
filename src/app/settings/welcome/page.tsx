@@ -17,8 +17,10 @@ import { toDateString } from '@/lib/dates'
  * hvis behovet melder seg.
  */
 export default async function WelcomeSettingsPage() {
-  const { member, activeWorkspace } = await getSessionMember()
+  const { member, workspaces, activeWorkspace, combinedScope } = await getSessionMember()
   if (!member) redirect('/')
+
+  const orgIds = combinedScope?.org_ids ?? [member.org_id]
 
   const supabase = await createClient()
   const today = toDateString(new Date())
@@ -27,22 +29,25 @@ export default async function WelcomeSettingsPage() {
     supabase
       .from('visits')
       .select('*')
-      .eq('org_id', member.org_id)
+      .in('org_id', orgIds)
       .gte('date', today)
       .order('date', { ascending: true })
       .order('start_time', { ascending: true }),
     supabase
       .from('members')
       .select('*')
-      .eq('org_id', member.org_id)
+      .in('org_id', orgIds)
       .eq('is_active', true)
       .order('display_name'),
   ])
 
   return (
     <WelcomeClient
-      key={member.org_id}
+      key={combinedScope ? '__all__' : member.org_id}
       orgId={member.org_id}
+      orgIds={orgIds}
+      workspaces={workspaces}
+      combinedView={!!combinedScope}
       orgName={activeWorkspace?.name ?? ''}
       currentMemberId={member.id}
       initialVisits={visitsRes.data ?? []}
