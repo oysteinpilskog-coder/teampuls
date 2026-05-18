@@ -24,6 +24,14 @@ function regionLabel(r: WorkspaceSummary['region'], t: Dictionary): string {
   }
 }
 
+function roleLabel(role: WorkspaceSummary['role'], t: Dictionary): string {
+  switch (role) {
+    case 'admin':  return t.workspace.roleAdmin
+    case 'member': return t.workspace.roleMember
+    case 'viewer': return t.workspace.roleViewer
+  }
+}
+
 /** Country code → emoji flag (used as a soft hint, not authoritative). */
 function countryFlag(cc: string | null): string | null {
   if (!cc || cc.length !== 2) return null
@@ -278,7 +286,9 @@ export function WorkspaceSwitcher() {
                         >
                           <span>{regionLabel(w.region, t)}</span>
                           <span aria-hidden>·</span>
-                          <span className="capitalize">{w.role}</span>
+                          <span style={w.role === 'viewer' ? { fontStyle: 'italic', opacity: 0.85 } : undefined}>
+                            {roleLabel(w.role, t)}
+                          </span>
                         </div>
                       </div>
                       {isActive ? (

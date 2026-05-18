@@ -61,6 +61,10 @@ export const sv: Dictionary = {
     combinedDescription: 'Visa alla företag tillsammans',
     combinedShortcut: '⌘0',
     combinedFilterAll: 'Alla',
+    roleAdmin: 'Admin',
+    roleMember: 'Medlem',
+    roleViewer: 'Endast visning',
+    viewerHint: 'Byt arbetsyta för att registrera här',
   },
   today: {
     title: 'Idag',

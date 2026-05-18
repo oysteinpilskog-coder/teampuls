@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { WorkspaceSummary, MemberRole } from '@/lib/supabase/types'
+import type { WorkspaceSummary, WorkspaceRole, MemberRole } from '@/lib/supabase/types'
 
 /** Cookie name holding the active workspace slug. */
 export const ACTIVE_WORKSPACE_COOKIE = 'tp_active_workspace'
@@ -55,6 +55,7 @@ export const getSessionMember = cache(async () => {
       workspaces: [] as WorkspaceSummary[],
       activeWorkspace: null as WorkspaceSummary | null,
       combinedScope: null as CombinedScope | null,
+      isViewerMode: false,
     }
   }
 })
@@ -69,6 +70,7 @@ async function resolveSession() {
       workspaces: [] as WorkspaceSummary[],
       activeWorkspace: null as WorkspaceSummary | null,
       combinedScope: null as CombinedScope | null,
+      isViewerMode: false,
     }
   }
 
@@ -223,28 +225,85 @@ async function resolveSession() {
       workspaces: [] as WorkspaceSummary[],
       activeWorkspace: null,
       combinedScope: null as CombinedScope | null,
+      isViewerMode: false,
     }
   }
 
-  const workspaces: WorkspaceSummary[] = rows
-    .map((r) => {
-      const o = pickOrg(r)
-      if (!o || o.archived_at) return null
-      return {
-        org_id: o.id,
-        account_id: o.account_id ?? null,
-        name: o.name,
-        slug: o.slug,
-        short_name: o.short_name,
-        region: (o.region ?? 'eu') as WorkspaceSummary['region'],
-        country_code: o.country_code,
-        accent_color: o.accent_color,
-        logo_url: o.logo_url,
-        role: r.role,
-        status_colors: o.status_colors ?? null,
-      }
-    })
-    .filter((w): w is WorkspaceSummary => w !== null)
+  // Workspaces the caller can see. We call current_user_workspaces() RPC so
+  // we get the *account-wide* list (including viewer-only orgs the caller
+  // has no membership row in). status_colors isn't returned by the RPC —
+  // fold it in from the joined org meta on rows[] where we have it, leave
+  // null for viewer-only workspaces (the SSR layout falls back to defaults).
+  type WorkspaceRow = {
+    org_id: string
+    account_id: string | null
+    name: string
+    slug: string
+    short_name: string | null
+    region: string | null
+    country_code: string | null
+    accent_color: string | null
+    logo_url: string | null
+    role: WorkspaceRole
+  }
+  let workspaceRows: WorkspaceRow[] = []
+  try {
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('current_user_workspaces')
+    if (rpcErr) {
+      console.error('[session] current_user_workspaces RPC failed:', rpcErr.message)
+    } else {
+      workspaceRows = (rpcData ?? []) as WorkspaceRow[]
+    }
+  } catch (err) {
+    console.error('[session] current_user_workspaces RPC threw:', err)
+  }
+
+  // Fallback: if the RPC is unavailable (fresh DB without migration 021,
+  // or transient RLS issue), synthesise the list from the caller's own
+  // membership rows. Preserves the pre-021 behaviour — viewer rows just
+  // don't appear, but the user can still see + switch their own
+  // workspaces.
+  if (workspaceRows.length === 0) {
+    workspaceRows = rows
+      .map((r): WorkspaceRow | null => {
+        const o = pickOrg(r)
+        if (!o || o.archived_at) return null
+        return {
+          org_id: o.id,
+          account_id: o.account_id ?? null,
+          name: o.name,
+          slug: o.slug,
+          short_name: o.short_name ?? null,
+          region: o.region ?? 'eu',
+          country_code: o.country_code ?? null,
+          accent_color: o.accent_color ?? null,
+          logo_url: o.logo_url ?? null,
+          role: r.role,
+        }
+      })
+      .filter((w): w is WorkspaceRow => w !== null)
+  }
+
+  const orgMetaById = new Map<string, OrgPart>()
+  for (const r of rows) {
+    const o = pickOrg(r)
+    if (o?.id) orgMetaById.set(o.id, o)
+  }
+
+  const workspaces: WorkspaceSummary[] = workspaceRows
+    .map((w): WorkspaceSummary => ({
+      org_id: w.org_id,
+      account_id: w.account_id,
+      name: w.name,
+      slug: w.slug,
+      short_name: w.short_name,
+      region: ((w.region ?? 'eu') as WorkspaceSummary['region']),
+      country_code: w.country_code,
+      accent_color: w.accent_color,
+      logo_url: w.logo_url,
+      role: w.role,
+      status_colors: orgMetaById.get(w.org_id)?.status_colors ?? null,
+    }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
   if (workspaces.length === 0) {
@@ -254,6 +313,7 @@ async function resolveSession() {
       workspaces,
       activeWorkspace: null,
       combinedScope: null as CombinedScope | null,
+      isViewerMode: false,
     }
   }
 
@@ -307,22 +367,39 @@ async function resolveSession() {
       workspaces,
       activeWorkspace: synthetic,
       combinedScope: { account_id: accountId, org_ids: orgIds } satisfies CombinedScope,
+      isViewerMode: false,
     }
   }
 
+  // Cookie wins when valid. Otherwise pick the first workspace the user is
+  // an actual member of — alphabetical fallback would land James (UK-only)
+  // in viewer-mode on CalWin Nordic on first login, since the RPC now
+  // returns viewer rows too. Real membership > alphabetical sort.
   const activeWorkspace =
     (requestedSlug && workspaces.find((w) => w.slug === requestedSlug)) ||
+    workspaces.find((w) => w.role !== 'viewer') ||
     workspaces[0]
 
-  const activeRow = rows.find((r) => r.org_id === activeWorkspace.org_id) ?? rows[0]
+  // Viewer-mode: the cookie points to a workspace the user can read
+  // (account-wide visibility) but has no membership row in. Keep the
+  // user's primary-row identity so display_name/avatar etc. still
+  // render, but mark `member.org_id` to follow the active workspace
+  // so reads scope correctly downstream, and flip `role` to 'viewer'
+  // so UI surfaces (AI input, settings, registration) gate themselves.
+  // `member.id` keeps pointing at the primary row — it is never used
+  // as a write key against entries/visits in viewer-mode (server
+  // routes re-check membership and 403).
+  const activeRow = rows.find((r) => r.org_id === activeWorkspace.org_id)
+  const isViewerMode = !activeRow
+  const identityRow = activeRow ?? rows.find((r) => r.role === 'admin') ?? rows[0]
   const member = {
-    id: activeRow.id,
-    org_id: activeRow.org_id,
-    display_name: activeRow.display_name,
-    full_name: activeRow.full_name,
-    initials: activeRow.initials,
-    role: activeRow.role,
-    avatar_url: activeRow.avatar_url,
+    id: identityRow.id,
+    org_id: activeWorkspace.org_id,
+    display_name: identityRow.display_name,
+    full_name: identityRow.full_name,
+    initials: identityRow.initials,
+    role: (isViewerMode ? 'viewer' : identityRow.role) as WorkspaceRole,
+    avatar_url: identityRow.avatar_url,
   }
 
   return {
@@ -331,6 +408,7 @@ async function resolveSession() {
     workspaces,
     activeWorkspace,
     combinedScope: null as CombinedScope | null,
+    isViewerMode,
   }
 }
 
@@ -341,8 +419,16 @@ async function resolveSession() {
  *
  * Order of precedence:
  *   1. (user_id, active-workspace cookie slug) — happy path
- *   2. (user_id, first membership) — cookie missing / invalid
+ *   2. (user_id, first membership) — cookie missing / invalid;
+ *      treated as the user's home workspace
  *   3. (email, first membership) + backfill user_id — first login
+ *
+ * Combined-view & viewer-mode safety: when the cookie points to
+ * `__all__` (combined) we return the user's primary membership so
+ * AI input has *some* org to target. When the cookie points to a
+ * workspace the user can read but has no membership in (account-
+ * wide viewer access), we return `null` so the route 403's — only
+ * real members may write to a workspace.
  */
 export async function resolveActiveMember<T extends SupabaseClient>(
   admin: T,
@@ -370,8 +456,25 @@ export async function resolveActiveMember<T extends SupabaseClient>(
   if (rows.length > 0) {
     const slugOf = (r: Row) =>
       Array.isArray(r.organizations) ? r.organizations[0]?.slug : r.organizations?.slug
-    const match = requestedSlug ? rows.find((r) => slugOf(r) === requestedSlug) : undefined
-    const picked = match ?? rows[0]
+    // Combined view → fall through to primary membership (writes target home).
+    const wantsCombined = requestedSlug === COMBINED_WORKSPACE_SLUG
+    if (!wantsCombined && requestedSlug) {
+      const match = rows.find((r) => slugOf(r) === requestedSlug)
+      if (match) {
+        return {
+          id: match.id,
+          org_id: match.org_id,
+          email: match.email,
+          display_name: match.display_name,
+        }
+      }
+      // Cookie points to a workspace the user *can read* (account-wide
+      // viewer) but has no membership in → refuse the write. The caller
+      // already maps null → 403 with a "switch workspace to register"
+      // message.
+      return null
+    }
+    const picked = rows[0]
     return {
       id: picked.id,
       org_id: picked.org_id,

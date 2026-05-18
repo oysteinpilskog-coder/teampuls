@@ -61,6 +61,10 @@ export const lt: Dictionary = {
     combinedDescription: 'Rodyti visas įmones kartu',
     combinedShortcut: '⌘0',
     combinedFilterAll: 'Visi',
+    roleAdmin: 'Administratorius',
+    roleMember: 'Narys',
+    roleViewer: 'Tik peržiūra',
+    viewerHint: 'Perjunkite darbo sritį, kad galėtumėte registruoti',
   },
   today: {
     title: 'Šiandien',

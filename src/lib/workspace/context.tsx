@@ -15,6 +15,12 @@ interface WorkspaceContextValue {
   isSwitching: boolean
   /** True when active.slug === COMBINED_SLUG, i.e. cross-workspace view. */
   isCombined: boolean
+  /**
+   * True when the active workspace is one the caller can read via
+   * account-wide visibility but is not a member of. Write surfaces
+   * (AI input, registration, settings) hide themselves on this flag.
+   */
+  isViewer: boolean
   /** Fire-and-forget switch; UI is updated optimistically. */
   switchTo: (slug: string) => Promise<void>
 }
@@ -68,6 +74,10 @@ export function WorkspaceProvider({
   }, [initialWorkspaces, activeSlug, combinedSummary])
 
   const isCombined = active?.slug === COMBINED_SLUG
+  // 'viewer' is the synthetic role emitted by current_user_workspaces() for
+  // account-wide read access without membership. Combined view is gated
+  // separately and does not count as viewer.
+  const isViewer = !isCombined && active?.role === 'viewer'
 
   // Once the server round-trip + refresh has landed and the cookie-backed
   // active slug matches our optimistic target, drop the optimistic state so
@@ -139,9 +149,10 @@ export function WorkspaceProvider({
       active,
       isSwitching: isPending || optimisticSlug !== null,
       isCombined,
+      isViewer,
       switchTo,
     }),
-    [initialWorkspaces, active, isPending, optimisticSlug, isCombined, switchTo],
+    [initialWorkspaces, active, isPending, optimisticSlug, isCombined, isViewer, switchTo],
   )
 
   return (
@@ -161,6 +172,7 @@ export function useWorkspace(): WorkspaceContextValue {
       active: null,
       isSwitching: false,
       isCombined: false,
+      isViewer: false,
       switchTo: async () => {},
     }
   }

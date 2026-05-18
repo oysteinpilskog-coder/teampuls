@@ -13,7 +13,7 @@ import type { CombinedScope } from '@/lib/supabase/session'
 import type { WorkspaceSummary, Visit } from '@/lib/supabase/types'
 
 export default async function HomePage() {
-  const { user, member, workspaces, combinedScope } = await getSessionMember()
+  const { user, member, workspaces, combinedScope, isViewerMode } = await getSessionMember()
 
   if (!user) redirect('/login')
 
@@ -54,7 +54,13 @@ export default async function HomePage() {
   // could resolve to either side). The user picks a single workspace
   // first if they want to log a status. The InactivityNudge is also
   // workspace-scoped so we hide it.
-  const showSingleWorkspaceAffordances = !combinedScope
+  //
+  // In viewer-mode (account-wide read access, no membership in the
+  // active workspace) we hide the same write surfaces — there is no
+  // member row to attribute new entries to, and the AI route 403's
+  // anyway. The switcher header pill carries the "Kun visning" label
+  // so the user knows why.
+  const showSingleWorkspaceAffordances = !combinedScope && !isViewerMode
   const { week, year } = getTodayWeekAndYear()
   const orgIds = combinedScope?.org_ids ?? [member.org_id]
 

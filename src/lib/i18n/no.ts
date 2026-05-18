@@ -81,6 +81,10 @@ export const no = {
     combinedDescription: 'Vis alle selskaper sammen',
     combinedShortcut: '⌘0',
     combinedFilterAll: 'Alle',
+    roleAdmin: 'Admin',
+    roleMember: 'Medlem',
+    roleViewer: 'Kun visning',
+    viewerHint: 'Bytt arbeidsområde for å registrere her',
   },
   status: {
     office: 'Kontor',
