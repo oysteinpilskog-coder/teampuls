@@ -24,6 +24,14 @@ function regionLabel(r: WorkspaceSummary['region'], t: Dictionary): string {
   }
 }
 
+function roleLabel(role: WorkspaceSummary['role'], t: Dictionary): string {
+  switch (role) {
+    case 'admin':  return t.workspace.roleAdmin
+    case 'member': return t.workspace.roleMember
+    case 'viewer': return t.workspace.roleViewer
+  }
+}
+
 export function WorkspaceSwitcher() {
   const { workspaces, active, switchTo, isSwitching, isCombined } = useWorkspace()
   const t = useT()
@@ -32,11 +40,14 @@ export function WorkspaceSwitcher() {
   const btnRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // Combined view is offered only when the user has ≥2 workspaces
-  // sharing one account. We mirror the same gate the server applies.
+  // Combined view is offered only when the user has ≥2 *real*
+  // memberships sharing one account. Viewer-rows (account-wide read
+  // access without membership) are excluded — combined-view AI
+  // writes need a per-workspace member row to attribute entries to.
   const combinedAvailable = useMemo(() => {
-    if (workspaces.length < 2) return false
-    const accountIds = new Set(workspaces.map((w) => w.account_id).filter((x): x is string => !!x))
+    const realMemberships = workspaces.filter((w) => w.role !== 'viewer')
+    if (realMemberships.length < 2) return false
+    const accountIds = new Set(realMemberships.map((w) => w.account_id).filter((x): x is string => !!x))
     return accountIds.size === 1
   }, [workspaces])
 
@@ -273,7 +284,9 @@ export function WorkspaceSwitcher() {
                         >
                           <span>{regionLabel(w.region, t)}</span>
                           <span aria-hidden>·</span>
-                          <span className="capitalize">{w.role}</span>
+                          <span style={w.role === 'viewer' ? { fontStyle: 'italic', opacity: 0.85 } : undefined}>
+                            {roleLabel(w.role, t)}
+                          </span>
                         </div>
                       </div>
                       {isActive ? (
