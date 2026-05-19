@@ -15,6 +15,12 @@ interface WorkspaceContextValue {
   isSwitching: boolean
   /** True when active.slug === COMBINED_SLUG, i.e. cross-workspace view. */
   isCombined: boolean
+  /**
+   * True when the active workspace is one the caller can read via
+   * account-wide visibility but is not a member of (migration 036).
+   * Write surfaces (AI input, registration, settings) hide on this flag.
+   */
+  isViewer: boolean
   /** Fire-and-forget switch; UI is updated optimistically. */
   switchTo: (slug: string) => Promise<void>
 }
@@ -45,8 +51,13 @@ export function WorkspaceProvider({
   // the violet badge and the "Alle CalWin" name without needing the
   // server to inject one.
   const combinedSummary = useMemo<WorkspaceSummary | null>(() => {
-    if (initialWorkspaces.length < 2) return null
-    const accountIds = new Set(initialWorkspaces.map((w) => w.account_id).filter((x): x is string => !!x))
+    // Combined view requires ≥2 *real* memberships under one account.
+    // Viewer-rows are filtered out: a user who can only read the other
+    // workspace shouldn't see the "Alle"-pill, since combined-view AI
+    // writes need a per-workspace member to attribute entries to.
+    const realMemberships = initialWorkspaces.filter((w) => w.role !== 'viewer')
+    if (realMemberships.length < 2) return null
+    const accountIds = new Set(realMemberships.map((w) => w.account_id).filter((x): x is string => !!x))
     if (accountIds.size !== 1) return null
     return {
       org_id: '__combined__',
@@ -72,6 +83,10 @@ export function WorkspaceProvider({
   }, [initialWorkspaces, activeSlug, combinedSummary])
 
   const isCombined = active?.slug === COMBINED_SLUG
+  // 'viewer' is the synthetic role emitted by current_user_workspaces() for
+  // account-wide read access without membership. Combined view is gated
+  // separately and does not count as viewer.
+  const isViewer = !isCombined && active?.role === 'viewer'
 
   // Once the server round-trip + refresh has landed and the cookie-backed
   // active slug matches our optimistic target, drop the optimistic state so
@@ -143,9 +158,10 @@ export function WorkspaceProvider({
       active,
       isSwitching: isPending || optimisticSlug !== null,
       isCombined,
+      isViewer,
       switchTo,
     }),
-    [initialWorkspaces, active, isPending, optimisticSlug, isCombined, switchTo],
+    [initialWorkspaces, active, isPending, optimisticSlug, isCombined, isViewer, switchTo],
   )
 
   return (
@@ -165,6 +181,7 @@ export function useWorkspace(): WorkspaceContextValue {
       active: null,
       isSwitching: false,
       isCombined: false,
+      isViewer: false,
       switchTo: async () => {},
     }
   }

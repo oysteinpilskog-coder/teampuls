@@ -4,6 +4,14 @@
 
 export type EntryStatus = 'office' | 'remote' | 'customer' | 'event' | 'travel' | 'vacation' | 'absent' | 'off'
 export type MemberRole = 'admin' | 'member'
+/**
+ * Role as it appears in the workspace switcher. `'viewer'` is a *synthetic*
+ * role — never stored in the `members` table — emitted by
+ * `current_user_workspaces()` for workspaces the user can read via
+ * account-wide visibility but has no membership row in. Write surfaces
+ * (AI input, settings, registration UIs) must treat 'viewer' as read-only.
+ */
+export type WorkspaceRole = MemberRole | 'viewer'
 export type EntrySource = 'manual' | 'ai_web' | 'ai_email'
 export type EventCategory = 'company' | 'trade_show' | 'training' | 'milestone' | 'holiday' | 'deadline' | 'other'
 export type WorkspaceRegion = 'eu' | 'uk' | 'us' | 'apac'
@@ -132,7 +140,11 @@ export interface WorkspaceSummary {
   country_code: string | null
   accent_color: string | null
   logo_url: string | null
-  role: MemberRole
+  /**
+   * 'admin' | 'member' for workspaces the user has a real membership in;
+   * 'viewer' for workspaces visible via account-wide read access only.
+   */
+  role: WorkspaceRole
   // Carried alongside the workspace so the SSR layout can read it without a
   // second round-trip to organizations.status_colors. Shape stays loose
   // (Json) since the live type lives in @/lib/status-colors/defaults and

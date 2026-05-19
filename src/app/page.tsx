@@ -13,7 +13,7 @@ import type { CombinedScope } from '@/lib/supabase/session'
 import type { WorkspaceSummary, Visit } from '@/lib/supabase/types'
 
 export default async function HomePage() {
-  const { user, member, workspaces, combinedScope } = await getSessionMember()
+  const { user, member, workspaces, combinedScope, isViewerMode } = await getSessionMember()
 
   if (!user) redirect('/login')
 
@@ -53,15 +53,23 @@ export default async function HomePage() {
   // account and routes each write to the matched member's actual org
   // (see /api/ai/parse + applyUpdates memberOrgIds). InactivityNudge
   // is still single-workspace by design so we keep that gated.
-  const showSingleWorkspaceAffordances = !combinedScope
+  //
+  // In viewer-mode (account-wide read access, no membership in the
+  // active workspace) we hide both write surfaces — there's no
+  // member row to attribute new entries to, and the AI route 403's
+  // anyway. The switcher pill carries the «Kun visning» label so
+  // the user knows why.
+  const showSingleWorkspaceAffordances = !combinedScope && !isViewerMode
   const { week, year } = getTodayWeekAndYear()
   const orgIds = combinedScope?.org_ids ?? [member.org_id]
 
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-6 pt-3 pb-10 space-y-5">
-      <div className="mx-auto max-w-3xl">
-        <AIInput orgId={member.org_id} orgIds={orgIds} />
-      </div>
+      {!isViewerMode && (
+        <div className="mx-auto max-w-3xl">
+          <AIInput orgId={member.org_id} orgIds={orgIds} />
+        </div>
+      )}
 
       {/* «Dagens gjester» — annonserer Velkomst-modus ved sin egen
           tilstedeværelse. Empty state forklarer feature, fylt rail blir

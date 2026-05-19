@@ -62,6 +62,10 @@ export const es: Dictionary = {
     combinedDescription: 'Mostrar todas las empresas juntas',
     combinedShortcut: '⌘0',
     combinedFilterAll: 'Todos',
+    roleAdmin: 'Admin',
+    roleMember: 'Miembro',
+    roleViewer: 'Solo lectura',
+    viewerHint: 'Cambia de espacio para registrar aquí',
   },
   today: {
     title: 'Hoy',

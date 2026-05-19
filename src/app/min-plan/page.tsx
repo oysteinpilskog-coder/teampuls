@@ -9,7 +9,7 @@ import { getServerDict } from '@/lib/i18n/server'
 import { getLastISOWeek, getWeekStart, toDateString } from '@/lib/dates'
 
 export default async function MinPlanPage() {
-  const { user, member } = await getSessionMember()
+  const { user, member, isViewerMode } = await getSessionMember()
 
   if (!user) redirect('/login')
 
@@ -43,15 +43,27 @@ export default async function MinPlanPage() {
   // klienten hydrere med tom liste, fyrt sin egen loadEntries() og
   // re-rendre 200 ms senere (synlig blink mellom skeleton og data).
   // Same window som klienten regner ut: ISO-uke 1 → siste ISO-uke i året.
+  //
+  // I viewer-mode er member.org_id satt til aktivt workspace (som
+  // brukeren ikke er medlem av) — Min plan handler om brukerens egen
+  // plan, så vi henter den faktiske hjem-org-iden fra members-raden
+  // før vi scoper queryen.
+  const supabase = await createClient()
+  const { data: memberRow } = await supabase
+    .from('members')
+    .select('org_id')
+    .eq('id', member.id)
+    .maybeSingle()
+  const homeOrgId = memberRow?.org_id ?? member.org_id
+
   const year = getISOWeekYear(new Date())
   const lastWeek = getLastISOWeek(year)
   const rangeStart = toDateString(getWeekStart(1, year))
   const rangeEnd = toDateString(addDays(getWeekStart(lastWeek, year), 4))
-  const supabase = await createClient()
   const { data: initialEntries } = await supabase
     .from('entries')
     .select('*')
-    .eq('org_id', member.org_id)
+    .eq('org_id', homeOrgId)
     .eq('member_id', member.id)
     .gte('date', rangeStart)
     .lte('date', rangeEnd)
@@ -60,12 +72,12 @@ export default async function MinPlanPage() {
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-6 py-6 sm:py-10 md:py-12">
       <MyPlan
-        orgId={member.org_id}
+        orgId={homeOrgId}
         memberId={member.id}
         memberName={member.full_name || member.display_name}
         memberInitials={member.initials}
         avatarUrl={member.avatar_url}
-        aiInputSlot={<AIInput orgId={member.org_id} />}
+        aiInputSlot={isViewerMode ? null : <AIInput orgId={homeOrgId} />}
         initialEntries={initialEntries ?? []}
         initialYear={year}
       />
