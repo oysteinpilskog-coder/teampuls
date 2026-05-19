@@ -120,6 +120,7 @@ export const lt: Dictionary = {
     noActiveMembers: 'Organizacijoje nerasta aktyvių narių.',
     rateLimited: 'Šiek tiek per greitai — palauk minutę ir bandyk dar kartą.',
     sessionExpired: 'Tavo sesija pasibaigė. Prisijunk dar kartą.',
+    adminOnlyOtherMember: 'Gali atnaujinti tik savo planą. Paprašyk administratoriaus įvesti už kitus.',
   },
   matrix: {
     thisWeek: 'Ši savaitė',

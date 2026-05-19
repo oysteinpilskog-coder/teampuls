@@ -100,6 +100,7 @@ export async function POST(req: NextRequest) {
     }
 
     const timezone = org?.timezone ?? 'Europe/Oslo'
+    const isAdmin = member.role === 'admin'
 
     const result = await parseTeamUpdate({
       text: text.trim(),
@@ -110,7 +111,40 @@ export async function POST(req: NextRequest) {
       corrections: recentCorrections ?? [],
       today: new Date(),
       timezone,
+      isAdmin,
     })
+
+    // Non-admins can only write entries for themselves. The parser prompt
+    // tells the model to refuse cross-member updates, but we re-check
+    // server-side as the source of truth — the model is a soft signal,
+    // never the gate. Mirrors the entries-RLS rule for the admin client.
+    if (!isAdmin) {
+      const ownMemberId = member.id
+      const allTargetsAreSelf =
+        result.updates.every((u) => u.member_id === ownMemberId) &&
+        (result.visit?.host_member_id ?? ownMemberId) === ownMemberId &&
+        (result.original_period?.member_id ?? ownMemberId) === ownMemberId
+      if (!allTargetsAreSelf) {
+        admin
+          .from('ai_messages')
+          .insert({
+            org_id: member.org_id,
+            sender_member_id: member.id,
+            source: 'web',
+            input_text: text.trim(),
+            ai_response: result,
+            entries_created: 0,
+            confidence: result.confidence,
+            error: 'rejected: non-admin cross-member write',
+          })
+          .then(() => {})
+        return NextResponse.json({
+          success: false,
+          clarification: dict.aiInput.adminOnlyOtherMember,
+          updates: [],
+        })
+      }
+    }
 
     // Log request (best-effort)
     admin

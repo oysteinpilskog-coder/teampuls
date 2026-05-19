@@ -118,6 +118,7 @@ export const no = {
     noActiveMembers: 'Fant ingen aktive medlemmer i organisasjonen din.',
     rateLimited: 'Litt for fort — vent et minutt og prøv igjen.',
     sessionExpired: 'Økten din er utløpt. Logg inn igjen.',
+    adminOnlyOtherMember: 'Du kan bare oppdatere din egen plan. Be en admin om å legge inn for andre.',
   },
   matrix: {
     thisWeek: 'Denne uken',

@@ -120,6 +120,7 @@ export const sv: Dictionary = {
     noActiveMembers: 'Hittade inga aktiva medlemmar i din organisation.',
     rateLimited: 'Lite för fort — vänta en minut och försök igen.',
     sessionExpired: 'Din session har gått ut. Logga in igen.',
+    adminOnlyOtherMember: 'Du kan bara uppdatera din egen plan. Be en admin lägga in för andra.',
   },
   matrix: {
     thisWeek: 'Denna vecka',
