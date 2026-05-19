@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
   // ── 4. Resolve sender member ──────────────────────────────────────────────
   const { data: sender } = await supabase
     .from('members')
-    .select('id, org_id, email, display_name')
+    .select('id, org_id, email, display_name, role')
     .eq('org_id', (org as { id: string }).id)
     .eq('email', senderEmail)
     .eq('is_active', true)
@@ -141,17 +141,20 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 6. Parse with Claude ──────────────────────────────────────────────────
+  const senderRow = sender as { id: string; org_id: string; email: string; display_name: string; role: string | null }
+  const isAdmin = senderRow.role === 'admin'
   let result
   try {
     result = await parseTeamUpdate({
       text,
-      senderEmail: sender.email,
+      senderEmail: senderRow.email,
       members: allMembers,
       customers: allCustomers ?? [],
       offices: allOffices ?? [],
       corrections: recentCorrections ?? [],
       today: new Date(),
       timezone: (org as { timezone: string }).timezone ?? 'Europe/Oslo',
+      isAdmin,
     })
   } catch (err) {
     console.error('[email-inbound] Claude parse error:', err)
@@ -165,6 +168,30 @@ export async function POST(req: NextRequest) {
       error: String(err),
     }).then(() => {})
     return NextResponse.json({ ok: false, reason: 'parse_error' }, { status: 200 })
+  }
+
+  // Non-admins can only write entries for themselves. Same source-of-truth
+  // gate as /api/ai/parse — keeps email and web in lockstep.
+  if (!isAdmin) {
+    const ownMemberId = senderRow.id
+    const allTargetsAreSelf =
+      result.updates.every((u) => u.member_id === ownMemberId) &&
+      (result.visit?.host_member_id ?? ownMemberId) === ownMemberId &&
+      (result.original_period?.member_id ?? ownMemberId) === ownMemberId
+    if (!allTargetsAreSelf) {
+      await supabase.from('ai_messages').insert({
+        org_id: senderRow.org_id,
+        sender_member_id: senderRow.id,
+        source: 'email',
+        input_text: text,
+        ai_response: result,
+        entries_created: 0,
+        confidence: result.confidence,
+        error: 'rejected: non-admin cross-member write',
+      }).then(() => {})
+      console.warn('[email-inbound] Rejected non-admin cross-member write from', senderEmail)
+      return NextResponse.json({ ok: false, reason: 'admin_only_other_member' }, { status: 200 })
+    }
   }
 
   // Match the web threshold — see CLARIFICATION_CEILING in /api/ai/parse.

@@ -366,7 +366,7 @@ export async function resolveActiveMember<T extends SupabaseClient>(
   userEmail: string | null | undefined,
 ): Promise<
   | (
-      | { id: string; org_id: string; email: string; display_name: string }
+      | { id: string; org_id: string; email: string; display_name: string; role: MemberRole }
     ) & { combined_org_ids: string[] | null }
   | null
 > {
@@ -409,6 +409,7 @@ export async function resolveActiveMember<T extends SupabaseClient>(
           org_id: adminRow.org_id,
           email: adminRow.email,
           display_name: adminRow.display_name,
+          role: adminRow.role,
           combined_org_ids: rows.map((r) => r.org_id),
         }
       }
@@ -421,6 +422,7 @@ export async function resolveActiveMember<T extends SupabaseClient>(
       org_id: picked.org_id,
       email: picked.email,
       display_name: picked.display_name,
+      role: picked.role,
       combined_org_ids: null,
     }
   }
@@ -432,7 +434,7 @@ export async function resolveActiveMember<T extends SupabaseClient>(
 
   const { data: byEmail } = await admin
     .from('members')
-    .select('id, org_id, email, display_name, organizations!inner(slug, name)')
+    .select('id, org_id, email, display_name, role, organizations!inner(slug, name)')
     .ilike('email', userEmail)
     .eq('is_active', true)
     .is('user_id', null)
@@ -443,6 +445,7 @@ export async function resolveActiveMember<T extends SupabaseClient>(
     org_id: string
     email: string
     display_name: string
+    role: MemberRole | null
     organizations: { slug: string; name: string } | { slug: string; name: string }[]
   }
   const emailRows = (byEmail ?? []) as Row2[]
@@ -465,6 +468,7 @@ export async function resolveActiveMember<T extends SupabaseClient>(
     org_id: picked.org_id,
     email: picked.email,
     display_name: picked.display_name,
+    role: picked.role ?? 'member',
     combined_org_ids: null,
   }
 }

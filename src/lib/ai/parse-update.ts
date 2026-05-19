@@ -63,6 +63,8 @@ export async function parseTeamUpdate(params: {
   corrections?: CorrectionExample[]
   today: Date
   timezone: string
+  /** If false, the parser is told to only update the sender's own row. */
+  isAdmin: boolean
 }): Promise<ParseResult> {
   const {
     text,
@@ -73,6 +75,7 @@ export async function parseTeamUpdate(params: {
     corrections = [],
     today,
     timezone,
+    isAdmin,
   } = params
 
   const sender = members.find(m => m.email === senderEmail)
@@ -90,6 +93,7 @@ export async function parseTeamUpdate(params: {
     senderEmail: sender.email,
     senderHomeOfficeCity: senderHomeOffice?.city ?? null,
     timezone,
+    isAdmin,
   })
 
   const response = await client.messages.create({

@@ -289,12 +289,24 @@ export function buildDynamicSystemPrompt(params: {
   senderEmail: string
   senderHomeOfficeCity: string | null
   timezone: string
+  isAdmin: boolean
 }): string {
-  const { today, senderName, senderEmail, senderHomeOfficeCity, timezone } = params
+  const { today, senderName, senderEmail, senderHomeOfficeCity, timezone, isAdmin } = params
   const isoDate = today.toISOString().split('T')[0]
   const weekday = getWeekdayNorwegian(today)
   const weekNumber = getISOWeek(today)
   const year = today.getFullYear()
+
+  // Non-admins can only update their own row. We tell the model up front so
+  // it returns a clarification instead of a parse we'd reject server-side —
+  // saves tokens and gives a nicer message than the generic clarificationFallback.
+  const permissionsBlock = isAdmin
+    ? ''
+    : `
+
+## Tillatelser
+Avsender (${senderName}) er ikke admin og kan KUN oppdatere sin egen plan.
+Hvis meldingen nevner et annet navn enn ${senderName} → returner clarification «Du kan bare oppdatere din egen plan» og tom \`updates\`-array.`
 
   return `## Kontekst for denne forespørselen
 
@@ -304,7 +316,7 @@ export function buildDynamicSystemPrompt(params: {
 - Melding sendt av: ${senderName} (${senderEmail})
 - Avsenders home_office_city: ${senderHomeOfficeCity ?? '(ikke registrert)'}
 
-Husk: INGEN NAVN NEVNT → gjelder ${senderName}. Et bynavn som matcher ${senderHomeOfficeCity ?? 'avsenders hjemkontor'} → trolig \`office\`.`
+Husk: INGEN NAVN NEVNT → gjelder ${senderName}. Et bynavn som matcher ${senderHomeOfficeCity ?? 'avsenders hjemkontor'} → trolig \`office\`.${permissionsBlock}`
 }
 
 export function buildUserPrompt(text: string): string {

@@ -120,6 +120,7 @@ export const en: Dictionary = {
     noActiveMembers: 'No active members found in your organization.',
     rateLimited: 'A little too fast — wait a minute and try again.',
     sessionExpired: 'Your session has expired. Please log in again.',
+    adminOnlyOtherMember: 'You can only update your own plan. Ask an admin to enter for others.',
   },
   matrix: {
     thisWeek: 'This week',
