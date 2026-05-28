@@ -506,6 +506,7 @@ export async function resolveActiveMember<T extends SupabaseClient>(
           org_id: match.org_id,
           email: match.email,
           display_name: match.display_name,
+          role: match.role,
           combined_org_ids: null,
         }
       }
