@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { resolveLocation } from '@/lib/geo'
 import { fetchOfficeWeatherMap } from '@/lib/weather/fetch-weather'
 import { DASHBOARD_MODE_COOKIE } from '@/lib/dashboard-mode'
+import { computeHolidaysWindow } from '@/lib/holidays-server'
 
 export default async function DashboardPage() {
   // Per-browser preference: when the cookie says "brand", apply the CalWin
@@ -88,6 +89,11 @@ export default async function DashboardPage() {
 
   const offices = officesRes.data ?? []
 
+  // Server-precompute helligdager — `date-holidays` (+ moment + alle locales,
+  // ~1.6 MB) holdes utenfor klient-bundlen. Klienten leser bare den flate
+  // HolidayMap-en via getHolidayFromMap().
+  const holidays = computeHolidaysWindow()
+
   return (
     <DashboardClient
       orgIds={orgIds}
@@ -100,6 +106,7 @@ export default async function DashboardPage() {
       initialCustomers={customersRes.data ?? []}
       initialWeather={initialWeather}
       brandMode={brandMode}
+      holidays={holidays}
     />
   )
 }

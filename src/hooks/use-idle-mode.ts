@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { getHolidayForDate } from '@/lib/holidays'
 import { track } from '@/lib/analytics'
 
 export interface UseIdleModeOptions {
@@ -21,6 +20,15 @@ export interface UseIdleModeOptions {
   /** Business-day window in minutes-of-day. Default 07:30 → 17:00. */
   businessStartMin?: number
   businessEndMin?: number
+  /**
+   * Set of YYYY-MM-DD strings (local time) that count as NO public holidays.
+   * When today's date matches, the hook treats it as outside business hours.
+   * Pass a Set computed serverside (see `holidays-server.ts`) so we don't
+   * have to bundle `date-holidays` + moment on the client (~1.6 MB).
+   * Defaults to an empty set — caller can omit when holiday-awareness
+   * isn't needed (e.g. demos).
+   */
+  noHolidayDates?: ReadonlySet<string>
 }
 
 export interface UseIdleModeResult {
@@ -71,6 +79,15 @@ function isWeekend(d: Date): boolean {
  * Each transition fires `track('idle_mode_activated' | 'idle_mode_deactivated')`
  * with `{ reason, ts_iso }`.
  */
+const EMPTY_HOLIDAYS: ReadonlySet<string> = new Set()
+
+function todayLocalKey(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export function useIdleMode({
   activeCount,
   minActiveForBusy = 2,
@@ -78,6 +95,7 @@ export function useIdleMode({
   checkIntervalMs = 60 * 1000,
   businessStartMin = 7 * 60 + 30,
   businessEndMin = 17 * 60,
+  noHolidayDates = EMPTY_HOLIDAYS,
 }: UseIdleModeOptions): UseIdleModeResult {
   const [isIdle, setIsIdle] = useState(false)
 
@@ -106,7 +124,7 @@ export function useIdleMode({
   const isOutsideBusinessHoursRef = useRef<(now: Date) => boolean>(() => false)
   isOutsideBusinessHoursRef.current = (now: Date) => {
     if (isWeekend(now)) return true
-    if (getHolidayForDate(now, 'NO')) return true
+    if (noHolidayDates.has(todayLocalKey(now))) return true
     const m = minutesOfDay(now)
     return m < businessStartMin || m >= businessEndMin
   }

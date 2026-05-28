@@ -22,7 +22,6 @@ const nextConfig: NextConfig = {
       'lucide-react',
       'framer-motion',
       'date-fns',
-      'date-holidays',
     ],
   },
 };

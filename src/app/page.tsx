@@ -9,6 +9,7 @@ import { getSessionMember } from '@/lib/supabase/session'
 import { getServerDict } from '@/lib/i18n/server'
 import { createClient } from '@/lib/supabase/server'
 import { getTodayWeekAndYear, getWeekDays, toDateString } from '@/lib/dates'
+import { computeHolidaysWindow } from '@/lib/holidays-server'
 import type { CombinedScope } from '@/lib/supabase/session'
 import type { WorkspaceSummary, Visit } from '@/lib/supabase/types'
 
@@ -169,6 +170,11 @@ async function TeamGridLoader({
 
   const memberCount = membersRes.data?.length ?? 0
 
+  // Server-precompute helligdager for synlig år ± 1 år (dekker week-nav og
+  // Des→Jan-grensen). `date-holidays` drar inn moment + alle locales (~1.6 MB)
+  // og må holdes serverside; klienten leser kun den flate HolidayMap-en.
+  const holidays = computeHolidaysWindow(year)
+
   return (
     <TeamGrid
       orgId={memberOrgId}
@@ -183,6 +189,7 @@ async function TeamGridLoader({
       }}
       workspaces={workspaces}
       combinedView={!!combinedScope}
+      holidays={holidays}
     />
   )
 }
