@@ -49,7 +49,7 @@ import { trackBrandImpression } from '@/lib/analytics'
 import { getDayPhase, getWeekDays, getTodayWeekAndYear, toDateString } from '@/lib/dates'
 import type { Entry, Member, Office, Organization, Customer, DashboardViewKey, PresenceAssumption } from '@/lib/supabase/types'
 import { inferStatus } from '@/lib/presence'
-import { getHolidayForDate, memberCountryCode } from '@/lib/holidays'
+import { getHolidayFromMap, memberCountryCode, type HolidayMap } from '@/lib/holidays'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { seedWeatherCache, type WeatherSnapshot } from '@/lib/weather/use-weather'
@@ -87,6 +87,10 @@ interface DashboardClientProps {
    *  The full view rotation (Today, Month, Offices, Customers, Wheel,
    *  Welcome, Globe) keeps its structure; only surface tokens swap. */
   brandMode?: boolean
+  /** Server-precomputed holiday map. Lets the dashboard render holiday
+   *  treatment (skip 'office'-assumption, mark off-day) without bundling
+   *  `date-holidays` + moment on the client (~1.6 MB). */
+  holidays?: HolidayMap
 }
 
 type ViewKey = DashboardViewKey
@@ -119,6 +123,7 @@ export function DashboardClient({
   initialCustomers,
   initialWeather,
   brandMode = false,
+  holidays,
 }: DashboardClientProps) {
   // Seed klient-cachen FØR noen `OfficeMapLabel` monterer. Idempotent
   // (skriver kun nøkler som ikke alt finnes) så det er trygt å kalle
@@ -504,7 +509,7 @@ export function DashboardClient({
         continue
       }
       const cc = memberCountryCode(m.home_office_id, officeById)
-      const isHoliday = cc ? !!getHolidayForDate(today, cc) : false
+      const isHoliday = cc ? !!getHolidayFromMap(holidays, today, cc) : false
       const assumed = isHoliday
         ? null
         : inferStatus(
@@ -532,7 +537,7 @@ export function DashboardClient({
       })
     }
     return out
-  }, [todayEntries, members, presenceAssumption, todayStr, officeById])
+  }, [todayEntries, members, presenceAssumption, todayStr, officeById, holidays])
 
   // Same speilflate som displayTodayEntries, men for hele uken — en syntetisk
   // entry per (member × weekday) der ekte rad mangler, basert på org-en sin
@@ -565,7 +570,7 @@ export function DashboardClient({
       const holidaySet = new Set<string>()
       if (cc && assumed) {
         weekDays.forEach((d, i) => {
-          if (getHolidayForDate(d, cc)) holidaySet.add(dateStrings[i])
+          if (getHolidayFromMap(holidays, d, cc)) holidaySet.add(dateStrings[i])
         })
       }
       for (const dateStr of dateStrings) {
@@ -594,7 +599,7 @@ export function DashboardClient({
       }
     }
     return out
-  }, [entries, members, presenceAssumption, dateStrings, weekDays, officeById])
+  }, [entries, members, presenceAssumption, dateStrings, weekDays, officeById, holidays])
 
   // Fullscreen API
   function toggleFullscreen() {

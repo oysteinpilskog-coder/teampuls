@@ -4,6 +4,8 @@ import { getSessionMember } from '@/lib/supabase/session'
 import { WeeklyEmailClient } from '@/components/settings/weekly-email-client'
 import { toDateString, getISOWeek } from '@/lib/dates'
 import { addDays, startOfISOWeek } from 'date-fns'
+import { computeHolidaysWindow } from '@/lib/holidays-server'
+import { isSupportedCountry, type CountryCode } from '@/lib/holidays'
 
 /**
  * /settings/email — Innstillinger for ukentlig statusmail.
@@ -55,6 +57,17 @@ export default async function EmailSettingsPage() {
       .lte('date', toDateString(friday)),
   ])
 
+  // Server-precompute helligdager for org-ets land (faller tilbake til alle
+  // fire CalWin-land om landet ikke er satt). Klienten leser kun den flate
+  // HolidayMap-en og slipper å bundle `date-holidays` + moment (~1.6 MB).
+  const orgCountry: CountryCode | undefined = isSupportedCountry(orgRes.data?.country_code)
+    ? orgRes.data.country_code
+    : undefined
+  const holidays = computeHolidaysWindow(
+    new Date().getFullYear(),
+    orgCountry ? [orgCountry] : undefined,
+  )
+
   return (
     <WeeklyEmailClient
       key={member.org_id}
@@ -65,6 +78,7 @@ export default async function EmailSettingsPage() {
       sampleWeekNumber={getISOWeek(nextMonday)}
       sampleWeekStartIso={toDateString(nextMonday)}
       currentUserEmail={user.email ?? ''}
+      holidays={holidays}
     />
   )
 }

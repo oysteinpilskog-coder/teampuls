@@ -26,7 +26,7 @@ import type { Dictionary, Locale } from '@/lib/i18n/types'
 import { LOCALE_META, LOCALES } from '@/lib/i18n/types'
 import { resolveMemberLocale, dictForLocale } from '@/lib/i18n/member-locale'
 import type { Organization, Member, EntryStatus } from '@/lib/supabase/types'
-import { getHolidayForDate, isSupportedCountry } from '@/lib/holidays'
+import { getHolidayFromMap, isSupportedCountry, type HolidayMap } from '@/lib/holidays'
 import { spring } from '@/lib/motion'
 import { mergeHexColors } from '@/lib/status-colors/defaults'
 
@@ -59,6 +59,10 @@ interface Props {
   sampleWeekNumber: number
   sampleWeekStartIso: string
   currentUserEmail: string
+  /** Server-precomputed holiday map. Lets oppslag av helligdager bruke
+   *  en flat lookup-tabell — `date-holidays` (+ moment, ~1.6 MB) holdes
+   *  utenfor klient-bundlen. */
+  holidays?: HolidayMap
 }
 
 const WEEKDAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
@@ -83,6 +87,7 @@ export function WeeklyEmailClient({
   sampleWeekNumber,
   sampleWeekStartIso,
   currentUserEmail,
+  holidays,
 }: Props) {
   const t = useT()
   const locale = useLocale()
@@ -131,7 +136,7 @@ export function WeeklyEmailClient({
 
   // Resolve the *actual* send date once holidays are taken into account.
   const resolvedSend = useMemo(() => {
-    const holiday = getHolidayForDate(configuredSendDate, country)
+    const holiday = getHolidayFromMap(holidays, configuredSendDate, country)
     if (!holiday) {
       return { date: configuredSendDate, willSkip: false, holiday: null as string | null }
     }
@@ -145,13 +150,13 @@ export function WeeklyEmailClient({
     for (let i = 0; i < 5; i++) {
       const probe = addDays(sampleWeekStart, i)
       const isWeekend = i >= 5 // never; we only loop 0..4
-      const probeHoliday = getHolidayForDate(probe, country)
+      const probeHoliday = getHolidayFromMap(holidays, probe, country)
       if (!isWeekend && !probeHoliday && probe >= configuredSendDate) {
         return { date: probe, willSkip: false, holiday: holiday.name }
       }
     }
     return { date: configuredSendDate, willSkip: true, holiday: holiday.name }
-  }, [configuredSendDate, sampleWeekStart, country, holidayStrategy])
+  }, [configuredSendDate, sampleWeekStart, country, holidayStrategy, holidays])
 
   // recipientList = den faktiske mottaker-listen som senderen vil iterere
   // over. Hver oppføring bærer sin egen `locale` slik at senderen kan

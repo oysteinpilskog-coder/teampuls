@@ -38,11 +38,12 @@ import type { Entry, EntryStatus, PresenceAssumption, WorkspaceSummary } from '@
 import { WorkspaceBadge } from '@/components/workspace-switcher'
 import { inferStatus } from '@/lib/presence'
 import {
-  getHolidayForDate,
-  getHolidaysForCountries,
+  getHolidayFromMap,
+  getHolidaysFromMapForCountries,
   flagFor,
   memberCountryCode,
   type CountryCode,
+  type HolidayMap,
 } from '@/lib/holidays'
 
 interface RowSegment {
@@ -200,6 +201,10 @@ interface TeamGridProps {
    *  meaning of an "empty" cell shifts from "unregistered" to
    *  "not on vacation that day". */
   statusFilter?: EntryStatus[]
+  /** Server-precomputed holiday map (3-year window × NO/SE/LT/GB). Lets us
+   *  render holiday treatment without bundling `date-holidays` + moment on
+   *  the client. */
+  holidays?: HolidayMap
 }
 
 // Tom holidays-Set som returneres for medlemmer hvis land ikke er støttet.
@@ -285,6 +290,7 @@ export function TeamGrid({
   workspaces,
   combinedView = false,
   statusFilter,
+  holidays,
 }: TeamGridProps) {
   const t = useT()
   const { week: todayWeek, year: todayYear } = getTodayWeekAndYear()
@@ -604,10 +610,10 @@ export function TeamGrid({
   const weekHolidays = useMemo(() => {
     return weekDays.map((date) => ({
       date,
-      no: getHolidayForDate(date, 'NO'),
-      byCountry: getHolidaysForCountries(date, activeCountries),
+      no: getHolidayFromMap(holidays, date, 'NO'),
+      byCountry: getHolidaysFromMapForCountries(holidays, date, activeCountries),
     }))
-  }, [weekDays, activeCountries])
+  }, [weekDays, activeCountries, holidays])
 
   // For hver medlems land: hvilke datoer i den synlige uka er helligdager?
   // Brukes til å undertrykke org-antakelsen («kontor», «hjemme», eller
@@ -633,13 +639,13 @@ export function TeamGrid({
       const dates = new Set<string>()
       if (cc) {
         for (const d of weekDays) {
-          if (getHolidayForDate(d, cc)) dates.add(toDateString(d))
+          if (getHolidayFromMap(holidays, d, cc)) dates.add(toDateString(d))
         }
       }
       map.set(m.id, dates)
     }
     return map
-  }, [members, officeById, workspaceCountryByOrgId, weekDays])
+  }, [members, officeById, workspaceCountryByOrgId, weekDays, holidays])
 
   function holidayDatesFor(memberId: string): Set<string> {
     return memberHolidayDates.get(memberId) ?? EMPTY_DATE_SET
