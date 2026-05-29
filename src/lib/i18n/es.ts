@@ -185,7 +185,7 @@ export const es: Dictionary = {
     verifying: 'Iniciando sesión...',
     codeInvalid: 'Código incorrecto o expirado. Inténtalo de nuevo o pide uno nuevo.',
     resendCode: 'Enviar un nuevo código',
-    codeOrLinkHint: 'O haz clic en el enlace del correo.',
+    codeOrLinkHint: '¿No encuentras el código? Revisa el spam.',
     useDifferentEmail: 'Usar otro correo',
     accountNotLinkedTitle: 'Cuenta no vinculada',
     accountNotLinkedDescription: 'aún no está añadido como miembro del equipo. Pide a un admin que cree tu usuario, o ejecuta',
