@@ -185,7 +185,7 @@ export const sv: Dictionary = {
     verifying: 'Loggar in...',
     codeInvalid: 'Fel eller utgången kod. Försök igen eller begär en ny.',
     resendCode: 'Skicka ny kod',
-    codeOrLinkHint: 'Eller klicka på länken i e-posten.',
+    codeOrLinkHint: 'Hittar du inte koden? Kolla skräpposten.',
     useDifferentEmail: 'Använd en annan e-post',
     accountNotLinkedTitle: 'Konto inte kopplat',
     accountNotLinkedDescription: 'är inte tillagd som teammedlem ännu. Be en admin att skapa din användare, eller kör',

@@ -185,7 +185,7 @@ export const lt: Dictionary = {
     verifying: 'Prisijungiama...',
     codeInvalid: 'Neteisingas arba pasibaigęs kodas. Bandyk dar kartą arba paprašyk naujo.',
     resendCode: 'Siųsti naują kodą',
-    codeOrLinkHint: 'Arba paspausk nuorodą el. laiške.',
+    codeOrLinkHint: 'Nerandi kodo? Patikrink šlamšto aplanką.',
     useDifferentEmail: 'Naudoti kitą el. paštą',
     accountNotLinkedTitle: 'Paskyra nesusieta',
     accountNotLinkedDescription: 'dar nepridėtas kaip komandos narys. Paprašyk administratoriaus sukurti tavo vartotoją arba paleisk',

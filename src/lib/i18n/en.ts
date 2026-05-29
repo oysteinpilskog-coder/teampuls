@@ -185,7 +185,7 @@ export const en: Dictionary = {
     verifying: 'Signing in...',
     codeInvalid: 'Wrong or expired code. Try again or request a new one.',
     resendCode: 'Send a new code',
-    codeOrLinkHint: 'Or click the link in the email.',
+    codeOrLinkHint: "Can't find the code? Check your spam folder.",
     useDifferentEmail: 'Use a different email',
     accountNotLinkedTitle: 'Account not linked',
     accountNotLinkedDescription: 'is not added as a team member yet. Ask an admin to create your user, or run',

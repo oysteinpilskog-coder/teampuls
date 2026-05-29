@@ -183,7 +183,7 @@ export const no = {
     verifying: 'Logger inn...',
     codeInvalid: 'Feil eller utløpt kode. Prøv igjen eller be om en ny.',
     resendCode: 'Send ny kode',
-    codeOrLinkHint: 'Eller klikk lenken i e-posten.',
+    codeOrLinkHint: 'Fant du ikke koden? Sjekk søppelpostmappen.',
     useDifferentEmail: 'Bruk en annen e-post',
     accountNotLinkedTitle: 'Konto ikke koblet',
     accountNotLinkedDescription: 'er ikke lagt til som teammedlem ennå. Be en admin om å opprette brukeren din, eller kjør',
