@@ -948,7 +948,7 @@ function Row({
         />
         <div className="min-w-0 flex-1">
           <div
-            className="truncate text-[13px] flex items-center gap-1"
+            className="truncate text-[13px] flex items-center gap-2"
             style={{
               color: 'var(--lg-text-1)',
               fontWeight: 500,
