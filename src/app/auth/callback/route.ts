@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isAllowedEmail } from '@/lib/auth/allowed-domains'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -27,6 +28,15 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      // Access lock: TeamPulse is CalWin-only. If the verified email is
+      // outside the allowlist, revoke the freshly-minted session and bounce
+      // back to login — never link a member or hand out a usable session.
+      const { data: { user: verified } } = await supabase.auth.getUser()
+      if (!isAllowedEmail(verified?.email)) {
+        await supabase.auth.signOut()
+        return NextResponse.redirect(`${origin}/login?error=domain_not_allowed`)
+      }
+
       // Auto-link: if this user's email matches a member record with no
       // user_id yet, set it now so the member is immediately connected on
       // first login. Must use the service-role client — the anon/SSR client
