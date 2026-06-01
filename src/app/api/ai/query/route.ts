@@ -6,9 +6,10 @@ import { parseTeamQuery } from '@/lib/ai/query'
 import { getServerDict } from '@/lib/i18n/server'
 import { checkAiRateLimit } from '@/lib/ratelimit'
 
-// Edge runtime — same rationale as /api/ai/parse: pure fetch-based deps,
-// faster cold-start on the natural-language query path.
-export const runtime = 'edge'
+// Node runtime — same rationale as /api/ai/parse: this route resolves the
+// caller via the service-role client, which did not get
+// SUPABASE_SERVICE_ROLE_KEY reliably on Vercel's Edge runtime.
+export const runtime = 'nodejs'
 
 /**
  * POST /api/ai/query { question: string }

@@ -7,10 +7,12 @@ import { applyUpdates } from '@/lib/ai/apply-updates'
 import { getServerDict } from '@/lib/i18n/server'
 import { checkAiRateLimit } from '@/lib/ratelimit'
 
-// Edge runtime — Anthropic SDK + Supabase clients are both fetch-based and
-// Edge-compatible. Cuts cold-start on the AI parse path so the moment a user
-// types into the AI box, the model call starts ~250ms sooner.
-export const runtime = 'edge'
+// Node runtime — this route resolves the caller's member via the
+// service-role client (resolveActiveMember). On Vercel's Edge runtime that
+// client did not get SUPABASE_SERVICE_ROLE_KEY reliably, so the lookup
+// returned null and every status write failed with "user not linked".
+// Node matches getSessionMember (RSC), where the same admin lookup works.
+export const runtime = 'nodejs'
 
 /**
  * Confidence threshold below which we bail to a clarification question
