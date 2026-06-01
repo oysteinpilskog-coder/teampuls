@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { formatDateLabelLong } from '@/lib/dates'
 import { useT } from '@/lib/i18n/context'
+import { useWorkspace } from '@/lib/workspace/context'
+import { CalwinMark } from '@/components/brand/calwin-mark'
 import { spring } from '@/lib/motion'
 
 /**
@@ -20,20 +22,35 @@ import { spring } from '@/lib/motion'
  */
 export function TodayHero() {
   const t = useT()
+  const { active } = useWorkspace()
   const [label, setLabel] = useState('')
 
   useEffect(() => {
     setLabel(formatDateLabelLong(new Date(), t))
   }, [t])
 
+  // Subtle brand watermark in the empty space beside the date — only for
+  // CalWin workspaces, desktop only (avoids colliding with longer date
+  // strings on narrow screens).
+  const showMark = !!active && /calwin/i.test(active.name)
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={spring.gentle}
-      className="select-none"
+      className="relative select-none"
       suppressHydrationWarning
     >
+      {showMark && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 hidden sm:block"
+          style={{ color: 'var(--accent-color)', opacity: 0.1 }}
+        >
+          <CalwinMark size={72} monochrome />
+        </span>
+      )}
       <h1
         className="calwin-bar lg-serif leading-[0.95]"
         style={{

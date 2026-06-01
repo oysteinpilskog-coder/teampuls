@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Check, ChevronsUpDown, Layers } from 'lucide-react'
 import { useWorkspace, COMBINED_SLUG } from '@/lib/workspace/context'
+import { CalwinMark } from '@/components/brand/calwin-mark'
 import { useT } from '@/lib/i18n/context'
 import type { Dictionary } from '@/lib/i18n/types'
 import { spring } from '@/lib/motion'
@@ -98,6 +99,11 @@ export function WorkspaceSwitcher() {
 
   const accent = safeHex(active.accent_color)
   const badge = active.short_name || active.name.slice(0, 2).toUpperCase()
+  // First-customer branding: CalWin workspaces show the brandbook dot-ring
+  // in the header chip instead of a generated initials square. Other orgs
+  // (future tenants) keep the generic WorkspaceBadge. The dropdown rows
+  // below intentionally keep the initials badge so NO/UK stay distinct.
+  const isCalwin = !isCombined && /calwin/i.test(active.name)
 
   return (
     <div className="relative">
@@ -128,11 +134,27 @@ export function WorkspaceSwitcher() {
       >
         {isCombined ? (
           <CombinedBadge size="sm" workspaces={workspaces} />
+        ) : isCalwin ? (
+          <CalwinMark size={20} />
         ) : (
           <WorkspaceBadge workspace={active} size="sm" />
         )}
         <span className="hidden md:inline max-w-[140px] truncate">{active.name}</span>
-        <span className="md:hidden">{badge}</span>
+        {isCalwin && active.short_name ? (
+          <span
+            className="inline-flex items-center justify-center h-[18px] px-1.5 rounded-md text-[10px] font-semibold uppercase tabular-nums"
+            style={{
+              background: 'color-mix(in oklab, var(--accent-color) 14%, transparent)',
+              color: 'var(--accent-color)',
+              letterSpacing: '0.04em',
+              fontFamily: 'var(--font-body)',
+            }}
+          >
+            {active.short_name}
+          </span>
+        ) : (
+          <span className="md:hidden">{badge}</span>
+        )}
         <ChevronsUpDown
           className="w-3 h-3 opacity-60 transition-transform"
           style={{ transform: open ? 'rotate(180deg)' : 'none' }}
