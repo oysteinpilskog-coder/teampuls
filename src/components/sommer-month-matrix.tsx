@@ -646,7 +646,13 @@ export function SommerMonthMatrix({
                 }
                 const { row, rowIdx } = gr
                 const editable = canEditAny || row.member.id === currentMemberId
-                const workspace = workspaceByOrgId.get(row.member.org_id) ?? null
+                // Workspace badge only in combined view — mirrors Oversikt's
+                // TeamGrid. In single-workspace view the per-member CountryBadge
+                // already carries the location signal, so a second badge here is
+                // redundant.
+                const workspace = combinedView
+                  ? workspaceByOrgId.get(row.member.org_id) ?? null
+                  : null
                 const countryCode = row.member.home_office_id
                   ? officeCountries?.[row.member.home_office_id] ?? null
                   : null
