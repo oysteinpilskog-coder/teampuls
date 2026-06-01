@@ -8,7 +8,6 @@ import {
   useState,
 } from 'react'
 import {
-  DEFAULT_THEME,
   THEME_STORAGE_KEY,
   isThemeId,
   type ThemeId,
@@ -76,20 +75,4 @@ export function useThemeVariant() {
   const ctx = useContext(Ctx)
   if (!ctx) throw new Error('useThemeVariant must be used inside ThemeVariantProvider')
   return ctx
-}
-
-/** Pre-hydration script: apply the user's saved theme override if present,
- *  otherwise fall back to the org-wide default. Baked into <head> so the
- *  very first paint already has the right data-theme — no flash. */
-export function themeVariantBootScript(orgDefault: ThemeId): string {
-  const fallback = isThemeId(orgDefault) ? orgDefault : DEFAULT_THEME
-  return `
-(function(){try{
-  var k='${THEME_STORAGE_KEY}';
-  var v=localStorage.getItem(k);
-  var allowed=['nordic','obsidian','aurora','crystal','ember','sakura','forest','monaco','champagne'];
-  if(!v||allowed.indexOf(v)===-1)v='${fallback}';
-  document.documentElement.setAttribute('data-theme',v);
-}catch(e){}})();
-`.trim()
 }
