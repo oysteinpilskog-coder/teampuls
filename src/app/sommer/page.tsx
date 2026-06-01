@@ -98,11 +98,6 @@ export default async function SommerPage() {
           ukOfficeIds={(officesRes.data ?? [])
             .filter(o => o.country_code === 'GB')
             .map(o => o.id)}
-          officeCountries={Object.fromEntries(
-            (officesRes.data ?? [])
-              .filter(o => o.country_code)
-              .map(o => [o.id, o.country_code as string]),
-          )}
         />
       </Suspense>
     </div>

@@ -30,7 +30,6 @@ interface Props {
   workspaces?: WorkspaceSummary[]
   combinedView?: boolean
   ukOfficeIds?: string[]
-  officeCountries?: Record<string, string>
 }
 
 interface WeekBucket {
@@ -70,7 +69,6 @@ export function SommerWeekMatrix({
   workspaces,
   combinedView,
   ukOfficeIds,
-  officeCountries,
 }: Props) {
   const t = useT()
   const reduce = useReducedMotion()
@@ -446,9 +444,7 @@ export function SommerWeekMatrix({
                 const { row, rowIdx } = gr
                 const editable = canEditAny || row.member.id === currentMemberId
                 const workspace = workspaceByOrgId.get(row.member.org_id) ?? null
-                const countryCode = row.member.home_office_id
-                  ? officeCountries?.[row.member.home_office_id] ?? null
-                  : null
+                const countryCode = row.member.location_code ?? null
                 return (
                   <Row
                     key={row.member.id}

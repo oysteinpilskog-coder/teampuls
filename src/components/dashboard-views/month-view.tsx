@@ -61,15 +61,7 @@ interface DayStat {
   today: boolean
 }
 
-export function MonthView({ members, weekDays, entries, orgName: _orgName, time, offices }: MonthViewProps) {
-  const officeCountryById = useMemo(
-    () => new Map(
-      (offices ?? [])
-        .filter(o => o.country_code)
-        .map(o => [o.id, o.country_code as string]),
-    ),
-    [offices],
-  )
+export function MonthView({ members, weekDays, entries, orgName: _orgName, time }: MonthViewProps) {
   const STATUS_COLORS = useStatusColors()
   const t = useT()
   const STATUS_LABELS: Record<EntryStatus, string> = {
@@ -414,9 +406,7 @@ export function MonthView({ members, weekDays, entries, orgName: _orgName, time,
                     >
                       {member.full_name || member.display_name}
                     </span>
-                    <CountryBadge
-                      countryCode={member.home_office_id ? officeCountryById.get(member.home_office_id) ?? null : null}
-                    />
+                    <CountryBadge countryCode={member.location_code ?? null} />
                     <span
                       className="text-[9.5px] font-semibold uppercase tracking-[0.14em] px-1.5 py-[1px] rounded-full"
                       style={{

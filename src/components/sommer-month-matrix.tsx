@@ -37,8 +37,6 @@ interface Props {
    *  hooks `member.home_office_id` against this set so UK-based members
    *  always sort to the bottom — same rule TeamGrid uses. */
   ukOfficeIds?: string[]
-  /** Office id → country_code, for the per-member location badge. */
-  officeCountries?: Record<string, string>
 }
 
 interface VacationBlock {
@@ -79,7 +77,6 @@ export function SommerMonthMatrix({
   workspaces,
   combinedView,
   ukOfficeIds,
-  officeCountries,
 }: Props) {
   const t = useT()
   const reduce = useReducedMotion()
@@ -653,9 +650,7 @@ export function SommerMonthMatrix({
                 const workspace = combinedView
                   ? workspaceByOrgId.get(row.member.org_id) ?? null
                   : null
-                const countryCode = row.member.home_office_id
-                  ? officeCountries?.[row.member.home_office_id] ?? null
-                  : null
+                const countryCode = row.member.location_code ?? null
                 return (
                   <Row
                     key={row.member.id}
