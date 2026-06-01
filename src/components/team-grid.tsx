@@ -36,6 +36,7 @@ import { useT } from '@/lib/i18n/context'
 import type { Dictionary } from '@/lib/i18n/types'
 import type { Entry, EntryStatus, PresenceAssumption, WorkspaceSummary } from '@/lib/supabase/types'
 import { WorkspaceBadge } from '@/components/workspace-switcher'
+import { CountryBadge } from '@/components/country-badge'
 import { inferStatus } from '@/lib/presence'
 import {
   getHolidayFromMap,
@@ -1537,6 +1538,7 @@ export function TeamGrid({
                             >
                               {member.full_name || member.display_name}
                             </span>
+                            <CountryBadge countryCode={office?.country_code} />
                             {combinedView && workspaceByOrgId.get(member.org_id) && (
                               <span className="ml-auto flex-shrink-0">
                                 <WorkspaceBadge
