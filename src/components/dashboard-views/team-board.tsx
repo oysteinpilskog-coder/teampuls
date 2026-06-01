@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from 'framer-motion'
 import { MemberAvatar } from '@/components/member-avatar'
+import { CountryBadge } from '@/components/country-badge'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useStatusColors } from '@/lib/status-colors/context'
 import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
@@ -12,6 +13,8 @@ import { AnimatedCount } from './animated-count'
 interface TeamBoardProps {
   members: Member[]
   todayMap: Map<string, Entry>
+  /** Office id → country_code, for the per-member location badge. */
+  officeCountryById?: Map<string, string>
 }
 
 interface StripDef {
@@ -28,9 +31,10 @@ interface MemberChipProps {
   textTint: string
   bg: string
   delay: number
+  countryCode?: string | null
 }
 
-function MemberChip({ member, entry, accent, textTint, bg, delay }: MemberChipProps) {
+function MemberChip({ member, entry, accent, textTint, bg, delay, countryCode }: MemberChipProps) {
   const location = entry?.location_label?.trim()
   return (
     <motion.div
@@ -61,11 +65,14 @@ function MemberChip({ member, entry, accent, textTint, bg, delay }: MemberChipPr
         </div>
       </div>
       <div className="flex flex-col leading-tight min-w-0">
-        <span
-          className="text-[13px] font-semibold truncate"
-          style={{ color: textTint, fontFamily: 'var(--font-body)', maxWidth: 160 }}
-        >
-          {member.full_name || member.display_name}
+        <span className="flex items-center gap-1.5 min-w-0">
+          <span
+            className="text-[13px] font-semibold truncate"
+            style={{ color: textTint, fontFamily: 'var(--font-body)', maxWidth: 160 }}
+          >
+            {member.full_name || member.display_name}
+          </span>
+          <CountryBadge countryCode={countryCode} />
         </span>
         {location && (
           <span
@@ -86,12 +93,14 @@ function Strip({
   representative,
   members,
   delay,
+  officeCountryById,
 }: {
   stripKey: string
   label: string
   representative: EntryStatus
   members: Array<{ member: Member; entry: Entry | undefined }>
   delay: number
+  officeCountryById?: Map<string, string>
 }) {
   const STATUS_COLORS = useStatusColors()
   const colors = STATUS_COLORS[representative]
@@ -213,6 +222,7 @@ function Strip({
                 textTint={textTint}
                 bg={bg}
                 delay={delay + 0.15 + i * 0.03}
+                countryCode={member.home_office_id ? officeCountryById?.get(member.home_office_id) ?? null : null}
               />
             ))}
           </div>
@@ -222,7 +232,7 @@ function Strip({
   )
 }
 
-export function TeamBoard({ members, todayMap }: TeamBoardProps) {
+export function TeamBoard({ members, todayMap, officeCountryById }: TeamBoardProps) {
   const t = useT()
   const STRIPS: StripDef[] = [
     { key: 'office',   label: t.pulse.atOffice,   statuses: ['office'],                      representative: 'office'   },
@@ -255,6 +265,7 @@ export function TeamBoard({ members, todayMap }: TeamBoardProps) {
           representative={bucket.representative}
           members={bucket.members}
           delay={0.3 + i * 0.06}
+          officeCountryById={officeCountryById}
         />
       ))}
     </div>

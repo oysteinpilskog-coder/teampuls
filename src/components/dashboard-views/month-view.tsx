@@ -7,7 +7,8 @@ import { useStatusColors } from '@/lib/status-colors/context'
 
 type StatusColors = ReturnType<typeof useStatusColors>
 import { MemberAvatar } from '@/components/member-avatar'
-import type { Member, Entry, EntryStatus } from '@/lib/supabase/types'
+import { CountryBadge } from '@/components/country-badge'
+import type { Member, Entry, EntryStatus, Office } from '@/lib/supabase/types'
 import { getISOWeek, isToday } from '@/lib/dates'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
@@ -23,6 +24,7 @@ interface MonthViewProps {
   entries: Entry[]
   orgName: string
   time: Date
+  offices?: Office[]
 }
 
 function pad(n: number) { return String(n).padStart(2, '0') }
@@ -59,7 +61,15 @@ interface DayStat {
   today: boolean
 }
 
-export function MonthView({ members, weekDays, entries, orgName: _orgName, time }: MonthViewProps) {
+export function MonthView({ members, weekDays, entries, orgName: _orgName, time, offices }: MonthViewProps) {
+  const officeCountryById = useMemo(
+    () => new Map(
+      (offices ?? [])
+        .filter(o => o.country_code)
+        .map(o => [o.id, o.country_code as string]),
+    ),
+    [offices],
+  )
   const STATUS_COLORS = useStatusColors()
   const t = useT()
   const STATUS_LABELS: Record<EntryStatus, string> = {
@@ -404,6 +414,9 @@ export function MonthView({ members, weekDays, entries, orgName: _orgName, time 
                     >
                       {member.full_name || member.display_name}
                     </span>
+                    <CountryBadge
+                      countryCode={member.home_office_id ? officeCountryById.get(member.home_office_id) ?? null : null}
+                    />
                     <span
                       className="text-[9.5px] font-semibold uppercase tracking-[0.14em] px-1.5 py-[1px] rounded-full"
                       style={{

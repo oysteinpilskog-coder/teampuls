@@ -12,6 +12,7 @@ import { useStatusColors } from '@/lib/status-colors/context'
 import { MemberAvatar } from '@/components/member-avatar'
 import { VacationIcon } from '@/components/icons/status-icons'
 import { WorkspaceBadge } from '@/components/workspace-switcher'
+import { CountryBadge } from '@/components/country-badge'
 import { createClient } from '@/lib/supabase/client'
 import { toDateString } from '@/lib/dates'
 import { ease } from '@/lib/motion'
@@ -36,6 +37,8 @@ interface Props {
    *  hooks `member.home_office_id` against this set so UK-based members
    *  always sort to the bottom — same rule TeamGrid uses. */
   ukOfficeIds?: string[]
+  /** Office id → country_code, for the per-member location badge. */
+  officeCountries?: Record<string, string>
 }
 
 interface VacationBlock {
@@ -76,6 +79,7 @@ export function SommerMonthMatrix({
   workspaces,
   combinedView,
   ukOfficeIds,
+  officeCountries,
 }: Props) {
   const t = useT()
   const reduce = useReducedMotion()
@@ -643,6 +647,9 @@ export function SommerMonthMatrix({
                 const { row, rowIdx } = gr
                 const editable = canEditAny || row.member.id === currentMemberId
                 const workspace = workspaceByOrgId.get(row.member.org_id) ?? null
+                const countryCode = row.member.home_office_id
+                  ? officeCountries?.[row.member.home_office_id] ?? null
+                  : null
                 return (
                   <Row
                     key={row.member.id}
@@ -658,6 +665,7 @@ export function SommerMonthMatrix({
                     editable={editable}
                     isSelf={row.member.id === currentMemberId}
                     workspace={workspace}
+                    countryCode={countryCode}
                     commitVacation={commitVacation}
                     commitResize={commitResize}
                     commitDelete={commitDelete}
@@ -783,7 +791,7 @@ const ROW_H = 44
 function Row({
   row, idx, totalCols, weekGroups, colPct, todayCol,
   palette, isLight, reduce,
-  editable, isSelf, workspace, commitVacation, commitResize, commitDelete, t,
+  editable, isSelf, workspace, countryCode, commitVacation, commitResize, commitDelete, t,
 }: {
   row: MemberRow
   idx: number
@@ -797,6 +805,7 @@ function Row({
   editable: boolean
   isSelf: boolean
   workspace: WorkspaceSummary | null
+  countryCode: string | null
   commitVacation: (memberId: string, startCol: number, endCol: number, memberName: string) => void | Promise<void>
   commitResize: (memberId: string, oldStartCol: number, oldEndCol: number, newStartCol: number, newEndCol: number, memberName: string) => void | Promise<void>
   commitDelete: (memberId: string, startCol: number, endCol: number, memberName: string) => void | Promise<void>
@@ -946,6 +955,7 @@ function Row({
             }}
           >
             <span className="truncate">{row.member.full_name || row.member.display_name}</span>
+            <CountryBadge countryCode={countryCode} />
             {isSelf && (
               <span
                 aria-hidden
