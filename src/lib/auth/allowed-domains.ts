@@ -12,7 +12,7 @@
  * When TeamPulse opens up to other tenants (SaaS), replace this with a
  * per-org allowed-domains lookup. Until then: CalWin Nordic + CalWin UK.
  */
-export const ALLOWED_EMAIL_DOMAINS = ['calwin.no', 'calwin.co.uk'] as const
+export const ALLOWED_EMAIL_DOMAINS = ['calwin.no', 'calwin.se', 'calwin.co.uk'] as const
 
 /** Extract the lower-cased domain part of an email, or null if malformed. */
 export function emailDomain(email: string | null | undefined): string | null {
