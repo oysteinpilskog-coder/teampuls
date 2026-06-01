@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { OffiviewWordmark } from '@/components/brand/offiview-wordmark'
 import { useT } from '@/lib/i18n/context'
 import { ease, spring } from '@/lib/motion'
+import { isAllowedEmail } from '@/lib/auth/allowed-domains'
 
 type Stage = 'email' | 'code'
 
@@ -18,6 +20,13 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const t = useT()
   const prefersReducedMotion = useReducedMotion()
+  const searchParams = useSearchParams()
+
+  // Surface the proxy/callback redirect reason (e.g. a non-CalWin address was
+  // signed out). A live form error always takes precedence over this hint.
+  const domainError =
+    searchParams.get('error') === 'domain_not_allowed' ? t.auth.domainNotAllowed : null
+  const displayError = error ?? domainError
 
   async function sendCode(targetEmail: string) {
     const supabase = createClient()
@@ -32,6 +41,13 @@ export default function LoginPage() {
 
   async function handleSendCode(e: React.FormEvent) {
     e.preventDefault()
+    // CalWin-only access: don't even send a code to a disallowed domain.
+    // The server (proxy + auth callback) enforces this regardless; this is
+    // the friendly front door.
+    if (!isAllowedEmail(email)) {
+      setError(t.auth.domainNotAllowed)
+      return
+    }
     setLoading(true)
     setError(null)
     const err = await sendCode(email)
@@ -44,6 +60,10 @@ export default function LoginPage() {
   }
 
   async function handleResend() {
+    if (!isAllowedEmail(email)) {
+      setError(t.auth.domainNotAllowed)
+      return
+    }
     setLoading(true)
     setError(null)
     const err = await sendCode(email)
@@ -155,7 +175,7 @@ export default function LoginPage() {
                 </div>
 
                 <AnimatePresence initial={false}>
-                  {error && (
+                  {displayError && (
                     <motion.p
                       key="error"
                       role="alert"
@@ -166,7 +186,7 @@ export default function LoginPage() {
                       exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
                       transition={{ duration: 0.18, ease: ease.horizon }}
                     >
-                      {error}
+                      {displayError}
                     </motion.p>
                   )}
                 </AnimatePresence>

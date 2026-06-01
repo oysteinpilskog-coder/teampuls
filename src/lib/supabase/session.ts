@@ -2,6 +2,7 @@ import { cache } from 'react'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isAllowedEmail } from '@/lib/auth/allowed-domains'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { WorkspaceSummary, WorkspaceRole, MemberRole } from '@/lib/supabase/types'
 
@@ -63,7 +64,10 @@ export const getSessionMember = cache(async () => {
 async function resolveSession() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
+  // Access lock: a session outside the CalWin allowlist is treated as
+  // logged-out everywhere downstream (the proxy normally signs these out
+  // first; this is the defence-in-depth backstop for any path that skips it).
+  if (!user || !isAllowedEmail(user.email)) {
     return {
       user: null,
       member: null,
