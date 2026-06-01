@@ -443,7 +443,13 @@ export function SommerWeekMatrix({
                 }
                 const { row, rowIdx } = gr
                 const editable = canEditAny || row.member.id === currentMemberId
-                const workspace = workspaceByOrgId.get(row.member.org_id) ?? null
+                // Workspace badge only in combined view — in single-workspace
+                // view the per-member CountryBadge already carries the location
+                // signal, so a second badge here is redundant. Mirrors the day
+                // view and Oversikt.
+                const workspace = combinedView
+                  ? workspaceByOrgId.get(row.member.org_id) ?? null
+                  : null
                 const countryCode = row.member.location_code ?? null
                 return (
                   <Row
