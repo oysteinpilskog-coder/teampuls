@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { AIInput } from '@/components/ai-input'
-import { SommerMonthMatrix } from '@/components/sommer-month-matrix'
+import { SommerView } from '@/components/sommer-view'
 import { getSessionMember } from '@/lib/supabase/session'
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server'
 import { getServerDict } from '@/lib/i18n/server'
@@ -36,13 +36,14 @@ export default async function SommerPage() {
 
   const orgIds = combinedScope?.org_ids ?? [member.org_id]
 
-  // Pull only weekday entries (Mon–Fri) for the active month, filtered
-  // server-side to vacation. Tiny payload, matches the client-side
-  // filter so SSR paint is correct.
-  const monthStart = new Date(year, month, 1)
-  const monthEnd = new Date(year, month + 1, 0)
-  const startStr = toDateString(monthStart)
-  const endStr = toDateString(monthEnd)
+  // Pull the whole target year of vacation entries (vacation-only, so the
+  // payload stays tiny). The day view slices this down to its active month
+  // for the SSR paint; the week view auto-fits its columns to the span of
+  // weeks that actually contain vacation across the year.
+  const yearStart = toDateString(new Date(year, 0, 1))
+  const yearEnd = toDateString(new Date(year, 11, 31))
+  const monthStartStr = toDateString(new Date(year, month, 1))
+  const monthEndStr = toDateString(new Date(year, month + 1, 0))
 
   const dict = await getServerDict()
 
@@ -59,14 +60,19 @@ export default async function SommerPage() {
       .from('entries')
       .select('*')
       .in('org_id', orgIds)
-      .gte('date', startStr)
-      .lte('date', endStr)
+      .gte('date', yearStart)
+      .lte('date', yearEnd)
       .eq('status', 'vacation'),
     supabase
       .from('offices')
       .select('id, org_id, country_code')
       .in('org_id', orgIds),
   ])
+
+  const yearEntries = entriesRes.data ?? []
+  const monthEntries = yearEntries.filter(
+    (e) => e.date >= monthStartStr && e.date <= monthEndStr,
+  )
 
   return (
     <div className="mx-auto max-w-7xl px-3 sm:px-6 pt-3 pb-10 space-y-5">
@@ -78,12 +84,13 @@ export default async function SommerPage() {
         />
       </div>
       <Suspense fallback={null}>
-        <SommerMonthMatrix
+        <SommerView
           orgIds={orgIds}
           currentMemberId={member.id}
           currentMemberRole={(member.role ?? 'member') as MemberRole}
           initialMembers={membersRes.data ?? []}
-          initialEntries={entriesRes.data ?? []}
+          monthEntries={monthEntries}
+          yearEntries={yearEntries}
           initialMonth={month}
           initialYear={year}
           workspaces={workspaces}
