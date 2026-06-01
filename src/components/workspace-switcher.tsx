@@ -105,6 +105,50 @@ export function WorkspaceSwitcher() {
   // below intentionally keep the initials badge so NO/UK stay distinct.
   const isCalwin = !isCombined && /calwin/i.test(active.name)
 
+  // Nothing to switch to: a single workspace and no combined view. Render a
+  // static brand identity chip instead of a dropdown. A chevron + clickable
+  // control that opens a one-row menu reads as broken ("ingen funksjonalitet").
+  // This auto-upgrades to the full switcher the moment a second workspace or
+  // membership appears.
+  const interactive = workspaces.length > 1 || combinedAvailable
+  if (!interactive) {
+    return (
+      <div
+        aria-label={active.name}
+        className="flex items-center gap-2 pl-1.5 pr-2.5 h-8 rounded-xl text-[12px] font-medium select-none"
+        style={{
+          color: 'var(--text-primary)',
+          background: 'color-mix(in oklab, var(--bg-elevated) 70%, transparent)',
+          backdropFilter: 'blur(14px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(14px) saturate(180%)',
+          border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+          boxShadow: accent
+            ? `0 1px 2px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.4), 0 0 0 1px color-mix(in oklab, ${accent} 30%, transparent)`
+            : '0 1px 2px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.4)',
+          fontFamily: 'var(--font-body)',
+        }}
+      >
+        {isCalwin ? <CalwinMark size={20} /> : <WorkspaceBadge workspace={active} size="sm" />}
+        <span className="hidden md:inline max-w-[140px] truncate">{active.name}</span>
+        {isCalwin && active.short_name ? (
+          <span
+            className="inline-flex items-center justify-center h-[18px] px-1.5 rounded-md text-[10px] font-semibold uppercase tabular-nums"
+            style={{
+              background: 'color-mix(in oklab, var(--accent-color) 14%, transparent)',
+              color: 'var(--accent-color)',
+              letterSpacing: '0.04em',
+              fontFamily: 'var(--font-body)',
+            }}
+          >
+            {active.short_name}
+          </span>
+        ) : (
+          <span className="md:hidden">{badge}</span>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="relative">
       <motion.button
