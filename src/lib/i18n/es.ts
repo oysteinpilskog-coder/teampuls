@@ -545,6 +545,11 @@ export const es: Dictionary = {
     deleted: 'Vacaciones eliminadas',
     deleteError: 'No se pudieron eliminar las vacaciones',
     undo: 'Deshacer',
+    viewDay: 'Día',
+    viewWeek: 'Semana',
+    viewToggleAria: 'Cambiar entre vista de día y semana',
+    dragWeekHint: 'Arrastra sobre las semanas para registrar vacaciones',
+    clearWeekHint: 'Quitar vacaciones de esta semana',
   },
   eventEditor: {
     titleNew: 'Nuevo evento',

@@ -545,6 +545,11 @@ export const lt: Dictionary = {
     deleted: 'Atostogos ištrintos',
     deleteError: 'Nepavyko ištrinti atostogų',
     undo: 'Atšaukti',
+    viewDay: 'Diena',
+    viewWeek: 'Savaitė',
+    viewToggleAria: 'Perjungti dienos ir savaitės rodinį',
+    dragWeekHint: 'Vilk per savaites, kad pažymėtum atostogas',
+    clearWeekHint: 'Pašalinti šios savaitės atostogas',
   },
   eventEditor: {
     titleNew: 'Naujas renginys',

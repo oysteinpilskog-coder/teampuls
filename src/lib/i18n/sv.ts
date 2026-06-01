@@ -545,6 +545,11 @@ export const sv: Dictionary = {
     deleted: 'Semester borttagen',
     deleteError: 'Kunde inte ta bort semester',
     undo: 'Ångra',
+    viewDay: 'Dag',
+    viewWeek: 'Vecka',
+    viewToggleAria: 'Växla mellan dag- och veckovy',
+    dragWeekHint: 'Dra över veckor för att lägga in semester',
+    clearWeekHint: 'Ta bort semester denna vecka',
   },
   eventEditor: {
     titleNew: 'Ny händelse',
