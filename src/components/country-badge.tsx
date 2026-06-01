@@ -1,16 +1,19 @@
-import { isSupportedCountry, type CountryCode } from '@/lib/holidays'
+// Per-member location badge. Reads the member's explicit `location_code`
+// ('GB' or 'NO') so every surface — Oversikt, Sommer, TV-dashboard — shows
+// the same signal. GB renders the label "UK" because that's how CalWin
+// refers to the office internally; everything else is "NO". Rendered as a
+// round, outlined chip: a brand-coloured ring with the code inside, instead
+// of a filled pill, so it reads as a quiet location marker next to the name.
 
-// Per-country location badge. Drives off the member's home-office
-// country_code so every surface (Oversikt, Sommer, TV-dashboard) reads the
-// same location signal. NO = Light Blue and GB = Blue Violet are the two
-// CalWin brand blues; SE/LT get their own distinct hues so the four offices
-// never collapse into "looks the same". GB renders the label "UK" because
-// that's how CalWin refers to the office internally.
-const COUNTRY_BADGE: Record<CountryCode, { label: string; bg: string; fg: string }> = {
-  NO: { label: 'NO', bg: '#66C4EF', fg: '#1F1C52' }, // Light Blue
-  GB: { label: 'UK', bg: '#322E7A', fg: '#FFFFFF' }, // Blue Violet (dark)
-  SE: { label: 'SE', bg: '#F5C518', fg: '#1F1C52' }, // Swedish gold
-  LT: { label: 'LT', bg: '#1F9E5A', fg: '#FFFFFF' }, // Lithuanian green
+type LocationCode = 'NO' | 'GB'
+
+const LOCATION_BADGE: Record<LocationCode, { label: string; ring: string; fg: string; bg: string }> = {
+  NO: { label: 'NO', ring: '#66C4EF', fg: '#1F5E86', bg: 'rgba(102,196,239,0.14)' }, // CalWin light blue
+  GB: { label: 'UK', ring: '#322E7A', fg: '#322E7A', bg: 'rgba(50,46,122,0.12)' }, // CalWin blue violet
+}
+
+function normalize(code: string | null | undefined): LocationCode {
+  return code === 'GB' ? 'GB' : 'NO'
 }
 
 export function CountryBadge({
@@ -20,22 +23,23 @@ export function CountryBadge({
   countryCode: string | null | undefined
   size?: 'sm' | 'md'
 }) {
-  if (!isSupportedCountry(countryCode)) return null
-  const c = COUNTRY_BADGE[countryCode]
+  const c = LOCATION_BADGE[normalize(countryCode)]
+  const dim = size === 'sm' ? 17 : 21
   return (
     <span
       aria-label={`Lokasjon: ${c.label}`}
       title={c.label}
-      className="inline-flex items-center justify-center shrink-0 rounded font-semibold uppercase tabular-nums"
+      className="inline-flex items-center justify-center shrink-0 rounded-full font-semibold uppercase tabular-nums"
       style={{
-        background: `linear-gradient(135deg, color-mix(in oklab, ${c.bg} 88%, white), ${c.bg})`,
+        width: dim,
+        height: dim,
+        background: c.bg,
         color: c.fg,
+        border: `1.5px solid ${c.ring}`,
         fontSize: size === 'sm' ? 8.5 : 10,
         lineHeight: 1,
-        letterSpacing: '0.08em',
-        padding: size === 'sm' ? '2px 4px' : '3px 5px',
+        letterSpacing: '0.04em',
         fontFamily: 'var(--font-body)',
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.25)`,
       }}
     >
       {c.label}

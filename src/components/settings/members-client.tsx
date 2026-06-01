@@ -38,6 +38,8 @@ interface MemberFormState {
   // e-postdomene-backfill i migration 018). Lagres ikke direkte — løses
   // til home_office_id ved save.
   country_code: string
+  // Eksplisitt lokasjon for lokasjon-badgen. 'GB' = UK, 'NO' = resten.
+  location_code: 'NO' | 'GB'
   birth_date: string
   birthday_visible: boolean
   start_date: string
@@ -56,6 +58,7 @@ function emptyForm(defaultOrgId: string): MemberFormState {
     email: '',
     role: 'member',
     country_code: '',
+    location_code: 'NO',
     birth_date: '',
     birthday_visible: false,
     start_date: '',
@@ -124,6 +127,7 @@ export function MembersClient({
       email: m.email,
       role: m.role,
       country_code: countryCodeFor(m.home_office_id),
+      location_code: m.location_code ?? 'NO',
       birth_date: m.birth_date ?? '',
       birthday_visible: m.birthday_visible ?? false,
       start_date: m.start_date ?? '',
@@ -165,6 +169,7 @@ export function MembersClient({
       email: form.email.trim().toLowerCase(),
       role: form.role,
       home_office_id,
+      location_code: form.location_code,
       birth_date: form.birth_date || null,
       birthday_visible: form.birthday_visible,
       start_date: form.start_date || null,
@@ -490,6 +495,27 @@ export function MembersClient({
                     ariaLabel={t.settings.members.countryLabel}
                     placeholder={t.settings.members.countryPlaceholder}
                   />
+                </Field>
+
+                <Field label={t.settings.members.locationLabel} hint={t.settings.members.locationHint}>
+                  <div className="flex gap-2">
+                    {([['NO', 'NO'], ['GB', 'UK']] as const).map(([code, label]) => (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, location_code: code }))}
+                        className="flex-1 py-2 rounded-xl text-[13px] font-medium transition-all"
+                        style={{
+                          backgroundColor: form.location_code === code ? 'rgba(0,102,255,0.1)' : 'var(--bg-subtle)',
+                          color: form.location_code === code ? 'var(--accent-color)' : 'var(--text-secondary)',
+                          border: `1.5px solid ${form.location_code === code ? 'var(--accent-color)' : 'transparent'}`,
+                          fontFamily: 'var(--font-body)',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </Field>
               </div>
 

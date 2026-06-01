@@ -214,6 +214,10 @@ export interface Member {
   avatar_url: string | null
   nicknames: string[]
   home_office_id: string | null
+  /** Eksplisitt lokasjon for lokasjon-badgen. 'GB' vises som «UK», 'NO' ellers.
+   *  NOT NULL i DB med DEFAULT 'NO'. Optional her fordi enkelte legacy-select
+   *  kun henter et subsett av kolonner. */
+  location_code?: 'NO' | 'GB'
   /** Member-level fallback used when org default_presence_assumption === 'per_member'.
    *  Optional because legacy code paths select only a subset of columns. */
   default_status?: EntryStatus | null

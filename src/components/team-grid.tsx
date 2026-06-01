@@ -1538,7 +1538,7 @@ export function TeamGrid({
                             >
                               {member.full_name || member.display_name}
                             </span>
-                            <CountryBadge countryCode={office?.country_code} />
+                            <CountryBadge countryCode={member.location_code} />
                             {combinedView && workspaceByOrgId.get(member.org_id) && (
                               <span className="ml-auto flex-shrink-0">
                                 <WorkspaceBadge
