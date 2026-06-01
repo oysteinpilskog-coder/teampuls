@@ -549,6 +549,11 @@ export const no = {
     deleted: 'Ferie slettet',
     deleteError: 'Kunne ikke slette ferie',
     undo: 'Angre',
+    viewDay: 'Dag',
+    viewWeek: 'Uke',
+    viewToggleAria: 'Bytt mellom dag- og ukevisning',
+    dragWeekHint: 'Dra over uker for å legge inn ferie',
+    clearWeekHint: 'Fjern ferie denne uken',
   },
   eventEditor: {
     titleNew: 'Ny hendelse',
