@@ -18,6 +18,13 @@ import {
 } from '@/lib/branding/css-overrides'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useT } from '@/lib/i18n/context'
+import { THEMES, type ThemeId } from '@/lib/themes'
+import { type DashboardMode } from '@/lib/dashboard-mode'
+
+const THEME_IDS: string[] = THEMES.map(t => t.id)
+function asThemeId(v: string | null | undefined): ThemeId {
+  return v && THEME_IDS.includes(v) ? (v as ThemeId) : 'nordic'
+}
 
 const STATUS_ORDER: EntryStatus[] = ['office', 'remote', 'customer', 'event', 'travel', 'vacation', 'absent', 'off']
 
@@ -61,6 +68,14 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
   const [presenceAssumption, setPresenceAssumption] = useState<PresenceAssumption>(
     initialOrg.default_presence_assumption ?? 'none'
   )
+  // Org-wide default branding — the theme variant + dashboard mode every
+  // user sees unless they've set a local override.
+  const [defaultThemeVariant, setDefaultThemeVariant] = useState<ThemeId>(
+    asThemeId(initialOrg.default_theme_variant)
+  )
+  const [defaultDashboardMode, setDefaultDashboardMode] = useState<DashboardMode>(
+    initialOrg.default_dashboard_mode === 'brand' ? 'brand' : 'standard'
+  )
   const [statusColors, setStatusColors] = useState<HexColors>(() =>
     mergeHexColors(initialOrg.status_colors)
   )
@@ -80,6 +95,8 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     brandPrimary !== (org.brand_primary ?? CALWIN_BRAND_PRIMARY) ||
     brandAccent !== (org.brand_accent ?? CALWIN_BRAND_ACCENT) ||
     presenceAssumption !== (org.default_presence_assumption ?? 'none') ||
+    defaultThemeVariant !== asThemeId(org.default_theme_variant) ||
+    defaultDashboardMode !== (org.default_dashboard_mode === 'brand' ? 'brand' : 'standard') ||
     statusColorsDirty
 
   async function handleLogoFile(file: File) {
@@ -189,6 +206,8 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
         brand_accent: brand_accent_payload,
         status_colors: status_colors_payload,
         default_presence_assumption: presenceAssumption,
+        default_theme_variant: defaultThemeVariant,
+        default_dashboard_mode: defaultDashboardMode,
       })
       .eq('id', org.id)
     setSaving(false)
@@ -206,6 +225,8 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
       brand_accent: brand_accent_payload,
       status_colors: status_colors_payload,
       default_presence_assumption: presenceAssumption,
+      default_theme_variant: defaultThemeVariant,
+      default_dashboard_mode: defaultDashboardMode,
     }))
     setBrandPrimary(brand_primary_payload)
     setBrandAccent(brand_accent_payload)
@@ -450,6 +471,89 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
               <RotateCcw className="w-3.5 h-3.5" strokeWidth={1.5} />
               Tilbakestill til CalWin BrandBook
             </button>
+          </div>
+        </SettingsField>
+
+        {/* Org-wide default theme variant. This is what every user sees
+            unless they pick a different theme themselves under /settings/theme. */}
+        <SettingsField
+          label="Standard tema"
+          description="Temaet alle i organisasjonen ser som standard. Brukere kan overstyre med eget valg under Tema, men kan når som helst gå tilbake til firmaets standard."
+        >
+          <select
+            value={defaultThemeVariant}
+            onChange={e => setDefaultThemeVariant(asThemeId(e.target.value))}
+            className="w-full px-3 py-2.5 rounded-xl text-[14px] outline-none appearance-none cursor-pointer"
+            style={{
+              ...inputStyle,
+              backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23A8A29E\' stroke-width=\'1.5\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E")',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 12px center',
+              paddingRight: '36px',
+            }}
+            onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent-color)')}
+            onBlur={e => (e.currentTarget.style.borderColor = 'transparent')}
+          >
+            {THEMES.map(theme => (
+              <option key={theme.id} value={theme.id}>
+                {theme.name} — {theme.tagline}
+              </option>
+            ))}
+          </select>
+        </SettingsField>
+
+        {/* Org-wide default dashboard mode (standard vs CalWin-branded). */}
+        <SettingsField
+          label="Standard dashboard"
+          description="Hvilken dashboard-variant /dashboard åpner som standard for alle. Brukere kan overstyre lokalt under Tema."
+        >
+          <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="Standard dashboard">
+            {([
+              { value: 'standard' as const, label: 'Standard', hint: 'Original mørk presentasjon — varm aurora, Nordlys-klokke.' },
+              { value: 'brand' as const, label: 'CalWin-merket', hint: 'Blue Violet canvas med prikkesirkel-logo og Light Blue accent.' },
+            ]).map(opt => {
+              const active = defaultDashboardMode === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setDefaultDashboardMode(opt.value)}
+                  className="flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-[background,border-color] duration-150"
+                  style={{
+                    background: active ? 'color-mix(in oklab, var(--lg-accent) 10%, transparent)' : 'var(--lg-surface-2, var(--bg-subtle))',
+                    border: `1px solid ${active ? 'color-mix(in oklab, var(--lg-accent) 45%, transparent)' : 'var(--lg-divider, var(--border-subtle))'}`,
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    className="mt-1 inline-flex items-center justify-center rounded-full shrink-0"
+                    style={{
+                      width: 14,
+                      height: 14,
+                      background: active ? 'var(--lg-accent)' : 'transparent',
+                      boxShadow: active
+                        ? '0 0 0 3px color-mix(in oklab, var(--lg-accent) 18%, transparent), 0 0 10px var(--lg-accent-glow)'
+                        : 'inset 0 0 0 1.5px var(--lg-divider, var(--border-subtle))',
+                    }}
+                  >
+                    {active && (
+                      <span className="rounded-full" style={{ width: 5, height: 5, background: '#ffffff' }} />
+                    )}
+                  </span>
+                  <span className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-[13px] font-medium" style={{ color: 'var(--lg-text-1, var(--text-primary))' }}>
+                      {opt.label}
+                    </span>
+                    <span className="text-[12px]" style={{ color: 'var(--lg-text-3, var(--text-tertiary))' }}>
+                      {opt.hint}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </SettingsField>
 

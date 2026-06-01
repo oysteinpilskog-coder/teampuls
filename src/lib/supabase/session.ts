@@ -103,6 +103,10 @@ async function resolveSession() {
      *  fall back to the canonical CalWin BrandBook pair downstream. */
     brand_primary?: string | null
     brand_accent?: string | null
+    /** Pre-migration-033 orgs won't have these — fall back to the
+     *  hardcoded defaults ('nordic' / 'standard') downstream. */
+    default_theme_variant?: string | null
+    default_dashboard_mode?: string | null
   }
   type Row = {
     id: string
@@ -314,6 +318,9 @@ async function resolveSession() {
       status_colors: orgMetaById.get(w.org_id)?.status_colors ?? null,
       brand_primary: w.brand_primary ?? '#322E7A',
       brand_accent: w.brand_accent ?? '#66C4EF',
+      default_theme_variant: orgMetaById.get(w.org_id)?.default_theme_variant ?? 'nordic',
+      default_dashboard_mode:
+        orgMetaById.get(w.org_id)?.default_dashboard_mode === 'brand' ? 'brand' : 'standard',
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
 
@@ -375,6 +382,10 @@ async function resolveSession() {
       // Per-org brand colors only apply when a specific workspace is active.
       brand_primary: '#322E7A',
       brand_accent: '#66C4EF',
+      // Combined view falls back to the hardcoded defaults — a per-org
+      // theme default only applies when a specific workspace is active.
+      default_theme_variant: 'nordic',
+      default_dashboard_mode: 'standard',
     }
 
     return {

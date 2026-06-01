@@ -4,6 +4,7 @@ import { fontBody } from '@/app/fonts'
 import { Providers } from '@/components/providers'
 import { ConditionalHeader } from '@/components/app-header'
 import { themeVariantBootScript } from '@/components/theme-variant-provider'
+import { DEFAULT_THEME, isThemeId, type ThemeId } from '@/lib/themes'
 import { getOrgStatusColors } from '@/lib/status-colors/server'
 import { getServerLocale } from '@/lib/i18n/server'
 import { LOCALE_META } from '@/lib/i18n/types'
@@ -93,10 +94,24 @@ export default async function RootLayout({
     getSessionMember(),
     cookies(),
   ])
-  const initialDashboardMode: DashboardMode =
-    cookieStore.get(DASHBOARD_MODE_COOKIE)?.value === 'brand' ? 'brand' : 'standard'
-
   const activeWorkspace = session.activeWorkspace
+
+  // Branding is org-wide by default: an admin's chosen theme variant and
+  // dashboard mode become the fallback every user sees. A local override
+  // (theme: localStorage, dashboard: cookie) always wins over the org default.
+  const orgDefaultTheme: ThemeId = isThemeId(activeWorkspace?.default_theme_variant)
+    ? activeWorkspace.default_theme_variant
+    : DEFAULT_THEME
+  const orgDefaultDashboardMode: DashboardMode =
+    activeWorkspace?.default_dashboard_mode === 'brand' ? 'brand' : 'standard'
+  const dashboardCookie = cookieStore.get(DASHBOARD_MODE_COOKIE)?.value
+  const initialDashboardMode: DashboardMode =
+    dashboardCookie === 'brand'
+      ? 'brand'
+      : dashboardCookie === 'standard'
+        ? 'standard'
+        : orgDefaultDashboardMode
+
   // Sanitize: only allow 3/4/6/8-digit hex so we can't inject
   // arbitrary CSS via a malicious workspace accent_color value.
   const accentColor = activeWorkspace?.accent_color?.match(/^#[0-9a-fA-F]{3,8}$/)
@@ -152,7 +167,7 @@ export default async function RootLayout({
             />
           </>
         )}
-        <script dangerouslySetInnerHTML={{ __html: themeVariantBootScript }} />
+        <script dangerouslySetInnerHTML={{ __html: themeVariantBootScript(orgDefaultTheme) }} />
         {brandOverrideCss && (
           <style
             id="tp-brand-overrides"
@@ -182,6 +197,7 @@ export default async function RootLayout({
                 }
               : null
           }
+          initialThemeVariant={orgDefaultTheme}
         >
           {/* Ambient aurora backdrop — restrained Ember-tint, sits below grain */}
           <div className="ambient-aurora" aria-hidden />
