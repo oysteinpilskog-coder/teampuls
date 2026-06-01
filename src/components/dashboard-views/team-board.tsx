@@ -13,8 +13,6 @@ import { AnimatedCount } from './animated-count'
 interface TeamBoardProps {
   members: Member[]
   todayMap: Map<string, Entry>
-  /** Office id → country_code, for the per-member location badge. */
-  officeCountryById?: Map<string, string>
 }
 
 interface StripDef {
@@ -93,14 +91,12 @@ function Strip({
   representative,
   members,
   delay,
-  officeCountryById,
 }: {
   stripKey: string
   label: string
   representative: EntryStatus
   members: Array<{ member: Member; entry: Entry | undefined }>
   delay: number
-  officeCountryById?: Map<string, string>
 }) {
   const STATUS_COLORS = useStatusColors()
   const colors = STATUS_COLORS[representative]
@@ -222,7 +218,7 @@ function Strip({
                 textTint={textTint}
                 bg={bg}
                 delay={delay + 0.15 + i * 0.03}
-                countryCode={member.home_office_id ? officeCountryById?.get(member.home_office_id) ?? null : null}
+                countryCode={member.location_code ?? null}
               />
             ))}
           </div>
@@ -232,7 +228,7 @@ function Strip({
   )
 }
 
-export function TeamBoard({ members, todayMap, officeCountryById }: TeamBoardProps) {
+export function TeamBoard({ members, todayMap }: TeamBoardProps) {
   const t = useT()
   const STRIPS: StripDef[] = [
     { key: 'office',   label: t.pulse.atOffice,   statuses: ['office'],                      representative: 'office'   },
@@ -265,7 +261,6 @@ export function TeamBoard({ members, todayMap, officeCountryById }: TeamBoardPro
           representative={bucket.representative}
           members={bucket.members}
           delay={0.3 + i * 0.06}
-          officeCountryById={officeCountryById}
         />
       ))}
     </div>

@@ -25,7 +25,6 @@ interface Props {
   workspaces?: WorkspaceSummary[]
   combinedView?: boolean
   ukOfficeIds?: string[]
-  officeCountries?: Record<string, string>
 }
 
 /**

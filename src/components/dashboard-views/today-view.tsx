@@ -61,13 +61,6 @@ export function TodayView({ members, weekDays, entries, todayEntries, time, offi
   const dedupedTodayEntries = dedupeEntriesByMemberDate(todayEntries, members)
   const todayMap = new Map(dedupedTodayEntries.map(e => [e.member_id, e]))
 
-  // Office id → country_code, drives the per-member location badge.
-  const officeCountryById = new Map(
-    (offices ?? [])
-      .filter(o => o.country_code)
-      .map(o => [o.id, o.country_code as string]),
-  )
-
   // Per-day maps for the week strip — same dedup logic per date
   function getDedupedDayEntries(date: Date): Entry[] {
     const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
@@ -225,7 +218,7 @@ export function TodayView({ members, weekDays, entries, todayEntries, time, offi
       <HeroBigNumber members={members} todayEntries={dedupedTodayEntries} offices={offices} />
 
       {/* ── Team board ───────────────────────────────────────────── */}
-      <TeamBoard members={members} todayMap={todayMap} officeCountryById={officeCountryById} />
+      <TeamBoard members={members} todayMap={todayMap} />
 
       {/* ── Week strip ────────────────────────────────────────────── */}
       <motion.div
