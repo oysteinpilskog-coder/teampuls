@@ -82,6 +82,12 @@ export interface Organization {
     & Partial<Record<EntryStatus, string>>
     & { office_aurora?: string; customer_aurora?: string }
     | null
+  /** Org-wide default theme variant (one of the nine in src/lib/themes.ts).
+   *  Fallback applied when a user has no local override. */
+  default_theme_variant?: string
+  /** Org-wide default for which variant /dashboard resolves to. Fallback
+   *  applied when a user has no cookie override. */
+  default_dashboard_mode?: 'standard' | 'brand'
   /** How the UI should render unregistered days — see PresenceAssumption. */
   default_presence_assumption?: PresenceAssumption
   /** Which dashboard views take part in the auto-rotate carousel. View keys: A/B/C/D/E. */
@@ -155,6 +161,11 @@ export interface WorkspaceSummary {
    *  in one server round-trip. */
   brand_primary: string
   brand_accent: string
+  /** Org-wide default theme variant + dashboard mode — carried on the
+   *  workspace so RootLayout can apply them in one server round-trip
+   *  (theme boot script + dashboard-mode fallback). User overrides win. */
+  default_theme_variant: string
+  default_dashboard_mode: 'standard' | 'brand'
 }
 
 export interface Office {

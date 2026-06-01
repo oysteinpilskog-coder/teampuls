@@ -14,7 +14,7 @@ import { spring } from '@/lib/motion'
 import { THEMES, type ThemeId, type ThemeMeta } from '@/lib/themes'
 
 export function ThemeClient() {
-  const { variant, setVariant } = useThemeVariant()
+  const { variant, setVariant, orgDefault, followsOrg, followOrgDefault } = useThemeVariant()
   const { resolvedTheme, setTheme } = useTheme()
   const { mode: dashMode, setMode: setDashMode } = useDashboardMode()
   const [mounted, setMounted] = useState(false)
@@ -47,6 +47,15 @@ export function ThemeClient() {
     })
   }
 
+  function resetToOrgDefault() {
+    if (followsOrg) return
+    followOrgDefault()
+    const meta = THEMES.find(m => m.id === orgDefault)
+    toast.success('Følger firmaets standard', {
+      description: meta ? `${meta.name} — ${meta.tagline}` : undefined,
+    })
+  }
+
   return (
     <div>
       <div className="mb-6 flex items-start justify-between gap-4">
@@ -62,8 +71,25 @@ export function ThemeClient() {
             className="text-[14px] mt-0.5"
             style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
           >
-            Velg et premium uttrykk — endres umiddelbart for alle visninger
+            {mounted && followsOrg
+              ? 'Du følger firmaets standardtema. Velg et eget uttrykk under — det overstyrer kun for deg.'
+              : 'Ditt egne valg overstyrer firmaets standard. Endres umiddelbart for alle dine visninger.'}
           </p>
+          {mounted && !followsOrg && (
+            <button
+              type="button"
+              onClick={resetToOrgDefault}
+              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors"
+              style={{
+                backgroundColor: 'var(--bg-subtle)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-subtle)',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              Følg firmaets standard
+            </button>
+          )}
         </div>
         {mounted && (
           <div
@@ -107,6 +133,7 @@ export function ThemeClient() {
             key={meta.id}
             meta={meta}
             selected={variant === meta.id}
+            isOrgDefault={meta.id === orgDefault}
             onSelect={() => choose(meta.id, meta)}
           />
         ))}
@@ -260,10 +287,12 @@ function DashboardModeCard({
 function ThemeCard({
   meta,
   selected,
+  isOrgDefault,
   onSelect,
 }: {
   meta: ThemeMeta
   selected: boolean
+  isOrgDefault: boolean
   onSelect: () => void
 }) {
   return (
@@ -338,6 +367,22 @@ function ThemeCard({
           </span>
           <span className="ml-auto text-[11px] opacity-80 font-mono">{meta.accent}</span>
         </div>
+
+        {/* Org-default badge — marks the variant an admin set for everyone. */}
+        {isOrgDefault && (
+          <div
+            className="absolute top-3 left-3 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.12em]"
+            style={{
+              background: 'rgba(255,255,255,0.85)',
+              color: '#1F1C52',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+            }}
+          >
+            Firmaets standard
+          </div>
+        )}
 
         {/* Selected badge */}
         {selected && (
