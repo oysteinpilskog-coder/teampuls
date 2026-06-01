@@ -1529,7 +1529,7 @@ export function TeamGrid({
                               size="sm"
                             />
                             <span
-                              className="text-[13px] truncate leading-tight min-w-0"
+                              className="text-[13px] truncate leading-tight min-w-0 flex-1"
                               style={{
                                 color: 'var(--lg-text-1)',
                                 fontWeight: 500,
