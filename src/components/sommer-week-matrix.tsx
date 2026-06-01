@@ -673,7 +673,7 @@ function Row({
           avatarUrl={row.member.avatar_url}
           size="sm"
         />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div
             className="truncate text-[13px] flex items-center gap-1"
             style={{
@@ -682,7 +682,7 @@ function Row({
               letterSpacing: '-0.01em',
             }}
           >
-            <span className="truncate">{row.member.full_name || row.member.display_name}</span>
+            <span className="truncate flex-1">{row.member.full_name || row.member.display_name}</span>
             <CountryBadge countryCode={countryCode} />
             {isSelf && (
               <span
