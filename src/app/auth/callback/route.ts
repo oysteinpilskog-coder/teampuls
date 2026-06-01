@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -26,14 +27,18 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      // Auto-link: if this user's email matches a member record with no user_id yet,
-      // set it now so the member is immediately connected on first login.
+      // Auto-link: if this user's email matches a member record with no
+      // user_id yet, set it now so the member is immediately connected on
+      // first login. Must use the service-role client — the anon/SSR client
+      // is RLS-bound, and an unlinked row (user_id IS NULL) matches neither
+      // members_update_self nor the admin policy for a not-yet-linked user,
+      // so the update would silently affect 0 rows.
       const { data: { user } } = await supabase.auth.getUser()
-      if (user?.email) {
-        await supabase
+      if (user?.email && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        await createAdminClient()
           .from('members')
           .update({ user_id: user.id })
-          .eq('email', user.email)
+          .ilike('email', user.email)
           .is('user_id', null)
       }
 

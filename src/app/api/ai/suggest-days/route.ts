@@ -6,10 +6,10 @@ import { suggestCoordinationDays } from '@/lib/ai/suggest-days'
 import { getServerDict } from '@/lib/i18n/server'
 import type { Entry } from '@/lib/supabase/types'
 
-// Edge runtime — pure analytics, no LLM call, deterministic. Smaller
-// cold-start matters here because the home page kicks this off as part of
-// the welcome banner.
-export const runtime = 'edge'
+// Node runtime — resolves the caller via the service-role client, which did
+// not get SUPABASE_SERVICE_ROLE_KEY reliably on Vercel's Edge runtime
+// (returned null → "user not linked"). Node matches getSessionMember (RSC).
+export const runtime = 'nodejs'
 
 /**
  * GET /api/ai/suggest-days
