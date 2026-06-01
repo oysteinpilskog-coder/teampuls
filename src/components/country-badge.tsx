@@ -2,14 +2,15 @@
 // ('GB' or 'NO') so every surface — Oversikt, Sommer, TV-dashboard — shows
 // the same signal. GB renders the label "UK" because that's how CalWin
 // refers to the office internally; everything else is "NO". Rendered as a
-// round, outlined chip: a brand-coloured ring with the code inside, instead
-// of a filled pill, so it reads as a quiet location marker next to the name.
+// filled, glossy circle in the brand palette (NO = Light Blue, UK = Blue
+// Violet) so the location reads as a solid, lined-up marker in its own
+// column rather than a faint outline behind the name.
 
 type LocationCode = 'NO' | 'GB'
 
-const LOCATION_BADGE: Record<LocationCode, { label: string; ring: string; fg: string; bg: string }> = {
-  NO: { label: 'NO', ring: '#66C4EF', fg: '#1F5E86', bg: 'rgba(102,196,239,0.14)' }, // CalWin light blue
-  GB: { label: 'UK', ring: '#322E7A', fg: '#322E7A', bg: 'rgba(50,46,122,0.12)' }, // CalWin blue violet
+const LOCATION_BADGE: Record<LocationCode, { label: string; bg: string; fg: string }> = {
+  NO: { label: 'NO', bg: '#66C4EF', fg: '#1F1C52' }, // Light Blue fill, Blue Violet text
+  GB: { label: 'UK', bg: '#322E7A', fg: '#FFFFFF' }, // Blue Violet fill, white text
 }
 
 function normalize(code: string | null | undefined): LocationCode {
@@ -24,7 +25,7 @@ export function CountryBadge({
   size?: 'sm' | 'md'
 }) {
   const c = LOCATION_BADGE[normalize(countryCode)]
-  const dim = size === 'sm' ? 17 : 21
+  const dim = size === 'sm' ? 22 : 26
   return (
     <span
       aria-label={`Lokasjon: ${c.label}`}
@@ -33,13 +34,13 @@ export function CountryBadge({
       style={{
         width: dim,
         height: dim,
-        background: c.bg,
+        background: `linear-gradient(135deg, color-mix(in oklab, ${c.bg} 86%, white) 0%, ${c.bg} 100%)`,
         color: c.fg,
-        border: `1.5px solid ${c.ring}`,
-        fontSize: size === 'sm' ? 8.5 : 10,
+        fontSize: size === 'sm' ? 9.5 : 11,
         lineHeight: 1,
-        letterSpacing: '0.04em',
+        letterSpacing: '0.03em',
         fontFamily: 'var(--font-body)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.35), 0 1px 2px rgba(31,28,82,0.25)',
       }}
     >
       {c.label}
