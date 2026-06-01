@@ -698,7 +698,7 @@ function GroupDivider() {
   )
 }
 
-const NAME_COL = 200
+const NAME_COL = 136
 
 function Header({
   weekdays, weekGroups, colPct, t,
