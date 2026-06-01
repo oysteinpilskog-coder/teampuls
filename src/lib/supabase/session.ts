@@ -509,25 +509,16 @@ export async function resolveActiveMember<T extends SupabaseClient>(
       }
     }
 
-    if (requestedSlug) {
-      const match = rows.find((r) => slugOf(r) === requestedSlug)
-      if (match) {
-        return {
-          id: match.id,
-          org_id: match.org_id,
-          email: match.email,
-          display_name: match.display_name,
-          role: match.role,
-          combined_org_ids: null,
-        }
-      }
-      // Cookie points to a workspace the user *can read* (account-
-      // wide viewer access via migration 036) but has no membership
-      // in. Refuse the write — caller maps null → 403 with a
-      // "switch workspace to register" message.
-      return null
-    }
-    const picked = rows[0]
+    // Match the active-workspace cookie to one of the caller's memberships.
+    // When it doesn't match — a stale cookie, an archived workspace, or one
+    // the caller can only *view* (account-wide viewer access) — fall back to
+    // their own (first) membership instead of refusing. The write then lands
+    // in the caller's real workspace and can never escalate, mirroring
+    // resolveSession()'s graceful workspace fallback. Returning null here
+    // surfaced a misleading "user not linked" error for correctly-linked
+    // users carrying a stale cookie.
+    const match = requestedSlug ? rows.find((r) => slugOf(r) === requestedSlug) : undefined
+    const picked = match ?? rows[0]
     return {
       id: picked.id,
       org_id: picked.org_id,
