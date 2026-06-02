@@ -63,6 +63,10 @@ export function AIInput({ orgId, orgIds, placeholders }: AIInputProps) {
   const [placeholderIdx, setPlaceholderIdx] = useState(0)
   const [placeholderVisible, setPlaceholderVisible] = useState(true)
   const [clarification, setClarification] = useState<string | null>(null)
+  // Permission denials ("Du kan bare oppdatere din egen plan") show only the
+  // message — no example chips, since suggesting another name's phrasing would
+  // nudge the user toward the very thing they're not allowed to do.
+  const [clarificationForbidden, setClarificationForbidden] = useState(false)
   const [memberNames, setMemberNames] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const rotateRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -130,6 +134,7 @@ export function AIInput({ orgId, orgIds, placeholders }: AIInputProps) {
     // Optimistic clear — input empties in the same frame the user hits Enter.
     // If the server fails or asks for clarification, we restore the text.
     setClarification(null)
+    setClarificationForbidden(false)
     setState('loading')
     setValue('')
 
@@ -141,6 +146,7 @@ export function AIInput({ orgId, orgIds, placeholders }: AIInputProps) {
       })
       const data = await res.json() as {
         success: boolean
+        code?: string
         clarification?: string
         updates?: Array<{ member_name: string }>
         action?: string
@@ -162,9 +168,14 @@ export function AIInput({ orgId, orgIds, placeholders }: AIInputProps) {
       }
 
       if (data.clarification) {
+        const forbidden = data.code === 'forbidden'
         setState('idle')
-        setValue(text) // restore so the user can amend
+        // A forbidden action has nothing to amend — leave the input cleared so
+        // the only thing on screen is the message. Other clarifications restore
+        // the text so the user can tweak and resend.
+        if (!forbidden) setValue(text)
         setClarification(data.clarification)
+        setClarificationForbidden(forbidden)
         return
       }
 
@@ -397,7 +408,7 @@ export function AIInput({ orgId, orgIds, placeholders }: AIInputProps) {
                 </svg>
                 <span>{clarification}</span>
               </div>
-              {chipExamples.length > 0 && (
+              {chipExamples.length > 0 && !clarificationForbidden && (
                 <div className="mt-2.5 ml-[26px] flex flex-wrap gap-1.5">
                   {chipExamples.map((ex, i) => (
                     <button
