@@ -113,7 +113,6 @@ export async function POST(req: NextRequest) {
       corrections: recentCorrections ?? [],
       today: new Date(),
       timezone,
-      isAdmin,
     })
 
     // Non-admins can only write entries for themselves. The parser prompt
@@ -142,6 +141,7 @@ export async function POST(req: NextRequest) {
           .then(() => {})
         return NextResponse.json({
           success: false,
+          code: 'forbidden',
           clarification: dict.aiInput.adminOnlyOtherMember,
           updates: [],
         })

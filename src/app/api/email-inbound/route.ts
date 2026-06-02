@@ -154,7 +154,6 @@ export async function POST(req: NextRequest) {
       corrections: recentCorrections ?? [],
       today: new Date(),
       timezone: (org as { timezone: string }).timezone ?? 'Europe/Oslo',
-      isAdmin,
     })
   } catch (err) {
     console.error('[email-inbound] Claude parse error:', err)
