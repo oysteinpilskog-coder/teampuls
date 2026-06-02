@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation'
 import { TeamGrid } from '@/components/team-grid'
 import { AIInput } from '@/components/ai-input'
 import { EmptyState } from '@/components/empty-state'
-import { InactivityNudge } from '@/components/inactivity-nudge'
 import { TodaysGuestsRail } from '@/components/todays-guests-rail'
 import { getSessionMember } from '@/lib/supabase/session'
 import { getServerDict } from '@/lib/i18n/server'
@@ -50,17 +49,6 @@ export default async function HomePage() {
     )
   }
 
-  // In combined view AI input parses across all workspaces in the
-  // account and routes each write to the matched member's actual org
-  // (see /api/ai/parse + applyUpdates memberOrgIds). InactivityNudge
-  // is still single-workspace by design so we keep that gated.
-  //
-  // In viewer-mode (account-wide read access, no membership in the
-  // active workspace) we hide both write surfaces — there's no
-  // member row to attribute new entries to, and the AI route 403's
-  // anyway. The switcher pill carries the «Kun visning» label so
-  // the user knows why.
-  const showSingleWorkspaceAffordances = !combinedScope && !isViewerMode
   const { week, year } = getTodayWeekAndYear()
   const orgIds = combinedScope?.org_ids ?? [member.org_id]
 
@@ -94,10 +82,6 @@ export default async function HomePage() {
           combinedScope={combinedScope}
         />
       </Suspense>
-
-      {showSingleWorkspaceAffordances && (
-        <InactivityNudge orgId={member.org_id} memberId={member.id} />
-      )}
     </div>
   )
 }

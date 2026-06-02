@@ -193,13 +193,6 @@ export const en: Dictionary = {
     accountNotLinkedSuffix: 'in the Supabase SQL Editor.',
     accountNotLinkedEmailLabel: 'The email',
   },
-  inactivityNudge: {
-    title: "Have you been at the office this week?",
-    desc: "Log your status so the team knows where you're working from.",
-    cta: 'Log now',
-    later: 'Later',
-    close: 'Close',
-  },
   onboardingHint: {
     pre: 'Press',
     post: 'to search or navigate quickly',
