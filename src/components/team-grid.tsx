@@ -1119,7 +1119,7 @@ export function TeamGrid({
         week={week}
         year={year}
         isCurrentWeek={isCurrentWeek}
-        showHero={isCurrentWeek}
+        showHero
         onPrev={goToPrev}
         onNext={goToNext}
         onToday={goToToday}
