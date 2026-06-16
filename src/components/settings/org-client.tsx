@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { Copy, Check, Upload, Trash2, RotateCcw } from 'lucide-react'
+import { Copy, Check, Upload, Trash2, RotateCcw, Wand2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Organization, EntryStatus, PresenceAssumption } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
@@ -18,8 +18,8 @@ import {
 } from '@/lib/branding/css-overrides'
 import { StatusIcon } from '@/components/icons/status-icons'
 import { useT } from '@/lib/i18n/context'
-import { THEMES, type ThemeId } from '@/lib/themes'
-import { type DashboardMode } from '@/lib/dashboard-mode'
+import { THEMES, THEME_STORAGE_KEY, isThemeId, type ThemeId } from '@/lib/themes'
+import { getDashboardMode, type DashboardMode } from '@/lib/dashboard-mode'
 
 const THEME_IDS: string[] = THEMES.map(t => t.id)
 function asThemeId(v: string | null | undefined): ThemeId {
@@ -236,6 +236,29 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
     // nye fargen propagerer til workspace-pill, body-glow og aurora uten reload.
     router.refresh()
     toast.success('Innstillinger lagret')
+  }
+
+  // One-click: copy the admin's own current look (theme from localStorage,
+  // dashboard mode from cookie) into the org-default fields. Just stages the
+  // form — the user still clicks Lagre to persist, so it flows through the
+  // same save + router.refresh() path as every other setting.
+  function applyMyCurrentStyle() {
+    let appliedThemeName: string | null = null
+    try {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY)
+      if (isThemeId(saved)) {
+        setDefaultThemeVariant(saved)
+        appliedThemeName = THEMES.find(th => th.id === saved)?.name ?? saved
+      }
+    } catch {
+      // localStorage unavailable (private mode etc.) — fall back to dashboard only.
+    }
+    setDefaultDashboardMode(getDashboardMode())
+    toast.success(
+      appliedThemeName
+        ? `Hentet din stil (${appliedThemeName}). Klikk Lagre for å gjøre den til standard for alle.`
+        : 'Hentet din dashboard-modus. Klikk Lagre for å gjøre den til standard for alle.'
+    )
   }
 
   function resetStatusColors() {
@@ -556,6 +579,21 @@ export function OrgClient({ org: initialOrg }: OrgClientProps) {
             })}
           </div>
         </SettingsField>
+
+        {/* One-click sync: lift the admin's own current look into the org
+            defaults above, so every user starts from it. Users keep their
+            local override afterward. */}
+        <button
+          type="button"
+          onClick={applyMyCurrentStyle}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium self-start transition-colors -mt-1"
+          style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-body)' }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--accent-color)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-tertiary)')}
+        >
+          <Wand2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+          Bruk min nåværende stil som standard for alle
+        </button>
 
         {/* Presence assumption */}
         <SettingsField
