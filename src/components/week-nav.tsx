@@ -15,6 +15,7 @@ import {
 import { useT } from '@/lib/i18n/context'
 import { spring } from '@/lib/motion'
 import { useHaptic } from '@/hooks/use-haptic'
+import { TodayHero } from '@/components/today-hero'
 
 interface WeekNavProps {
   week: number
@@ -30,6 +31,9 @@ interface WeekNavProps {
     registeredToday: number
     distinctLocations: number
   } | null
+  /** When true, renders today's serif date as the anchor of the left cluster,
+   *  so the date and the week meta share a single compact header row. */
+  showHero?: boolean
 }
 
 /**
@@ -51,6 +55,7 @@ export function WeekNav({
   onToday,
   onJumpTo,
   metrics,
+  showHero = false,
 }: WeekNavProps) {
   const t = useT()
   const prefersReducedMotion = useReducedMotion()
@@ -74,8 +79,19 @@ export function WeekNav({
       transition={spring.gentle}
       className="flex items-center justify-between gap-4 flex-wrap"
     >
-      {/* Left: single-line meta — week · range · NÅ · metrics · month picker */}
+      {/* Left: single-line header — serif date · week · range · NÅ · metrics · month */}
       <div className="flex items-center gap-2 flex-wrap min-w-0">
+        {showHero && (
+          <>
+            <TodayHero />
+            <span
+              aria-hidden
+              className="hidden sm:block w-px h-5 mr-0.5 shrink-0"
+              style={{ background: 'var(--lg-divider)' }}
+            />
+          </>
+        )}
+
         <WeekPickerTrigger
           week={week}
           year={year}
