@@ -413,10 +413,11 @@ export function SommerWeekMatrix({
   return (
     <div className="w-full flex flex-col gap-5">
       <section
-        className="relative w-full rounded-2xl overflow-hidden overflow-x-auto"
+        className="relative w-full rounded-2xl overflow-auto"
         style={{
           background: 'var(--lg-surface-1)',
           border: '1px solid var(--lg-divider)',
+          maxHeight: 'calc(100dvh - 14rem)',
         }}
       >
         <div style={{ minWidth }}>
@@ -505,13 +506,16 @@ function Header({
   t: ReturnType<typeof useT>
 }) {
   return (
-    <div className="px-3 pt-4 pb-2">
+    <div
+      className="sticky top-0 z-30 px-3 pt-4 pb-2"
+      style={{ background: 'var(--lg-surface-1)' }}
+    >
       {/* Month band */}
       <div
         className="relative grid items-center pl-1"
         style={{ gridTemplateColumns: `${NAME_COL}px 1fr`, marginBottom: 4 }}
       >
-        <div />
+        <div className="sticky left-0 z-10" style={{ background: 'var(--lg-surface-1)' }} />
         <div className="relative h-5">
           {monthGroups.map((g) => {
             const left = colPct(g.startCol)
@@ -543,7 +547,7 @@ function Header({
         className="relative grid items-center pl-1"
         style={{ gridTemplateColumns: `${NAME_COL}px 1fr` }}
       >
-        <div />
+        <div className="sticky left-0 z-10" style={{ background: 'var(--lg-surface-1)' }} />
         <div className="relative h-7">
           {visibleBuckets.map((b, i) => {
             const left = colPct(i)
@@ -672,7 +676,10 @@ function Row({
       animate={{ opacity: hasVacation ? 1 : 0.62, x: 0 }}
       transition={reduce ? { duration: 0 } : { delay: 0.03 + idx * 0.02, duration: 0.4, ease: ease.horizon }}
     >
-      <div className="flex items-center gap-2 px-1 min-w-0 w-full">
+      <div
+        className="sticky left-0 z-20 flex items-center gap-2 px-1 min-w-0 w-full h-full"
+        style={{ background: 'var(--lg-surface-1)' }}
+      >
         <MemberAvatar
           name={row.member.display_name}
           initials={row.member.initials}
@@ -723,7 +730,7 @@ function Row({
 
       <div
         ref={trackRef}
-        className="relative h-full"
+        className="relative h-full isolate"
         style={{
           cursor: editable ? (drag ? 'grabbing' : 'crosshair') : 'default',
           touchAction: editable ? 'none' : 'auto',
