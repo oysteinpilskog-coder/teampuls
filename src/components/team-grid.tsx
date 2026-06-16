@@ -14,7 +14,6 @@ import {
   formatDateLabelLong,
 } from '@/lib/dates'
 import { WeekNav } from '@/components/week-nav'
-import { TodayHero } from '@/components/today-hero'
 import { StatusSegment, type SegmentDay } from '@/components/status-segment'
 import { useStatusColors } from '@/lib/status-colors/context'
 import { usePresenceCtx } from '@/lib/presence/context'
@@ -1113,15 +1112,14 @@ export function TeamGrid({
 
   return (
     <div className="space-y-5">
-      {/* Today's date as a serif "oppslag" — the compact strip below carries
-          the week number, range, NÅ pulse and metrics. */}
-      {isCurrentWeek && <TodayHero />}
-
-      {/* Week navigation */}
+      {/* Header — today's serif date and the week meta share one compact row;
+          the date anchors the left, week/NÅ/metrics/month follow inline, and
+          the prev/today/next pill sits at the far right. */}
       <WeekNav
         week={week}
         year={year}
         isCurrentWeek={isCurrentWeek}
+        showHero={isCurrentWeek}
         onPrev={goToPrev}
         onNext={goToNext}
         onToday={goToToday}
