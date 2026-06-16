@@ -39,6 +39,25 @@ export default function LoginPage() {
     return error
   }
 
+  // Map a Supabase auth error to a user-facing message. The two cases
+  // that otherwise look like "no email arrived" — the account doesn't
+  // exist yet and project sign-ups are off, or the email-send rate
+  // limit was hit — get their own copy so the user knows what to do.
+  // Everything else falls back to the generic message. The raw error
+  // is always logged so the real cause is diagnosable.
+  function messageForSendError(err: { code?: string; message?: string }): string {
+    console.error('[login] signInWithOtp failed:', err.code ?? '(no code)', err.message)
+    const code = err.code ?? ''
+    const msg = (err.message ?? '').toLowerCase()
+    if (code === 'otp_disabled' || code === 'signup_disabled' || msg.includes('signups not allowed')) {
+      return t.auth.signupDisabled
+    }
+    if (code === 'over_email_send_rate_limit' || code === 'over_request_rate_limit' || msg.includes('rate limit')) {
+      return t.auth.rateLimited
+    }
+    return t.auth.error
+  }
+
   async function handleSendCode(e: React.FormEvent) {
     e.preventDefault()
     // CalWin-only access: don't even send a code to a disallowed domain.
@@ -53,7 +72,7 @@ export default function LoginPage() {
     const err = await sendCode(email)
     setLoading(false)
     if (err) {
-      setError(t.auth.error)
+      setError(messageForSendError(err))
       return
     }
     setStage('code')
@@ -68,7 +87,7 @@ export default function LoginPage() {
     setError(null)
     const err = await sendCode(email)
     setLoading(false)
-    if (err) setError(t.auth.error)
+    if (err) setError(messageForSendError(err))
   }
 
   async function handleVerify(e: React.FormEvent) {
