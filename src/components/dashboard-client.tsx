@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEntries } from '@/hooks/use-entries'
+import { useDocumentVisibility } from '@/hooks/use-document-visibility'
 import { BreathingDot } from '@/components/breathing-dot'
 // Heavy view bundles (Leaflet, d3-geo, big SVG wheel, …) are split out so the
 // dashboard shell paints fast and each view chunk loads on first use. Aurora
@@ -154,6 +155,10 @@ export function DashboardClient({
   // Manual keyboard navigation always uses the quick crossfade regardless.
   const brandOff = searchParams.get('brand') === 'off'
 
+  // Freezes the rotation hairline's CSS animation while the tab is hidden so
+  // a dozing TV doesn't keep a compositor layer churning.
+  const visible = useDocumentVisibility()
+
   const [time, setTime] = useState(new Date())
   const [viewIdx, setViewIdx] = useState(0)
   // pendingViewIdx is set when an auto-rotation tick has captured the
@@ -257,6 +262,25 @@ export function DashboardClient({
   useEffect(() => {
     if (viewIdx >= VIEWS.length) setViewIdx(0)
   }, [VIEWS.length, viewIdx])
+
+  // Resepsjons-TV-en står på i ukevis uten at noen rører den. Realtime holder
+  // data ferskt (entries, members, customers, innstillinger), men en NY
+  // app-versjon — en Vercel-deploy — plukkes først opp ved full sidelast.
+  // Derfor reloader vi stille én gang i timen: ny kode tas i bruk, og en
+  // skjerm som har døst i dagevis får en ren omstart som selv-healing.
+  // Aldri midt i en velkomst, så vi ikke avbryter et hilse-øyeblikk; da
+  // hopper vi over denne runden og prøver igjen neste time.
+  const welcomeActiveRef = useRef(false)
+  useEffect(() => {
+    welcomeActiveRef.current = activeWelcomes.length > 0
+  }, [activeWelcomes.length])
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (welcomeActiveRef.current) return
+      window.location.reload()
+    }, 60 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [])
 
   // Når et velkomst-besøk dukker opp innenfor sitt vindu, avbryt pågående
   // rotasjon og hopp umiddelbart til Velkomst-slide F. Uten dette ville TV
@@ -779,8 +803,6 @@ export function DashboardClient({
   }
 
   const dwellMs = Math.max(1, currentDwellSec * 1000)
-  const elapsed = time.getTime() - viewStartedAt
-  const rotationPct = Math.max(0, Math.min(1, elapsed / dwellMs))
 
   return (
     <div
@@ -1011,7 +1033,11 @@ export function DashboardClient({
       {/* Rotasjons-progressbar under kontroll-baren. Tidligere var det også
           en speilet linje på toppen, men den ble fjernet — én linje er nok
           for å bevise at auto-rotasjonen lever, uten å ramme dashbordet. */}
-      <RotationHairline pct={rotationPct} />
+      <RotationHairline
+        startedAt={viewStartedAt}
+        durationMs={dwellMs}
+        paused={!visible}
+      />
 
       {/* Global topp-bar — org-navn (venstre) + tidssoneklokker (høyre).
           Wordmarken er samme Fraunces italic på tvers av alle visninger,
@@ -1098,40 +1124,77 @@ export function DashboardClient({
  * rett under kontrollbaren og ikke skal konkurrere med innholdet bak.
  * Wrapperen er bevisst IKKE clipped — gløden skal blø utenfor selve
  * rail-en for at to-lags-effekten skal lese.
+ *
+ * Fyllet drives av én ren CSS-keyframe (scaleX 0→1 over nøyaktig
+ * `durationMs`) i stedet for en bredde-transition matet av sekund-klokka.
+ * Det gir tre ting:
+ *  - Jevn glid: compositor-only transform i 60fps, ingen layout/repaint av
+ *    blur+box-shadow per frame, og ingen avhengighet av at hele dashbordet
+ *    re-rendrer hvert sekund.
+ *  - Umiddelbar reset: `key={startedAt}` remonter linja ved hvert view-
+ *    skifte, så animasjonen starter på scaleX(0) i stedet for å gli bakover.
+ *  - Hold på fullt: `forwards` låser scaleX(1) gjennom brand-overgangen til
+ *    neste view tar over.
+ * `paused` fryser animasjonen når fanen er skjult (TV i dvale).
  */
-function RotationHairline({ pct }: { pct: number }) {
-  const fillWidth = `${pct * 100}%`
+function RotationHairline({
+  startedAt,
+  durationMs,
+  paused,
+}: {
+  startedAt: number
+  durationMs: number
+  paused: boolean
+}) {
+  const anim = `rotation-hairline-fill ${durationMs}ms linear forwards`
+  const playState = paused ? 'paused' : 'running'
   return (
     <div className="relative h-[2px] w-full">
+      <style>{`
+        @keyframes rotation-hairline-fill {
+          from { transform: scaleX(0) scaleY(var(--hairline-sy, 1)); }
+          to   { transform: scaleX(1) scaleY(var(--hairline-sy, 1)); }
+        }
+      `}</style>
       <div
         className="absolute inset-0 rounded-full"
         style={{ background: 'rgba(255,255,255,0.04)' }}
       />
       {/* Blurred halo — samme atmosfæriske bloom som KUNDEPORTEFØLJE,
-          men halv opacity. */}
+          men halv opacity. scaleY-en lever i CSS-variabelen så keyframen
+          kan eie hele transform-en uten å miste bloom-høyden. */}
       <div
+        key={`halo-${startedAt}`}
         aria-hidden
-        className="absolute left-0 top-0 h-full rounded-full pointer-events-none transition-[width] duration-[950ms] ease-linear"
+        className="absolute left-0 top-0 h-full w-full rounded-full pointer-events-none"
         style={{
-          width: fillWidth,
           background:
             'var(--gradient-nordlys-rail)',
           filter: 'blur(7px) saturate(140%)',
           opacity: 0.475,
-          transform: 'scaleY(4)',
-          transformOrigin: 'center',
+          transform: 'scaleX(0) scaleY(4)',
+          transformOrigin: 'left center',
+          willChange: 'transform',
+          animation: anim,
+          animationPlayState: playState,
+          ['--hairline-sy' as string]: '4',
         }}
       />
       {/* Crisp filament — samme fem-stegs box-shadow som
           KUNDEPORTEFØLJE, men hver alpha halvert. */}
       <div
-        className="absolute left-0 top-0 h-full rounded-full transition-[width] duration-[950ms] ease-linear"
+        key={`filament-${startedAt}`}
+        className="absolute left-0 top-0 h-full w-full rounded-full"
         style={{
-          width: fillWidth,
           background:
             'var(--gradient-nordlys-rail)',
           backgroundSize: '100% 100%',
           backgroundRepeat: 'no-repeat',
+          transform: 'scaleX(0)',
+          transformOrigin: 'left center',
+          willChange: 'transform',
+          animation: anim,
+          animationPlayState: playState,
           // Femstegs glow — bruker Nordlys-tokens slik at per-org brand
           // restainer hele bloom-kjeden, ikke bare gradient-fyllet.
           boxShadow:
