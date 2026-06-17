@@ -68,7 +68,8 @@ export function WelcomePreviewClient({ orgName, visits, entries }: WelcomePrevie
     }
     // Syntetisk visit for «egendefinert»-modus. id genereres fra feltene
     // så WelcomeView's AnimatePresence cross-fader når brukeren endrer dem.
-    const start = toTimeStr(custom.start_hhmm) ?? '14:00:00'
+    // Tom tid → null, så «kun dato» kan forhåndsvises også.
+    const start = toTimeStr(custom.start_hhmm)
     const end = toTimeStr(custom.end_hhmm)
     const subtitle = custom.subtitle.trim() || null
     return {
@@ -236,8 +237,9 @@ export function WelcomePreviewClient({ orgName, visits, entries }: WelcomePrevie
                             className="text-[11px] mt-0.5 tabular-nums"
                             style={{ color: 'rgba(255,255,255,0.55)' }}
                           >
-                            {v.date} · {v.start_time.slice(0, 5)}
-                            {v.end_time ? `–${v.end_time.slice(0, 5)}` : ''}
+                            {v.date}
+                            {v.start_time ? ` · ${v.start_time.slice(0, 5)}` : ''}
+                            {v.start_time && v.end_time ? `–${v.end_time.slice(0, 5)}` : ''}
                             {v.visitor_company ? ` · ${v.visitor_company}` : ''}
                           </span>
                         </button>

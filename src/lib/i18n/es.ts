@@ -398,6 +398,7 @@ export const es: Dictionary = {
     todaysTitle: 'Visitas de hoy',
     empty: 'Sin visitas previstas hoy. Escribe nombre y hora — la TV les dará la bienvenida.',
     at: 'a las {time}',
+    allDay: 'Todo el día',
   },
   myPlan: {
     title: 'Mi plan',
@@ -876,11 +877,13 @@ export const es: Dictionary = {
       statusUpcoming: 'Próxima',
       statusWindow: 'En curso',
       statusPast: 'Pasada',
+      allDay: 'Todo el día',
       fields: {
         visitorName: 'Nombre',
         visitorCompany: 'Empresa',
         date: 'Fecha',
         start: 'Desde',
+        startHint: 'opcional',
         end: 'Hasta',
         endHint: 'opcional',
         host: 'Anfitrión',

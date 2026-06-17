@@ -3,12 +3,17 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { spring } from '@/lib/motion'
+import { useT } from '@/lib/i18n/context'
+import { formatDateLabelLong } from '@/lib/dates'
 
 export interface StageVisit {
   id: string
   visitor_name: string
   visitor_company: string | null
-  start_time: string
+  /** 'HH:MM(:SS)' eller null for «kun dato»-besøk. */
+  start_time: string | null
+  /** ISO 'YYYY-MM-DD' — vises i stedet for klokkeslett når start_time er null. */
+  date: string
   note: string | null
 }
 
@@ -40,6 +45,12 @@ function trimSeconds(time: string): string {
   return time.length >= 5 ? time.slice(0, 5) : time
 }
 
+/** ISO 'YYYY-MM-DD' → lokal Date uten tidssone-overraskelser. */
+function parseDateStr(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 /**
  * Compact, faithful miniature of `WelcomeView` for use inside the settings
  * page and the editor sheet. The full hero uses `clamp()` with `vw` units
@@ -61,6 +72,7 @@ export function WelcomeStage({
   freeze,
   cycleMs = DEFAULT_CYCLE_MS,
 }: WelcomeStageProps) {
+  const t = useT()
   const [idx, setIdx] = useState(0)
 
   // Reset to first slot whenever the list shape changes — so the editor's
@@ -230,36 +242,40 @@ export function WelcomeStage({
                 }}
               />
 
-              {/* Meta line: tid · firma */}
-              {(current.start_time || current.visitor_company) && (
-                <p
-                  className="font-semibold uppercase tabular-nums"
-                  style={{
-                    marginTop: 'clamp(8px, 1.6cqw, 16px)',
-                    fontSize: 'clamp(9px, 1.2cqw, 12px)',
-                    letterSpacing: '0.28em',
-                    color: 'rgba(245,239,228,0.78)',
-                    fontFamily: 'var(--font-body)',
-                  }}
-                >
-                  {current.start_time && (
-                    <span>
-                      {atTemplate.replace('{time}', trimSeconds(current.start_time))}
-                    </span>
-                  )}
-                  {current.start_time && current.visitor_company && (
-                    <span
-                      aria-hidden
-                      style={{ margin: '0 0.85em', color: 'rgba(245,239,228,0.35)' }}
-                    >
-                      ·
-                    </span>
-                  )}
-                  {current.visitor_company && (
-                    <span>{fromTemplate.replace('{company}', current.visitor_company)}</span>
-                  )}
-                </p>
-              )}
+              {/* Meta line: tid (eller dato for «kun dato»-besøk) · firma */}
+              {(() => {
+                const lead = current.start_time
+                  ? atTemplate.replace('{time}', trimSeconds(current.start_time))
+                  : current.date
+                    ? formatDateLabelLong(parseDateStr(current.date), t)
+                    : ''
+                if (!lead && !current.visitor_company) return null
+                return (
+                  <p
+                    className="font-semibold uppercase tabular-nums"
+                    style={{
+                      marginTop: 'clamp(8px, 1.6cqw, 16px)',
+                      fontSize: 'clamp(9px, 1.2cqw, 12px)',
+                      letterSpacing: '0.28em',
+                      color: 'rgba(245,239,228,0.78)',
+                      fontFamily: 'var(--font-body)',
+                    }}
+                  >
+                    {lead && <span>{lead}</span>}
+                    {lead && current.visitor_company && (
+                      <span
+                        aria-hidden
+                        style={{ margin: '0 0.85em', color: 'rgba(245,239,228,0.35)' }}
+                      >
+                        ·
+                      </span>
+                    )}
+                    {current.visitor_company && (
+                      <span>{fromTemplate.replace('{company}', current.visitor_company)}</span>
+                    )}
+                  </p>
+                )
+              })()}
 
               {current.note && (
                 <p

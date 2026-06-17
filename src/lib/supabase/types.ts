@@ -262,7 +262,9 @@ export interface Entry {
 /**
  * En forventet besøkende på kontoret. Fyrer av Velkomst-slide F på
  * TV-dashboardet når `now()` er innenfor [start_time - 60min, start_time + 15min]
- * på `date`. start_time er NOT NULL i DB — det er ingen velkomst uten klokkeslett.
+ * på `date`. Når `start_time` er null er besøket «kun dato» og vises hele
+ * dagen det er datert (som et pinnet besøk) — da viser TV-en dato i stedet
+ * for klokkeslett.
  */
 export interface Visit {
   id: string
@@ -275,8 +277,8 @@ export interface Visit {
   visitor_company: string | null
   /** ISO 'YYYY-MM-DD'. */
   date: string
-  /** ISO 'HH:MM:SS' (postgres TIME). */
-  start_time: string
+  /** ISO 'HH:MM:SS' (postgres TIME), eller null for «kun dato»-besøk. */
+  start_time: string | null
   /** ISO 'HH:MM:SS' eller null. */
   end_time: string | null
   note: string | null

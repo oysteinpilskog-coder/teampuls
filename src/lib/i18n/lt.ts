@@ -398,6 +398,7 @@ export const lt: Dictionary = {
     todaysTitle: 'Šiandienos svečiai',
     empty: 'Šiandien niekas nelaukiamas. Įrašyk vardą ir laiką — TV pasveikins juos.',
     at: '{time} val.',
+    allDay: 'Visą dieną',
   },
   myPlan: {
     title: 'Mano planas',
@@ -876,11 +877,13 @@ export const lt: Dictionary = {
       statusUpcoming: 'Laukiama',
       statusWindow: 'Vyksta',
       statusPast: 'Praėjo',
+      allDay: 'Visą dieną',
       fields: {
         visitorName: 'Vardas',
         visitorCompany: 'Įmonė',
         date: 'Data',
         start: 'Nuo',
+        startHint: 'neprivaloma',
         end: 'Iki',
         endHint: 'neprivaloma',
         host: 'Šeimininkas',
