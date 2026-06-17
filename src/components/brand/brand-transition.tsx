@@ -115,22 +115,35 @@ export function BrandTransition({
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {incomingVisible && (
-          <motion.div
-            key="incoming"
-            style={{ position: 'absolute', inset: 0 }}
-            initial={{ opacity: 0, y: reduce ? 0 : 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: reduce ? TIMINGS.reducedCrossfade / 1000 : TIMINGS.incoming / 1000,
-              ease: reduce ? 'linear' : 'easeOut',
-            }}
-          >
-            {incomingView}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/*
+       * Innkommende visning monteres fra aller første frame (opacity 0,
+       * pointer-events av) — IKKE først ved incomingStart. Tunge view-bunter
+       * (Leaflet-kart, globe-canvas, årshjul-SVG) gjør sin dyre mount + layout
+       * under den rolige sirkel-/meridian-fasen, der ingenting kritisk
+       * animerer ennå, i stedet for å hitche monogram-fly-animasjonen ~2,6 s
+       * inn. Først ved incomingVisible fader den inn — selve overgangen ser
+       * lik ut, men er knirkefri fordi hovedtråden alt er ledig da.
+       */}
+      <motion.div
+        key="incoming"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: incomingVisible ? 'auto' : 'none',
+        }}
+        initial={{ opacity: 0, y: reduce ? 0 : 8 }}
+        animate={
+          incomingVisible
+            ? { opacity: 1, y: 0 }
+            : { opacity: 0, y: reduce ? 0 : 8 }
+        }
+        transition={{
+          duration: reduce ? TIMINGS.reducedCrossfade / 1000 : TIMINGS.incoming / 1000,
+          ease: reduce ? 'linear' : 'easeOut',
+        }}
+      >
+        {incomingView}
+      </motion.div>
 
       {!reduce && markPhase !== 'hidden' && markPhase !== 'gone' && (
         <HeroMark phase={markPhase} signaturePosition={signaturePosition} />
