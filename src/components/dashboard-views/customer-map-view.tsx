@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { EuropeMapCanvas, MAP_WIDTH, MAP_HEIGHT } from './europe-map-canvas'
 import { CustomerPin, type CustomerPinState } from './customer-pin'
@@ -75,7 +76,7 @@ interface CustomerCluster {
   daysThisWeek: number
 }
 
-export function CustomerMapView({
+function CustomerMapViewImpl({
   members,
   entries,
   todayEntries,
@@ -860,6 +861,40 @@ export function CustomerMapView({
     </div>
   )
 }
+
+/**
+ * Dashboard-shellen kaller `setTime(new Date())` hvert sekund for klokka,
+ * så `time`-prop-en bytter referanse 60×/min og drar hele dette subtreet
+ * med seg i en re-render. Men vyen leser `time` KUN til ISO-uka (header- og
+ * portefølje-badgen). Den tunge geo-/label-pipelinen — resolveCustomer per
+ * entry, clusterMapPoints, og fremfor alt placeLabels med AABB-kollisjon —
+ * kjørte dermed på nytt hvert sekund og blokkerte main-tråden i ett kort
+ * hikk per tikk. På resepsjons-TV-en leses det som at den rullende
+ * kundelisten «hakker», fordi pin- og dot-animasjonene (framer-motion,
+ * main-tråd) hikker i samme takt. Kompositor-scrolleren selv er uskyldig.
+ *
+ * memo-grensen dropper re-renderen helt på sekund-tikket: alle andre props
+ * er referansestabile mellom tikk (members/entries/customers er state,
+ * todayEntries er memoisert), og `time` slipper bare gjennom når ISO-uka
+ * faktisk endrer seg. Context-endringer (status-farger, i18n) går utenom
+ * props og trigger fortsatt re-render som normalt.
+ */
+function customerMapPropsEqual(
+  prev: CustomerMapViewProps,
+  next: CustomerMapViewProps,
+): boolean {
+  return (
+    prev.members === next.members &&
+    prev.entries === next.entries &&
+    prev.todayEntries === next.todayEntries &&
+    prev.customers === next.customers &&
+    prev.orgName === next.orgName &&
+    prev.region === next.region &&
+    getISOWeek(prev.time) === getISOWeek(next.time)
+  )
+}
+
+export const CustomerMapView = memo(CustomerMapViewImpl, customerMapPropsEqual)
 
 /**
  * Tiny chip floating off the upper-right of a cluster pin showing how
