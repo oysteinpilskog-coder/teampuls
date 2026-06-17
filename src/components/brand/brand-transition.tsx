@@ -27,9 +27,104 @@ const TIMINGS = {
   incoming: 500,
   incomingOverlap: 300,
   reducedCrossfade: 200,
+  quickCrossfade: 400,
 } as const
 
-type MarkPhase = 'hidden' | 'circle' | 'meridian' | 'hold' | 'fly' | 'gone'
+/** Brand-sekvensens timinger — eksportert så dashboard-verten kan drive de
+ *  vedvarende visningslagene og hero-marken med nøyaktig samme tidslinje. */
+export const BRAND_TIMINGS = TIMINGS
+
+export type MarkPhase = 'hidden' | 'circle' | 'meridian' | 'hold' | 'fly' | 'gone'
+
+export type ViewTransitionMode = 'brand' | 'quick'
+
+/**
+ * Driver tidslinjen for én view-overgang og returnerer hvilke lag som skal
+ * være synlige + hero-markens fase. Selve visningene rendres av forelderen
+ * som VEDVARENDE lag (nøklet på view-key), så denne hooken rører aldri
+ * monteringen — den flipper bare synlighet. Det er nettopp dette som fjerner
+ * blinken: den tunge visningen av-/remonteres ikke ved start eller commit.
+ *
+ * `runKey` = null betyr idle (ingen overgang). Når den endres til en ny ikke-
+ * null verdi starter en ny sekvens fra start. `mode` 'brand' kjører hele
+ * monogram-koreografien; 'quick' (og reduced-motion) gjør en ren crossfade
+ * uten hero-mark.
+ */
+export function useViewTransition(
+  runKey: string | null,
+  mode: ViewTransitionMode,
+  reduce: boolean,
+  onComplete: () => void,
+) {
+  const [outgoingVisible, setOutgoingVisible] = useState(true)
+  const [incomingVisible, setIncomingVisible] = useState(false)
+  const [markPhase, setMarkPhase] = useState<MarkPhase>('hidden')
+
+  // Hold onComplete bak en ref slik at klokketikken hos forelderen (hvert
+  // sekund) ikke endrer prop-referansen i deps og clearTimeout-er sekvensen.
+  const onCompleteRef = useRef(onComplete)
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+  })
+
+  // mode leses ved run-start; ref-en gjør at en re-render som endrer mode-
+  // prop-en midt i et løp ikke omformer den pågående tidslinjen.
+  const modeRef = useRef(mode)
+  modeRef.current = mode
+
+  useEffect(() => {
+    if (runKey === null) {
+      setOutgoingVisible(true)
+      setIncomingVisible(false)
+      setMarkPhase('hidden')
+      return
+    }
+
+    // Start-positur: utgående (nåværende view) vises fullt, innkommende er
+    // forhåndsmontert men skjult, ingen hero-mark ennå.
+    setOutgoingVisible(true)
+    setIncomingVisible(false)
+    setMarkPhase('hidden')
+
+    if (reduce || modeRef.current === 'quick') {
+      const dur = reduce ? TIMINGS.reducedCrossfade : TIMINGS.quickCrossfade
+      setOutgoingVisible(false)
+      setIncomingVisible(true)
+      const id = setTimeout(() => onCompleteRef.current(), dur)
+      return () => clearTimeout(id)
+    }
+
+    const timers: ReturnType<typeof setTimeout>[] = []
+    const t = (ms: number, fn: () => void) => timers.push(setTimeout(fn, ms))
+
+    const outEnd = TIMINGS.outgoing
+    const circleEnd = outEnd + TIMINGS.circle
+    const meridianEnd = circleEnd + TIMINGS.meridian
+    const holdEnd = meridianEnd + TIMINGS.hold
+    const flyStart = holdEnd
+    const flyEnd = flyStart + TIMINGS.fly
+    const incomingStart = flyStart + TIMINGS.incomingOverlap
+    const incomingEnd = incomingStart + TIMINGS.incoming
+    const total = Math.max(flyEnd, incomingEnd)
+
+    t(outEnd, () => {
+      setOutgoingVisible(false)
+      setMarkPhase('circle')
+    })
+    t(circleEnd, () => setMarkPhase('meridian'))
+    t(meridianEnd, () => setMarkPhase('hold'))
+    t(flyStart, () => setMarkPhase('fly'))
+    t(incomingStart, () => setIncomingVisible(true))
+    t(flyEnd, () => setMarkPhase('gone'))
+    t(total, () => onCompleteRef.current())
+
+    return () => timers.forEach(clearTimeout)
+    // reduce + runKey er de eneste triggerne; mode leses via ref ved start.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runKey, reduce])
+
+  return { outgoingVisible, incomingVisible, markPhase }
+}
 
 export interface BrandTransitionProps {
   outgoingView: React.ReactNode
@@ -152,7 +247,7 @@ export function BrandTransition({
   )
 }
 
-function HeroMark({
+export function HeroMark({
   phase,
   signaturePosition,
 }: {

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEntries } from '@/hooks/use-entries'
@@ -43,7 +43,7 @@ const WelcomeView = dynamic(
 import { AuroraBackground } from '@/components/dashboard-views/aurora-background'
 import { OffiviewSignature } from '@/components/brand/offiview-signature'
 import { CalwinMark } from '@/components/brand/calwin-mark'
-import { BrandTransition } from '@/components/brand/brand-transition'
+import { HeroMark, useViewTransition, BRAND_TIMINGS, type ViewTransitionMode } from '@/components/brand/brand-transition'
 import { TimezoneStrip } from '@/components/dashboard/timezone-strip'
 import { applyQuietHours, resolveViewDuration, welcomeDwellSec } from '@/lib/dashboard-defaults'
 import { trackBrandImpression } from '@/lib/analytics'
@@ -159,12 +159,19 @@ export function DashboardClient({
   // a dozing TV doesn't keep a compositor layer churning.
   const visible = useDocumentVisibility()
 
+  const reduce = !!useReducedMotion()
+
   const [time, setTime] = useState(new Date())
   const [viewIdx, setViewIdx] = useState(0)
-  // pendingViewIdx is set when an auto-rotation tick has captured the
-  // signature position and BrandTransition is mounted. Null = idle (the
-  // current view is shown via the lightweight crossfade AnimatePresence).
+  // pendingViewIdx is the index a transition is heading toward. Null = idle
+  // (only the current view layer is rendered). When set, the dashboard host
+  // renders a second, pre-mounted layer for the incoming view and runs the
+  // transition timeline via useViewTransition.
   const [pendingViewIdx, setPendingViewIdx] = useState<number | null>(null)
+  // Which timeline the in-flight transition uses: 'brand' = full monogram
+  // choreography (auto-rotation), 'quick' = plain crossfade (manual nav,
+  // ?brand=off). Only meaningful while pendingViewIdx !== null.
+  const [transitionMode, setTransitionMode] = useState<ViewTransitionMode>('brand')
   // Captured at the moment the auto-tick fires, before the signature is
   // hidden — the hero mark uses this as its flight target.
   const [signaturePos, setSignaturePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -316,14 +323,15 @@ export function DashboardClient({
     ? baseDwell
     : applyQuietHours(baseDwell, time.getHours())
   useEffect(() => {
-    // Pause the rotation timer while a brand transition is mid-flight —
-    // BrandTransition.onComplete advances the index itself.
+    // Pause the rotation timer while a transition is mid-flight — the
+    // useViewTransition onComplete advances the index itself.
     if (pendingViewIdx !== null) return
     setViewStartedAt(Date.now())
     const id = setTimeout(() => {
       const nextIdx = (viewIdx + 1) % VIEWS.length
       if (brandOff) {
-        setViewIdx(nextIdx)
+        setTransitionMode('quick')
+        setPendingViewIdx(nextIdx)
         return
       }
       const rect = signatureRef.current?.getBoundingClientRect()
@@ -336,6 +344,7 @@ export function DashboardClient({
         dwell_sec: currentDwellSec,
         org_id: headerOrgId,
       })
+      setTransitionMode('brand')
       setPendingViewIdx(nextIdx)
     }, currentDwellSec * 1000)
     return () => clearTimeout(id)
@@ -682,22 +691,46 @@ export function DashboardClient({
   // crossfade — the brand moment is reserved for auto-rotation.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      // Manual nav uses the quick crossfade (no monogram). Base the step on
+      // any in-flight target so rapid presses keep stepping predictably.
       if (e.key === 'ArrowLeft') {
-        setPendingViewIdx(null)
-        setViewIdx(i => (i - 1 + VIEWS.length) % VIEWS.length)
+        setTransitionMode('quick')
+        setPendingViewIdx(p => (((p ?? viewIdx) - 1 + VIEWS.length) % VIEWS.length))
       }
       if (e.key === 'ArrowRight') {
-        setPendingViewIdx(null)
-        setViewIdx(i => (i + 1) % VIEWS.length)
+        setTransitionMode('quick')
+        setPendingViewIdx(p => (((p ?? viewIdx) + 1) % VIEWS.length))
       }
       if (e.key === 'f' || e.key === 'F') toggleFullscreen()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [VIEWS])  
+  }, [VIEWS, viewIdx])
 
   const currentView = VIEWS[viewIdx] ?? VIEWS[0]
   const incomingView = pendingViewIdx !== null ? (VIEWS[pendingViewIdx] ?? VIEWS[0]) : null
+  // True only while the monogram choreography is the active transition —
+  // drives chrome hide (wordmark/clock/signature) and the hero mark. A
+  // 'quick' crossfade (manual nav, ?brand=off) leaves the chrome in place.
+  const brandActive = pendingViewIdx !== null && transitionMode === 'brand'
+  // Stable id for the in-flight transition — bumps when the target changes,
+  // which restarts the timeline. Null while idle.
+  const runKey = pendingViewIdx !== null ? `${viewIdx}->${pendingViewIdx}` : null
+
+  // One persistent host owns the view layers; this hook only drives WHICH
+  // layer is visible + the hero-mark phase. The layers themselves (keyed by
+  // view key) survive both the transition and the commit, so heavy view
+  // bundles never unmount/remount mid-flight — that double-mount was the blink.
+  const { outgoingVisible, incomingVisible, markPhase } = useViewTransition(
+    runKey,
+    transitionMode,
+    reduce,
+    () => {
+      if (pendingViewIdx !== null) setViewIdx(pendingViewIdx)
+      setPendingViewIdx(null)
+    },
+  )
+
   // In combined mode the headerOrg's name is misleading (just one of
   // several workspaces); the synthetic «Alle CalWin»-label reads truer
   // and matches the workspace pill in the rest of the app.
@@ -852,44 +885,80 @@ export function DashboardClient({
         />
       )}
 
-      {/* Main content. Two render paths:
-          - pendingViewIdx set: BrandTransition owns the screen for ~3.2s.
-            It renders both outgoing and incoming views internally and the
-            hero mark flies to signaturePos. onComplete commits the index.
-          - pendingViewIdx null (idle, manual nav, or ?brand=off): existing
-            AnimatePresence handles the lighter 400ms crossfade.
+      {/* Main content — a single PERSISTENT host. The current view is always
+          rendered (keyed by its view key); during a transition a second,
+          incoming layer is mounted alongside it. Because both layers are keyed
+          by view key, the incoming layer's instance survives the commit (it
+          simply becomes the current layer) and the outgoing instance is never
+          re-mounted at the start — no heavy view (Leaflet/globe/wheel) ever
+          unmounts mid-flight, which is what produced the blink.
 
-          Held at opacity 0 until the initial fetch resolves so the TV
-          doesn't flash empty rosters before data arrives. */}
+          The hero-mark choreography (brand mode) plays as an overlay on top;
+          useViewTransition only flips which layer is visible.
+
+          Held at opacity 0 until the initial fetch resolves so the TV doesn't
+          flash empty rosters before data arrives. */}
       <motion.div
         className="relative flex-1 overflow-hidden"
         animate={{ opacity: dataReady ? 1 : 0 }}
         transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
       >
-        {pendingViewIdx !== null && incomingView !== null ? (
-          <BrandTransition
-            key={`brand-${viewIdx}-to-${pendingViewIdx}`}
-            outgoingView={renderView(currentView)}
-            incomingView={renderView(incomingView)}
-            signaturePosition={signaturePos}
-            onComplete={() => {
-              setViewIdx(pendingViewIdx)
-              setPendingViewIdx(null)
+        {/* Current / outgoing layer. Survives the whole lifecycle. */}
+        <motion.div
+          key={currentView}
+          className="absolute inset-0"
+          initial={false}
+          animate={
+            outgoingVisible
+              ? { opacity: 1, y: 0 }
+              : { opacity: 0, y: brandActive ? -8 : 0 }
+          }
+          transition={{
+            duration:
+              (brandActive
+                ? BRAND_TIMINGS.outgoing
+                : reduce
+                  ? BRAND_TIMINGS.reducedCrossfade
+                  : BRAND_TIMINGS.quickCrossfade) / 1000,
+            ease: [0.4, 0, 0.2, 1],
+          }}
+        >
+          {renderView(currentView)}
+        </motion.div>
+
+        {/* Incoming layer — pre-mounted (hidden) from the first frame of the
+            transition so its bundle warms up during the calm hero-mark phase,
+            then fades in. After commit this same instance becomes the current
+            layer above (same key) without a re-mount. */}
+        {incomingView !== null && incomingView !== currentView && (
+          <motion.div
+            key={incomingView}
+            className="absolute inset-0"
+            initial={{ opacity: 0, y: brandActive && !reduce ? 8 : 0 }}
+            animate={
+              incomingVisible
+                ? { opacity: 1, y: 0 }
+                : { opacity: 0, y: brandActive && !reduce ? 8 : 0 }
+            }
+            transition={{
+              duration:
+                (brandActive
+                  ? BRAND_TIMINGS.incoming
+                  : reduce
+                    ? BRAND_TIMINGS.reducedCrossfade
+                    : BRAND_TIMINGS.quickCrossfade) / 1000,
+              ease: 'easeOut',
             }}
-          />
-        ) : (
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={currentView}
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.01 }}
-              transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-              className="absolute inset-0"
-            >
-              {renderView(currentView)}
-            </motion.div>
-          </AnimatePresence>
+            style={{ pointerEvents: incomingVisible ? 'auto' : 'none' }}
+          >
+            {renderView(incomingView)}
+          </motion.div>
+        )}
+
+        {/* Brand monogram — circle draws, meridian scales, then it flies to
+            the signature corner. Only mounted while the phase is live. */}
+        {markPhase !== 'hidden' && markPhase !== 'gone' && (
+          <HeroMark phase={markPhase} signaturePosition={signaturePos} />
         )}
       </motion.div>
 
@@ -944,11 +1013,17 @@ export function DashboardClient({
           }}
         >
           {VIEWS.map((v, i) => {
-            const active = i === viewIdx
+            // Reflect the in-flight target so the pill glides the moment a
+            // transition is armed, not 400ms later when it commits.
+            const active = i === (pendingViewIdx ?? viewIdx)
             return (
               <button
                 key={v}
-                onClick={() => setViewIdx(i)}
+                onClick={() => {
+                  if (i === viewIdx) return
+                  setTransitionMode('quick')
+                  setPendingViewIdx(i)
+                }}
                 className="relative px-4 py-1.5 text-[12px] font-semibold tracking-[0.18em] uppercase transition-colors"
                 style={{
                   color: active ? '#ffffff' : 'rgba(255,255,255,0.55)',
@@ -1051,7 +1126,7 @@ export function DashboardClient({
           {brandMode ? (
             <div
               className="flex items-center gap-3 transition-opacity duration-500"
-              style={{ opacity: pendingViewIdx === null ? 1 : 0 }}
+              style={{ opacity: brandActive ? 0 : 1 }}
             >
               <CalwinMark size={42} title="CalWin" />
               <span
@@ -1071,7 +1146,7 @@ export function DashboardClient({
             <p
               className="leading-none transition-opacity duration-500"
               style={{
-                opacity: pendingViewIdx === null ? 1 : 0,
+                opacity: brandActive ? 0 : 1,
                 fontFamily: 'var(--font-fraunces), "Iowan Old Style", Georgia, serif',
                 fontWeight: 300,
                 fontStyle: 'italic',
@@ -1088,7 +1163,7 @@ export function DashboardClient({
       )}
       {currentView !== 'A' && (
         <div className="pointer-events-none absolute top-4 right-6 z-50">
-          <TimezoneStrip visible={pendingViewIdx === null} />
+          <TimezoneStrip visible={!brandActive} />
         </div>
       )}
 
@@ -1099,13 +1174,13 @@ export function DashboardClient({
           øyeblikket når besøkende faktisk kommer. */}
       <GuestChip
         count={todaysVisits.length}
-        visible={pendingViewIdx === null && currentView === 'A'}
+        visible={!brandActive && currentView === 'A'}
       />
 
       <OffiviewSignature
         ref={signatureRef}
         visible={
-          pendingViewIdx === null &&
+          !brandActive &&
           currentView !== 'A' &&
           currentView !== 'B'
         }
