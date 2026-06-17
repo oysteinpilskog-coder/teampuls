@@ -280,6 +280,9 @@ export interface Visit {
   /** ISO 'HH:MM:SS' eller null. */
   end_time: string | null
   note: string | null
+  /** Manuell «Vis på TV»-pin. Når true regnes besøket som aktiv velkomst
+   *  hele dagen det er datert, uavhengig av 60/15-vinduet. */
+  pinned: boolean
   source: EntrySource
   source_text: string | null
   confidence: number | null
