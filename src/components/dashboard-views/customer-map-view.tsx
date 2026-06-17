@@ -635,34 +635,41 @@ function CustomerMapViewImpl({
                   className="absolute inset-0 rounded-full"
                   style={{ background: 'rgba(255,255,255,0.06)' }}
                 />
-                {/* Blurred halo — follows the fill width, filtered for
-                    true atmospheric bloom that box-shadow alone can't fake. */}
+                {/* Blurred halo — follows the fill, filtered for true
+                    atmospheric bloom that box-shadow alone can't fake.
+                    Reveals via scaleX (compositor-only) instead of an
+                    animated width, so the blur+filament don't relayout/
+                    repaint per frame. scaleY stays a constant 4 for the
+                    vertical bloom while scaleX animates left→right. */}
                 <motion.div
                   aria-hidden
-                  className="absolute top-0 left-0 h-full rounded-full pointer-events-none"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${portfolioPct * 100}%` }}
+                  className="absolute top-0 left-0 h-full w-full rounded-full pointer-events-none"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: portfolioPct }}
                   transition={{ duration: 1.2, delay: 0.5, ease: [0.4, 0, 0.2, 1] }}
                   style={{
                     background:
                       'var(--gradient-nordlys-rail)',
                     filter: 'blur(7px) saturate(140%)',
                     opacity: 0.475,
-                    transform: 'scaleY(4)',
-                    transformOrigin: 'center',
+                    scaleY: 4,
+                    transformOrigin: 'left center',
+                    willChange: 'transform',
                   }}
                 />
                 {/* Crisp filament */}
                 <motion.div
-                  className="absolute top-0 left-0 h-full rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${portfolioPct * 100}%` }}
+                  className="absolute top-0 left-0 h-full w-full rounded-full"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: portfolioPct }}
                   transition={{ duration: 1.2, delay: 0.5, ease: [0.4, 0, 0.2, 1] }}
                   style={{
                     background:
                       'var(--gradient-nordlys-rail)',
                     backgroundSize: '100% 100%',
                     backgroundRepeat: 'no-repeat',
+                    transformOrigin: 'left center',
+                    willChange: 'transform',
                     // Femstegs glow via Nordlys-tokens — restaines per org.
                     boxShadow:
                       '0 0 4px 1px rgba(255,255,255,0.45), 0 0 10px 2px color-mix(in oklab, var(--nordlys-a) 50%, transparent), 0 0 24px 4px color-mix(in oklab, var(--nordlys-b) 47%, transparent), 0 0 48px 6px color-mix(in oklab, var(--nordlys-b) 35%, transparent), 0 0 80px 10px color-mix(in oklab, var(--nordlys-c) 28%, transparent)',
