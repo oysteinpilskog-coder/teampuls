@@ -474,22 +474,18 @@ export function DashboardClient({
           filter: `id=eq.${headerOrgId}`,
         },
         (payload) => {
-          const next = payload.new as Partial<OrgRow> | null
-          if (!next) return
-          // Merge rather than replace — the realtime row carries every column,
-          // but we only track the OrgRow subset; keep current values for any
-          // field the payload doesn't surface.
-          setOrg(prev => ({
-            name: next.name ?? prev?.name ?? '',
-            timezone: next.timezone ?? prev?.timezone ?? null,
-            dashboard_rotation_views:
-              next.dashboard_rotation_views ?? prev?.dashboard_rotation_views ?? null,
-            dashboard_view_durations:
-              next.dashboard_view_durations ?? prev?.dashboard_view_durations ?? null,
-            default_presence_assumption:
-              next.default_presence_assumption ?? prev?.default_presence_assumption ?? 'none',
-            logo_url: next.logo_url ?? prev?.logo_url ?? null,
-          }))
+          // An UPDATE payload carries the full new row, so the OrgRow subset
+          // is always complete — replace rather than field-merge.
+          const next = payload.new as Organization | null
+          if (!next?.id) return
+          setOrg({
+            name: next.name,
+            timezone: next.timezone,
+            dashboard_rotation_views: next.dashboard_rotation_views,
+            dashboard_view_durations: next.dashboard_view_durations,
+            default_presence_assumption: next.default_presence_assumption ?? 'none',
+            logo_url: next.logo_url,
+          })
         }
       )
       .subscribe()
