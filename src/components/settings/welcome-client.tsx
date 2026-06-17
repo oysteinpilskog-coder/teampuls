@@ -60,7 +60,9 @@ function emptyForm(currentMemberId: string, defaultOrgId: string): VisitFormStat
     visitor_name: '',
     visitor_company: '',
     date: toDateString(new Date()),
-    start_hhmm: '14:00',
+    // Tom som standard — «kun dato». Klokkeslett er valgfritt; settes
+    // bare når man faktisk vet tidspunktet.
+    start_hhmm: '',
     end_hhmm: '',
     host_member_id: currentMemberId,
     note: '',
@@ -86,6 +88,9 @@ function visitStatus(visit: Visit, now: Date): VisitStatus {
   if (visit.date > todayStr) return 'upcoming'
   if (visit.date < todayStr) return 'past'
 
+  // «Kun dato»-besøk har intet tidsvindu → regnes som aktivt hele dagen.
+  if (!visit.start_time) return 'window'
+
   const nowMin = now.getHours() * 60 + now.getMinutes()
   const [sh, sm] = visit.start_time.split(':').map(Number)
   const startMin = sh * 60 + (sm ?? 0)
@@ -110,13 +115,14 @@ function formatLongDate(dateStr: string, locale = 'nb-NO'): string {
   })
 }
 
-/** Visit → StageVisit. Stage doesn't care about ids/dates, just the on-stage shape. */
+/** Visit → StageVisit. Stage doesn't care about ids, just the on-stage shape. */
 function toStage(v: Visit): StageVisit {
   return {
     id: v.id,
     visitor_name: v.visitor_name,
     visitor_company: v.visitor_company,
     start_time: v.start_time,
+    date: v.date,
     note: v.note,
   }
 }
@@ -125,12 +131,13 @@ function toStage(v: Visit): StageVisit {
 function formToStage(form: VisitFormState, fallbackId: string): StageVisit {
   const start = form.start_hhmm && /^\d{2}:\d{2}$/.test(form.start_hhmm)
     ? `${form.start_hhmm}:00`
-    : ''
+    : null
   return {
     id: fallbackId,
     visitor_name: form.visitor_name.trim() || 'Forventet gjest',
     visitor_company: form.visitor_company.trim() || null,
     start_time: start,
+    date: form.date,
     note: form.note.trim() || null,
   }
 }
@@ -208,7 +215,7 @@ export function WelcomeClient({
             const without = prev.filter(v => v.id !== upserted.id)
             return [...without, upserted].sort((a, b) => {
               if (a.date !== b.date) return a.date.localeCompare(b.date)
-              return a.start_time.localeCompare(b.start_time)
+              return (a.start_time ?? '').localeCompare(b.start_time ?? '')
             })
           })
         },
@@ -257,7 +264,7 @@ export function WelcomeClient({
       visitor_name: visit.visitor_name,
       visitor_company: visit.visitor_company ?? '',
       date: visit.date,
-      start_hhmm: trimSeconds(visit.start_time),
+      start_hhmm: visit.start_time ? trimSeconds(visit.start_time) : '',
       end_hhmm: visit.end_time ? trimSeconds(visit.end_time) : '',
       host_member_id: visit.host_member_id,
       note: visit.note ?? '',
@@ -276,9 +283,11 @@ export function WelcomeClient({
   const canSave =
     !!form.visitor_name.trim() &&
     !!form.date &&
-    !!toPgTime(form.start_hhmm) &&
+    // Klokkeslett er valgfritt; må kun være gyldig hvis det er fylt ut.
+    (form.start_hhmm === '' || !!toPgTime(form.start_hhmm)) &&
     !!form.host_member_id &&
-    (form.end_hhmm === '' || !!toPgTime(form.end_hhmm)) &&
+    // Sluttid forutsetter starttid, og må være gyldig hvis satt.
+    (form.end_hhmm === '' || (!!toPgTime(form.end_hhmm) && !!toPgTime(form.start_hhmm))) &&
     !saving
 
   async function handleSave() {
@@ -286,14 +295,16 @@ export function WelcomeClient({
     setSaving(true)
     const supabase = createClient()
 
-    const start = toPgTime(form.start_hhmm)
+    // Klokkeslett er valgfritt («kun dato»). Tomt felt → null; et utfylt
+    // felt må være gyldig.
+    const start = form.start_hhmm ? toPgTime(form.start_hhmm) : null
     const end = form.end_hhmm ? toPgTime(form.end_hhmm) : null
-    if (!start) {
+    if (form.start_hhmm && !start) {
       setSaving(false)
       toast.error(t.settings.welcome.errorBadTime)
       return
     }
-    if (end && end <= start) {
+    if (end && start && end <= start) {
       setSaving(false)
       toast.error(t.settings.welcome.errorEndBeforeStart)
       return
@@ -320,7 +331,7 @@ export function WelcomeClient({
 
     const sortVisits = (rows: Visit[]) => rows.slice().sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date)
-      return a.start_time.localeCompare(b.start_time)
+      return (a.start_time ?? '').localeCompare(b.start_time ?? '')
     })
 
     if (modalMode === 'edit' && editTarget) {
@@ -539,7 +550,7 @@ export function WelcomeClient({
                   {list.map((visit, i) => {
                     const status = visitStatus(visit, now)
                     const host = memberById.get(visit.host_member_id)
-                    const startLabel = trimSeconds(visit.start_time)
+                    const startLabel = visit.start_time ? trimSeconds(visit.start_time) : null
                     const endLabel = visit.end_time ? trimSeconds(visit.end_time) : null
                     return (
                       <div
@@ -563,15 +574,26 @@ export function WelcomeClient({
                             fontFamily: 'var(--font-fraunces)',
                           }}
                         >
-                          <span className="text-[15px] font-semibold tabular-nums leading-none">
-                            {startLabel}
-                          </span>
-                          {endLabel && (
+                          {startLabel ? (
+                            <>
+                              <span className="text-[15px] font-semibold tabular-nums leading-none">
+                                {startLabel}
+                              </span>
+                              {endLabel && (
+                                <span
+                                  className="text-[11px] tabular-nums mt-0.5"
+                                  style={{ color: 'var(--text-tertiary)' }}
+                                >
+                                  –{endLabel}
+                                </span>
+                              )}
+                            </>
+                          ) : (
                             <span
-                              className="text-[11px] tabular-nums mt-0.5"
+                              className="text-[11px] font-medium leading-tight"
                               style={{ color: 'var(--text-tertiary)' }}
                             >
-                              –{endLabel}
+                              {t.settings.welcome.allDay}
                             </span>
                           )}
                         </div>
@@ -831,7 +853,7 @@ export function WelcomeClient({
                         <Field
                           label={t.settings.welcome.fields.start}
                           icon={<Clock className="w-3.5 h-3.5" strokeWidth={1.5} />}
-                          required
+                          hint={t.settings.welcome.fields.startHint}
                         >
                           <input
                             type="time"

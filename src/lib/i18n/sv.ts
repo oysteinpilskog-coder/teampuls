@@ -398,6 +398,7 @@ export const sv: Dictionary = {
     todaysTitle: 'Dagens gäster',
     empty: 'Ingen väntad idag. Skriv namn och tid — så hälsar TV:n välkommen.',
     at: 'kl. {time}',
+    allDay: 'Hela dagen',
   },
   myPlan: {
     title: 'Min plan',
@@ -876,11 +877,13 @@ export const sv: Dictionary = {
       statusUpcoming: 'Kommer',
       statusWindow: 'Pågår',
       statusPast: 'Förbi',
+      allDay: 'Hela dagen',
       fields: {
         visitorName: 'Namn',
         visitorCompany: 'Företag',
         date: 'Datum',
         start: 'Från kl.',
+        startHint: 'valfritt',
         end: 'Till kl.',
         endHint: 'valfritt',
         host: 'Värd',

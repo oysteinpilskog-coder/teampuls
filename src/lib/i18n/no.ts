@@ -402,6 +402,7 @@ export const no = {
     todaysTitle: 'Dagens gjester',
     empty: 'Ingen ventet i dag. Skriv navn og tid — så hilser TV-en dem velkommen.',
     at: 'kl. {time}',
+    allDay: 'Hele dagen',
   },
   myPlan: {
     title: 'Min plan',
@@ -880,11 +881,13 @@ export const no = {
       statusUpcoming: 'Kommer',
       statusWindow: 'Pågår',
       statusPast: 'Forbi',
+      allDay: 'Hele dagen',
       fields: {
         visitorName: 'Navn',
         visitorCompany: 'Firma',
         date: 'Dato',
         start: 'Fra kl.',
+        startHint: 'valgfritt',
         end: 'Til kl.',
         endHint: 'valgfritt',
         host: 'Vert',

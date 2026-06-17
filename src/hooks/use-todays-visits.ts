@@ -20,6 +20,14 @@ function timeToMinutes(timeStr: string): number {
   return h * 60 + (m ?? 0)
 }
 
+/**
+ * Sorterer besøk etter start_time. «Kun dato»-besøk (start_time null) har
+ * intet klokkeslett og legges først — de gjelder hele dagen.
+ */
+export function compareByStart(a: Visit, b: Visit): number {
+  return (a.start_time ?? '').localeCompare(b.start_time ?? '')
+}
+
 /** Minutter siden midnatt for `now`. */
 function minutesSinceMidnight(now: Date): number {
   return now.getHours() * 60 + now.getMinutes()
@@ -43,6 +51,8 @@ export function filterActiveWelcomes(visits: Visit[], time: Date): Visit[] {
     .filter(v => v.date === todayStr)
     .filter(v => {
       if (v.pinned) return true
+      // «Kun dato»-besøk har intet tidsvindu å gate på → vis hele dagen.
+      if (!v.start_time) return true
       const startMin = timeToMinutes(v.start_time)
       const endMin = v.end_time ? timeToMinutes(v.end_time) : startMin
       return (
@@ -50,7 +60,7 @@ export function filterActiveWelcomes(visits: Visit[], time: Date): Visit[] {
         nowMin <= endMin + WELCOME_POST_WINDOW_MIN
       )
     })
-    .sort((a, b) => a.start_time.localeCompare(b.start_time))
+    .sort(compareByStart)
 }
 
 /**
@@ -138,9 +148,7 @@ export function useTodaysVisits(
             }
             setVisits(prev => {
               const without = prev.filter(v => v.id !== upserted.id)
-              return [...without, upserted].sort((a, b) =>
-                a.start_time.localeCompare(b.start_time)
-              )
+              return [...without, upserted].sort(compareByStart)
             })
           }
         )

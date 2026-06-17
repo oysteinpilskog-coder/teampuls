@@ -398,6 +398,7 @@ export const en: Dictionary = {
     todaysTitle: "Today's guests",
     empty: 'No one expected today. Write a name and time — the TV will welcome them.',
     at: 'at {time}',
+    allDay: 'All day',
   },
   myPlan: {
     title: 'My plan',
@@ -876,11 +877,13 @@ export const en: Dictionary = {
       statusUpcoming: 'Upcoming',
       statusWindow: 'Live',
       statusPast: 'Past',
+      allDay: 'All day',
       fields: {
         visitorName: 'Name',
         visitorCompany: 'Company',
         date: 'Date',
         start: 'From',
+        startHint: 'optional',
         end: 'To',
         endHint: 'optional',
         host: 'Host',

@@ -134,7 +134,9 @@ function GuestCard({
           style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-body)' }}
         >
           <span className="tabular-nums">
-            {t.guests.at.replace('{time}', trimSeconds(visit.start_time))}
+            {visit.start_time
+              ? t.guests.at.replace('{time}', trimSeconds(visit.start_time))
+              : t.guests.allDay}
           </span>
           {visit.visitor_company && (
             <>

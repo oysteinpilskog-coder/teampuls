@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { Visit } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
+import { formatDateLabelLong } from '@/lib/dates'
 
 interface WelcomeViewProps {
   visits: Visit[]
@@ -15,6 +16,12 @@ const CYCLE_MS = 12000
 /** «14:00:00» eller «14:00» → «14:00». */
 function trimSeconds(time: string): string {
   return time.length >= 5 ? time.slice(0, 5) : time
+}
+
+/** ISO 'YYYY-MM-DD' → lokal Date uten tidssone-overraskelser. */
+function parseDateStr(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d)
 }
 
 /**
@@ -138,8 +145,12 @@ export function WelcomeView({ visits }: WelcomeViewProps) {
                 fontFamily: 'var(--font-body)',
               }}
             >
+              {/* Klokkeslett når satt, ellers dato — «kun dato»-besøk har
+                  intet tidspunkt og viser datoen i stedet. */}
               <span className="tabular-nums">
-                {t.dashboard.welcome.at.replace('{time}', trimSeconds(current.start_time))}
+                {current.start_time
+                  ? t.dashboard.welcome.at.replace('{time}', trimSeconds(current.start_time))
+                  : formatDateLabelLong(parseDateStr(current.date), t)}
               </span>
               {current.visitor_company && (
                 <>
