@@ -26,12 +26,15 @@ function minutesSinceMidnight(now: Date): number {
 }
 
 /**
- * Returnerer kun de besøk som er innenfor velkomstvinduet akkurat nå
- * (60 min før start → 15 min etter end_time, eller etter start_time hvis
- * end_time mangler), sortert etter start_time.
+ * Returnerer de besøk som skal vises som hero-velkomst akkurat nå, sortert
+ * etter start_time. Et besøk for i dag er aktivt hvis enten:
+ *  - admin har pinnet det («Vis på TV») — da vises det HELE dagen,
+ *    uavhengig av klokkeslett, eller
+ *  - det er innenfor det automatiske vinduet (60 min før start → 15 min
+ *    etter end_time, eller etter start_time hvis end_time mangler).
  *
  * Brukes av Velkomst-slide F på TV-dashbordet til å avgjøre om/hvilke
- * besøk som skal vises som hero-velkomst akkurat dette minuttet.
+ * besøk som skal vises akkurat dette minuttet.
  */
 export function filterActiveWelcomes(visits: Visit[], time: Date): Visit[] {
   const todayStr = toDateString(time)
@@ -39,6 +42,7 @@ export function filterActiveWelcomes(visits: Visit[], time: Date): Visit[] {
   return visits
     .filter(v => v.date === todayStr)
     .filter(v => {
+      if (v.pinned) return true
       const startMin = timeToMinutes(v.start_time)
       const endMin = v.end_time ? timeToMinutes(v.end_time) : startMin
       return (

@@ -81,6 +81,7 @@ export function WelcomePreviewClient({ orgName, visits, entries }: WelcomePrevie
       start_time: start,
       end_time: end,
       note: subtitle,
+      pinned: false,
       source: 'manual',
       source_text: null,
       confidence: null,

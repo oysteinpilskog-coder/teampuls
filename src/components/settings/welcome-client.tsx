@@ -30,6 +30,7 @@ import {
 } from '@/hooks/use-todays-visits'
 import { WelcomeStage, type StageVisit } from './welcome-stage'
 import { WorkspaceBadge } from '@/components/workspace-badge'
+import { BreathingDot } from '@/components/breathing-dot'
 
 interface WelcomeClientProps {
   orgId: string
@@ -379,6 +380,26 @@ export function WelcomeClient({
     router.refresh()
   }
 
+  // «Vis på TV»: pinner besøket så Velkomst-slide F holdes oppe hele dagen
+  // det er datert, ikke bare 60-min-vinduet. Optimistisk + rollback, samme
+  // mønster som handleDelete. Realtime propagerer UPDATE-en til resepsjons-
+  // TV-en uten reload.
+  async function handleTogglePinned(visit: Visit) {
+    const supabase = createClient()
+    const next = !visit.pinned
+    const snapshot = visit
+    setVisits(prev => prev.map(v => (v.id === visit.id ? { ...v, pinned: next } : v)))
+    toast.success(next ? t.settings.welcome.toastPinned : t.settings.welcome.toastUnpinned)
+
+    const { error } = await supabase.from('visits').update({ pinned: next }).eq('id', visit.id)
+    if (error) {
+      setVisits(prev => prev.map(v => (v.id === snapshot.id ? snapshot : v)))
+      toast.error(t.common.errorShort)
+      return
+    }
+    router.refresh()
+  }
+
   return (
     <div>
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -527,6 +548,12 @@ export function WelcomeClient({
                         style={{
                           borderBottom:
                             i < list.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                          background: visit.pinned
+                            ? 'color-mix(in oklab, var(--accent-color) 7%, transparent)'
+                            : 'transparent',
+                          boxShadow: visit.pinned
+                            ? 'inset 3px 0 0 var(--accent-color)'
+                            : 'none',
                         }}
                       >
                         <div
@@ -571,6 +598,20 @@ export function WelcomeClient({
                             {combinedView && (
                               <WorkspaceBadge workspace={workspaceById.get(visit.org_id) ?? null} />
                             )}
+                            {visit.pinned && (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-[0.14em] shrink-0"
+                                style={{
+                                  backgroundColor:
+                                    'color-mix(in oklab, var(--accent-color) 14%, transparent)',
+                                  color: 'var(--accent-color)',
+                                  fontFamily: 'var(--font-body)',
+                                }}
+                              >
+                                <BreathingDot color="var(--accent-color)" />
+                                {t.settings.welcome.pinnedBadge}
+                              </span>
+                            )}
                           </div>
                           <p
                             className="text-[12px] truncate"
@@ -589,6 +630,31 @@ export function WelcomeClient({
                         <StatusPill status={status} t={t} />
 
                         <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => handleTogglePinned(visit)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors"
+                            style={
+                              visit.pinned
+                                ? {
+                                    backgroundColor:
+                                      'color-mix(in oklab, var(--accent-color) 14%, transparent)',
+                                    color: 'var(--accent-color)',
+                                    fontFamily: 'var(--font-body)',
+                                  }
+                                : {
+                                    color: 'var(--text-tertiary)',
+                                    fontFamily: 'var(--font-body)',
+                                  }
+                            }
+                            aria-pressed={visit.pinned}
+                            aria-label={visit.pinned ? t.settings.welcome.pinOff : t.settings.welcome.pinOn}
+                            title={visit.pinned ? t.settings.welcome.pinOff : t.settings.welcome.pinOn}
+                          >
+                            <MonitorPlay className="w-4 h-4" strokeWidth={1.5} />
+                            <span className="hidden sm:inline">
+                              {visit.pinned ? t.settings.welcome.pinOff : t.settings.welcome.pinOn}
+                            </span>
+                          </button>
                           <button
                             onClick={() => openEdit(visit)}
                             className="p-2 rounded-lg transition-colors hover:bg-[var(--bg-subtle)]"
