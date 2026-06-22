@@ -90,7 +90,16 @@ export function useViewTransition(
       const dur = reduce ? TIMINGS.reducedCrossfade : TIMINGS.quickCrossfade
       setOutgoingVisible(false)
       setIncomingVisible(true)
-      const id = setTimeout(() => onCompleteRef.current(), dur)
+      const id = setTimeout(() => {
+        // Nullstill synlighet i SAMME batch som forelderens indeks-bytte.
+        // Ellers står outgoingVisible på false på commit-renderen, og det
+        // innkommende laget (som React gjenbruker som nytt current-lag,
+        // samme nøkkel) får animate→opacity 0 i én frame før effekten under
+        // rekker å sette den tilbake. Det er én-frames blinken på hvert skifte.
+        setOutgoingVisible(true)
+        setIncomingVisible(false)
+        onCompleteRef.current()
+      }, dur)
       return () => clearTimeout(id)
     }
 
@@ -116,7 +125,15 @@ export function useViewTransition(
     t(flyStart, () => setMarkPhase('fly'))
     t(incomingStart, () => setIncomingVisible(true))
     t(flyEnd, () => setMarkPhase('gone'))
-    t(total, () => onCompleteRef.current())
+    t(total, () => {
+      // Se kommentaren i quick-grenen: synlighet må nullstilles i samme
+      // batch som indeks-byttet, ellers blinker det nye current-laget mot
+      // opacity 0 i én frame før runKey===null-effekten rekker å rydde opp.
+      setOutgoingVisible(true)
+      setIncomingVisible(false)
+      setMarkPhase('hidden')
+      onCompleteRef.current()
+    })
 
     return () => timers.forEach(clearTimeout)
     // reduce + runKey er de eneste triggerne; mode leses via ref ved start.
