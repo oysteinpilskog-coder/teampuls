@@ -277,6 +277,11 @@ export function DashboardClient({
   // skjerm som har døst i dagevis får en ren omstart som selv-healing.
   // Aldri midt i en velkomst, så vi ikke avbryter et hilse-øyeblikk; da
   // hopper vi over denne runden og prøver igjen neste time.
+  // Heller aldri mens skjermen står i fullskjerm: en reload river ned
+  // dokumentet, og Fullscreen API-en kan ikke gjenopprettes programmatisk
+  // (krever brukerhandling), så TV-en ville falt ut av fullskjerm. Realtime
+  // holder data ferskt uansett; ny kode plukkes opp neste time skjermen
+  // tilfeldigvis ikke er i fullskjerm, eller når noen reloader manuelt.
   const welcomeActiveRef = useRef(false)
   useEffect(() => {
     welcomeActiveRef.current = activeWelcomes.length > 0
@@ -284,6 +289,7 @@ export function DashboardClient({
   useEffect(() => {
     const id = setInterval(() => {
       if (welcomeActiveRef.current) return
+      if (document.fullscreenElement) return
       window.location.reload()
     }, 60 * 60 * 1000)
     return () => clearInterval(id)
