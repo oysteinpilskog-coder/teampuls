@@ -114,7 +114,7 @@ export function HeroBigNumber({ members, todayEntries, offices }: HeroBigNumberP
             )}
             {customer > 0 && (
               <BreakdownChip
-                label={t.pulse.atCustomer}
+                label={t.pulse.out}
                 count={customer}
                 color={STATUS_COLORS.customer.icon}
               />

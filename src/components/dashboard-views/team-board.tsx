@@ -30,10 +30,14 @@ interface MemberChipProps {
   bg: string
   delay: number
   countryCode?: string | null
+  /** Faktisk status-etikett («Messe/kurs», «Reise», …) når stripen samler
+   *  flere statuser — så en person på kurs aldri leses som «hos kunde». */
+  statusTag?: string
 }
 
-function MemberChip({ member, entry, accent, textTint, bg, delay, countryCode }: MemberChipProps) {
+function MemberChip({ member, entry, accent, textTint, bg, delay, countryCode, statusTag }: MemberChipProps) {
   const location = entry?.location_label?.trim()
+  const subLabel = [statusTag, location].filter(Boolean).join(' · ')
   return (
     <motion.div
       initial={{ opacity: 0, y: 6, scale: 0.96 }}
@@ -72,12 +76,12 @@ function MemberChip({ member, entry, accent, textTint, bg, delay, countryCode }:
           </span>
           <CountryBadge countryCode={countryCode} />
         </span>
-        {location && (
+        {subLabel && (
           <span
             className="text-[10px] font-medium truncate"
-            style={{ color: `${textTint}88`, fontFamily: 'var(--font-body)', maxWidth: 120 }}
+            style={{ color: `${textTint}88`, fontFamily: 'var(--font-body)', maxWidth: 160 }}
           >
-            {location}
+            {subLabel}
           </span>
         )}
       </div>
@@ -91,14 +95,19 @@ function Strip({
   representative,
   members,
   delay,
+  mixedStatuses,
 }: {
   stripKey: string
   label: string
   representative: EntryStatus
   members: Array<{ member: Member; entry: Entry | undefined }>
   delay: number
+  /** true når stripen samler flere statuser (Ute, Borte) — da får hver
+   *  chip sin faktiske statusfarge og en liten status-etikett. */
+  mixedStatuses: boolean
 }) {
   const STATUS_COLORS = useStatusColors()
+  const t = useT()
   const colors = STATUS_COLORS[representative]
   const accent = colors.icon
   const textTint = colors.textDark
@@ -111,7 +120,7 @@ function Strip({
     stripKey === 'away'       ? 'Ingen er borte 🎉' :
     stripKey === 'office'     ? 'Ingen på kontoret' :
     stripKey === 'remote'     ? 'Ingen jobber hjemmefra' :
-    stripKey === 'customer'   ? 'Ingen hos kunde' :
+    stripKey === 'customer'   ? 'Ingen ute' :
     'Ingen akkurat nå'
 
   return (
@@ -209,18 +218,23 @@ function Strip({
           </p>
         ) : (
           <div className="flex flex-wrap items-center gap-1.5">
-            {members.map(({ member, entry }, i) => (
-              <MemberChip
-                key={member.id}
-                member={member}
-                entry={entry}
-                accent={accent}
-                textTint={textTint}
-                bg={bg}
-                delay={delay + 0.15 + i * 0.03}
-                countryCode={member.location_code ?? null}
-              />
-            ))}
+            {members.map(({ member, entry }, i) => {
+              const memberStatus = entry?.status ?? representative
+              const memberColors = STATUS_COLORS[memberStatus]
+              return (
+                <MemberChip
+                  key={member.id}
+                  member={member}
+                  entry={entry}
+                  accent={memberColors.icon}
+                  textTint={memberColors.textDark}
+                  bg={memberColors.bgDark}
+                  statusTag={mixedStatuses ? t.status[memberStatus] : undefined}
+                  delay={delay + 0.15 + i * 0.03}
+                  countryCode={member.location_code ?? null}
+                />
+              )
+            })}
           </div>
         )}
       </div>
@@ -233,7 +247,7 @@ export function TeamBoard({ members, todayMap }: TeamBoardProps) {
   const STRIPS: StripDef[] = [
     { key: 'office',   label: t.pulse.atOffice,   statuses: ['office'],                      representative: 'office'   },
     { key: 'remote',   label: t.pulse.atHome,     statuses: ['remote'],                      representative: 'remote'   },
-    { key: 'customer', label: t.pulse.atCustomer, statuses: ['customer', 'event', 'travel'],          representative: 'customer' },
+    { key: 'customer', label: t.pulse.out,        statuses: ['customer', 'event', 'travel'],          representative: 'customer' },
     { key: 'away',     label: t.pulse.away,       statuses: ['vacation', 'absent', 'off'],   representative: 'vacation' },
   ]
 
@@ -261,6 +275,7 @@ export function TeamBoard({ members, todayMap }: TeamBoardProps) {
           representative={bucket.representative}
           members={bucket.members}
           delay={0.3 + i * 0.06}
+          mixedStatuses={bucket.statuses.length > 1}
         />
       ))}
     </div>

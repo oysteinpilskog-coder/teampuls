@@ -149,7 +149,7 @@ export const no = {
     atOffice: 'På kontoret',
     atHome: 'Hjemmekontor',
     atHomeShort: 'Hjemme',
-    atCustomer: 'Hos kunde',
+    out: 'Ute',
     away: 'Borte',
     atHqOf: 'av {total} på {office}',
     atHqMulti: 'hovedkontorene',
@@ -340,7 +340,7 @@ export const no = {
       // i søylen alltid har et ord knyttet til seg.
       dominantOffice: 'mest på kontoret',
       dominantRemote: 'mest hjemme',
-      dominantCustomer: 'mest hos kunde',
+      dominantCustomer: 'mest ute',
       dominantAway: 'mest borte',
       // «Av N · X%» under det store dag-tallet.
       dayOf: 'av {total} · {pct}%',
