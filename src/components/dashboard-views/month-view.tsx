@@ -267,7 +267,7 @@ export function MonthView({ members, weekDays, entries, orgName: _orgName, time 
           const label =
             g.key === 'office'   ? STATUS_LABELS.office
           : g.key === 'remote'   ? STATUS_LABELS.remote
-          : g.key === 'customer' ? STATUS_LABELS.customer
+          : g.key === 'customer' ? t.pulse.out
           :                        t.pulse.away
           return (
             <LegendChip

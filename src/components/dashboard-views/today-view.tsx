@@ -356,7 +356,7 @@ function StatusLegend({
   const items: Array<{ label: string; color: string }> = [
     { label: t.pulse.atOffice, color: STATUS_COLORS.office.icon },
     { label: t.pulse.atHomeShort, color: STATUS_COLORS.remote.icon },
-    { label: t.pulse.atCustomer, color: STATUS_COLORS.customer.icon },
+    { label: t.pulse.out, color: STATUS_COLORS.customer.icon },
     { label: t.pulse.away, color: STATUS_COLORS.vacation.icon },
   ]
   return (

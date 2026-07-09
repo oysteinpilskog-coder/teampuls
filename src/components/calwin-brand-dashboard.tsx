@@ -239,7 +239,7 @@ export function CalwinBrandDashboard({
         >
           <StatusCard label="På kontor"  count={totals.office}   />
           <StatusCard label="Hjemmefra"  count={totals.remote}   />
-          <StatusCard label="Hos kunde"  count={totals.customer} />
+          <StatusCard label="Ute"        count={totals.customer} />
           <StatusCard label="Borte"      count={totals.away}     />
         </motion.div>
       </div>
