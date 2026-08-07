@@ -40,6 +40,10 @@ const WelcomeView = dynamic(
   () => import('@/components/dashboard-views/welcome-view').then(m => ({ default: m.WelcomeView })),
   { ssr: false }
 )
+const FiguresView = dynamic(
+  () => import('@/components/dashboard-views/figures-view').then(m => ({ default: m.FiguresView })),
+  { ssr: false }
+)
 import { AuroraBackground } from '@/components/dashboard-views/aurora-background'
 import { OffiviewSignature } from '@/components/brand/offiview-signature'
 import { CalwinMark } from '@/components/brand/calwin-mark'
@@ -95,7 +99,7 @@ interface DashboardClientProps {
 }
 
 type ViewKey = DashboardViewKey
-const ALL_VIEWS: ViewKey[] = ['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I']
+const ALL_VIEWS: ViewKey[] = ['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'J']
 // View F (Velkomst) er IKKE i ALL_VIEWS — den injiseres dynamisk når et
 // besøk er innenfor sitt vindu (60 min før → 15 min etter start_time).
 // Den lagres aldri i organizations.dashboard_rotation_views.
@@ -148,6 +152,7 @@ export function DashboardClient({
     G: t.dashboard.views.globe,
     H: t.dashboard.views.customersUk,
     I: t.dashboard.views.customersNordic,
+    J: t.dashboard.views.figures,
   }), [t])
   const searchParams = useSearchParams()
   // ?brand=off disables the 3.2s brand-transition moment for the entire
@@ -809,6 +814,16 @@ export function DashboardClient({
             orgName={orgName}
             time={time}
             region="nordic"
+          />
+        )
+      case 'J':
+        return (
+          <FiguresView
+            members={members}
+            offices={offices}
+            customers={customers}
+            orgName={orgName}
+            time={time}
           />
         )
       case 'E':

@@ -11,6 +11,7 @@ import { US_BOUNDS } from '@/lib/us-projection'
 import { resolveCustomer } from '@/lib/customer-resolver'
 import { placeLabels, textAnchorFor } from '@/lib/map-labels'
 import { clusterMapPoints } from '@/lib/map-clusters'
+import { UK_COUNTRY_CODES } from '@/lib/org-figures'
 import { useStatusColors, useAuroraColors } from '@/lib/status-colors/context'
 import { spring } from '@/lib/motion'
 import type { Member, Entry, Customer } from '@/lib/supabase/types'
@@ -31,8 +32,6 @@ import { BreathingDot } from '@/components/breathing-dot'
  * - udefinert: ingen filtrering, klassisk «Kunder» visning
  */
 export type CustomerMapRegion = 'uk' | 'nordic'
-
-const UK_COUNTRY_CODES = new Set(['GB', 'IE'])
 
 /**
  * Geografisk crop for UK-visningen. Sentrert tett rundt CalWins faktiske

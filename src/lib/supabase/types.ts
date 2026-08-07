@@ -35,12 +35,16 @@ export type PresenceAssumption = 'none' | 'office' | 'remote' | 'per_member'
  *     except 'GB' (NO/SE/DK/FI/IS/LT etc.). Together H+I splits the
  *     customer base into the two CalWin AS departments.
  *
+ * J = Nøkkeltall — firmaet i tall (kundebase per land, teamet per land,
+ *     samlet ansiennitet, kontorer/tidssoner). Utledes utelukkende fra
+ *     members/offices/customers som dashbordet allerede har i minnet.
+ *
  * F = Velkomst — injiseres dynamisk i rotasjonen kun når et besøk er
  * innenfor sitt aktive vindu (60 min før → 15 min etter start_time).
  * F konfigureres ALDRI i organizations.dashboard_rotation_views; den
  * dukker opp og forsvinner basert på `visits`-tabellen.
  */
-export type DashboardViewKey = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I'
+export type DashboardViewKey = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J'
 
 export interface Account {
   id: string
