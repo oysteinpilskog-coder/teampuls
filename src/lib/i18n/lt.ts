@@ -325,6 +325,7 @@ export const lt: Dictionary = {
     viewAriaPrefix: 'Rodinys',
     live: 'Tiesiogiai',
     loadError: 'Nepavyko įkelti duomenų',
+    previewBadge: 'Peržiūra',
     greetings: {
       night: 'Labos nakties',
       morning: 'Labas rytas',
@@ -682,6 +683,10 @@ export const lt: Dictionary = {
       rotation: 'Karuselė',
       rotationDesc: 'Pasirink, kurie vaizdai automatiškai keičiasi TV dashboard ekrane. Bent vienas turi būti aktyvus.',
       rotationMinOne: 'Bent vienas vaizdas turi būti aktyvus',
+      preview: 'Peržiūra',
+      previewDesc: 'Peržiūrėkite vaizdus atskirame skirtuke prieš juos įjungdami. Niekas neįrašoma, o registratūros ekranas nepaveikiamas.',
+      previewAll: 'Peržiūrėti visus vaizdus',
+      previewSelection: 'Peržiūrėti pasirinkimą',
       durations: 'Trukmė kiekvienam vaizdui',
       durationsDesc: 'Kiek laiko kiekvienas vaizdas rodomas auto-rotacijoje. 5–120 sekundžių vienam vaizdui.',
       durationsResetDefault: 'Atkurti numatytuosius',

@@ -325,6 +325,7 @@ export const es: Dictionary = {
     viewAriaPrefix: 'Vista',
     live: 'En vivo',
     loadError: 'No se pudieron cargar los datos',
+    previewBadge: 'Vista previa',
     greetings: {
       night: 'Buenas noches',
       morning: 'Buenos días',
@@ -682,6 +683,10 @@ export const es: Dictionary = {
       rotation: 'Carrusel',
       rotationDesc: 'Elige qué vistas rotan automáticamente en el dashboard de TV. Al menos una debe estar activa.',
       rotationMinOne: 'Al menos una vista debe estar activa',
+      preview: 'Vista previa',
+      previewDesc: 'Revisa las vistas en una pestaña aparte antes de activarlas. No se guarda nada y la pantalla de recepción no se ve afectada.',
+      previewAll: 'Ver todas las vistas',
+      previewSelection: 'Ver la selección',
       durations: 'Duración por vista',
       durationsDesc: 'Cuánto tiempo se muestra cada vista en la rotación automática. 5–120 segundos por vista.',
       durationsResetDefault: 'Restablecer predeterminados',

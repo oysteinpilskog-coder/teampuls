@@ -323,6 +323,7 @@ export const no = {
     viewAriaPrefix: 'Visning',
     live: 'Live',
     loadError: 'Kunne ikke laste data',
+    previewBadge: 'Forhåndsvisning',
     greetings: {
       night: 'God natt',
       morning: 'God morgen',
@@ -686,6 +687,10 @@ export const no = {
       rotation: 'Karusell',
       rotationDesc: 'Velg hvilke visninger som skal rotere automatisk på TV-dashbordet. Minst én må være aktiv.',
       rotationMinOne: 'Minst én visning må være aktiv',
+      preview: 'Forhåndsvisning',
+      previewDesc: 'Se gjennom visningene i egen fane før du aktiverer dem. Ingenting lagres, og skjermen i resepsjonen påvirkes ikke.',
+      previewAll: 'Forhåndsvis alle visninger',
+      previewSelection: 'Forhåndsvis valget',
       durations: 'Visningstid per visning',
       durationsDesc: 'Hvor lenge hver visning vises i auto-rotasjonen. 5–120 sekunder per visning.',
       durationsResetDefault: 'Tilbakestill til standard',
