@@ -378,7 +378,7 @@ export const lt: Dictionary = {
       tenureLongest: 'Ilgiausiai su mumis: {name}, {years} m.',
       customersTotal: 'Iš viso klientų',
       customersHint: '{countries} šalyse',
-      customersNorway: 'Klientai Norvegijoje',
+      customersNordic: 'Klientai Nordic',
       customersUk: 'Klientai Anglijoje',
       teamNorway: 'Darbuotojai Norvegijoje',
       teamNordic: 'Darbuotojai Nordic',

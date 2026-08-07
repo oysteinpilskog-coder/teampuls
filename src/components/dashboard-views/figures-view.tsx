@@ -2,7 +2,7 @@
 
 import { memo, useMemo, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { Building2, Globe2, Languages, Star, Users } from 'lucide-react'
+import { Building2, Globe2, Languages, MapPin, Star, Users } from 'lucide-react'
 import { BreathingDot } from '@/components/breathing-dot'
 import { AnimatedCount } from './animated-count'
 import { useStatusColors } from '@/lib/status-colors/context'
@@ -126,13 +126,18 @@ function FiguresViewImpl({ members, offices, customers, orgName, time }: Figures
               accent={customerColor}
               icon={<Globe2 className="w-3.5 h-3.5" strokeWidth={2} />}
             />
+            {/* De to avdelingskortene deler porteføljen i to og summerer
+                alltid til totalen: England-kortet er hele de britiske øyer
+                (GB + IE — Skottland og Irland hører hjemme her), Nordic er
+                komplementet. Nordic får ikke flagg fordi det spenner over
+                flere land; England beholder 🇬🇧 som anker. */}
             <StatCard
               delay={0.35}
-              value={figures.customers.norway}
-              label={f.customersNorway}
-              hint={shareHint(figures.customers.norway, figures.customers.total, f.ofPortfolio)}
+              value={figures.customers.nordic}
+              label={f.customersNordic}
+              hint={shareHint(figures.customers.nordic, figures.customers.total, f.ofPortfolio)}
               accent={customerColor}
-              flag="NO"
+              icon={<MapPin className="w-3.5 h-3.5" strokeWidth={2} />}
             />
             <StatCard
               delay={0.40}
