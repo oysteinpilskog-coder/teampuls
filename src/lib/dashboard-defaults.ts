@@ -27,6 +27,10 @@ export const DEFAULT_VIEW_DURATIONS: Record<DashboardViewKey, number> = {
   // Kunder UK / Kunder Nordic — samme tempo som D.
   H: 15,
   I: 15,
+  // Nøkkeltall: ren tall-lesning uten kart eller matrise. Tallene er få
+  // og store, men count-up-animasjonene og søylene trenger ~2 s før alt
+  // står stille — 18 s gir resepsjonen ro til å lese ferdig.
+  J: 18,
 }
 
 /**

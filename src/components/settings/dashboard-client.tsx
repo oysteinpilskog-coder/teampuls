@@ -112,6 +112,7 @@ export function DashboardSettingsClient({ org: initialOrg }: { org: Organization
     G: t.dashboard.views.globe,
     H: t.dashboard.views.customersUk,
     I: t.dashboard.views.customersNordic,
+    J: t.dashboard.views.figures,
   } as const
 
   return (
