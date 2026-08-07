@@ -60,7 +60,7 @@ import { useT } from '@/lib/i18n/context'
 import { seedWeatherCache, type WeatherSnapshot } from '@/lib/weather/use-weather'
 import { useTodaysVisits, filterActiveWelcomes } from '@/hooks/use-todays-visits'
 
-type OrgRow = Pick<Organization, 'name' | 'timezone' | 'dashboard_rotation_views' | 'dashboard_view_durations' | 'default_presence_assumption' | 'logo_url'>
+type OrgRow = Pick<Organization, 'name' | 'timezone' | 'dashboard_rotation_views' | 'dashboard_view_durations' | 'default_presence_assumption' | 'logo_url' | 'birthdays_enabled'>
 
 interface DashboardClientProps {
   /** All workspace org_ids the dashboard scopes to. Single-workspace
@@ -393,7 +393,7 @@ export function DashboardClient({
       const [orgRes, membersRes, officesRes, customersRes] = await Promise.all([
         supabase
           .from('organizations')
-          .select('name, timezone, dashboard_rotation_views, dashboard_view_durations, default_presence_assumption, logo_url')
+          .select('name, timezone, dashboard_rotation_views, dashboard_view_durations, default_presence_assumption, logo_url, birthdays_enabled')
           .eq('id', headerOrgId)
           .maybeSingle(),
         supabase
@@ -547,6 +547,7 @@ export function DashboardClient({
             dashboard_view_durations: next.dashboard_view_durations,
             default_presence_assumption: next.default_presence_assumption ?? 'none',
             logo_url: next.logo_url,
+            birthdays_enabled: next.birthdays_enabled,
           })
         }
       )
@@ -842,6 +843,7 @@ export function DashboardClient({
             customers={customers}
             orgName={orgName}
             time={time}
+            birthdaysEnabled={org?.birthdays_enabled !== false}
           />
         )
       case 'E':
