@@ -68,7 +68,7 @@ export default async function DashboardPage() {
   const [orgRes, membersRes, officesRes, customersRes, initialWeather] = await Promise.all([
     supabase
       .from('organizations')
-      .select('name, timezone, dashboard_rotation_views, dashboard_view_durations, default_presence_assumption, logo_url')
+      .select('name, timezone, dashboard_rotation_views, dashboard_view_durations, default_presence_assumption, logo_url, birthdays_enabled')
       .eq('id', headerOrgId)
       .maybeSingle(),
     supabase

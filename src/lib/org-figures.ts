@@ -1,3 +1,4 @@
+import { getCountryLabel } from './countries'
 import type { Customer, Member, Office } from './supabase/types'
 
 /**
@@ -31,14 +32,22 @@ export interface TenurePerson {
   years: number
 }
 
+export interface UpcomingBirthday {
+  name: string
+  /** Month (1-12) and day of the birthday itself — never the birth year,
+   *  which stays private even though we sort by the upcoming date. */
+  month: number
+  day: number
+  /** 0 = today, 1 = tomorrow, … Always 0-365. */
+  daysUntil: number
+}
+
 export interface OrgFigures {
   team: {
     total: number
-    /** country_code === 'NO' */
-    norway: number
     /** Everything outside the UK department — the Nordic division. */
     nordic: number
-    /** GB + IE */
+    /** GB + IE — mirrors the customer split exactly. */
     uk: number
     byCountry: CountryCount[]
     /** Distinct countries with at least one team member. */
@@ -75,8 +84,13 @@ export interface OrgFigures {
     /** Longest-serving member — only members who opted in are named. */
     longest: TenurePerson | null
   }
-  /** Distinct countries across customers ∪ offices ∪ team. */
-  countryFootprint: number
+  /** Next birthday coming up, or null when the org has birthdays switched
+   *  off / nobody has opted in. Sits next to tenure on the board: the two
+   *  celebration facts about the team belong together. */
+  nextBirthday: UpcomingBirthday | null
+  /** Distinct countries across customers ∪ offices ∪ team, biggest first.
+   *  Rendered as flags so «Land: 8» is never a mystery number. */
+  countryFootprint: string[]
 }
 
 /** Fractional years between an ISO date and `now`. Null on unparseable input. */
@@ -141,6 +155,7 @@ export function computeOrgFigures(
   offices: Office[],
   customers: Customer[],
   now: Date,
+  options: { birthdaysEnabled?: boolean } = {},
 ): OrgFigures {
   const officeById = new Map(offices.map(o => [o.id, o]))
 
@@ -173,15 +188,28 @@ export function computeOrgFigures(
     }
   }
 
+  // ── Next birthday ───────────────────────────────────────────────────
+  // Doubly gated: the org-wide switch must be on AND the member must have
+  // opted in (birthday_visible defaults to FALSE in the database — birthdays
+  // are the one personal date we never surface by accident). The birth YEAR
+  // never leaves this function; only month/day travel to the UI.
+  const nextBirthday = options.birthdaysEnabled === false
+    ? null
+    : findNextBirthday(members, now)
+
   // ── Footprint ───────────────────────────────────────────────────────
-  const footprint = new Set<string>()
-  for (const code of [...memberCodes, ...customerCodes]) {
-    if (code !== UNKNOWN_COUNTRY) footprint.add(code)
+  // Counted across all three registries and returned as a list, so the
+  // «Land»-card can show WHICH countries rather than just how many.
+  const footprintCounts = new Map<string, number>()
+  const bump = (code: string) => {
+    if (code === UNKNOWN_COUNTRY) return
+    footprintCounts.set(code, (footprintCounts.get(code) ?? 0) + 1)
   }
-  for (const o of offices) {
-    const code = normalizeCode(o.country_code)
-    if (code !== UNKNOWN_COUNTRY) footprint.add(code)
-  }
+  for (const code of [...memberCodes, ...customerCodes]) bump(code)
+  for (const o of offices) bump(normalizeCode(o.country_code))
+  const footprint = Array.from(footprintCounts)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([code]) => code)
 
   const officeCountries = new Set(
     offices.map(o => normalizeCode(o.country_code)).filter(c => c !== UNKNOWN_COUNTRY),
@@ -194,7 +222,6 @@ export function computeOrgFigures(
   return {
     team: {
       total: members.length,
-      norway: memberCodes.filter(c => c === 'NO').length,
       nordic: members.length - teamUk,
       uk: teamUk,
       byCountry: teamByCountry,
@@ -221,8 +248,57 @@ export function computeOrgFigures(
       counted,
       longest,
     },
-    countryFootprint: footprint.size,
+    nextBirthday,
+    countryFootprint: footprint,
   }
+}
+
+/**
+ * The birthday coming up soonest, counting today as 0. Compares on
+ * month/day only and wraps across new year, so 31 December → 1 January is
+ * one day, not 364.
+ *
+ * Members who have not opted in (`birthday_visible !== true`) are skipped
+ * entirely — the column defaults to FALSE precisely so this surface stays
+ * empty until someone chooses otherwise.
+ */
+function findNextBirthday(members: Member[], now: Date): UpcomingBirthday | null {
+  const todayMonth = now.getMonth() + 1
+  const todayDay = now.getDate()
+  // Day-of-year style ordinal that ignores the year. 29 February simply
+  // sorts between 28 Feb and 1 Mar in non-leap years, which is the
+  // behaviour anyone would expect from a "who's next" line.
+  const ordinal = (m: number, d: number) => m * 100 + d
+  const todayOrd = ordinal(todayMonth, todayDay)
+
+  let best: UpcomingBirthday | null = null
+  let bestDistance = Infinity
+
+  for (const m of members) {
+    if (m.birthday_visible !== true || !m.birth_date) continue
+    const parsed = new Date(`${m.birth_date}T00:00:00`)
+    if (Number.isNaN(parsed.getTime())) continue
+
+    const month = parsed.getMonth() + 1
+    const day = parsed.getDate()
+
+    // Build this year's occurrence; if it already passed, roll to next year.
+    let next = new Date(now.getFullYear(), month - 1, day)
+    if (ordinal(month, day) < todayOrd) {
+      next = new Date(now.getFullYear() + 1, month - 1, day)
+    }
+    const midnightToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const daysUntil = Math.round(
+      (next.getTime() - midnightToday.getTime()) / (24 * 60 * 60 * 1000),
+    )
+
+    if (daysUntil < bestDistance) {
+      bestDistance = daysUntil
+      best = { name: m.display_name, month, day, daysUntil }
+    }
+  }
+
+  return best
 }
 
 /**
@@ -239,14 +315,12 @@ export function flagEmoji(code: string): string | null {
 }
 
 /**
- * Localised country name via `Intl.DisplayNames`. Falls back to the raw
- * code on old runtimes or codes the ICU data doesn't know.
+ * Localised country name. Thin wrapper over the shared `getCountryLabel`
+ * so the figures board names countries exactly like the rest of the app —
+ * it only adds the "no country code" case, which callers render as a
+ * translated «Uplassert» rather than an ISO code.
  */
 export function countryName(code: string, locale: string, unknownLabel: string): string {
   if (code === UNKNOWN_COUNTRY) return unknownLabel
-  try {
-    return new Intl.DisplayNames([locale], { type: 'region' }).of(code) ?? code
-  } catch {
-    return code
-  }
+  return getCountryLabel(code, locale) || code
 }

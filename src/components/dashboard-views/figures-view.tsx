@@ -2,7 +2,7 @@
 
 import { memo, useMemo, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { Building2, Globe2, Languages, MapPin, Star, Users } from 'lucide-react'
+import { Building2, Cake, Globe2, Languages, MapPin, Star, Users } from 'lucide-react'
 import { BreathingDot } from '@/components/breathing-dot'
 import { AnimatedCount } from './animated-count'
 import { useStatusColors } from '@/lib/status-colors/context'
@@ -25,12 +25,10 @@ interface FiguresViewProps {
   customers: Customer[]
   orgName: string
   time: Date
+  /** Org-wide kill switch for birthdays. False hides the «neste bursdag»-
+   *  line entirely, regardless of individual opt-ins. */
+  birthdaysEnabled?: boolean
 }
-
-/** How many country rows each breakdown card shows before folding the
- *  remainder into a single «+N andre»-row. Six keeps every bar readable
- *  from across a reception floor. */
-const MAX_COUNTRY_ROWS = 6
 
 /**
  * «Nøkkeltall» — the one slide that answers "how big are we, and where?"
@@ -45,7 +43,14 @@ const MAX_COUNTRY_ROWS = 6
  * stat grid carries the countable facts, and two ranked country
  * breakdowns own the right rail.
  */
-function FiguresViewImpl({ members, offices, customers, orgName, time }: FiguresViewProps) {
+function FiguresViewImpl({
+  members,
+  offices,
+  customers,
+  orgName,
+  time,
+  birthdaysEnabled = true,
+}: FiguresViewProps) {
   const t = useT()
   const locale = useLocale()
   const STATUS_COLORS = useStatusColors()
@@ -57,9 +62,9 @@ function FiguresViewImpl({ members, offices, customers, orgName, time }: Figures
   // AnimatedCount on this slide would restart its count-up each second.
   const dayKey = time.toISOString().slice(0, 10)
   const figures: OrgFigures = useMemo(
-    () => computeOrgFigures(members, offices, customers, time),
+    () => computeOrgFigures(members, offices, customers, time, { birthdaysEnabled }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see dayKey note
-    [members, offices, customers, dayKey],
+    [members, offices, customers, dayKey, birthdaysEnabled],
   )
 
   const intlLocale = LOCALE_META[locale].intl
@@ -114,7 +119,7 @@ function FiguresViewImpl({ members, offices, customers, orgName, time }: Figures
           slides under the fixed Offiview signature. */}
       <div className="flex-1 grid grid-cols-[1.05fr_0.95fr] gap-5 min-h-0">
         <div className="flex flex-col gap-5 min-h-0">
-          <TenureHero figures={figures} labels={f} />
+          <TenureHero figures={figures} labels={f} locale={intlLocale} />
 
           <div className="flex-1 grid grid-cols-3 grid-rows-2 gap-4 min-h-0">
             <StatCard
@@ -147,35 +152,42 @@ function FiguresViewImpl({ members, offices, customers, orgName, time }: Figures
               accent={customerColor}
               flag="GB"
             />
+            {/* Teamet deles på nøyaktig samme UK/Nordic-akse som kundene,
+                så de fire kortene over hverandre leses som to par. */}
             <StatCard
               delay={0.45}
-              value={figures.team.norway}
-              label={f.teamNorway}
+              value={figures.team.uk}
+              label={f.teamUk}
               hint={f.ofTeam.replace('{total}', String(figures.team.total))}
               accent={officeColor}
-              flag="NO"
+              flag="GB"
             />
             <StatCard
               delay={0.50}
               value={figures.team.nordic}
               label={f.teamNordic}
-              hint={f.teamUkSplit.replace('{uk}', String(figures.team.uk))}
+              hint={f.ofTeam.replace('{total}', String(figures.team.total))}
               accent={officeColor}
               icon={<Users className="w-3.5 h-3.5" strokeWidth={2} />}
             />
+            {/* «Land: 8» sa ingenting om HVILKE åtte. Flaggraden under
+                tallet svarer på det direkte; kontorer/tidssoner er flyttet
+                ned i footeren på «Teamet per land». */}
             <StatCard
               delay={0.55}
-              value={figures.countryFootprint}
+              value={figures.countryFootprint.length}
               label={f.countries}
-              hint={f.countriesHint
-                .replace('{offices}', String(figures.offices.total))
-                .replace('{timezones}', String(figures.offices.timezones))}
               accent="var(--accent-color)"
               icon={<Building2 className="w-3.5 h-3.5" strokeWidth={2} />}
+              footer={<FlagRow codes={figures.countryFootprint} />}
             />
           </div>
         </div>
 
+        {/* Begge listene viser HVERT land — ingen «+N andre»-samlepost.
+            De to kortene deler høyden proporsjonalt med antall rader, så
+            en portefølje over åtte land ikke klemmer teamlista (fire land)
+            like hardt som seg selv. */}
         <div className="flex flex-col gap-5 min-h-0 pb-[64px]">
           <CountryBreakdown
             title={f.customerBase}
@@ -184,7 +196,6 @@ function FiguresViewImpl({ members, offices, customers, orgName, time }: Figures
             color={customerColor}
             delay={0.34}
             nameFor={nameFor}
-            othersLabel={f.otherCountries}
           />
           <CountryBreakdown
             title={f.teamByCountry}
@@ -193,14 +204,15 @@ function FiguresViewImpl({ members, offices, customers, orgName, time }: Figures
             color={officeColor}
             delay={0.44}
             nameFor={nameFor}
-            othersLabel={f.otherCountries}
             footer={
-              figures.team.languages > 0 ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <Languages className="w-3 h-3" strokeWidth={2} />
-                  {f.languages.replace('{n}', String(figures.team.languages))}
-                </span>
-              ) : null
+              <span className="inline-flex items-center gap-1.5">
+                <Languages className="w-3 h-3" strokeWidth={2} />
+                {f.countriesHint
+                  .replace('{offices}', String(figures.offices.total))
+                  .replace('{timezones}', String(figures.offices.timezones))}
+                {figures.team.languages > 0 &&
+                  ` · ${f.languages.replace('{n}', String(figures.team.languages))}`}
+              </span>
             }
           />
         </div>
@@ -218,18 +230,37 @@ function shareHint(value: number, total: number, template: string): string {
 /**
  * The slide's hero: every year of service in the company, added together.
  * A single Fraunces number set at display scale — same treatment as the
- * «Akkurat nå»-hero — with average tenure and the longest-serving
- * colleague demoted to context beside it.
+ * «Akkurat nå»-hero — with average tenure, the longest-serving colleague
+ * and the next birthday demoted to context beside it.
  */
 function TenureHero({
   figures,
   labels,
+  locale,
 }: {
   figures: OrgFigures
   labels: Dictionary['dashboard']['figures']
+  /** BCP-47 tag for formatting the birthday date (e.g. "nb-NO"). */
+  locale: string
 }) {
-  const { tenure, team } = figures
+  const { tenure, team, nextBirthday } = figures
   const years = Math.round(tenure.totalYears)
+
+  // Today / tomorrow read faster than a date on a screen glanced at from
+  // across a room; anything further out gets an actual day + month.
+  const whenLabel = (() => {
+    if (!nextBirthday) return ''
+    if (nextBirthday.daysUntil === 0) return labels.birthdayToday
+    if (nextBirthday.daysUntil === 1) return labels.birthdayTomorrow
+    // Year is irrelevant here — and deliberately not the birth year. We
+    // borrow an arbitrary leap year so 29 February always formats.
+    const d = new Date(2024, nextBirthday.month - 1, nextBirthday.day)
+    try {
+      return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).format(d)
+    } catch {
+      return `${nextBirthday.day}.${nextBirthday.month}`
+    }
+  })()
 
   return (
     <motion.section
@@ -316,6 +347,30 @@ function TenureHero({
             </span>
           </motion.div>
         )}
+
+        {/* Neste bursdag — den andre feiringen som hører hjemme ved siden
+            av ansienniteten. «I dag» og «I morgen» leses raskere enn en
+            dato, så de to nærmeste dagene får ord i stedet for tall. */}
+        {nextBirthday && (
+          <motion.div
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ ...spring.gentle, delay: 0.62 }}
+            className="inline-flex items-baseline gap-1.5 text-[13px]"
+            style={{ color: 'rgba(255,255,255,0.78)', fontFamily: 'var(--font-body)' }}
+          >
+            <Cake
+              className="w-3 h-3 self-center shrink-0"
+              strokeWidth={2}
+              style={{ color: '#E8A0C0', filter: 'drop-shadow(0 0 6px rgba(232,160,192,0.5))' }}
+            />
+            <span style={{ color: 'rgba(255,255,255,0.55)' }}>
+              {labels.nextBirthday
+                .replace('{name}', nextBirthday.name)
+                .replace('{when}', whenLabel)}
+            </span>
+          </motion.div>
+        )}
       </div>
     </motion.section>
   )
@@ -334,6 +389,7 @@ function StatCard({
   delay,
   icon,
   flag,
+  footer,
 }: {
   value: number
   label: string
@@ -343,6 +399,9 @@ function StatCard({
   icon?: ReactNode
   /** ISO alpha-2 rendered as a flag in the corner, instead of `icon`. */
   flag?: string
+  /** Extra content under the number — used by the «Land»-card to spell out
+   *  which countries the count refers to. */
+  footer?: ReactNode
 }) {
   return (
     <motion.div
@@ -409,14 +468,42 @@ function StatCard({
           {hint}
         </span>
       )}
+
+      {footer && <div className="relative mt-1.5">{footer}</div>}
     </motion.div>
   )
 }
 
 /**
- * Ranked country list with proportional bars. Bars are scaled against the
- * biggest row rather than the total, so a portfolio dominated by one
- * country still shows readable movement in the tail.
+ * The countries behind the «Land»-number, as flags. Wraps rather than
+ * scrolls — a footprint big enough to overflow two lines would need its
+ * own card anyway, and clipping is preferable to a scrollbar on a TV.
+ */
+function FlagRow({ codes }: { codes: string[] }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 leading-none">
+      {codes.map(code => {
+        const flag = flagEmoji(code)
+        if (!flag) return null
+        return (
+          <span key={code} title={code} style={{ fontSize: 15 }}>
+            {flag}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+/**
+ * Ranked country list with proportional bars. Every country gets its own
+ * row — no «+N andre»-bucket, because the point of this card is to name
+ * the countries behind the numbers.
+ *
+ * Bars are scaled against the biggest row rather than the total, so a
+ * portfolio dominated by one country still shows readable movement in the
+ * tail. The card's flex-grow follows its row count, so two lists of very
+ * different length share the rail proportionally instead of 50/50.
  */
 function CountryBreakdown({
   title,
@@ -425,7 +512,6 @@ function CountryBreakdown({
   color,
   delay,
   nameFor,
-  othersLabel,
   footer,
 }: {
   title: string
@@ -434,12 +520,8 @@ function CountryBreakdown({
   color: string
   delay: number
   nameFor: (code: string) => string
-  othersLabel: string
   footer?: ReactNode
 }) {
-  const head = rows.slice(0, MAX_COUNTRY_ROWS)
-  const tail = rows.slice(MAX_COUNTRY_ROWS)
-  const tailCount = tail.reduce((sum, r) => sum + r.count, 0)
   const max = rows[0]?.count ?? 1
 
   return (
@@ -447,8 +529,10 @@ function CountryBreakdown({
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ ...spring.gentle, delay }}
-      className="flex-1 rounded-2xl p-5 flex flex-col gap-3 relative overflow-hidden min-h-0"
+      className="rounded-2xl p-5 flex flex-col gap-3 relative overflow-hidden min-h-0"
       style={{
+        flexGrow: Math.max(rows.length, 1),
+        flexBasis: 0,
         background:
           'linear-gradient(155deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)',
         border: '1px solid rgba(255,255,255,0.1)',
@@ -481,7 +565,7 @@ function CountryBreakdown({
       </div>
 
       <div className="relative flex-1 flex flex-col justify-center gap-2.5 min-h-0">
-        {head.map((row, i) => (
+        {rows.map((row, i) => (
           <CountryRow
             key={row.code}
             label={nameFor(row.code)}
@@ -492,17 +576,6 @@ function CountryBreakdown({
             delay={delay + 0.12 + i * 0.05}
           />
         ))}
-        {tail.length > 0 && (
-          <CountryRow
-            label={othersLabel.replace('{n}', String(tail.length))}
-            flag={null}
-            count={tailCount}
-            fraction={max > 0 ? tailCount / max : 0}
-            color={color}
-            delay={delay + 0.12 + head.length * 0.05}
-            muted
-          />
-        )}
       </div>
 
       {footer && (
