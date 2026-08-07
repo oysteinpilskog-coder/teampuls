@@ -325,6 +325,7 @@ export const sv: Dictionary = {
     viewAriaPrefix: 'Vy',
     live: 'Live',
     loadError: 'Kunde inte ladda data',
+    previewBadge: 'Förhandsvisning',
     greetings: {
       night: 'God natt',
       morning: 'God morgon',
@@ -682,6 +683,10 @@ export const sv: Dictionary = {
       rotation: 'Karusell',
       rotationDesc: 'Välj vilka vyer som ska rotera automatiskt på TV-dashboarden. Minst en måste vara aktiv.',
       rotationMinOne: 'Minst en vy måste vara aktiv',
+      preview: 'Förhandsvisning',
+      previewDesc: 'Gå igenom vyerna i en egen flik innan du aktiverar dem. Inget sparas, och skärmen i receptionen påverkas inte.',
+      previewAll: 'Förhandsvisa alla vyer',
+      previewSelection: 'Förhandsvisa urvalet',
       durations: 'Visningstid per vy',
       durationsDesc: 'Hur länge varje vy visas i auto-rotationen. 5–120 sekunder per vy.',
       durationsResetDefault: 'Återställ till standard',

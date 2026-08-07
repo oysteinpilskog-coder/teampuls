@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { RotateCcw } from 'lucide-react'
+import { Eye, RotateCcw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Organization, DashboardViewKey } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
@@ -16,8 +16,16 @@ import { useT } from '@/lib/i18n/context'
 
 // Konfigurerbare visninger i Settings — Velkomst-view F injiseres dynamisk
 // på dashboardet og skal aldri lagres til organizations.dashboard_rotation_views.
-// H/I er kunder splittet på avdeling (UK vs Nordic).
-const DASHBOARD_VIEW_KEYS = ['A', 'B', 'C', 'D', 'H', 'I', 'E', 'G'] as const
+// H/I er kunder splittet på avdeling (UK vs Nordic). J er Nøkkeltall.
+//
+// MERK: denne lista styrer BÅDE hvilke visninger som kan skrus på og
+// rekkefølgen de lagres i. Legger du til en ny view-nøkkel må den inn her,
+// ellers finnes visningen i koden uten å være mulig å velge i Innstillinger.
+const DASHBOARD_VIEW_KEYS = ['A', 'B', 'C', 'D', 'H', 'I', 'E', 'G', 'J'] as const
+
+/** Nøklene picker-en og varighetslisten kan merkes med. Utledet fra
+ *  DASHBOARD_VIEW_KEYS så de to aldri kan komme i utakt. */
+type ConfigurableViewKey = (typeof DASHBOARD_VIEW_KEYS)[number]
 
 function sameSet(a: DashboardViewKey[], b: DashboardViewKey[]): boolean {
   if (a.length !== b.length) return false
@@ -148,6 +156,47 @@ export function DashboardSettingsClient({ org: initialOrg }: { org: Organization
           />
         </SettingsField>
 
+        {/* Se gjennom alle visningene FØR de settes på resepsjons-TV-en.
+            ?views=all overstyrer rotasjonen kun i den fanen — ingenting
+            lagres, og skjermen i resepsjonen er upåvirket. */}
+        <SettingsField
+          label={t.settings.dashboard.preview}
+          description={t.settings.dashboard.previewDesc}
+        >
+          <div className="flex flex-wrap gap-2">
+            <a
+              href="/dashboard?views=all"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-medium transition-opacity hover:opacity-80"
+              style={{
+                background: 'var(--lg-surface-2, var(--bg-subtle))',
+                border: '1px solid var(--lg-divider, var(--border-subtle))',
+                color: 'var(--lg-text-1, var(--text-primary))',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              <Eye className="w-3.5 h-3.5" strokeWidth={2} />
+              {t.settings.dashboard.previewAll}
+            </a>
+            <a
+              href={`/dashboard?views=${rotationViews.join(',')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-medium transition-opacity hover:opacity-80"
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--lg-divider, var(--border-subtle))',
+                color: 'var(--lg-text-2, var(--text-secondary))',
+                fontFamily: 'var(--font-body)',
+              }}
+            >
+              <Eye className="w-3.5 h-3.5" strokeWidth={2} />
+              {t.settings.dashboard.previewSelection}
+            </a>
+          </div>
+        </SettingsField>
+
         <SettingsField
           label={t.settings.dashboard.durations}
           description={t.settings.dashboard.durationsDesc}
@@ -220,7 +269,7 @@ function DashboardRotationPicker({
 }: {
   selected: DashboardViewKey[]
   onToggle: (v: DashboardViewKey) => void
-  labels: Record<'A' | 'B' | 'C' | 'D' | 'E' | 'G' | 'H' | 'I', string>
+  labels: Record<ConfigurableViewKey, string>
   minHint: string
 }) {
   const isLastOne = selected.length === 1
@@ -288,7 +337,7 @@ function DashboardDurationsEditor({
 }: {
   durations: Record<DashboardViewKey, number>
   onChange: (view: DashboardViewKey, value: number) => void
-  labels: Record<'A' | 'B' | 'C' | 'D' | 'E' | 'G' | 'H' | 'I', string>
+  labels: Record<ConfigurableViewKey, string>
   secondsSuffix: string
   onReset: () => void
   resetLabel: string

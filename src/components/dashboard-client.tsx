@@ -160,6 +160,19 @@ export function DashboardClient({
   // Manual keyboard navigation always uses the quick crossfade regardless.
   const brandOff = searchParams.get('brand') === 'off'
 
+  // ?views=all | ?views=A,J,C — midlertidig overstyring av rotasjonen, kun
+  // for denne fanen. Lar en admin se gjennom visninger FØR de skrus på for
+  // resepsjons-TV-en, uten å skrive noe til organizations. Ugyldige nøkler
+  // ignoreres; blir det ingenting igjen faller vi tilbake til org-oppsettet.
+  const previewViews = useMemo<ViewKey[] | null>(() => {
+    const raw = searchParams.get('views')
+    if (!raw) return null
+    if (raw === 'all') return ALL_VIEWS
+    const wanted = new Set(raw.split(',').map(s => s.trim().toUpperCase()))
+    const picked = ALL_VIEWS.filter(v => wanted.has(v))
+    return picked.length > 0 ? picked : null
+  }, [searchParams])
+
   // Freezes the rotation hairline's CSS animation while the tab is hidden so
   // a dozing TV doesn't keep a compositor layer churning.
   const visible = useDocumentVisibility()
@@ -214,7 +227,12 @@ export function DashboardClient({
   //
   // Velkomst-view F injiseres dynamisk i toppen av rotasjonen kun når et
   // besøk er innenfor sitt vindu. Aldri lagret i admin-konfigurasjonen.
+  //
+  // ?views= overstyrer alt: da er dette en forhåndsvisning og skal vise
+  // nøyaktig de visningene som ble bedt om — heller ikke Velkomst-F
+  // injiseres, så gjennomgangen blir forutsigbar.
   const VIEWS = useMemo<ViewKey[]>(() => {
+    if (previewViews) return previewViews
     const raw = org?.dashboard_rotation_views
     const baseList = (() => {
       if (!raw || raw.length === 0) return ALL_VIEWS
@@ -223,7 +241,7 @@ export function DashboardClient({
       return filtered.length > 0 ? filtered : ALL_VIEWS
     })()
     return activeWelcomes.length > 0 ? (['F', ...baseList] as ViewKey[]) : baseList
-  }, [org?.dashboard_rotation_views, activeWelcomes.length])
+  }, [previewViews, org?.dashboard_rotation_views, activeWelcomes.length])
   // Mirror Oversikt: når org-en lener seg på en presence-antakelse skal
   // hero-tallet og strip-buckets på TV-en telle medlemmer uten registrering
   // på samme måte som «Akkurat nå» gjør på Oversikt-siden. 'none' betyr
@@ -1009,13 +1027,30 @@ export function DashboardClient({
         {isFullscreen ? (
           <span aria-hidden />
         ) : (
-          <Link
-            href="/"
-            className="text-[12px] transition-colors hover:opacity-80 tabular-nums uppercase tracking-[0.22em] font-semibold"
-            style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-body)' }}
-          >
-            {t.dashboard.back}
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="text-[12px] transition-colors hover:opacity-80 tabular-nums uppercase tracking-[0.22em] font-semibold"
+              style={{ color: 'rgba(255,255,255,0.55)', fontFamily: 'var(--font-body)' }}
+            >
+              {t.dashboard.back}
+            </Link>
+            {/* Gjør det umulig å forveksle en ?views=-fane med den ekte
+                rotasjonen — ingen skal tro de ser resepsjons-TV-en. */}
+            {previewViews && (
+              <span
+                className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-[0.2em] uppercase"
+                style={{
+                  background: 'rgba(212,160,23,0.14)',
+                  border: '1px solid rgba(212,160,23,0.4)',
+                  color: '#E8C36A',
+                  fontFamily: 'var(--font-body)',
+                }}
+              >
+                {t.dashboard.previewBadge}
+              </span>
+            )}
+          </div>
         )}
 
         {/* Centre: segmented view switcher */}

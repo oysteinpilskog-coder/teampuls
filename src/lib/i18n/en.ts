@@ -325,6 +325,7 @@ export const en: Dictionary = {
     viewAriaPrefix: 'View',
     live: 'Live',
     loadError: 'Could not load data',
+    previewBadge: 'Preview',
     greetings: {
       night: 'Good night',
       morning: 'Good morning',
@@ -682,6 +683,10 @@ export const en: Dictionary = {
       rotation: 'Carousel',
       rotationDesc: 'Choose which views rotate automatically on the TV dashboard. At least one must be active.',
       rotationMinOne: 'At least one view must be active',
+      preview: 'Preview',
+      previewDesc: 'Step through the views in a separate tab before you activate them. Nothing is saved, and the reception screen is unaffected.',
+      previewAll: 'Preview all views',
+      previewSelection: 'Preview selection',
       durations: 'Per-view display duration',
       durationsDesc: 'How long each view stays during auto-rotation. 5–120 seconds per view.',
       durationsResetDefault: 'Reset to default',
