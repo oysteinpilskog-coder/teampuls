@@ -394,12 +394,14 @@ function YearAxis({ ticks, max, t }: { ticks: number[]; max: number; t: Dictiona
       <div className="flex-1 min-w-0 relative h-7">
         {ticks.map((v) => {
           const pct = (v / max) * 100
-          const atEdge = pct < 2 || pct > 98
+          // The rightmost tick sits exactly where the "today" marker is, so
+          // it keeps its mark but hands the label over.
+          if (pct > 98) return null
           return (
             <div
               key={v}
               className="absolute bottom-0 flex flex-col items-center"
-              style={{ left: `${pct}%`, transform: atEdge && pct < 2 ? 'translateX(0%)' : 'translateX(-50%)' }}
+              style={{ left: `${pct}%`, transform: pct < 2 ? 'translateX(0%)' : 'translateX(-50%)' }}
             >
               <span
                 className="text-[10px] tabular-nums mb-1"
@@ -451,8 +453,13 @@ function TenureRow({
   reduce: boolean
   workspace: WorkspaceSummary | null
 }) {
-  const exact = entry.completedYears + monthsSince(entry.startDate, today) / 12
-  const widthPct = Math.min(100, Math.max(2.5, (exact / max) * 100))
+  // `monthsSince` already covers the full span since the start date — adding
+  // `completedYears` on top would double the bar and clip everyone above
+  // half the axis at 100%.
+  const exact = monthsSince(entry.startDate, today) / 12
+  const widthPct = Math.min(100, Math.max(1.5, (exact / max) * 100))
+  // Narrow bars can't hold the label without clipping it — park it outside.
+  const labelOutside = widthPct < 12
   const initials = entry.member.initials ?? entry.member.display_name.slice(0, 2).toUpperCase()
 
   return (
@@ -572,23 +579,44 @@ function TenureRow({
             />
           )}
 
-          <span
-            className="relative text-[13px] tabular-nums whitespace-nowrap"
+          {!labelOutside && (
+            <span
+              className="relative text-[13px] tabular-nums whitespace-nowrap"
+              style={{
+                color: 'white',
+                fontFamily: 'var(--font-fraunces), Georgia, serif',
+                fontStyle: 'italic',
+                fontVariationSettings: '"opsz" 24, "SOFT" 60',
+                fontWeight: 500,
+                letterSpacing: '-0.01em',
+                textShadow: '0 1px 3px rgba(0,0,0,0.4)',
+              }}
+            >
+              {tenureLabel(entry, t)}
+            </span>
+          )}
+        </motion.div>
+
+        {labelOutside && (
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: idx * 0.045 + 0.6 }}
+            className="absolute top-1/2 text-[13px] tabular-nums whitespace-nowrap pointer-events-none"
             style={{
-              color: 'white',
+              left: `calc(${widthPct}% + ${entry.isMilestone ? 26 : 10}px)`,
+              transform: 'translateY(-50%)',
+              color: 'var(--text-secondary)',
               fontFamily: 'var(--font-fraunces), Georgia, serif',
               fontStyle: 'italic',
               fontVariationSettings: '"opsz" 24, "SOFT" 60',
               fontWeight: 500,
               letterSpacing: '-0.01em',
-              textShadow: '0 1px 3px rgba(0,0,0,0.4)',
             }}
           >
-            {entry.completedYears > 0
-              ? t.wheel.anniversaries.yearsLabel.replace('{years}', String(entry.completedYears))
-              : t.wheel.anniversaries.lessThanOneYear}
-          </span>
-        </motion.div>
+            {tenureLabel(entry, t)}
+          </motion.span>
+        )}
 
         {entry.isMilestone && (
           <motion.span
@@ -618,6 +646,12 @@ function TenureRow({
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────
+
+function tenureLabel(entry: DerivedAnniversary, t: Dictionary): string {
+  return entry.completedYears > 0
+    ? t.wheel.anniversaries.yearsLabel.replace('{years}', String(entry.completedYears))
+    : t.wheel.anniversaries.lessThanOneYear
+}
 
 function monthsSince(from: Date, to: Date): number {
   const yd = to.getFullYear() - from.getFullYear()
