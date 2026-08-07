@@ -378,7 +378,7 @@ export const es: Dictionary = {
       tenureLongest: 'Más tiempo con nosotros: {name}, {years} años',
       customersTotal: 'Clientes en total',
       customersHint: 'en {countries} países',
-      customersNorway: 'Clientes Noruega',
+      customersNordic: 'Clientes Nórdicos',
       customersUk: 'Clientes Inglaterra',
       teamNorway: 'Empleados Noruega',
       teamNordic: 'Empleados Nordic',

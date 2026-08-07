@@ -378,7 +378,7 @@ export const sv: Dictionary = {
       tenureLongest: 'Längst hos oss: {name}, {years} år',
       customersTotal: 'Kunder totalt',
       customersHint: 'i {countries} länder',
-      customersNorway: 'Kunder Norge',
+      customersNordic: 'Kunder Nordic',
       customersUk: 'Kunder England',
       teamNorway: 'Anställda Norge',
       teamNordic: 'Anställda Nordic',

@@ -378,7 +378,7 @@ export const en: Dictionary = {
       tenureLongest: 'Longest with us: {name}, {years} years',
       customersTotal: 'Customers total',
       customersHint: 'across {countries} countries',
-      customersNorway: 'Customers Norway',
+      customersNordic: 'Customers Nordic',
       customersUk: 'Customers England',
       teamNorway: 'Team Norway',
       teamNordic: 'Team Nordic',

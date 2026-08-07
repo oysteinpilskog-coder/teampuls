@@ -48,11 +48,12 @@ export interface OrgFigures {
   }
   customers: {
     total: number
-    norway: number
-    /** country_code === 'GB' — England, Scotland, Wales, N. Ireland. */
+    /** GB + IE — England, Scotland, Wales, N. Ireland and Ireland. The
+     *  whole British Isles is one department, so Scottish and Irish
+     *  customers are counted here, not in Nordic. */
     uk: number
-    /** GB + IE — the full UK department portfolio. */
-    ukDepartment: number
+    /** Everything that is not UK — NO/SE/DK/FI/IS/LT and customers with
+     *  no country code. The complement, so the two always sum to total. */
     nordic: number
     byCountry: CountryCount[]
     countries: number
@@ -202,9 +203,7 @@ export function computeOrgFigures(
     },
     customers: {
       total: customers.length,
-      norway: customerCodes.filter(c => c === 'NO').length,
-      uk: customerCodes.filter(c => c === 'GB').length,
-      ukDepartment: customerUkDept,
+      uk: customerUkDept,
       nordic: customers.length - customerUkDept,
       byCountry: customersByCountry,
       countries: countKnown(customersByCountry),

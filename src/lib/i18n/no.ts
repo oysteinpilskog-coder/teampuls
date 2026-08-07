@@ -382,7 +382,7 @@ export const no = {
       tenureLongest: 'Lengst med oss: {name}, {years} år',
       customersTotal: 'Kunder totalt',
       customersHint: 'i {countries} land',
-      customersNorway: 'Kunder Norge',
+      customersNordic: 'Kunder Nordic',
       customersUk: 'Kunder England',
       teamNorway: 'Ansatte Norge',
       teamNordic: 'Ansatte Nordic',
