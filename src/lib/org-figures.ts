@@ -301,18 +301,11 @@ function findNextBirthday(members: Member[], now: Date): UpcomingBirthday | null
   return best
 }
 
-/**
- * ISO alpha-2 → flag emoji, by offsetting each letter into the Unicode
- * regional-indicator block. Beats a hand-maintained table: every country
- * a customer could ever sit in works without a code change.
- */
-export function flagEmoji(code: string): string | null {
-  if (code === UNKNOWN_COUNTRY) return null
-  if (!/^[A-Z]{2}$/.test(code)) return null
-  return String.fromCodePoint(
-    ...[...code].map(ch => 0x1f1e6 + (ch.charCodeAt(0) - 65)),
-  )
-}
+// Ingen flagg-emoji her med vilje. Regional-indicator-sekvenser (🇬🇧) har
+// ingen glyfer i Windows sine standardfonter, så de faller tilbake til de
+// bare bokstavene i en fremmed font — resepsjons-TV-en viste «GB» i grått
+// der det skulle stått et flagg. UI-et bruker `CodeChip` i stedet: samme
+// informasjon, ser bevisst ut på alle plattformer.
 
 /**
  * Localised country name. Thin wrapper over the shared `getCountryLabel`
