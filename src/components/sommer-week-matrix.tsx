@@ -33,6 +33,13 @@ interface Props {
   ukOfficeIds?: string[]
 }
 
+/** The season the week view covers, as month indices: May through September.
+ *  Wide enough for the shoulder weeks people actually book (33 of 357 vacation
+ *  days in 2026 sat in May or September), narrow enough that the week columns
+ *  fill the card without a scrollbar. */
+const SEASON_FIRST_MONTH = 4
+const SEASON_LAST_MONTH = 8
+
 interface WeekBucket {
   key: string            // `${isoWeekYear}-${weekNo}`
   weekNo: number
@@ -137,31 +144,32 @@ export function SommerWeekMatrix({
     return map
   }, [entries])
 
-  // Auto-fit: the first..last bucket index that holds any vacation, padded by
-  // one empty week each side. Falls back to the summer months (Jun–Aug) when
-  // nothing is registered yet, so the grid still reads as a summer planner.
+  // Auto-fit, but only ever inside the season window. Fitting across the whole
+  // year meant a single day off in November stretched the grid to 35 columns,
+  // which squeezed July — where 60% of the team's vacation actually sits — into
+  // a sliver behind a scrollbar. Vacation outside the season is still reachable
+  // in the day view via the month chevrons.
   const visibleBuckets = useMemo(() => {
-    if (allBuckets.length === 0) return []
+    const season = allBuckets.filter(
+      (b) => b.monthOfMonday >= SEASON_FIRST_MONTH && b.monthOfMonday <= SEASON_LAST_MONTH,
+    )
+    if (season.length === 0) return allBuckets
     const anyVac = new Set<string>()
     for (const set of vacationByMember.values()) for (const d of set) anyVac.add(d)
     let minI = Infinity
     let maxI = -Infinity
-    allBuckets.forEach((b, i) => {
+    season.forEach((b, i) => {
       if (b.dateStrings.some((d) => anyVac.has(d))) {
         if (i < minI) minI = i
         if (i > maxI) maxI = i
       }
     })
-    if (maxI < 0) {
-      const summer = allBuckets
-        .map((b, i) => ({ b, i }))
-        .filter(({ b }) => b.monthOfMonday >= 5 && b.monthOfMonday <= 7)
-      if (summer.length === 0) return allBuckets
-      return allBuckets.slice(summer[0].i, summer[summer.length - 1].i + 1)
-    }
+    // Nothing registered yet — show the whole season so the grid still reads
+    // as a summer planner rather than collapsing to nothing.
+    if (maxI < 0) return season
     const lo = Math.max(0, minI - 1)
-    const hi = Math.min(allBuckets.length - 1, maxI + 1)
-    return allBuckets.slice(lo, hi + 1)
+    const hi = Math.min(season.length - 1, maxI + 1)
+    return season.slice(lo, hi + 1)
   }, [allBuckets, vacationByMember])
 
   const totalCols = visibleBuckets.length
@@ -409,19 +417,26 @@ export function SommerWeekMatrix({
 
   const canEditAny = currentMemberRole === 'admin'
   const palette = palettes.vacation
-  const minWidth = Math.max(720, NAME_COL + totalCols * 58)
-
   return (
     <div className="w-full flex flex-col gap-5">
-      <section
-        className="relative w-full rounded-2xl overflow-auto"
-        style={{
-          background: 'var(--lg-surface-1)',
-          border: '1px solid var(--lg-divider)',
-          maxHeight: 'calc(100dvh - 14rem)',
-        }}
+      {/* Scroll like Oversikt: nothing scrolls inside the card. The week
+          columns are percentage-positioned, so the grid simply fills whatever
+          width it gets and the page does the vertical scrolling. Below lg the
+          season needs more width than the viewport has, so the whole card
+          scrolls sideways in a container that bleeds to the page edges — same
+          construction as TeamGrid, just a wider floor because a season is ~23
+          columns instead of five weekdays. */}
+      <div
+        className="-mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto lg:overflow-visible"
+        style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        <div style={{ minWidth }}>
+        <section
+          className="relative rounded-2xl overflow-hidden min-w-[1080px] lg:min-w-0"
+          style={{
+            background: 'var(--lg-surface-1)',
+            border: '1px solid var(--lg-divider)',
+          }}
+        >
           <Header
             visibleBuckets={visibleBuckets}
             monthGroups={monthGroups}
@@ -476,8 +491,8 @@ export function SommerWeekMatrix({
               })}
             </div>
           )}
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   )
 }
@@ -508,7 +523,7 @@ function Header({
 }) {
   return (
     <div
-      className="sticky top-0 z-30 px-3 pt-4 pb-2"
+      className="relative z-10 px-3 pt-4 pb-2"
       style={{ background: 'var(--lg-surface-1)' }}
     >
       {/* Month band */}
