@@ -907,17 +907,6 @@ export function DiskView({
               for pointer parallax. Framer keeps animating x/y through the
               slow drift keyframes; we layer a translate3d on top via the
               transform-from-translate trick so both compose cleanly. */}
-          <style jsx>{`
-            .year-wheel-aurora { --px: 0; --py: 0; }
-            .year-wheel-aurora__blob {
-              --pv: 0;
-              translate: calc(var(--px) * var(--pv) * 1px) calc(var(--py) * var(--pv) * 1px);
-              transition: translate 220ms cubic-bezier(.2,.8,.3,1);
-            }
-            .year-wheel-aurora__blob--a { --pv: 18; }
-            .year-wheel-aurora__blob--b { --pv: -22; }
-            .year-wheel-aurora__blob--c { --pv: 14; }
-          `}</style>
         </div>
 
         <motion.svg

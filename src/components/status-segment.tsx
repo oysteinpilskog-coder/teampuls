@@ -134,9 +134,17 @@ export function StatusSegment({
 
   return (
     <motion.div
-      className="relative h-[32px] rounded-[8px] overflow-hidden"
+      className="status-segment relative h-[32px] rounded-[8px] overflow-hidden"
       style={{
         gridColumn: `span ${span}`,
+        // Hover/rim colours for the resize handles and per-day cells. These
+        // used to live in a <style jsx> block, which stamped a scoped class
+        // on the server render but not the client one — a hydration mismatch
+        // on every Oversikt row. The rules are global now; the tone travels
+        // as custom properties instead.
+        ['--seg-handle-hover' as string]: tone ? `${tone}22` : 'rgba(255, 255, 255, 0.08)',
+        ['--seg-rim' as string]: tone || 'rgba(255, 255, 255, 0.6)',
+        ['--seg-day-hover' as string]: status ? `${tone}18` : 'rgba(255, 255, 255, 0.04)',
         // Cron-style glass tile: translucent category wash over the surface,
         // NOT a solid painted fill. Tone comes from the rim + soft glow.
         background: status
@@ -371,40 +379,6 @@ export function StatusSegment({
         />
       )}
 
-      <style jsx>{`
-        .resize-handle {
-          transition: box-shadow 140ms ease, background-color 140ms ease;
-        }
-        .resize-handle:hover {
-          background-color: ${tone ? `${tone}22` : 'rgba(255, 255, 255, 0.08)'};
-        }
-        .resize-handle-left:hover {
-          box-shadow: inset 2px 0 0 ${tone || 'rgba(255, 255, 255, 0.6)'};
-        }
-        .resize-handle-right:hover {
-          box-shadow: inset -2px 0 0 ${tone || 'rgba(255, 255, 255, 0.6)'};
-        }
-        .segment-day {
-          transition: background-color 160ms ease;
-        }
-        .segment-day:hover {
-          background-color: ${status
-            ? `${tone}18`
-            : 'rgba(255,255,255,0.04)'};
-        }
-        .segment-day:focus-visible {
-          box-shadow: inset 0 0 0 2px var(--lg-accent);
-          border-radius: 6px;
-        }
-        .segment-day.is-highlighted {
-          background-color: color-mix(in oklab, var(--lg-accent) 18%, transparent);
-          box-shadow: inset 0 0 0 2px var(--lg-accent);
-          border-radius: 6px;
-        }
-        .segment-day.is-highlighted:hover {
-          background-color: color-mix(in oklab, var(--lg-accent) 26%, transparent);
-        }
-      `}</style>
     </motion.div>
   )
 }
