@@ -23,8 +23,9 @@ interface Props {
   currentMemberId: string
   currentMemberRole: MemberRole
   initialMembers: Member[]
-  /** Whole-year vacation entries — drives auto-fit + the live window. */
-  initialEntries: Entry[]
+  /** Whole-year vacation entries — drives auto-fit + the live window.
+   *  Omitted when the page's SSR payload doesn't cover the selected year. */
+  initialEntries?: Entry[]
   /** Calendar year the view spans. */
   year: number
   workspaces?: WorkspaceSummary[]

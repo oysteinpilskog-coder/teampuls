@@ -23,9 +23,15 @@ interface Props {
   currentMemberId: string
   currentMemberRole: MemberRole
   initialMembers: Member[]
-  initialEntries: Entry[]
+  /** SSR-seeded entries for the active month. Omitted when the page's
+   *  server payload doesn't cover the selected year. */
+  initialEntries?: Entry[]
   initialMonth: number   // 0–11
-  initialYear: number    // calendar year
+  /** Calendar year — owned by SommerView so the day and week views always
+   *  show the same summer, and so the year picker reflects month nav. */
+  year: number
+  /** Month chevrons crossing a year boundary report the new year up. */
+  onYearChange: (year: number) => void
   /** All workspaces the user belongs to. Used in combined view for the
    *  per-row workspace badge and to rank the UK org (country_code='GB')
    *  to the bottom of the list. */
@@ -73,7 +79,8 @@ export function SommerMonthMatrix({
   initialMembers,
   initialEntries,
   initialMonth,
-  initialYear,
+  year,
+  onYearChange,
   workspaces,
   combinedView,
   ukOfficeIds,
@@ -87,7 +94,6 @@ export function SommerMonthMatrix({
   const isLight = mounted ? resolvedTheme !== 'dark' : true
 
   const [month, setMonth] = useState(initialMonth)
-  const [year, setYear] = useState(initialYear)
 
   // Today — bumped every minute so the today-marker stays accurate even
   // on a TV that's been open for hours.
@@ -278,11 +284,11 @@ export function SommerMonthMatrix({
   function navMonth(delta: number) {
     const next = new Date(year, month + delta, 1)
     setMonth(next.getMonth())
-    setYear(next.getFullYear())
+    onYearChange(next.getFullYear())
   }
   function navToday() {
     setMonth(todayMonth)
-    setYear(todayYear)
+    onYearChange(todayYear)
   }
 
   // Drag-create / resize commits ---------------------------------------
