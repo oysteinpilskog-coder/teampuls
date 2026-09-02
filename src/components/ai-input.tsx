@@ -570,10 +570,6 @@ function SendOrShortcut({
       >
         /
       </span>
-      <style jsx>{`
-        .ai-send-btn:not(:disabled):hover { transform: scale(1.04) !important; }
-        .ai-send-btn:not(:disabled):active { transform: scale(0.94) !important; }
-      `}</style>
     </div>
   )
 }

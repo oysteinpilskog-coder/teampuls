@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { fontBody } from '@/app/fonts'
 import { Providers } from '@/components/providers'
 import { ConditionalHeader } from '@/components/app-header'
+import { StyledJsxRegistry } from '@/components/styled-jsx-registry'
 import { themeVariantBootScript } from '@/components/theme-variant-boot'
 import { DEFAULT_THEME, isThemeId, type ThemeId } from '@/lib/themes'
 import { getOrgStatusColors } from '@/lib/status-colors/server'
@@ -180,36 +181,38 @@ export default async function RootLayout({
         style={bodyStyle}
         suppressHydrationWarning
       >
-        <Providers
-          initialStatusColors={initialStatusColors}
-          initialLocale={initialLocale}
-          initialWorkspaces={session.workspaces}
-          initialActiveSlug={activeWorkspace?.slug ?? null}
-          initialDashboardMode={initialDashboardMode}
-          initialPresenceMe={
-            session.member
-              ? {
-                  id: session.member.id,
-                  orgId: session.member.org_id,
-                  display_name: session.member.display_name,
-                  avatar_url: session.member.avatar_url,
-                  initials: session.member.initials,
-                }
-              : null
-          }
-          initialThemeVariant={orgDefaultTheme}
-        >
-          {/* Ambient aurora backdrop — restrained Ember-tint, sits below grain */}
-          <div className="ambient-aurora" aria-hidden />
-          {/* Offiview grain is applied via body::before (z-index: 1, fixed).
-              Header and main sit at z-index: 2 so grain reads beneath content. */}
-          <div className="relative z-[2] flex-1 flex flex-col">
-            <ConditionalHeader />
-            <main className="flex-1 relative">
-              {children}
-            </main>
-          </div>
-        </Providers>
+        <StyledJsxRegistry>
+          <Providers
+            initialStatusColors={initialStatusColors}
+            initialLocale={initialLocale}
+            initialWorkspaces={session.workspaces}
+            initialActiveSlug={activeWorkspace?.slug ?? null}
+            initialDashboardMode={initialDashboardMode}
+            initialPresenceMe={
+              session.member
+                ? {
+                    id: session.member.id,
+                    orgId: session.member.org_id,
+                    display_name: session.member.display_name,
+                    avatar_url: session.member.avatar_url,
+                    initials: session.member.initials,
+                  }
+                : null
+            }
+            initialThemeVariant={orgDefaultTheme}
+          >
+            {/* Ambient aurora backdrop — restrained Ember-tint, sits below grain */}
+            <div className="ambient-aurora" aria-hidden />
+            {/* Offiview grain is applied via body::before (z-index: 1, fixed).
+                Header and main sit at z-index: 2 so grain reads beneath content. */}
+            <div className="relative z-[2] flex-1 flex flex-col">
+              <ConditionalHeader />
+              <main className="flex-1 relative">
+                {children}
+              </main>
+            </div>
+          </Providers>
+        </StyledJsxRegistry>
       </body>
     </html>
   )

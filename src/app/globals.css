@@ -1291,3 +1291,10 @@
   text-transform: uppercase;
   color: var(--lg-text-3);
 }
+
+/* AI-input send button — hover/active spring. Global rather than a
+   <style jsx> block: styled-jsx stamps its scoped jsx-<hash> class during
+   the server render but not the client one, which trips a hydration
+   mismatch on every page that renders the AI input. */
+.ai-send-btn:not(:disabled):hover { transform: scale(1.04) !important; }
+.ai-send-btn:not(:disabled):active { transform: scale(0.94) !important; }
