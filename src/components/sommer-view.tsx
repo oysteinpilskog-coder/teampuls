@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, CalendarRange } from 'lucide-react'
 import { SommerMonthMatrix } from '@/components/sommer-month-matrix'
 import { SommerWeekMatrix } from '@/components/sommer-week-matrix'
@@ -32,12 +32,19 @@ interface Props {
  * precision) and the week view (whole-summer overview, one column per ISO
  * week). The chosen mode persists per browser so a TV or a planner keeps
  * the view it was left on.
+ *
+ * The year lives here, not inside the matrices: the page defaults to the
+ * *next* summer once we're past August, and the week view's month band only
+ * says "Juni Juli August" — without a visible year picker nobody can tell
+ * which summer they're looking at. Both views read the same year, so
+ * flipping the toggle never silently changes the period.
  */
 export function SommerView(props: Props) {
   const t = useT()
-  const { monthEntries, yearEntries, ...shared } = props
+  const { monthEntries, yearEntries, initialYear, ...shared } = props
 
   const [mode, setMode] = useState<Mode>('day')
+  const [year, setYear] = useState(initialYear)
   const [hydrated, setHydrated] = useState(false)
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY)
@@ -50,9 +57,42 @@ export function SommerView(props: Props) {
     try { window.localStorage.setItem(STORAGE_KEY, next) } catch { /* noop */ }
   }
 
+  // Last year, this year, next year — plus whatever the page defaulted to
+  // and whatever the month chevrons have wandered into, so the active year
+  // always has a pill to sit on.
+  const years = useMemo(() => {
+    const thisYear = new Date().getFullYear()
+    const set = new Set([thisYear - 1, thisYear, thisYear + 1, initialYear, year])
+    return [...set].sort((a, b) => a - b)
+  }, [initialYear, year])
+
+  // The SSR payload only covers `initialYear`. Seeding a different year with
+  // it would paint the wrong summer, so hand the matrix nothing and let it
+  // fetch instead.
+  const seeded = year === initialYear
+
   return (
     <div className="w-full flex flex-col gap-4">
-      <div className="flex justify-center sm:justify-end px-1">
+      <div className="flex items-center justify-between gap-3 px-1 flex-wrap">
+        <div
+          role="tablist"
+          aria-label={t.summer.yearSwitcherAria}
+          className="inline-flex items-center gap-1 p-1 rounded-2xl"
+          style={{
+            background: 'color-mix(in oklab, var(--bg-elevated) 70%, transparent)',
+            border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+          }}
+        >
+          {years.map((y) => (
+            <ToggleButton
+              key={y}
+              active={y === year}
+              onClick={() => setYear(y)}
+              label={String(y)}
+            />
+          ))}
+        </div>
+
         <div
           role="tablist"
           aria-label={t.summer.viewToggleAria}
@@ -78,9 +118,18 @@ export function SommerView(props: Props) {
       </div>
 
       {hydrated && mode === 'week' ? (
-        <SommerWeekMatrix {...shared} initialEntries={yearEntries} year={props.initialYear} />
+        <SommerWeekMatrix
+          {...shared}
+          initialEntries={seeded ? yearEntries : undefined}
+          year={year}
+        />
       ) : (
-        <SommerMonthMatrix {...shared} initialEntries={monthEntries} />
+        <SommerMonthMatrix
+          {...shared}
+          initialEntries={seeded ? monthEntries : undefined}
+          year={year}
+          onYearChange={setYear}
+        />
       )}
     </div>
   )
@@ -92,7 +141,7 @@ function ToggleButton({
   active: boolean
   onClick: () => void
   label: string
-  icon: React.ReactNode
+  icon?: React.ReactNode
 }) {
   return (
     <button
@@ -100,7 +149,7 @@ function ToggleButton({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl text-[12.5px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lg-accent)]"
+      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl text-[12.5px] font-medium tabular-nums transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lg-accent)]"
       style={{
         color: active ? 'var(--lg-accent)' : 'var(--text-secondary)',
         background: active
