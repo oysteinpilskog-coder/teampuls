@@ -1292,9 +1292,68 @@
   color: var(--lg-text-3);
 }
 
-/* AI-input send button — hover/active spring. Global rather than a
-   <style jsx> block: styled-jsx stamps its scoped jsx-<hash> class during
-   the server render but not the client one, which trips a hydration
-   mismatch on every page that renders the AI input. */
+/* ── Rules migrated off styled-jsx ──────────────────────────────────────────
+   styled-jsx stamps its scoped jsx-<hash> class during the server render but
+   not the client one, so every component that used a <style jsx> block tripped
+   a React hydration mismatch. The rules live here instead; anything that used
+   to be interpolated per render travels as a custom property on the element. */
+
+/* AI-input send button — hover/active spring. */
 .ai-send-btn:not(:disabled):hover { transform: scale(1.04) !important; }
 .ai-send-btn:not(:disabled):active { transform: scale(0.94) !important; }
+
+/* Oversikt's status segments: resize handles + per-day hover cells.
+   --seg-handle-hover / --seg-rim / --seg-day-hover are set inline by
+   StatusSegment and carry the status colour. */
+.status-segment .resize-handle {
+  transition: box-shadow 140ms ease, background-color 140ms ease;
+}
+.status-segment .resize-handle:hover {
+  background-color: var(--seg-handle-hover);
+}
+.status-segment .resize-handle-left:hover {
+  box-shadow: inset 2px 0 0 var(--seg-rim);
+}
+.status-segment .resize-handle-right:hover {
+  box-shadow: inset -2px 0 0 var(--seg-rim);
+}
+.status-segment .segment-day {
+  transition: background-color 160ms ease;
+}
+.status-segment .segment-day:hover {
+  background-color: var(--seg-day-hover);
+}
+.status-segment .segment-day:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--lg-accent);
+  border-radius: 6px;
+}
+.status-segment .segment-day.is-highlighted {
+  background-color: color-mix(in oklab, var(--lg-accent) 18%, transparent);
+  box-shadow: inset 0 0 0 2px var(--lg-accent);
+  border-radius: 6px;
+}
+.status-segment .segment-day.is-highlighted:hover {
+  background-color: color-mix(in oklab, var(--lg-accent) 26%, transparent);
+}
+
+/* Presence-heatmap cell — the status icon fades in on hover. The old rule was
+   a bare `div:hover`, which only worked because styled-jsx scoped it to the
+   component; .heat-cell now does that job explicitly. */
+.heat-cell:hover .heat-cell-icon {
+  opacity: 1;
+}
+
+/* Year-wheel aurora — pointer parallax. --px / --py are written by the wheel's
+   mousemove handler on the wrapper; --pv is each blob's parallax depth. */
+.year-wheel-aurora {
+  --px: 0;
+  --py: 0;
+}
+.year-wheel-aurora__blob {
+  --pv: 0;
+  translate: calc(var(--px) * var(--pv) * 1px) calc(var(--py) * var(--pv) * 1px);
+  transition: translate 220ms cubic-bezier(.2, .8, .3, 1);
+}
+.year-wheel-aurora__blob--a { --pv: 18; }
+.year-wheel-aurora__blob--b { --pv: -22; }
+.year-wheel-aurora__blob--c { --pv: 14; }

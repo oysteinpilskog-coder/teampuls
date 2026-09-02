@@ -319,7 +319,7 @@ function HeatCell({
 
   return (
     <div
-      className="relative"
+      className="heat-cell relative"
       style={{
         borderLeft: separator
           ? '1px solid var(--lg-divider-soft)'
@@ -363,10 +363,6 @@ function HeatCell({
           </div>
         )}
       </div>
-      <style jsx>{`
-        div:hover .heat-cell-icon { opacity: 1; }
-        div:hover .heat-cell-inner { transform: translateY(-1px); }
-      `}</style>
     </div>
   )
 }
