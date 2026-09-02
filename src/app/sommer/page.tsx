@@ -14,8 +14,11 @@ import type { MemberRole } from '@/lib/supabase/types'
  * Vacation-only filter — andre statuser er gjemt for å holde fokuset
  * på sommerplanleggingen.
  *
- * Default-måned: aktiv måned hvis vi er i jun–aug, ellers juni for
- * kommende sommer (sep–des → neste år) eller årets sommer (jan–mai).
+ * Default: alltid inneværende år, med aktiv måned i jun–aug og juni
+ * ellers. Siden hoppet tidligere til NESTE sommer fra september av, noe
+ * som leses som en feil når du lander på den — ukevisningen sier ikke
+ * hvilket år den viser. SommerViews årsvelger gjør året eksplisitt og
+ * neste sommer ett klikk unna, så defaulten slipper å gjette.
  */
 export default async function SommerPage() {
   const { user, member, workspaces, combinedScope } = await getSessionMember()
@@ -24,15 +27,10 @@ export default async function SommerPage() {
 
   const today = new Date()
   const todayMonth = today.getMonth()
-  const todayYear = today.getFullYear()
   const inSummer = todayMonth >= 5 && todayMonth <= 7
 
   const month = inSummer ? todayMonth : 5  // jun
-  const year = inSummer
-    ? todayYear
-    : todayMonth >= 8
-      ? todayYear + 1   // sep–des → neste sommer
-      : todayYear       // jan–mai → denne sommeren
+  const year = today.getFullYear()
 
   const orgIds = combinedScope?.org_ids ?? [member.org_id]
 
