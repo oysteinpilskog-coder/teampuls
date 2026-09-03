@@ -1,8 +1,8 @@
 'use client'
 
-import { memo, useMemo, type ReactNode } from 'react'
-import { motion } from 'framer-motion'
-import { Building2, Cake, Globe2, Languages, MapPin, Star, Users } from 'lucide-react'
+import { memo, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Award, Building2, Cake, Globe2, Languages, MapPin, Star, Users } from 'lucide-react'
 import { BreathingDot } from '@/components/breathing-dot'
 import { AnimatedCount } from './animated-count'
 import { useStatusColors } from '@/lib/status-colors/context'
@@ -270,6 +270,13 @@ function CodeChip({ code, color }: { code: string; color: string }) {
 }
 
 /**
+ * How long each celebration fact holds before the next fades in. Three
+ * facts × 6 s = exactly one full round inside view J's 18 s dwell, so the
+ * reception TV never cuts away mid-rotation.
+ */
+const CELEBRATION_CYCLE_MS = 6000
+
+/**
  * Band 1. The company's combined years of service gets the display-scale
  * Fraunces treatment — the same hero language as «Akkurat nå» — and the two
  * celebration facts sit in their own card on the right so the band is
@@ -285,24 +292,96 @@ function TenureBand({
   /** BCP-47 tag for formatting the birthday date (e.g. "nb-NO"). */
   locale: string
 }) {
-  const { tenure, team, nextBirthday } = figures
+  const { tenure, team, nextBirthday, nextAnniversary } = figures
   const years = Math.round(tenure.totalYears)
 
   // Today / tomorrow read faster than a date on a screen glanced at from
   // across a room; anything further out gets an actual day + month.
-  const whenLabel = (() => {
-    if (!nextBirthday) return ''
-    if (nextBirthday.daysUntil === 0) return labels.birthdayToday
-    if (nextBirthday.daysUntil === 1) return labels.birthdayTomorrow
-    // Year is irrelevant here — and deliberately not the birth year. We
-    // borrow an arbitrary leap year so 29 February always formats.
-    const d = new Date(2024, nextBirthday.month - 1, nextBirthday.day)
+  const whenLabel = (month: number, day: number, daysUntil: number) => {
+    if (daysUntil === 0) return labels.birthdayToday
+    if (daysUntil === 1) return labels.birthdayTomorrow
+    // Year is irrelevant here — and deliberately not the birth/hire year.
+    // We borrow an arbitrary leap year so 29 February always formats.
+    const d = new Date(2024, month - 1, day)
     try {
       return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).format(d)
     } catch {
-      return `${nextBirthday.day}.${nextBirthday.month}`
+      return `${day}.${month}`
     }
-  })()
+  }
+
+  // The three celebration facts share one line instead of stacking: the
+  // card alternates between them so «Neste jubileum» gets the same billing
+  // as the birthday without growing a third row nobody reads.
+  const celebrations: { key: string; icon: ReactNode; text: string }[] = []
+  if (tenure.longest) {
+    celebrations.push({
+      key: 'longest',
+      icon: (
+        <Star
+          className="w-3.5 h-3.5 shrink-0"
+          strokeWidth={2}
+          fill="currentColor"
+          style={{ color: '#d4a017', filter: 'drop-shadow(0 0 6px rgba(212,160,23,0.55))' }}
+        />
+      ),
+      text: labels.tenureLongest
+        .replace('{name}', tenure.longest.name)
+        .replace('{years}', String(Math.floor(tenure.longest.years))),
+    })
+  }
+  if (nextAnniversary) {
+    celebrations.push({
+      key: 'anniversary',
+      icon: (
+        <Award
+          className="w-3.5 h-3.5 shrink-0"
+          strokeWidth={2}
+          style={{ color: '#8FD0C0', filter: 'drop-shadow(0 0 6px rgba(143,208,192,0.5))' }}
+        />
+      ),
+      text: labels.nextAnniversary
+        .replace('{name}', nextAnniversary.name)
+        .replace('{years}', String(nextAnniversary.years))
+        .replace(
+          '{when}',
+          whenLabel(nextAnniversary.month, nextAnniversary.day, nextAnniversary.daysUntil),
+        ),
+    })
+  }
+  if (nextBirthday) {
+    celebrations.push({
+      key: 'birthday',
+      icon: (
+        <Cake
+          className="w-3.5 h-3.5 shrink-0"
+          strokeWidth={2}
+          style={{ color: '#E8A0C0', filter: 'drop-shadow(0 0 6px rgba(232,160,192,0.5))' }}
+        />
+      ),
+      text: labels.nextBirthday
+        .replace('{name}', nextBirthday.name)
+        .replace(
+          '{when}',
+          whenLabel(nextBirthday.month, nextBirthday.day, nextBirthday.daysUntil),
+        ),
+    })
+  }
+
+  const count = celebrations.length
+  const [celebrationIdx, setCelebrationIdx] = useState(0)
+
+  useEffect(() => {
+    if (count <= 1) return
+    const id = setInterval(() => {
+      setCelebrationIdx(i => (i + 1) % count)
+    }, CELEBRATION_CYCLE_MS)
+    return () => clearInterval(id)
+  }, [count])
+
+  // Modulo rather than a reset effect: if the set of facts shrinks (a
+  // birthday passes, someone opts out) the index stays in range on its own.
+  const celebration = count > 0 ? celebrations[celebrationIdx % count] : null
 
   return (
     <motion.section
@@ -350,48 +429,39 @@ function TenureBand({
       </div>
 
       {/* Feiringene i eget kort — gir bandet en høyre kant og hindrer at
-          hero-tallet henger alene på en ellers tom linje. */}
-      {(tenure.longest || nextBirthday) && (
+          hero-tallet henger alene på en ellers tom linje. Kortet viser ett
+          faktum om gangen og veksler mellom dem; den ytre boksen eier
+          inn-animasjonen, den indre `layout`-animasjonen breddeskiftet
+          når en kortere eller lengre linje tar over. */}
+      {celebration && (
         <motion.div
           initial={{ opacity: 0, x: 16 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ ...spring.gentle, delay: 0.5 }}
-          className="flex-shrink-0 rounded-2xl px-5 py-3.5 flex flex-col gap-2"
-          style={{
-            background:
-              'linear-gradient(155deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 100%)',
-            border: '1px solid rgba(255,255,255,0.09)',
-          }}
+          className="flex-shrink-0"
         >
-          {tenure.longest && (
-            <CelebrationLine
-              icon={
-                <Star
-                  className="w-3.5 h-3.5 shrink-0"
-                  strokeWidth={2}
-                  fill="currentColor"
-                  style={{ color: '#d4a017', filter: 'drop-shadow(0 0 6px rgba(212,160,23,0.55))' }}
-                />
-              }
-              text={labels.tenureLongest
-                .replace('{name}', tenure.longest.name)
-                .replace('{years}', String(Math.floor(tenure.longest.years)))}
-            />
-          )}
-          {nextBirthday && (
-            <CelebrationLine
-              icon={
-                <Cake
-                  className="w-3.5 h-3.5 shrink-0"
-                  strokeWidth={2}
-                  style={{ color: '#E8A0C0', filter: 'drop-shadow(0 0 6px rgba(232,160,192,0.5))' }}
-                />
-              }
-              text={labels.nextBirthday
-                .replace('{name}', nextBirthday.name)
-                .replace('{when}', whenLabel)}
-            />
-          )}
+          <motion.div
+            layout
+            transition={spring.gentle}
+            className="rounded-2xl px-5 py-3.5 flex items-center"
+            style={{
+              background:
+                'linear-gradient(155deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.015) 100%)',
+              border: '1px solid rgba(255,255,255,0.09)',
+            }}
+          >
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.div
+                key={celebration.key}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
+              >
+                <CelebrationLine icon={celebration.icon} text={celebration.text} />
+              </motion.div>
+            </AnimatePresence>
+          </motion.div>
         </motion.div>
       )}
     </motion.section>

@@ -42,6 +42,18 @@ export interface UpcomingBirthday {
   daysUntil: number
 }
 
+export interface UpcomingAnniversary {
+  name: string
+  /** Month (1-12) and day of the hire date — never the hire year, which
+   *  stays private even though we sort by the upcoming date. */
+  month: number
+  day: number
+  /** Years of service completed on that upcoming date (always >= 1). */
+  years: number
+  /** 0 = today, 1 = tomorrow, … Always 0-365. */
+  daysUntil: number
+}
+
 export interface OrgFigures {
   team: {
     total: number
@@ -88,6 +100,10 @@ export interface OrgFigures {
    *  off / nobody has opted in. Sits next to tenure on the board: the two
    *  celebration facts about the team belong together. */
   nextBirthday: UpcomingBirthday | null
+  /** Next work anniversary coming up, or null when nobody with a start
+   *  date has opted in. Shares the celebration slot with `nextBirthday`
+   *  and `tenure.longest` — the board alternates between the three. */
+  nextAnniversary: UpcomingAnniversary | null
   /** Distinct countries across customers ∪ offices ∪ team, biggest first.
    *  Rendered as flags so «Land: 8» is never a mystery number. */
   countryFootprint: string[]
@@ -197,6 +213,12 @@ export function computeOrgFigures(
     ? null
     : findNextBirthday(members, now)
 
+  // ── Next work anniversary ───────────────────────────────────────────
+  // Gated only by `anniversary_visible`, exactly like `tenure.longest` —
+  // a hire date is a work fact rather than a private one, so it has no
+  // org-wide kill switch of its own on this board.
+  const nextAnniversary = findNextAnniversary(members, now)
+
   // ── Footprint ───────────────────────────────────────────────────────
   // Counted across all three registries and returned as a list, so the
   // «Land»-card can show WHICH countries rather than just how many.
@@ -249,6 +271,7 @@ export function computeOrgFigures(
       longest,
     },
     nextBirthday,
+    nextAnniversary,
     countryFootprint: footprint,
   }
 }
@@ -263,14 +286,6 @@ export function computeOrgFigures(
  * empty until someone chooses otherwise.
  */
 function findNextBirthday(members: Member[], now: Date): UpcomingBirthday | null {
-  const todayMonth = now.getMonth() + 1
-  const todayDay = now.getDate()
-  // Day-of-year style ordinal that ignores the year. 29 February simply
-  // sorts between 28 Feb and 1 Mar in non-leap years, which is the
-  // behaviour anyone would expect from a "who's next" line.
-  const ordinal = (m: number, d: number) => m * 100 + d
-  const todayOrd = ordinal(todayMonth, todayDay)
-
   let best: UpcomingBirthday | null = null
   let bestDistance = Infinity
 
@@ -281,16 +296,7 @@ function findNextBirthday(members: Member[], now: Date): UpcomingBirthday | null
 
     const month = parsed.getMonth() + 1
     const day = parsed.getDate()
-
-    // Build this year's occurrence; if it already passed, roll to next year.
-    let next = new Date(now.getFullYear(), month - 1, day)
-    if (ordinal(month, day) < todayOrd) {
-      next = new Date(now.getFullYear() + 1, month - 1, day)
-    }
-    const midnightToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const daysUntil = Math.round(
-      (next.getTime() - midnightToday.getTime()) / (24 * 60 * 60 * 1000),
-    )
+    const { daysUntil } = nextOccurrence(month, day, now)
 
     if (daysUntil < bestDistance) {
       bestDistance = daysUntil
@@ -299,6 +305,64 @@ function findNextBirthday(members: Member[], now: Date): UpcomingBirthday | null
   }
 
   return best
+}
+
+/**
+ * The work anniversary coming up soonest, counting today as 0. Mirrors
+ * `findNextBirthday` — same wrap across new year — but honours
+ * `anniversary_visible` (the opt-OUT the wheel uses) rather than the
+ * birthday opt-in, and never names a milestone of zero years: a hire who
+ * has not yet completed a full year has nothing to celebrate.
+ */
+function findNextAnniversary(members: Member[], now: Date): UpcomingAnniversary | null {
+  let best: UpcomingAnniversary | null = null
+  let bestDistance = Infinity
+
+  for (const m of members) {
+    if (m.anniversary_visible === false || !m.start_date) continue
+    const parsed = new Date(`${m.start_date}T00:00:00`)
+    if (Number.isNaN(parsed.getTime())) continue
+
+    const month = parsed.getMonth() + 1
+    const day = parsed.getDate()
+    const { daysUntil, year } = nextOccurrence(month, day, now)
+    // Signed-but-not-started hires, and anyone still inside their first
+    // year, would otherwise headline the line with «0 år».
+    const years = year - parsed.getFullYear()
+    if (years < 1) continue
+
+    if (daysUntil < bestDistance) {
+      bestDistance = daysUntil
+      best = { name: m.display_name, month, day, years, daysUntil }
+    }
+  }
+
+  return best
+}
+
+/**
+ * Next occurrence of a month/day pair relative to `now`, ignoring the
+ * original year. Returns the calendar year it lands in and how many whole
+ * days away it is (today = 0), so 31 December → 1 January is one day, not
+ * 364.
+ *
+ * 29 February simply sorts between 28 Feb and 1 Mar in non-leap years,
+ * which is the behaviour anyone would expect from a "who's next" line.
+ */
+function nextOccurrence(
+  month: number,
+  day: number,
+  now: Date,
+): { daysUntil: number; year: number } {
+  const ordinal = (m: number, d: number) => m * 100 + d
+  const todayOrd = ordinal(now.getMonth() + 1, now.getDate())
+  const year = ordinal(month, day) < todayOrd ? now.getFullYear() + 1 : now.getFullYear()
+  const next = new Date(year, month - 1, day)
+  const midnightToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return {
+    daysUntil: Math.round((next.getTime() - midnightToday.getTime()) / (24 * 60 * 60 * 1000)),
+    year,
+  }
 }
 
 // Ingen flagg-emoji her med vilje. Regional-indicator-sekvenser (🇬🇧) har
