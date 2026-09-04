@@ -443,13 +443,20 @@ export function SommerWeekMatrix({
           season needs more width than the viewport has, so the whole card
           scrolls sideways in a container that bleeds to the page edges — same
           construction as TeamGrid, just a wider floor because a season is ~23
-          columns instead of five weekdays. */}
+          columns instead of five weekdays.
+
+          The card deliberately does *not* clip: `overflow: hidden` would make
+          the section its own scroll container, and the name column's
+          `sticky left-0` would then resolve against a box that never scrolls —
+          the names simply slid away with the weeks. The header carries the top
+          radius itself instead, since its background is the only thing that
+          would otherwise square off the card's corners. */}
       <div
         className={`-mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto${fullYear ? '' : ' lg:overflow-visible'}`}
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         <section
-          className={`relative rounded-2xl overflow-hidden${fullYear ? '' : ' min-w-[1080px] lg:min-w-0'}`}
+          className={`relative rounded-2xl${fullYear ? '' : ' min-w-[1080px] lg:min-w-0'}`}
           style={{
             background: 'var(--lg-surface-1)',
             border: '1px solid var(--lg-divider)',
@@ -461,6 +468,7 @@ export function SommerWeekMatrix({
             monthGroups={monthGroups}
             colPct={colPct}
             todayCol={todayCol}
+            fullYear={fullYear}
             t={t}
           />
 
@@ -502,6 +510,7 @@ export function SommerWeekMatrix({
                     isSelf={row.member.id === currentMemberId}
                     workspace={workspace}
                     countryCode={countryCode}
+                    fullYear={fullYear}
                     commitSetWeeks={commitSetWeeks}
                     commitClearWeek={commitClearWeek}
                     t={t}
@@ -531,18 +540,25 @@ function GroupDivider() {
 
 const NAME_COL = 136
 
+/** Hairline down the right edge of the pinned name column, so the weeks read
+ *  as sliding *under* the names rather than colliding with them. Only in the
+ *  year scope, which is the one that always scrolls — the season fills its
+ *  container from lg up, and a permanent rule there would be noise. */
+const PIN_EDGE = '1px solid var(--lg-divider-soft)'
+
 function Header({
-  visibleBuckets, monthGroups, colPct, todayCol, t,
+  visibleBuckets, monthGroups, colPct, todayCol, fullYear, t,
 }: {
   visibleBuckets: WeekBucket[]
   monthGroups: { month: number; startCol: number; endCol: number }[]
   colPct: (n: number) => number
   todayCol: number
+  fullYear: boolean
   t: ReturnType<typeof useT>
 }) {
   return (
     <div
-      className="relative z-10 px-3 pt-4 pb-2"
+      className="relative z-10 px-3 pt-4 pb-2 rounded-t-2xl"
       style={{ background: 'var(--lg-surface-1)' }}
     >
       {/* Month band */}
@@ -550,7 +566,7 @@ function Header({
         className="relative grid items-center pl-1"
         style={{ gridTemplateColumns: `${NAME_COL}px 1fr`, marginBottom: 4 }}
       >
-        <div className="sticky left-0 z-10" style={{ background: 'var(--lg-surface-1)' }} />
+        <div className="sticky left-0 z-10 h-full" style={{ background: 'var(--lg-surface-1)' }} />
         <div className="relative h-5">
           {monthGroups.map((g) => {
             const left = colPct(g.startCol)
@@ -582,7 +598,13 @@ function Header({
         className="relative grid items-center pl-1"
         style={{ gridTemplateColumns: `${NAME_COL}px 1fr` }}
       >
-        <div className="sticky left-0 z-10" style={{ background: 'var(--lg-surface-1)' }} />
+        <div
+          className="sticky left-0 z-10 h-full"
+          style={{
+            background: 'var(--lg-surface-1)',
+            borderRight: fullYear ? PIN_EDGE : undefined,
+          }}
+        />
         <div className="relative h-7">
           {visibleBuckets.map((b, i) => {
             const left = colPct(i)
@@ -621,7 +643,7 @@ const ROW_H = 44
 function Row({
   row, idx, totalCols, colPct, todayCol,
   palette, isLight, reduce,
-  editable, isSelf, workspace, countryCode, commitSetWeeks, commitClearWeek, t,
+  editable, isSelf, workspace, countryCode, fullYear, commitSetWeeks, commitClearWeek, t,
 }: {
   row: MemberRow
   idx: number
@@ -635,6 +657,7 @@ function Row({
   isSelf: boolean
   workspace: WorkspaceSummary | null
   countryCode: string | null
+  fullYear: boolean
   commitSetWeeks: (memberId: string, loCol: number, hiCol: number, memberName: string) => void | Promise<void>
   commitClearWeek: (memberId: string, col: number, memberName: string) => void | Promise<void>
   t: ReturnType<typeof useT>
@@ -713,7 +736,10 @@ function Row({
     >
       <div
         className="sticky left-0 z-20 flex items-center gap-2 px-1 min-w-0 w-full h-full"
-        style={{ background: 'var(--lg-surface-1)' }}
+        style={{
+          background: 'var(--lg-surface-1)',
+          borderRight: fullYear ? PIN_EDGE : undefined,
+        }}
       >
         <MemberAvatar
           name={row.member.display_name}
