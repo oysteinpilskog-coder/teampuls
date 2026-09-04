@@ -18,6 +18,8 @@ import { toDateString } from '@/lib/dates'
 import { ease } from '@/lib/motion'
 import type { Entry, Member, MemberRole, WorkspaceSummary } from '@/lib/supabase/types'
 
+export type WeekScope = 'season' | 'year'
+
 interface Props {
   orgIds: string[]
   currentMemberId: string
@@ -28,17 +30,25 @@ interface Props {
   initialEntries?: Entry[]
   /** Calendar year the view spans. */
   year: number
+  /** `'season'` auto-fits the columns inside May–September; `'year'` shows
+   *  every week of the year, so vacation booked outside summer is visible. */
+  scope: WeekScope
   workspaces?: WorkspaceSummary[]
   combinedView?: boolean
   ukOfficeIds?: string[]
 }
 
-/** The season the week view covers, as month indices: May through September.
- *  Wide enough for the shoulder weeks people actually book (33 of 357 vacation
- *  days in 2026 sat in May or September), narrow enough that the week columns
- *  fill the card without a scrollbar. */
+/** The months the *summer* scope covers: May through September. Wide enough
+ *  for the shoulder weeks people actually book (33 of 357 vacation days in 2026
+ *  sat in May or September), narrow enough that the week columns fill the card
+ *  without a scrollbar. The year scope ignores it and shows all 52/53 weeks. */
 const SEASON_FIRST_MONTH = 4
 const SEASON_LAST_MONTH = 8
+
+/** Pixels per week column in the year scope. Enough for the "U12" label plus
+ *  its pill padding — which is what makes the card scroll sideways once all 52
+ *  weeks are on screen. */
+const YEAR_COL_W = 36
 
 interface WeekBucket {
   key: string            // `${isoWeekYear}-${weekNo}`
@@ -74,6 +84,7 @@ export function SommerWeekMatrix({
   initialMembers,
   initialEntries,
   year,
+  scope,
   workspaces,
   combinedView,
   ukOfficeIds,
@@ -144,12 +155,14 @@ export function SommerWeekMatrix({
     return map
   }, [entries])
 
-  // Auto-fit, but only ever inside the season window. Fitting across the whole
-  // year meant a single day off in November stretched the grid to 35 columns,
-  // which squeezed July — where 60% of the team's vacation actually sits — into
-  // a sliver behind a scrollbar. Vacation outside the season is still reachable
-  // in the day view via the month chevrons.
+  // Summer scope: auto-fit, but only ever inside the season window. Fitting
+  // across the whole year meant a single day off in November stretched the grid
+  // to 35 columns, which squeezed July — where 60% of the team's vacation
+  // actually sits — into a sliver. The year scope is the way out for everyone
+  // whose vacation doesn't sit in summer at all: every week from January to
+  // December, at a fixed column width, with the card scrolling sideways.
   const visibleBuckets = useMemo(() => {
+    if (scope === 'year') return allBuckets
     const season = allBuckets.filter(
       (b) => b.monthOfMonday >= SEASON_FIRST_MONTH && b.monthOfMonday <= SEASON_LAST_MONTH,
     )
@@ -170,7 +183,7 @@ export function SommerWeekMatrix({
     const lo = Math.max(0, minI - 1)
     const hi = Math.min(season.length - 1, maxI + 1)
     return season.slice(lo, hi + 1)
-  }, [allBuckets, vacationByMember])
+  }, [allBuckets, vacationByMember, scope])
 
   const totalCols = visibleBuckets.length
   const colPct = (n: number) => totalCols === 0 ? 0 : (n / totalCols) * 100
@@ -417,6 +430,11 @@ export function SommerWeekMatrix({
 
   const canEditAny = currentMemberRole === 'admin'
   const palette = palettes.vacation
+  // A whole year of weeks never fits the container, so the card gets a hard
+  // floor and always scrolls sideways. The season keeps its old behaviour:
+  // wide enough to scroll on phones, fills the container from lg up.
+  const fullYear = scope === 'year'
+  const yearMinWidth = NAME_COL + totalCols * YEAR_COL_W + 32
   return (
     <div className="w-full flex flex-col gap-5">
       {/* Scroll like Oversikt: nothing scrolls inside the card. The week
@@ -427,14 +445,15 @@ export function SommerWeekMatrix({
           construction as TeamGrid, just a wider floor because a season is ~23
           columns instead of five weekdays. */}
       <div
-        className="-mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto lg:overflow-visible"
+        className={`-mx-3 sm:mx-0 px-3 sm:px-0 overflow-x-auto${fullYear ? '' : ' lg:overflow-visible'}`}
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         <section
-          className="relative rounded-2xl overflow-hidden min-w-[1080px] lg:min-w-0"
+          className={`relative rounded-2xl overflow-hidden${fullYear ? '' : ' min-w-[1080px] lg:min-w-0'}`}
           style={{
             background: 'var(--lg-surface-1)',
             border: '1px solid var(--lg-divider)',
+            minWidth: fullYear ? yearMinWidth : undefined,
           }}
         >
           <Header

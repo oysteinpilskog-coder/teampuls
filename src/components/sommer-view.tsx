@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, CalendarRange } from 'lucide-react'
 import { SommerMonthMatrix } from '@/components/sommer-month-matrix'
-import { SommerWeekMatrix } from '@/components/sommer-week-matrix'
+import { SommerWeekMatrix, type WeekScope } from '@/components/sommer-week-matrix'
 import { useT } from '@/lib/i18n/context'
 import type { Entry, Member, MemberRole, WorkspaceSummary } from '@/lib/supabase/types'
 
 type Mode = 'day' | 'week'
 const STORAGE_KEY = 'teampulse:sommer-view'
+const SCOPE_KEY = 'teampulse:sommer-week-scope'
 
 interface Props {
   orgIds: string[]
@@ -38,23 +39,36 @@ interface Props {
  * says "Juni Juli August" — without a visible year picker nobody can tell
  * which summer they're looking at. Both views read the same year, so
  * flipping the toggle never silently changes the period.
+ *
+ * The week view's scope lives here too. It defaults to the whole year: not
+ * everyone takes their vacation in summer, and a planner that silently hides
+ * February reads as one that has lost the entry. "Sommer" narrows it back to
+ * May–September when you're doing actual summer planning.
  */
 export function SommerView(props: Props) {
   const t = useT()
   const { monthEntries, yearEntries, initialYear, ...shared } = props
 
   const [mode, setMode] = useState<Mode>('day')
+  const [scope, setScope] = useState<WeekScope>('year')
   const [year, setYear] = useState(initialYear)
   const [hydrated, setHydrated] = useState(false)
   useEffect(() => {
     const saved = window.localStorage.getItem(STORAGE_KEY)
     if (saved === 'week' || saved === 'day') setMode(saved)
+    const savedScope = window.localStorage.getItem(SCOPE_KEY)
+    if (savedScope === 'season' || savedScope === 'year') setScope(savedScope)
     setHydrated(true)
   }, [])
 
   function pick(next: Mode) {
     setMode(next)
     try { window.localStorage.setItem(STORAGE_KEY, next) } catch { /* noop */ }
+  }
+
+  function pickScope(next: WeekScope) {
+    setScope(next)
+    try { window.localStorage.setItem(SCOPE_KEY, next) } catch { /* noop */ }
   }
 
   // Last year, this year, next year — plus whatever the page defaulted to
@@ -93,27 +107,52 @@ export function SommerView(props: Props) {
           ))}
         </div>
 
-        <div
-          role="tablist"
-          aria-label={t.summer.viewToggleAria}
-          className="inline-flex items-center gap-1 p-1 rounded-2xl"
-          style={{
-            background: 'color-mix(in oklab, var(--bg-elevated) 70%, transparent)',
-            border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
-          }}
-        >
-          <ToggleButton
-            active={mode === 'day'}
-            onClick={() => pick('day')}
-            label={t.summer.viewDay}
-            icon={<CalendarDays className="w-3.5 h-3.5" strokeWidth={1.75} />}
-          />
-          <ToggleButton
-            active={mode === 'week'}
-            onClick={() => pick('week')}
-            label={t.summer.viewWeek}
-            icon={<CalendarRange className="w-3.5 h-3.5" strokeWidth={1.75} />}
-          />
+        <div className="flex items-center gap-2 flex-wrap">
+          {hydrated && mode === 'week' ? (
+            <div
+              role="tablist"
+              aria-label={t.summer.scopeToggleAria}
+              className="inline-flex items-center gap-1 p-1 rounded-2xl"
+              style={{
+                background: 'color-mix(in oklab, var(--bg-elevated) 70%, transparent)',
+                border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+              }}
+            >
+              <ToggleButton
+                active={scope === 'season'}
+                onClick={() => pickScope('season')}
+                label={t.summer.scopeSeason}
+              />
+              <ToggleButton
+                active={scope === 'year'}
+                onClick={() => pickScope('year')}
+                label={t.summer.scopeYear}
+              />
+            </div>
+          ) : null}
+
+          <div
+            role="tablist"
+            aria-label={t.summer.viewToggleAria}
+            className="inline-flex items-center gap-1 p-1 rounded-2xl"
+            style={{
+              background: 'color-mix(in oklab, var(--bg-elevated) 70%, transparent)',
+              border: '1px solid color-mix(in oklab, var(--border-subtle) 60%, transparent)',
+            }}
+          >
+            <ToggleButton
+              active={mode === 'day'}
+              onClick={() => pick('day')}
+              label={t.summer.viewDay}
+              icon={<CalendarDays className="w-3.5 h-3.5" strokeWidth={1.75} />}
+            />
+            <ToggleButton
+              active={mode === 'week'}
+              onClick={() => pick('week')}
+              label={t.summer.viewWeek}
+              icon={<CalendarRange className="w-3.5 h-3.5" strokeWidth={1.75} />}
+            />
+          </div>
         </div>
       </div>
 
@@ -122,6 +161,7 @@ export function SommerView(props: Props) {
           {...shared}
           initialEntries={seeded ? yearEntries : undefined}
           year={year}
+          scope={scope}
         />
       ) : (
         <SommerMonthMatrix
