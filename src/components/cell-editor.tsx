@@ -162,15 +162,33 @@ export function CellEditor({
     return Array.from({ length: n }, (_, i) => toDateString(addDays(start, i)))
   }
 
+  /** Days the entry covered when the dialog opened, minus the days the new
+   *  range covers. Moving an entry to another week has to clear these — an
+   *  upsert alone writes the new days and leaves the old ones behind, so the
+   *  week you were looking at doesn't change and the edit reads as "nothing
+   *  happened". Mirrors what the move/resize drags already do. */
+  function staleDates(nextDates: string[]): string[] {
+    if (!initialStatus || !date) return []
+    const start = parseISO(date)
+    const end = parseISO(initialRangeEnd || date)
+    const n = differenceInDays(end, start) + 1
+    if (n <= 0) return []
+    const next = new Set(nextDates)
+    return Array.from({ length: n }, (_, i) => toDateString(addDays(start, i)))
+      .filter(d => !next.has(d))
+  }
+
   async function handleSave() {
     if (!status || saving) return
     setSaving(true)
     const dates = expandedDates()
+    const stale = staleDates(dates)
     const locLabel = location.trim() || null
     const noteLabel = note.trim() || null
 
     // Optimistic paint + close — the dialog disappears immediately, the
     // grid reflects the change, and the DB write races behind the scenes.
+    if (stale.length > 0) onOptimisticDelete?.(stale)
     onOptimisticSave?.(dates, {
       status,
       location_label: locLabel,
@@ -196,13 +214,28 @@ export function CellEditor({
       .from('entries')
       .upsert(rows, { onConflict: 'org_id,member_id,date' })
       .select()
+
+    // Clear the days the entry moved off of — after the upsert lands, so a
+    // failed write never leaves the user with neither the old nor the new days.
+    let deletedIds: string[] = []
+    if (!error && stale.length > 0) {
+      const { data: del, error: delErr } = await supabase
+        .from('entries')
+        .delete()
+        .eq('org_id', orgId)
+        .eq('member_id', memberId)
+        .in('date', stale)
+        .select('id')
+      if (delErr) toast.error(t.aiInput.error)
+      else deletedIds = (del ?? []).map((r: { id: string }) => r.id)
+    }
     setSaving(false)
     if (error) {
       toast.error(t.aiInput.error)
     } else {
       // Same-tab sync — pass the actual rows so consumers patch local state
       // in the same frame instead of refetching.
-      dispatchEntriesChanged({ upserted: written ?? [] })
+      dispatchEntriesChanged({ upserted: written ?? [], deletedIds })
     }
 
     // If the user is correcting an AI-written entry into something materially
