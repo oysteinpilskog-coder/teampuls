@@ -442,35 +442,37 @@ export function DashboardClient({
   // from every side of «Alle CalWin».
   useEffect(() => {
     const supabase = createClient()
+    const upsertHandler = (payload: { new: unknown }) => {
+      const upserted = payload.new as Customer
+      if (!upserted?.id) return
+      setCustomers(prev => {
+        const without = prev.filter(c => c.id !== upserted.id)
+        return [...without, upserted].sort((a, b) => a.name.localeCompare(b.name))
+      })
+    }
     const channels = orgIds.map((id) =>
       supabase
         .channel(`customers:org:${id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'customers',
-            filter: `org_id=eq.${id}`,
-          },
-          (payload) => {
-            if (payload.eventType === 'DELETE') {
-              const deleted = payload.old as Partial<Customer>
-              if (!deleted.id) return
-              setCustomers(prev => prev.filter(c => c.id !== deleted.id))
-              return
-            }
-            const upserted = payload.new as Customer
-            if (!upserted?.id) return
-            setCustomers(prev => {
-              const without = prev.filter(c => c.id !== upserted.id)
-              return [...without, upserted].sort((a, b) => a.name.localeCompare(b.name))
-            })
-          }
-        )
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'customers', filter: `org_id=eq.${id}` }, upsertHandler)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'customers', filter: `org_id=eq.${id}` }, upsertHandler)
         .subscribe()
     )
-    return () => { channels.forEach((ch) => supabase.removeChannel(ch)) }
+    // Ufiltrert DELETE — se use-entries: «old»-raden har bare id under
+    // REPLICA IDENTITY DEFAULT, så org-filteret dropper hendelsen.
+    const deleteChannel = supabase
+      .channel(`customers:deletes:${orgIdsKey}`)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'customers' }, (payload) => {
+        const deletedId = (payload.old as Partial<Customer>)?.id
+        if (!deletedId) return
+        setCustomers(prev =>
+          prev.some(c => c.id === deletedId) ? prev.filter(c => c.id !== deletedId) : prev,
+        )
+      })
+      .subscribe()
+    return () => {
+      channels.forEach((ch) => supabase.removeChannel(ch))
+      supabase.removeChannel(deleteChannel)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgIdsKey])
 
@@ -481,38 +483,39 @@ export function DashboardClient({
   // changes from every side of «Alle CalWin».
   useEffect(() => {
     const supabase = createClient()
+    const upsertHandler = (payload: { new: unknown }) => {
+      const upserted = payload.new as Member
+      if (!upserted?.id) return
+      setMembers(prev => {
+        const without = prev.filter(m => m.id !== upserted.id)
+        if (!upserted.is_active || upserted.hidden_from_overview) return without
+        return [...without, upserted].sort((a, b) =>
+          (a.display_name ?? '').localeCompare(b.display_name ?? '')
+        )
+      })
+    }
     const channels = orgIds.map((id) =>
       supabase
         .channel(`members:org:${id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'members',
-            filter: `org_id=eq.${id}`,
-          },
-          (payload) => {
-            if (payload.eventType === 'DELETE') {
-              const deleted = payload.old as Partial<Member>
-              if (!deleted.id) return
-              setMembers(prev => prev.filter(m => m.id !== deleted.id))
-              return
-            }
-            const upserted = payload.new as Member
-            if (!upserted?.id) return
-            setMembers(prev => {
-              const without = prev.filter(m => m.id !== upserted.id)
-              if (!upserted.is_active || upserted.hidden_from_overview) return without
-              return [...without, upserted].sort((a, b) =>
-                (a.display_name ?? '').localeCompare(b.display_name ?? '')
-              )
-            })
-          }
-        )
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'members', filter: `org_id=eq.${id}` }, upsertHandler)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'members', filter: `org_id=eq.${id}` }, upsertHandler)
         .subscribe()
     )
-    return () => { channels.forEach((ch) => supabase.removeChannel(ch)) }
+    // Ufiltrert DELETE — se use-entries.
+    const deleteChannel = supabase
+      .channel(`dashboard-members:deletes:${orgIdsKey}`)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'members' }, (payload) => {
+        const deletedId = (payload.old as Partial<Member>)?.id
+        if (!deletedId) return
+        setMembers(prev =>
+          prev.some(m => m.id === deletedId) ? prev.filter(m => m.id !== deletedId) : prev,
+        )
+      })
+      .subscribe()
+    return () => {
+      channels.forEach((ch) => supabase.removeChannel(ch))
+      supabase.removeChannel(deleteChannel)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgIdsKey])
 
