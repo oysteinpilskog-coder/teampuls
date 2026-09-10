@@ -189,35 +189,52 @@ export function WelcomeClient({
     const channelName = orgIds.length === 1
       ? `settings-visits:org:${orgIds[0]}`
       : `settings-visits:all:${orgIds.slice().sort().join(',')}`
+    const upsertHandler = (payload: { new: unknown }) => {
+      const upserted = payload.new as Visit
+      if (!upserted?.id) return
+      if (!orgSet.has(upserted.org_id)) return
+      const today = toDateString(new Date())
+      if (upserted.date < today) {
+        setVisits(prev => prev.filter(v => v.id !== upserted.id))
+        return
+      }
+      setVisits(prev => {
+        const without = prev.filter(v => v.id !== upserted.id)
+        return [...without, upserted].sort((a, b) => {
+          if (a.date !== b.date) return a.date.localeCompare(b.date)
+          return (a.start_time ?? '').localeCompare(b.start_time ?? '')
+        })
+      })
+    }
+    // DELETE går alltid ufiltrert: «old»-raden inneholder kun id under
+    // REPLICA IDENTITY DEFAULT, så `org_id=eq.X` matcher aldri og et
+    // slettet besøk ble stående i lista. Id-treff mot lokal state er
+    // filteret — vi holder bare våre egne org-er sine id-er.
     const channel = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
         filter
-          ? { event: '*', schema: 'public', table: 'visits', filter }
-          : { event: '*', schema: 'public', table: 'visits' },
+          ? { event: 'INSERT', schema: 'public', table: 'visits', filter }
+          : { event: 'INSERT', schema: 'public', table: 'visits' },
+        upsertHandler,
+      )
+      .on(
+        'postgres_changes',
+        filter
+          ? { event: 'UPDATE', schema: 'public', table: 'visits', filter }
+          : { event: 'UPDATE', schema: 'public', table: 'visits' },
+        upsertHandler,
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'visits' },
         (payload) => {
-          if (payload.eventType === 'DELETE') {
-            const deleted = payload.old as Partial<Visit>
-            if (!deleted.id) return
-            setVisits(prev => prev.filter(v => v.id !== deleted.id))
-            return
-          }
-          const upserted = payload.new as Visit
-          if (!upserted?.id) return
-          if (!orgSet.has(upserted.org_id)) return
-          const today = toDateString(new Date())
-          if (upserted.date < today) {
-            setVisits(prev => prev.filter(v => v.id !== upserted.id))
-            return
-          }
-          setVisits(prev => {
-            const without = prev.filter(v => v.id !== upserted.id)
-            return [...without, upserted].sort((a, b) => {
-              if (a.date !== b.date) return a.date.localeCompare(b.date)
-              return (a.start_time ?? '').localeCompare(b.start_time ?? '')
-            })
-          })
+          const deletedId = (payload.old as Partial<Visit>)?.id
+          if (!deletedId) return
+          setVisits(prev =>
+            prev.some(v => v.id === deletedId) ? prev.filter(v => v.id !== deletedId) : prev,
+          )
         },
       )
       .subscribe()

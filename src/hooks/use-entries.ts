@@ -15,6 +15,21 @@ export type EntryChangeDetail = {
   deletedIds?: string[]
 }
 
+/** Intervall for den stille reconciliation-runden mot serveren. */
+const RECONCILE_MS = 5 * 60 * 1000
+
+/**
+ * Rad-for-rad-likhet på (id, updated_at) — nok til å avgjøre om et refetch
+ * ga noe nytt. Rekkefølgen fra PostgREST er ikke garantert stabil, så vi
+ * sammenligner sorterte nøkler, ikke posisjoner.
+ */
+function sameRows(a: Entry[], b: Entry[]): boolean {
+  if (a.length !== b.length) return false
+  const key = (rows: Entry[]) =>
+    rows.map(r => `${r.id}|${r.updated_at}`).sort().join(',')
+  return key(a) === key(b)
+}
+
 /** Helper so dispatchers don't have to reconstruct the event shape. */
 export function dispatchEntriesChanged(detail?: EntryChangeDetail) {
   if (typeof window === 'undefined') return
@@ -77,7 +92,12 @@ export function useEntries(
       .select('*')
       .in('org_id', orgIds)
       .in('date', dateStrings)
-    setEntries(data ?? [])
+    const next = data ?? []
+    // Behold forrige referanse når radene er identiske. Den stille
+    // reconciliation-en under fyrer hvert 5. minutt på en TV som ellers
+    // ikke endrer seg — uten denne sjekken ville hver runde tvinge nye
+    // memo-beregninger og re-render av hele dashbord-treet for ingenting.
+    setEntries(prev => (sameRows(prev, next) ? prev : next))
     setLoading(false)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgIdsKey, dateStringsKey])
@@ -153,37 +173,40 @@ export function useEntries(
       return
     }
     const supabase = createClient()
+    const upsertHandler = (payload: { new: unknown }) => {
+      const upserted = payload.new as Entry
+      if (!upserted?.date || !dateStringsRef.current.includes(upserted.date)) return
+      setEntries(prev => {
+        const without = prev.filter(e => e.id !== upserted.id)
+        return [...without, upserted]
+      })
+    }
     const channels = orgIds.map((id) =>
       supabase
         .channel(`entries:org:${id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'entries',
-            filter: `org_id=eq.${id}`,
-          },
-          (payload) => {
-            // DELETE: payload.old may only contain the primary key when the
-            // table uses the default REPLICA IDENTITY, so fall back to removing
-            // by id alone and skip the date-window check.
-            if (payload.eventType === 'DELETE') {
-              const deleted = payload.old as Partial<Entry>
-              if (!deleted.id) return
-              setEntries(prev => prev.filter(e => e.id !== deleted.id))
-              return
-            }
-            const upserted = payload.new as Entry
-            if (!upserted?.date || !dateStringsRef.current.includes(upserted.date)) return
-            setEntries(prev => {
-              const without = prev.filter(e => e.id !== upserted.id)
-              return [...without, upserted]
-            })
-          }
-        )
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'entries', filter: `org_id=eq.${id}` }, upsertHandler)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'entries', filter: `org_id=eq.${id}` }, upsertHandler)
         .subscribe(),
     )
+    // DELETE må stå på en EGEN, ufiltrert kanal — samme grep som
+    // use-events/use-team-members. Med REPLICA IDENTITY DEFAULT inneholder
+    // «old»-raden kun primærnøkkelen, så et server-side `org_id=eq.X`-filter
+    // matcher aldri og hendelsen droppes i stillhet. Resultatet var en kiosk
+    // som ble stående med en slettet ferie i dagevis (fanen er alltid synlig,
+    // så visibility-catch-up-en fyrte aldri, og date-vinduet endrer seg først
+    // ved ukeskifte). Vi abonnerer globalt og lar id-treff mot lokal state
+    // være filteret — vi holder bare vårt eget scope sine id-er, og fremmede
+    // slettinger blir en no-op som ikke engang trigger en re-render.
+    const deleteChannel = supabase
+      .channel(`entries:deletes:${orgIdsKey}`)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'entries' }, (payload) => {
+        const deletedId = (payload.old as Partial<Entry>)?.id
+        if (!deletedId) return
+        setEntries(prev =>
+          prev.some(e => e.id === deletedId) ? prev.filter(e => e.id !== deletedId) : prev,
+        )
+      })
+      .subscribe()
     // Fire a one-shot catch-up only when resuming from a hidden state;
     // the initial-mount fetch is handled by the fetch effect above.
     if (wasHiddenRef.current) {
@@ -193,9 +216,23 @@ export function useEntries(
 
     return () => {
       channels.forEach((ch) => supabase.removeChannel(ch))
+      supabase.removeChannel(deleteChannel)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgIdsKey, visible, fetchEntries])
+
+  // Stille reconciliation for alltid-på-flater. En kiosk står med samme
+  // uke i dagevis: fanen er alltid synlig, så visibility-catch-up-en fyrer
+  // aldri, og date-vinduet er uendret til uken ruller. Faller websocket-en
+  // ut uten at klienten merker det (wifi-glitch, proxy som dreper idle
+  // sockets), er det ingenting som henter sannheten tilbake. Et refetch
+  // hvert 5. minutt lukker det gapet; `sameRows` gjør runden gratis når
+  // ingenting er endret.
+  useEffect(() => {
+    if (!visible) return
+    const id = setInterval(() => { fetchEntries() }, RECONCILE_MS)
+    return () => clearInterval(id)
+  }, [visible, fetchEntries])
 
   /**
    * Apply an in-memory update to the entries list without touching the DB.

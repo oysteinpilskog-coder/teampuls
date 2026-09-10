@@ -119,46 +119,49 @@ export function useTodaysVisits(
       return
     }
     const supabase = createClient()
+    const upsertHandler = (payload: { new: unknown }) => {
+      const upserted = payload.new as Visit
+      if (!upserted?.id) return
+      // Filtrer bort besøk som ikke er for i dag — historikk og
+      // fremtidige dager er ikke aktuelle for hverken TV eller rail.
+      const today = toDateString(new Date())
+      if (upserted.date !== today) {
+        setVisits(prev => prev.filter(v => v.id !== upserted.id))
+        return
+      }
+      setVisits(prev => {
+        const without = prev.filter(v => v.id !== upserted.id)
+        return [...without, upserted].sort(compareByStart)
+      })
+    }
     const channels = orgIds.map((id) =>
       supabase
         .channel(`visits:org:${id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'visits',
-            filter: `org_id=eq.${id}`,
-          },
-          (payload) => {
-            if (payload.eventType === 'DELETE') {
-              const deleted = payload.old as Partial<Visit>
-              if (!deleted.id) return
-              setVisits(prev => prev.filter(v => v.id !== deleted.id))
-              return
-            }
-            const upserted = payload.new as Visit
-            if (!upserted?.id) return
-            // Filtrer bort besøk som ikke er for i dag — historikk og
-            // fremtidige dager er ikke aktuelle for hverken TV eller rail.
-            const today = toDateString(new Date())
-            if (upserted.date !== today) {
-              setVisits(prev => prev.filter(v => v.id !== upserted.id))
-              return
-            }
-            setVisits(prev => {
-              const without = prev.filter(v => v.id !== upserted.id)
-              return [...without, upserted].sort(compareByStart)
-            })
-          }
-        )
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'visits', filter: `org_id=eq.${id}` }, upsertHandler)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'visits', filter: `org_id=eq.${id}` }, upsertHandler)
         .subscribe(),
     )
+    // Ufiltrert DELETE — se use-entries: org-filteret matcher aldri en
+    // slettet rad, så et avlyst besøk ble stående på TV-en til neste
+    // reload. Id-treff mot lokal state er filteret vårt.
+    const deleteChannel = supabase
+      .channel(`visits:deletes:${orgIdsKey}`)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'visits' }, (payload) => {
+        const deletedId = (payload.old as Partial<Visit>)?.id
+        if (!deletedId) return
+        setVisits(prev =>
+          prev.some(v => v.id === deletedId) ? prev.filter(v => v.id !== deletedId) : prev,
+        )
+      })
+      .subscribe()
     if (wasHiddenRef.current) {
       wasHiddenRef.current = false
       fetchToday()
     }
-    return () => { channels.forEach((ch) => supabase.removeChannel(ch)) }
+    return () => {
+      channels.forEach((ch) => supabase.removeChannel(ch))
+      supabase.removeChannel(deleteChannel)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgIdsKey, visible, fetchToday])
 

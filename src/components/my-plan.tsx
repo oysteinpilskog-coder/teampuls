@@ -294,47 +294,50 @@ export function MyPlan({
     }
 
     const supabase = createClient()
+    // Patch state directly instead of full refetch — `loadEntries()`
+    // re-pulls every entry in the visible year (potentially 365 rows)
+    // for every realtime event, including ones we just wrote
+    // ourselves. Patching keeps it to a single state update.
+    const upsertHandler = (payload: { new: unknown }) => {
+      if (!active) return
+      const upserted = payload.new as Entry
+      if (!upserted?.id) return
+      // Drop entries that fell outside the visible year window — happens
+      // when the user reschedules across a year boundary in another tab.
+      if (upserted.date < rangeStart || upserted.date > rangeEnd) {
+        setEntries(prev => prev.filter(e => e.id !== upserted.id))
+        return
+      }
+      setEntries(prev => {
+        const without = prev.filter(e => e.id !== upserted.id)
+        return [...without, upserted]
+      })
+    }
     const channel = supabase
       .channel(`my-plan:${memberId}:${year}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'entries',
-          filter: `member_id=eq.${memberId}`,
-        },
-        (payload) => {
-          if (!active) return
-          // Patch state directly instead of full refetch — `loadEntries()`
-          // re-pulls every entry in the visible year (potentially 365 rows)
-          // for every realtime event, including ones we just wrote
-          // ourselves. Patching keeps it to a single state update.
-          if (payload.eventType === 'DELETE') {
-            const deleted = payload.old as Partial<Entry>
-            if (!deleted.id) return
-            setEntries(prev => prev.filter(e => e.id !== deleted.id))
-            return
-          }
-          const upserted = payload.new as Entry
-          if (!upserted?.id) return
-          // Drop entries that fell outside the visible year window — happens
-          // when the user reschedules across a year boundary in another tab.
-          if (upserted.date < rangeStart || upserted.date > rangeEnd) {
-            setEntries(prev => prev.filter(e => e.id !== upserted.id))
-            return
-          }
-          setEntries(prev => {
-            const without = prev.filter(e => e.id !== upserted.id)
-            return [...without, upserted]
-          })
-        }
-      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'entries', filter: `member_id=eq.${memberId}` }, upsertHandler)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'entries', filter: `member_id=eq.${memberId}` }, upsertHandler)
+      .subscribe()
+    // Ufiltrert DELETE — se use-entries: «old»-raden har bare id under
+    // REPLICA IDENTITY DEFAULT, så `member_id=eq.X` matcher aldri og en
+    // slettet dag ble hengende igjen i årsplanen. Id-treff mot lokal state
+    // er filteret; andres slettinger er en no-op.
+    const deleteChannel = supabase
+      .channel(`my-plan:deletes:${memberId}:${year}`)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'entries' }, (payload) => {
+        if (!active) return
+        const deletedId = (payload.old as Partial<Entry>)?.id
+        if (!deletedId) return
+        setEntries(prev =>
+          prev.some(e => e.id === deletedId) ? prev.filter(e => e.id !== deletedId) : prev,
+        )
+      })
       .subscribe()
 
     return () => {
       active = false
       supabase.removeChannel(channel)
+      supabase.removeChannel(deleteChannel)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadEntries, memberId, year])
