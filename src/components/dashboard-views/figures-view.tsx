@@ -216,7 +216,7 @@ function FiguresViewImpl({
             to kortene deler høyden proporsjonalt med antall rader, og radene
             fordeles jevnt innenfor hvert kort, så rad-rytmen blir den samme
             i begge to. Det er den symmetrien øyet leter etter. */}
-        <div className="flex flex-col gap-5 min-h-0 pb-[64px]">
+        <div className="flex flex-col gap-3 min-h-0 pb-10">
           <CountryBreakdown
             title={f.customerBase}
             rows={c.byCountry}
@@ -681,10 +681,13 @@ function CountryBreakdown({
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ ...spring.gentle, delay }}
-      className="rounded-2xl p-5 flex flex-col gap-3 relative overflow-hidden min-h-0"
+      // Basis = innholdets egen høyde, og ingen krymping: kortet kan aldri
+      // bli lavere enn radene sine. Med basis 0 + min-h-0 klippet det før
+      // de nederste landene (Polen, USA) og lot bunnteksten skli inn over
+      // siste rad. Overskuddshøyden fordeles fortsatt etter antall rader.
+      className="rounded-2xl px-5 py-3.5 flex flex-col gap-2 relative"
       style={{
-        flexGrow: Math.max(rows.length, 1),
-        flexBasis: 0,
+        flex: `${Math.max(rows.length, 1)} 0 auto`,
         background:
           'linear-gradient(155deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)',
         border: '1px solid rgba(255,255,255,0.1)',
@@ -692,14 +695,17 @@ function CountryBreakdown({
           'inset 0 1px 0 rgba(255,255,255,0.08), 0 20px 40px -20px rgba(0,0,0,0.5)',
       }}
     >
-      <div
-        aria-hidden
-        className="absolute -top-16 -right-16 w-40 h-40 rounded-full pointer-events-none"
-        style={{
-          background: `radial-gradient(circle, ${color}44 0%, transparent 70%)`,
-          filter: 'blur(18px)',
-        }}
-      />
+      {/* Gløden klippes av sin egen ramme — overflow-hidden på selve kortet
+          ville gjort min-height 0 og latt flex klemme innholdet igjen. */}
+      <div aria-hidden className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
+        <div
+          className="absolute -top-16 -right-16 w-40 h-40 rounded-full"
+          style={{
+            background: `radial-gradient(circle, ${color}44 0%, transparent 70%)`,
+            filter: 'blur(18px)',
+          }}
+        />
+      </div>
 
       <div className="flex items-baseline justify-between relative flex-shrink-0">
         <h3
@@ -716,7 +722,7 @@ function CountryBreakdown({
         </span>
       </div>
 
-      <div className="relative flex-1 flex flex-col justify-around min-h-0 py-1">
+      <div className="relative flex-1 flex flex-col justify-around gap-1">
         {rows.map((row, i) => (
           <CountryRow
             key={row.code}
