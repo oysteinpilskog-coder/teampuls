@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Award, Building2, Cake, Globe2, Languages, MapPin, Star, Users } from 'lucide-react'
+import { Award, Building2, Cake, Globe2, Hourglass, Languages, MapPin, Rocket, Star, Users } from 'lucide-react'
 import { BreathingDot } from '@/components/breathing-dot'
 import { AnimatedCount } from './animated-count'
 import { useStatusColors } from '@/lib/status-colors/context'
@@ -40,7 +40,7 @@ interface FiguresViewProps {
  * the same line instead of the hero pushing one column down:
  *
  *   ┌ tenure hero ─────────────────────────┬ celebrations ┐
- *   ├ six stat cards (3 × 2) ──────────────┼ two ranked country lists ┤
+ *   ├ eight stat cards (4 × 2) ────────────┼ two ranked country lists ┤
  *
  * Every card fills itself: a header row pinned to the top, the number
  * owning the middle, and a share bar + caption pinned to the bottom. An
@@ -122,8 +122,8 @@ function FiguresViewImpl({
       <TenureBand figures={figures} labels={f} locale={intlLocale} />
 
       {/* ── Band 2: stat grid left, ranked country lists right ───────── */}
-      <div className="flex-1 grid grid-cols-[1.04fr_0.96fr] gap-5 min-h-0">
-        <div className="grid grid-cols-3 grid-rows-2 gap-4 min-h-0">
+      <div className="flex-1 grid grid-cols-[1.32fr_0.68fr] gap-5 min-h-0">
+        <div className="grid grid-cols-4 grid-rows-2 gap-4 min-h-0">
           <StatCard
             delay={0.30}
             value={c.total}
@@ -152,6 +152,18 @@ function FiguresViewImpl({
             share={share(c.uk, c.total)}
             accent={customerColor}
             code="GB"
+          />
+          {/* CalWin-migreringen får sin egen kolonne: 7 øverst, 8 under.
+              De to summerer alltid til totalen, så 7-kortet teller ned og
+              8-kortet teller opp mot 100 % etter hvert som kundene flyttes. */}
+          <StatCard
+            delay={0.43}
+            value={c.calwin7}
+            label="CalWin 7"
+            caption={shareCaption(c.calwin7, c.total, f.calwin7Hint)}
+            share={share(c.calwin7, c.total)}
+            accent={CALWIN7_COLOR}
+            icon={<Hourglass className="w-4 h-4" strokeWidth={2} />}
           />
           {/* Teamet deles på nøyaktig samme UK/Nordic-akse som kundene, så
               de to radene leses som to par. */}
@@ -188,6 +200,15 @@ function FiguresViewImpl({
                 ))}
               </div>
             }
+          />
+          <StatCard
+            delay={0.58}
+            value={c.calwin8}
+            label="CalWin 8"
+            caption={shareCaption(c.calwin8, c.total, f.calwin8Hint)}
+            share={share(c.calwin8, c.total)}
+            accent={CALWIN8_COLOR}
+            icon={<Rocket className="w-4 h-4" strokeWidth={2} />}
           />
         </div>
 
@@ -227,6 +248,11 @@ function FiguresViewImpl({
     </div>
   )
 }
+
+/** Hex, not CSS vars — StatCard appends alpha to the accent for its glow.
+ *  Muted amber for «still to do», teal for «done». */
+const CALWIN7_COLOR = '#C9A26B'
+const CALWIN8_COLOR = '#5EC8A8'
 
 function share(value: number, total: number): number | undefined {
   return total > 0 ? value / total : undefined

@@ -390,6 +390,8 @@ export const lt: Dictionary = {
       countriesHint: '{offices} biurai · {timezones} laiko juostos',
       ofPortfolio: '{pct} % portfelio',
       ofTeam: 'iš {total} komandoje',
+      calwin7Hint: 'liko {pct} %',
+      calwin8Hint: 'perkelta {pct} %',
       customerBase: 'Klientų bazė pagal šalį',
       teamByCountry: 'Komanda pagal šalį',
       unknownCountry: 'Nenurodyta',
@@ -876,6 +878,8 @@ export const lt: Dictionary = {
       errorNeedCountrySave: 'Pasirink šalį prieš saugodamas — kitaip žemėlapis atspės neteisingą miestą',
       errorNeedCoords: 'Klientą reikia patalpinti žemėlapyje prieš saugant',
       coordsRequiredHint: 'Spausk „Rasti žemėlapyje", kad patalpintum klientą',
+      calwinVersion: 'CalWin versija',
+      calwinHint: 'visi pereis į 8',
     },
     language: {
       title: 'Kalba',

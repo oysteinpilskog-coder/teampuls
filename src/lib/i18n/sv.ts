@@ -390,6 +390,8 @@ export const sv: Dictionary = {
       countriesHint: '{offices} kontor · {timezones} tidszoner',
       ofPortfolio: '{pct} % av portföljen',
       ofTeam: 'av {total} i teamet',
+      calwin7Hint: '{pct} % återstår',
+      calwin8Hint: '{pct} % migrerade',
       customerBase: 'Kundbasen per land',
       teamByCountry: 'Teamet per land',
       unknownCountry: 'Oplacerad',
@@ -876,6 +878,8 @@ export const sv: Dictionary = {
       errorNeedCountrySave: 'Välj land innan du sparar — annars gissar kartan fel stad',
       errorNeedCoords: 'Kunden måste placeras på kartan innan du kan spara',
       coordsRequiredHint: 'Tryck "Hitta på kartan" för att placera kunden',
+      calwinVersion: 'CalWin-version',
+      calwinHint: 'alla ska över till 8',
     },
     language: {
       title: 'Språk',

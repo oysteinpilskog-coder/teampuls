@@ -95,6 +95,7 @@ const customers: Customer[] = CUSTOMER_COUNTRIES.flatMap(([cc, n]) =>
     longitude: null,
     aliases: [],
     notes: null,
+    calwin_version: (i % 3 === 0 ? 8 : 7) as 7 | 8,
     sort_order: i,
     created_at: '2020-01-01T00:00:00Z',
     updated_at: '2020-01-01T00:00:00Z',

@@ -390,6 +390,8 @@ export const es: Dictionary = {
       countriesHint: '{offices} oficinas · {timezones} zonas horarias',
       ofPortfolio: '{pct} % de la cartera',
       ofTeam: 'de {total} en el equipo',
+      calwin7Hint: '{pct} % pendiente',
+      calwin8Hint: '{pct} % migrado',
       customerBase: 'Cartera de clientes por país',
       teamByCountry: 'Equipo por país',
       unknownCountry: 'Sin ubicar',
@@ -876,6 +878,8 @@ export const es: Dictionary = {
       errorNeedCountrySave: 'Elige país antes de guardar — si no, el mapa adivina mal la ciudad',
       errorNeedCoords: 'El cliente debe ubicarse en el mapa antes de guardar',
       coordsRequiredHint: 'Pulsa "Buscar en el mapa" para ubicar al cliente',
+      calwinVersion: 'Versión de CalWin',
+      calwinHint: 'todos pasan a la 8',
     },
     language: {
       title: 'Idioma',
