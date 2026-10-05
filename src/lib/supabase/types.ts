@@ -202,10 +202,15 @@ export interface Customer {
   longitude: number | null
   aliases: string[]
   notes: string | null
+  /** Which CalWin the customer runs. Everyone moves from 7 to 8 over
+   *  time; Nøkkeltall tracks the migration. Defaults to 7 (migration 043). */
+  calwin_version: CalwinVersion
   sort_order: number
   created_at: string
   updated_at: string
 }
+
+export type CalwinVersion = 7 | 8
 
 export interface Member {
   id: string

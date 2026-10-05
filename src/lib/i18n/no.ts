@@ -394,6 +394,8 @@ export const no = {
       countriesHint: '{offices} kontorer · {timezones} tidssoner',
       ofPortfolio: '{pct} % av porteføljen',
       ofTeam: 'av {total} i teamet',
+      calwin7Hint: '{pct} % gjenstår',
+      calwin8Hint: '{pct} % migrert',
       customerBase: 'Kundebasen per land',
       teamByCountry: 'Teamet per land',
       unknownCountry: 'Uplassert',
@@ -880,6 +882,8 @@ export const no = {
       errorNeedCountrySave: 'Velg land før du lagrer — ellers gjetter kartet feil by',
       errorNeedCoords: 'Kunden må plasseres på kartet før du kan lagre',
       coordsRequiredHint: 'Trykk "Finn på kart" for å plassere kunden',
+      calwinVersion: 'CalWin-versjon',
+      calwinHint: 'alle skal over til 8',
     },
     language: {
       title: 'Språk',

@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, X, Briefcase, Sparkles, Check, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { geocode } from '@/lib/geocode-client'
-import type { Customer, WorkspaceSummary } from '@/lib/supabase/types'
+import type { CalwinVersion, Customer, WorkspaceSummary } from '@/lib/supabase/types'
 import { spring } from '@/lib/motion'
 import { useT } from '@/lib/i18n/context'
 import { CountryCombobox } from '@/components/ui/country-combobox'
@@ -52,6 +52,7 @@ interface CustomerFormState {
   latitude: string
   longitude: string
   target_org_id: string
+  calwin_version: CalwinVersion
 }
 
 function emptyForm(defaultOrgId: string): CustomerFormState {
@@ -66,6 +67,7 @@ function emptyForm(defaultOrgId: string): CustomerFormState {
     latitude: '',
     longitude: '',
     target_org_id: defaultOrgId,
+    calwin_version: 7,
   }
 }
 
@@ -129,6 +131,7 @@ export function CustomersClient({
       latitude: c.latitude?.toString() ?? '',
       longitude: c.longitude?.toString() ?? '',
       target_org_id: c.org_id,
+      calwin_version: c.calwin_version === 8 ? 8 : 7,
     })
     setEditTarget(c)
     setGeo(c.latitude != null && c.longitude != null
@@ -157,7 +160,7 @@ export function CustomersClient({
     !saving &&
     (placedOnMap || canGeocodeFromForm)
 
-  function updateForm<K extends keyof CustomerFormState>(key: K, value: string) {
+  function updateForm<K extends Exclude<keyof CustomerFormState, 'calwin_version'>>(key: K, value: string) {
     setForm(f => ({ ...f, [key]: value }))
     if (['address', 'postal_code', 'city', 'country_code'].includes(key)) {
       setGeo(s => s.state === 'done' ? { state: 'idle' } : s)
@@ -257,6 +260,7 @@ export function CustomersClient({
       notes: form.notes.trim() || null,
       latitude: lat,
       longitude: lng,
+      calwin_version: form.calwin_version,
     }
 
     if (modalMode === 'edit' && editTarget) {
@@ -295,6 +299,23 @@ export function CustomersClient({
       setCustomers(prev => prev.map(c => c.id === tempId ? (data as Customer) : c))
       router.refresh()
     }
+  }
+
+  // Ett klikk på versjonsmerket i listen flipper 7 ↔ 8 — å merke 75 kunder
+  // gjennom redigeringsdialogen én og én ville vært unødvendig tungvint.
+  async function toggleCalwin(customer: Customer) {
+    const next: CalwinVersion = customer.calwin_version === 8 ? 7 : 8
+    setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, calwin_version: next } : c))
+    const { error } = await createClient()
+      .from('customers')
+      .update({ calwin_version: next })
+      .eq('id', customer.id)
+    if (error) {
+      setCustomers(prev => prev.map(c => c.id === customer.id ? { ...c, calwin_version: customer.calwin_version } : c))
+      toast.error(t.common.errorShort)
+      return
+    }
+    router.refresh()
   }
 
   async function handleDelete(id: string) {
@@ -395,6 +416,12 @@ export function CustomersClient({
                     {customer.country_code ? ` · ${customer.country_code}` : ''}
                   </p>
                 </div>
+
+                <CalwinBadge
+                  version={customer.calwin_version === 8 ? 8 : 7}
+                  onClick={() => toggleCalwin(customer)}
+                  title={`${t.settings.customers.calwinVersion} · ${t.settings.customers.calwinHint}`}
+                />
 
                 <span
                   className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider shrink-0"
@@ -595,6 +622,38 @@ export function CustomersClient({
                       onChange={code => updateForm('country_code', code)}
                       ariaLabel="Velg land"
                     />
+                  </CustomerField>
+                </div>
+
+                <div className="col-span-6">
+                  <CustomerField
+                    label={t.settings.customers.calwinVersion}
+                    hint={t.settings.customers.calwinHint}
+                  >
+                    <div className="flex gap-2">
+                      {([7, 8] as const).map(v => {
+                        const selected = form.calwin_version === v
+                        const color = v === 8 ? CALWIN8_COLOR : CALWIN7_COLOR
+                        return (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => setForm(f => ({ ...f, calwin_version: v }))}
+                            className="flex-1 px-3 py-2 rounded-xl text-[13px] font-semibold transition-all"
+                            style={{
+                              backgroundColor: selected
+                                ? `color-mix(in oklab, ${color} 16%, transparent)`
+                                : 'var(--bg-subtle)',
+                              color: selected ? color : 'var(--text-secondary)',
+                              border: `1.5px solid ${selected ? color : 'transparent'}`,
+                              fontFamily: 'var(--font-body)',
+                            }}
+                          >
+                            CalWin {v}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </CustomerField>
                 </div>
 
@@ -818,6 +877,38 @@ export function CustomersClient({
         )}
       </AnimatePresence>
     </div>
+  )
+}
+
+// Samme fargepar som CalWin-kortene på Nøkkeltall: dempet rav for «gjenstår»,
+// teal for «migrert». Mørkere toner her fordi innstillinger også har lyst tema.
+const CALWIN7_COLOR = '#B07D2E'
+const CALWIN8_COLOR = '#1F9E7A'
+
+function CalwinBadge({
+  version,
+  onClick,
+  title,
+}: {
+  version: CalwinVersion
+  onClick: () => void
+  title: string
+}) {
+  const color = version === 8 ? CALWIN8_COLOR : CALWIN7_COLOR
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider shrink-0 tabular-nums transition-opacity hover:opacity-80"
+      style={{
+        backgroundColor: `color-mix(in oklab, ${color} 12%, transparent)`,
+        color,
+        fontFamily: 'var(--font-body)',
+      }}
+    >
+      CalWin {version}
+    </button>
   )
 }
 

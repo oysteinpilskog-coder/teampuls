@@ -80,6 +80,11 @@ export interface OrgFigures {
     countries: number
     /** Customers with no country_code — a small data-quality signal. */
     unplaced: number
+    /** Still on CalWin 7. Anything not explicitly marked 8 counts here —
+     *  including rows read before migration 043 added the column. */
+    calwin7: number
+    /** Migrated to CalWin 8. calwin7 + calwin8 always equals total. */
+    calwin8: number
   }
   offices: {
     total: number
@@ -184,6 +189,7 @@ export function computeOrgFigures(
   const customerCodes = customers.map(c => normalizeCode(c.country_code))
   const customersByCountry = tally(customerCodes)
   const customerUkDept = customerCodes.filter(c => UK_COUNTRY_CODES.has(c)).length
+  const calwin8 = customers.filter(c => c.calwin_version === 8).length
 
   // ── Tenure ──────────────────────────────────────────────────────────
   // Aggregate totals count everyone with a start_date: a sum reveals no
@@ -257,6 +263,8 @@ export function computeOrgFigures(
       byCountry: customersByCountry,
       countries: countKnown(customersByCountry),
       unplaced: customerCodes.filter(c => c === UNKNOWN_COUNTRY).length,
+      calwin7: customers.length - calwin8,
+      calwin8,
     },
     offices: {
       total: offices.length,
